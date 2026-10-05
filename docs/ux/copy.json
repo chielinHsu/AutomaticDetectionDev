@@ -670,6 +670,66 @@
     "ui.preview.outOfScope": {
       "zh_TW": "{count} 個元件在整個樣本庫裡可能有符合的樣本（目前只比對板子已有的類型）。",
       "en": "{count} more parts may match a library sample. The scope is board types only."
+    },
+    "menu.file": {
+      "zh_TW": "檔案",
+      "en": "File"
+    },
+    "menu.edit": {
+      "zh_TW": "編輯",
+      "en": "Edit"
+    },
+    "menu.view": {
+      "zh_TW": "檢視",
+      "en": "View"
+    },
+    "menu.theme": {
+      "zh_TW": "主題",
+      "en": "Theme"
+    },
+    "menu.language": {
+      "zh_TW": "語言",
+      "en": "Language"
+    },
+    "menu.panels": {
+      "zh_TW": "面板",
+      "en": "Panels"
+    },
+    "action.quit": {
+      "zh_TW": "結束",
+      "en": "Quit"
+    },
+    "ui.shell.openTitle": {
+      "zh_TW": "開啟影像",
+      "en": "Open image"
+    },
+    "ui.shell.imageFilter": {
+      "zh_TW": "影像檔",
+      "en": "Image files"
+    },
+    "ui.shell.backendNone": {
+      "zh_TW": "尚未連接",
+      "en": "Not connected"
+    },
+    "ui.status.cursor": {
+      "zh_TW": "x {x}  y {y}",
+      "en": "x {x}  y {y}"
+    },
+    "ui.shell.regionDrawn": {
+      "zh_TW": "已框出區域 {w} × {h} px（搜尋尚未接上）",
+      "en": "Region {w} × {h} px drawn (the search is not connected yet)"
+    },
+    "ui.shell.addRequested": {
+      "zh_TW": "要在 ({x}, {y}) 補一個元件（尚未接上）",
+      "en": "Add a component at ({x}, {y}) (not connected yet)"
+    },
+    "ui.shell.openEditor": {
+      "zh_TW": "要開啟元件 {id} 的類型編輯器（尚未接上）",
+      "en": "Open the type editor of component {id} (not connected yet)"
+    },
+    "ui.shell.deleteRequested": {
+      "zh_TW": "要刪除所選的元件（尚未接上）",
+      "en": "Delete the selected components (not connected yet)"
     }
   }
 }

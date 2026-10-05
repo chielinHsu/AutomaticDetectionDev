@@ -6,6 +6,7 @@
 
 | 日期 | 修改者 | 說明 |
 |---|---|---|
+| 2026-10-05 | Claude Code (Claude Sonnet 5.5) | S02：補上「模組」表（`src/` 已建立）：domain 只有 `image_view.h`，presentation 有畫布、工具、shell、theme、i18n；說明 CMake target 如何表達依賴方向 |
 | 2026-10-05 | Claude Code (Claude Sonnet 5.5) | 把分層與依賴規則表從 `CLAUDE.md` 搬到這裡，內容未改 |
 | 2026-10-05 | 範本 | 建立 |
 
@@ -35,4 +36,14 @@ app ──► presentation ──► application ──► domain
 
 ## 模組
 
-`src/` 尚未建立（S02 起）。模組表在建立程式碼後補在這裡。
+目前（S02）`src/` 有三層的程式碼；`application` 與 `infrastructure` 從 S03 起才有。依賴方向由 CMake 的 `target_link_libraries` 表達，違規的 `#include` 由 `tools/check-deps.mjs`（S03）擋下。
+
+| CMake target | 目錄 | 層 | 內容 | 依賴 |
+|---|---|---|---|---|
+| `aoi_domain`（INTERFACE） | `src/domain/` | domain | `image_view.h`：`ImageView`（不擁有資料的 view＋共享擁有者，最小版；S03／S06 定案所有權規則） | 標準庫 |
+| `aoi_presentation`（STATIC） | `src/presentation/` | presentation | `canvas/`：`ImageCanvas`（`QGraphicsView`）、`ImageItem`、`RoiLayerItem`（批次繪製）、`RoiGraphicsItem`、`BoxFrames`、`OverlayStyle`、View／Controller 介面；`tools/`：`ITool`、`ToolRegistry`、四個工具；`shell/`：`MainWindow`、`MessageBar`、`EmptyCard`、`ShellController`（S04 前的暫代）、`ImageLoader`（S06 前的暫代）；`theme/`：`ThemeTokens`、`ThemeManager`；`i18n/`：`JsonTranslator`、`Translations` | `aoi_domain`、Qt Widgets |
+| `aoi_presentation_dev`（STATIC） | `src/presentation/dev/` | （開發用） | `FakeScene`：合成板子與框，供測試、效能量測與 `--demo` 使用；不是產品功能 | `aoi_presentation` |
+| `aoi`（EXECUTABLE） | `src/app/` | app | `main.cpp`：組裝（主題、語言、視窗、命令列） | `aoi_presentation`（`AOI_DEMO_SCENE` 開啟時加 `aoi_presentation_dev`） |
+| `tst_*`、`perf_*` | `tests/ui/` | （測試） | Qt Test；單元測試與效能基準線 | `aoi_presentation`、`aoi_presentation_dev` |
+
+畫布的設計細節（為什麼分 Item／Layer／Tool、為什麼用整數像素的填色矩形畫框）見 [`docs/steps/S02-ui-shell/spec.md`](steps/S02-ui-shell/spec.md) 與 [`diagram.md`](steps/S02-ui-shell/diagram.md)。

@@ -19,33 +19,43 @@ AOI 教學工具：使用者在影像上框一個樣本 ROI → 程式找出相�
 
 | 層 | 技術 | 版本／備註 |
 |---|---|---|
-| 語言 | C++ | `domain` 層只用標準庫，見 `docs/architecture.md` |
-| UI | Qt Widgets（預設）＋ QGraphicsView | 與 QML 的取捨由 S01 的 ADR-001 定案 |
-| 建置 | CMake ＋ Ninja | S02 建立 `CMakeLists.txt` 與 `CMakePresets.json` |
+| 語言 | C++20 | `domain` 層只用標準庫，見 `docs/architecture.md` |
+| UI | Qt Widgets ＋ QGraphicsView | ADR-001（已採用）；S02 起有程式 |
+| 建置 | CMake ＋ Ninja | `CMakeLists.txt`、`CMakePresets.json`（debug／release／relwithdebinfo）；自家程式碼 `/W4 /WX` |
 | 視覺 | OpenCV、HALCON | 只能在對應的 `infrastructure/backend_*` 使用 |
 | 測試 | Qt Test | ADR-003（S03 定案），以 CTest 執行 |
 | 工具腳本 | Node.js | `tools/*.mjs` |
 | 平台 | Windows 11、MSVC 2022 | 編譯器尚未驗證，見下表 |
 
-## 環境（Windows 11，本機實際探測結果）
+## 環境（Windows 11，本機實際探測結果；S02 於 2026-10-05 實際建置與執行驗證）
 
-| 項目 | 位置 |
-|---|---|
-| Qt 6.8.0 MSVC2022 64-bit | `D:\Qt\6.8.0\msvc2022_64` |
-| CMake / Ninja | `D:\Qt\Tools\CMake_64\bin` / `D:\Qt\Tools\Ninja` |
-| OpenCV (vc16) | `D:\opencv\opencv\build`（`OpenCVConfig.cmake` 在此） |
-| HALCON 24.11 Progress-Steady | `%HALCONROOT%` = `C:\Program Files\MVTec\HALCON-24.11-Progress-Steady` |
-| MSVC 2022 編譯器 | **尚未驗證**，S02 第一件事：確認 `vcvars64.bat` 可用 |
+| 項目 | 位置與版本 | 驗證 |
+|---|---|---|
+| Visual Studio 2022 Community 17.14.35 | `D:\VS2022`（用 `vswhere` 找，不寫死） | `cl` 19.44.35228（toolset 14.44.35207）。同一個 VS 還有 14.16、14.29、14.32 三個舊 toolset，**沒有使用** |
+| Qt 6.8.0 MSVC2022 64-bit | `D:\Qt\6.8.0\msvc2022_64` | 有 Widgets、Test、Gui、Core、Concurrent、Svg、LinguistTools 與 Debug 版程式庫；實際 configure、build、執行過 |
+| CMake / Ninja | `D:\Qt\Tools\CMake_64\bin`（3.30.5）/ `D:\Qt\Tools\Ninja`（1.12.1） | 實際使用 |
+| OpenCV 4.9.0 (vc16) | `D:\opencv\opencv\build`；**`OpenCV_DIR` 要指到 `D:\opencv\opencv\build\x64\vc16\lib`**（preset 已設）。指到 `build` 根目錄會失敗：根目錄的 `OpenCVConfig.cmake`（Windows Pack）找不到相容 MSVC 19.44 的二進位檔 | S02 實際跑過 `-DAOI_WITH_OPENCV=ON` 的 configure：找到 4.9.0。**沒有編進任何程式、沒有連結過**（vc16 的程式庫配 MSVC 2022 的 vc17 toolset 能不能連結，S07 才知道） |
+| HALCON 24.11 Progress-Steady | `%HALCONROOT%` = `C:\Program Files\MVTec\HALCON-24.11-Progress-Steady` | **只有 runtime**：有 `bin\x64-win64\halconcpp.dll` 與 `license\`，但**沒有 `include\` 與 `lib\`**（找不到 `HalconCpp.h` 與任何 `.lib`）。要在 S08 用 C++ 編譯，要先補裝開發元件；`-DAOI_WITH_HALCON=ON` 現在會在 configure 時明確失敗 |
 
+- **進入開發環境**：每個 PowerShell session 先 dot-source `. .\scripts\dev\env.ps1`（用 `vswhere` 找 VS、跑 `vcvars64.bat`、把 Qt／CMake／Ninja 放進 PATH）。路徑可用環境變數 `AOI_QT_ROOT`、`AOI_QT_TOOLS` 覆寫。Claude Code 的 PowerShell 工具**每次呼叫都是新的 shell**，所以每次呼叫都要重新 dot-source。
+- **建置要在 `env.ps1` 建立的環境裡做（configure 與 build 同一個）**：這台是繁中 Windows，`cl.exe` 的 `/showIncludes` 輸出是中文，而且這個 VS 只裝了 1028 繁中資源（`VSLANG=1033` 無效）。Ninja 靠這行中文前綴記錄標頭相依；前綴編碼取決於主控台字碼頁，configure 與 build 的字碼頁不同時（實測：從 Git Bash 啟動 `powershell.exe` 就會），相依記錄掉了，**只改標頭檔不會重新編譯**，輸出還會被亂碼洪水淹沒。`env.ps1` 會把字碼頁對齊系統 OEM 字碼頁。症狀出現時（亂碼洪水、改標頭沒反應）：刪掉 `build/<preset>` 重新 configure。
+- **路徑長度**：Windows 預設路徑上限 260 字元。建置目錄放在 repo 內的 `build/<preset>`（被 gitignore）；放到很深的暫存路徑（例如 Claude 的 scratchpad）時，MSVC 會因 PDB 路徑過長失敗（C1041）。
+- **Qt Test 在這台機器不把結果寫到 stdout**（重新導向後是空的）；要用 `-o 檔案,txt`。`CMakeLists` 已經把 log 放在 `build/<preset>/test-logs/<name>.txt`，`scripts/dev/test.ps1` 失敗時會印出來。
+- offscreen 平台不會自己找到字型：要設 `QT_QPA_FONTDIR=C:/Windows/Fonts`（CTest 與 test preset 已設）。
+- Qt 6.8 的 `LanguageChange` 是排入事件佇列的，語言切換後要等下一輪事件迴圈（測試用 `QCoreApplication::processEvents()`）。
 - Shell 是 Windows PowerShell 5.1：沒有 `&&`；commit 訊息寫成檔案再 `git commit -F <檔案>`，不要用 `-F -`（格式見 `project-rules.md`「Commit 訊息」）。
-- Node 可用，工具腳本放 `tools/*.mjs`。`python.exe` 只是 Store 捷徑，不要依賴。
-- 以上路徑若在 S02 驗證後有差異，**更新此表**。
+- Node 可用（v22），工具腳本放 `tools/*.mjs`。`python.exe` 只是 Store 捷徑，不要依賴。
+- 以上路徑若有差異，**更新此表**。
 
 ## 重要目錄
 
 | 路徑 | 內容 |
 |---|---|
-| `src/` | 程式碼，依五層分（`domain`、`application`、`infrastructure`、`presentation`、`app`）。尚未建立，S02 起 |
+| `src/` | 程式碼，依五層分（`domain`、`application`、`infrastructure`、`presentation`、`app`）。S02 起有 `domain`（只有 `image_view.h`）、`presentation`（`canvas/`、`tools/`、`shell/`、`theme/`、`i18n/`、`dev/`）、`app`；`application`、`infrastructure` 從 S03 起 |
+| `tests/ui/` | Qt Test（S02）：`tst_*` 是單元測試，`perf_ui_baseline` 是效能基準線（label `perf`） |
+| `cmake/`、`CMakeLists.txt`、`CMakePresets.json` | 建置設定；`cmake/AoiTargets.cmake` 放警告設定與 `aoi_add_qt_test` |
+| `scripts/dev/` | `env.ps1`（進入開發環境）、`test.ps1`（建置＋跑測試，失敗時印 log） |
+| `perf/baseline/` | 各機器的效能基準線（入版控）；原始量測在 `perf/results/`（不入版控） |
 | `docs/` | 計畫、ADR、AI 交接文件 |
 | `docs/plan/` | S01–S12 每一步的計畫與 Start prompt |
 | `docs/steps/` | 每一步的四種輸出；範本在 `_template/` |
@@ -62,8 +72,10 @@ AOI 教學工具：使用者在影像上框一個樣本 ROI → 程式找出相�
 
 | 目的 | 指令 | 備註 |
 |---|---|---|
-| 建置 | 尚未建立 | S02 產生 `CMakePresets.json`（debug / release / relwithdebinfo），之後把指令填在這裡 |
-| 單元與契約測試 | 尚未建立 | S03 起，Qt Test 經 CTest |
+| 建置 | `. .\scripts\dev\env.ps1` 後 `cmake --preset release` 與 `cmake --build build/release`（`debug`、`relwithdebinfo` 同理） | S02 起可用。選項 `AOI_WITH_OPENCV`、`AOI_WITH_HALCON`（預設 OFF）、`AOI_BUILD_TESTS`、`AOI_DEMO_SCENE` |
+| 單元測試 | `powershell -ExecutionPolicy Bypass -File scripts/dev/test.ps1`（含建置；`-Preset debug` 可換組態） | S02 起 5 個 Qt Test 執行檔，經 CTest 在 offscreen 平台執行；契約測試 S09 起 |
+| 效能基準線 | `powershell -ExecutionPolicy Bypass -File scripts/dev/test.ps1 -Perf` | S02 的 UI 基準線（U1、U4、I1、I2、I5）；Release 才有意義；結果與預算比對見 `docs/steps/S02-ui-shell/perf.md` |
+| 執行程式 | 進入開發環境後 `build\release\aoi.exe`；`--demo 5000` 開合成板子與框，`--lang zh_TW\|en`、`--theme light\|dark\|system` | |
 | 依賴方向檢查 | `node tools/check-deps.mjs` | S03 建立；掃 `#include`，違規即失敗 |
 | 文件風格檢查 | `node tools/ste-lint.mjs` | 現在可用；只檢查 `<!--STE-->` 標記之間的文字 |
 | 顏色對比檢查 | `node tools/check-contrast.mjs` | S01 起可用；驗算 `docs/ux/tokens.json`（文字 ≥ 4.5、圖形 ≥ 3）並檢查四種狀態線型不重複；改過顏色後加 `--write` 更新結果 |

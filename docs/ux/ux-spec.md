@@ -9,6 +9,7 @@
 
 | 日期 | 修改者 | 說明 |
 |---|---|---|
+| 2026-10-05 | Claude Code (Claude Sonnet 5.5) | S02 實作回饋：訊息列改為**固定高度**（`tokens.json` 新增 `sizes.messageBarHeight` ＝ 96 px，放不下在列內捲動），否則「畫布大小不變」在桌面程式做不到（第 5 節；[ADR-008](../adr/008-message-bar-fixed-height.md)）。`copy.json` 新增殼層用的 key（`menu.*`、`action.quit`、`ui.shell.*`、`ui.status.cursor`；[ADR-007](../adr/007-copy-json-as-translation-source.md)）。框的粗細在整數像素下取整：Pin 的「狀態寬度 − 0.5」在畫面上是狀態寬度向下取整（Found：主體 2、Pin 1、窗 1），第 7 節的寬度是設計值（`docs/steps/S02-ui-shell/spec.md`） |
 | 2026-10-05 | Claude Code (Claude Sonnet 5.5) | 建立（S01）。同日依使用者回饋與 TRI 參考文件大幅修訂：新增概念模型（Board › Component › Box）、流程 B（區域掃描）、元件類型編輯器、樣本庫；狀態機由 7 個改為 8 個 |
 | 2026-10-05 | Claude Code (Claude Sonnet 5.5) | 使用者回饋：無匹配訊息蓋在板子上會擋到料件。所有要閱讀的訊息改放在畫布下方的**訊息列**（新規則，第 5 節） |
 | 2026-10-05 | Claude Code (Claude Sonnet 5.5) | 使用者問「樣本庫很多不是要比很久」：新增**比對範圍**（先用板子已有的類型，找不到再擴大）、狀態列顯示比對了幾個樣本；預覽時加上〔接受〕〔接受並存入樣本庫…〕〔捨棄〕按鈕（原本只有 Enter 鍵）；第 8、9、12、14 節隨之修訂 |

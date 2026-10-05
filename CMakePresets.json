@@ -1,0 +1,74 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": { "major": 3, "minor": 21, "patch": 0 },
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_PREFIX_PATH": "D:/Qt/6.8.0/msvc2022_64",
+        "OpenCV_DIR": "D:/opencv/opencv/build/x64/vc16/lib",
+        "AOI_WITH_OPENCV": "OFF",
+        "AOI_WITH_HALCON": "OFF"
+      }
+    },
+    {
+      "name": "debug",
+      "displayName": "Debug",
+      "inherits": "base",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug" }
+    },
+    {
+      "name": "release",
+      "displayName": "Release",
+      "inherits": "base",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Release" }
+    },
+    {
+      "name": "relwithdebinfo",
+      "displayName": "RelWithDebInfo",
+      "inherits": "base",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "RelWithDebInfo" }
+    }
+  ],
+  "buildPresets": [
+    { "name": "debug", "configurePreset": "debug" },
+    { "name": "release", "configurePreset": "release" },
+    { "name": "relwithdebinfo", "configurePreset": "relwithdebinfo" }
+  ],
+  "testPresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "output": { "outputOnFailure": true },
+      "environment": { "QT_QPA_PLATFORM": "offscreen", "QT_QPA_FONTDIR": "C:/Windows/Fonts" }
+    },
+    {
+      "name": "debug",
+      "inherits": "base",
+      "configurePreset": "debug",
+      "filter": { "exclude": { "label": "perf" } }
+    },
+    {
+      "name": "release",
+      "inherits": "base",
+      "configurePreset": "release",
+      "filter": { "exclude": { "label": "perf" } }
+    },
+    {
+      "name": "relwithdebinfo",
+      "inherits": "base",
+      "configurePreset": "relwithdebinfo",
+      "filter": { "exclude": { "label": "perf" } }
+    },
+    {
+      "name": "perf",
+      "inherits": "base",
+      "configurePreset": "release",
+      "filter": { "include": { "label": "perf" } },
+      "output": { "outputOnFailure": true, "verbosity": "verbose" }
+    }
+  ]
+}
