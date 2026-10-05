@@ -70,7 +70,7 @@ feat(release): add exporters, packaging, manual and docs index
 ## Start prompt（開新 session 時貼上）
 
 ```
-你正在 D:\AOI_Project\Qt\AutoCadCreated 繼續 AOI 專案。請先讀 CLAUDE.md、docs/STATUS.md、docs/plan/S12-release.md，
-再依 CLAUDE.md 的 Step Protocol 完成步驟 S12（分支 step/12-release）。只做 S12。
-製作實際解說影片前先詢問使用者是否同意與工具選擇。完成後：commit、合併到 main、打 tag v0.1.0、更新 STATUS.md、對我提示 commit 內容。
+你正在 D:\AOI_Project\Qt\AutoCadCreated 繼續 AOI 專案。請先讀 AGENTS.md、docs/current-status.md、docs/plan/S12-release.md，
+再依 .agents/harness/project-rules.md 的 Step Protocol 完成步驟 S12（分支 step/12-release）。只做 S12。
+製作實際解說影片前先詢問使用者是否同意與工具選擇。完成後：commit、合併到 main、打 tag v0.1.0、更新 docs/current-status.md 與交接單（ai-handoff skill）、對我提示 commit 內容。
 ```

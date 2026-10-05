@@ -73,7 +73,7 @@ docs(ux): add UX spec, state language and clickable prototype
 ## Start prompt（開新 session 時貼上）
 
 ```
-你正在 D:\AOI_Project\Qt\AutoCadCreated 繼續 AOI 專案。請先讀 CLAUDE.md、docs/STATUS.md、docs/plan/S01-ux-spec.md，
-再依 CLAUDE.md 的 Step Protocol 完成步驟 S01（分支 step/01-ux-spec）。只做 S01。
-完成後：commit、合併到 main、更新 STATUS.md、對我提示 commit 內容，並用 spawn_task 為 S02 開新 session。
+你正在 D:\AOI_Project\Qt\AutoCadCreated 繼續 AOI 專案。請先讀 AGENTS.md、docs/current-status.md、docs/plan/S01-ux-spec.md，
+再依 .agents/harness/project-rules.md 的 Step Protocol 完成步驟 S01（分支 step/01-ux-spec）。只做 S01。
+完成後：commit、合併到 main、更新 docs/current-status.md 與交接單（ai-handoff skill）、對我提示 commit 內容，並用 spawn_task 為 S02 開新 session。
 ```

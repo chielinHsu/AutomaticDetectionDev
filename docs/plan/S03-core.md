@@ -30,7 +30,7 @@ We run the whole use case with a fake searcher in a test. The real back ends plu
 5. **Use case `GenerateObjectsFromSample`**：流程＝建範本 → 種子搜尋 → 擬合 → 預測 → 視窗驗證 → 產生物件。先用 `FakeTemplateBuilder`／`FakeSearcher`（可重現的合成網格）；擬合先放簡化版，真正的在 S05。
 6. **`BackendRegistry`＋工廠＋組裝根**（`app/`）：`--backend=fake|opencv|halcon`；沒有授權/未編入的 back end 回傳明確錯誤。
 7. **`PerfProbe`**：`ScopedTimer`、環狀緩衝、輸出 JSON；關閉時成本接近零。
-8. **`tools/check-deps.mjs`**：掃 `#include`，依 `CLAUDE.md` 的依賴表檢查，掛進 CTest；**故意寫一個違規 include 的測試案例，確認會失敗**。
+8. **`tools/check-deps.mjs`**：掃 `#include`，依 `docs/architecture.md` 的依賴表檢查，掛進 CTest；**故意寫一個違規 include 的測試案例，確認會失敗**。
 9. **ADR-003**：測試框架統一用 Qt Test（涵蓋 domain 到 UI，也有 `QBENCHMARK`）。
 
 ## SOLID 重點
@@ -74,7 +74,7 @@ feat(core): add ports, use case skeleton, job runner, perf probe and dependency 
 ## Start prompt（開新 session 時貼上）
 
 ```
-你正在 D:\AOI_Project\Qt\AutoCadCreated 繼續 AOI 專案。請先讀 CLAUDE.md、docs/STATUS.md、docs/plan/S03-core.md，
-再依 CLAUDE.md 的 Step Protocol 完成步驟 S03（分支 step/03-core）。只做 S03。
-完成後：commit、合併到 main、更新 STATUS.md、對我提示 commit 內容，並用 spawn_task 為 S04 開新 session。
+你正在 D:\AOI_Project\Qt\AutoCadCreated 繼續 AOI 專案。請先讀 AGENTS.md、docs/current-status.md、docs/plan/S03-core.md，
+再依 .agents/harness/project-rules.md 的 Step Protocol 完成步驟 S03（分支 step/03-core）。只做 S03。
+完成後：commit、合併到 main、更新 docs/current-status.md 與交接單（ai-handoff skill）、對我提示 commit 內容，並用 spawn_task 為 S04 開新 session。
 ```

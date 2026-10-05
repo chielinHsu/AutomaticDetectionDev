@@ -39,3 +39,7 @@ Thumbs.db
 
 # Claude Code local state
 .claude/settings.local.json
+
+# AI agent local state
+.claude/worktrees/
+CLAUDE.local.md

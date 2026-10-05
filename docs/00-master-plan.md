@@ -1,7 +1,7 @@
 # AOI 程式 — 總體計畫（Master Plan）
 
 > 互動版架構導覽：[docs/steps/S00-overview/explainer.html](steps/S00-overview/explainer.html)（用瀏覽器直接開，離線可用）
-> 進度：[STATUS.md](STATUS.md) ｜ 效能：[perf-test-plan.md](perf-test-plan.md) ｜ 工作規則：[../CLAUDE.md](../CLAUDE.md)
+> 進度：[current-status.md](current-status.md) ｜ 效能：[perf-test-plan.md](perf-test-plan.md) ｜ 工作規則：[../AGENTS.md](../AGENTS.md)
 
 ## 1. 要做什麼
 
@@ -36,7 +36,7 @@ flowchart TB
   INFRA --> DOM
 ```
 
-更多圖（類別圖、序列圖、狀態機、執行緒）：[steps/S00-overview/diagram.md](steps/S00-overview/diagram.md)。依賴規則表在 [../CLAUDE.md](../CLAUDE.md)。
+更多圖（類別圖、序列圖、狀態機、執行緒）：[steps/S00-overview/diagram.md](steps/S00-overview/diagram.md)。依賴規則表在 [architecture.md](architecture.md)。
 
 ### 為什麼這樣切（目的／原因／效果）
 
@@ -138,7 +138,7 @@ flowchart TB
 建置／測試／check-deps／ste-lint 全部通過？ ──否──► 如實回報，修好再繼續
         │是
         ▼
-更新 STATUS.md → commit → merge --no-ff 到 main → tag step-NN-done
+更新 current-status.md 與交接單 → commit → merge --no-ff 到 main → tag step-NN-done
         │
         ▼
 對你提示：commit hash、訊息、變更摘要、效能結果、未解決事項
@@ -150,7 +150,7 @@ spawn_task：為下一步開新 session（prompt 在下一步 plan 檔底部）
 本 session 結束，不接著做下一步
 ```
 
-為什麼每步開新 session：每個步驟的上下文（程式碼細節、除錯過程）很大，彼此獨立；新 session 只靠 `CLAUDE.md`、`STATUS.md` 與該步 plan 檔就能接手，不會被前一步的雜訊拖累，也避免上下文過長導致品質下降。
+為什麼每步開新 session：每個步驟的上下文（程式碼細節、除錯過程）很大，彼此獨立；新 session 只靠 `AGENTS.md`（含它列出的必讀文件）、`current-status.md` 與該步 plan 檔就能接手，不會被前一步的雜訊拖累，也避免上下文過長導致品質下降。
 
 ## 9. 風險與待決策
 

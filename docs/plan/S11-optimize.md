@@ -70,7 +70,7 @@ before: <metric> <value>  after: <metric> <value>  (machine: <id>, N=30, median)
 ## Start prompt（開新 session 時貼上）
 
 ```
-你正在 D:\AOI_Project\Qt\AutoCadCreated 繼續 AOI 專案。請先讀 CLAUDE.md、docs/STATUS.md、docs/plan/S11-optimize.md，
-再依 CLAUDE.md 的 Step Protocol 完成步驟 S11（分支 step/11-optimize）。只做 S11。沒有 before 數字不要動手。
-完成後：commit、合併到 main、更新 STATUS.md、對我提示 commit 內容，並用 spawn_task 為 S12 開新 session。
+你正在 D:\AOI_Project\Qt\AutoCadCreated 繼續 AOI 專案。請先讀 AGENTS.md、docs/current-status.md、docs/plan/S11-optimize.md，
+再依 .agents/harness/project-rules.md 的 Step Protocol 完成步驟 S11（分支 step/11-optimize）。只做 S11。沒有 before 數字不要動手。
+完成後：commit、合併到 main、更新 docs/current-status.md 與交接單（ai-handoff skill）、對我提示 commit 內容，並用 spawn_task 為 S12 開新 session。
 ```
