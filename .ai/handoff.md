@@ -36,6 +36,8 @@
 
 ## 已知問題與風險
 
+- **`AiInspTool/`（使用者的 Qt Creator qmake 專案，commit `fd899ce`）**：`AiInspTool.pro` 用萬用字元建置 `../src`（domain、presentation、`app/main.cpp`），只是讓 Qt Creator 能開啟執行；正式建置與測試仍是 CMake。S03 起 `src/` 新增 application、infrastructure、OpenCV 時，`.pro` 要同步調整；`check-deps` 不要掃這個資料夾。只驗證了 qmake＋jom 命令列建置與離屏啟動，**沒有在 Qt Creator 裡實際載入過**。未追蹤的 `AiInspTool/release/`、`.qtc_clangd/` 是 Qt Creator 的建置產物（使用者的 `.gitignore` 沒有涵蓋，我沒有動它）。
+
 - **I1**：offscreen 13 次執行 p95 在 14.1–20.7 ms（7 次 ≤ 16.7），真實視窗 22.1 ms；同一份程式在不同時間量會飄 ±30%，原因未查明。回歸閘門（S10）不能拿單次 p95 比預算。
 - **建置環境（繁中 Windows）**：`cl` 的 `/showIncludes` 前綴是中文，主控台字碼頁與 configure 時不同時，Ninja 掉標頭相依（只改標頭檔不重新編譯）。一定要在 `env.ps1` 之後 configure 與 build；症狀出現時刪掉 `build/<preset>` 重來。
 - **Bash heredoc 會壓縮連續反斜線**（專案規則早已寫明）：用 Bash 寫含 `\\` 的檔案內容時會被破壞；寫檔用 Write／Edit 工具，或用 `String.fromCharCode(92)` 組出反斜線。

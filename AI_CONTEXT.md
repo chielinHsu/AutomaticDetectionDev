@@ -53,6 +53,7 @@ AOI 教學工具：使用者在影像上框一個樣本 ROI → 程式找出相�
 |---|---|
 | `src/` | 程式碼，依五層分（`domain`、`application`、`infrastructure`、`presentation`、`app`）。S02 起有 `domain`（只有 `image_view.h`）、`presentation`（`canvas/`、`tools/`、`shell/`、`theme/`、`i18n/`、`dev/`）、`app`；`application`、`infrastructure` 從 S03 起 |
 | `tests/ui/` | Qt Test（S02）：`tst_*` 是單元測試，`perf_ui_baseline` 是效能基準線（label `perf`） |
+| `AiInspTool/` | 使用者用 Qt Creator 開啟的 **qmake 專案**（`AiInspTool.pro`＋`aoi_ux.qrc`）：直接建置 `../src` 的 domain、presentation 與 `app/main.cpp`（程式碼只有一份，用萬用字元納入）。精靈產生的 `main.cpp`、`mainwindow.*` 沒有被使用。**不在五層之內，`tools/check-deps.mjs`（S03）不要掃它**；單元測試只在 CMake。S03 起 `src/` 多出 application、infrastructure（OpenCV、HALCON）時，這個 `.pro` 要跟著調整，否則 Qt Creator 建置會壞（正式路徑是 CMake） |
 | `cmake/`、`CMakeLists.txt`、`CMakePresets.json` | 建置設定；`cmake/AoiTargets.cmake` 放警告設定與 `aoi_add_qt_test` |
 | `scripts/dev/` | `env.ps1`（進入開發環境）、`test.ps1`（建置＋跑測試，失敗時印 log） |
 | `perf/baseline/` | 各機器的效能基準線（入版控）；原始量測在 `perf/results/`（不入版控） |
