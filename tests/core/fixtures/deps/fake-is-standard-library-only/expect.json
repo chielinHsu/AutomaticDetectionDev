@@ -1,0 +1,9 @@
+{
+  "violations": [
+    {
+      "file": "src/infrastructure/backend_fake/Fake.h",
+      "line": 3,
+      "includes": "windows.h"
+    }
+  ]
+}

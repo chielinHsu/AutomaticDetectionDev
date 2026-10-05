@@ -1,7 +1,9 @@
 #include <QApplication>
 #include <QCommandLineParser>
 #include <QStringList>
+#include <cstdio>
 
+#include "app/CompositionRoot.h"
 #include "presentation/canvas/ImageCanvas.h"
 #include "presentation/i18n/Translations.h"
 #include "presentation/shell/MainWindow.h"
@@ -13,6 +15,10 @@
 #endif
 
 namespace {
+
+// 啟動失敗的訊息直接寫到 stderr（結束碼 2）。不用 qCritical：Qt 在 Windows 上只有 stderr 是主控台時才寫到 stderr，
+// 被腳本或管線接走時（例如測試）會落到偵錯輸出，使用者與測試都看不到。
+void reportStartupError(const QString& message) { std::fprintf(stderr, "%s\n", qPrintable(message)); }
 
 aoi::ui::ThemeMode parseTheme(const QString& name, bool* ok) {
     *ok = true;
@@ -36,8 +42,12 @@ int main(int argc, char* argv[]) {
     parser.addPositionalArgument(QStringLiteral("image"), QStringLiteral("Image file to open."), QStringLiteral("[image]"));
     const QCommandLineOption langOpt({QStringLiteral("lang")}, QStringLiteral("UI language: zh_TW or en."), QStringLiteral("locale"));
     const QCommandLineOption themeOpt({QStringLiteral("theme")}, QStringLiteral("Theme: light, dark or system."), QStringLiteral("mode"));
+    const QCommandLineOption backendOpt({QStringLiteral("backend")},
+                                        QStringLiteral("Vision back end: fake, opencv or halcon (default: fake)."),
+                                        QStringLiteral("id"), QStringLiteral("fake"));
     parser.addOption(langOpt);
     parser.addOption(themeOpt);
+    parser.addOption(backendOpt);
 #ifdef AOI_DEMO_SCENE
     const QCommandLineOption demoOpt({QStringLiteral("demo")},
                                      QStringLiteral("Open a synthetic 5 MP board with this many boxes."),
@@ -48,7 +58,7 @@ int main(int argc, char* argv[]) {
 
     const QString locale = parser.isSet(langOpt) ? parser.value(langOpt) : aoi::ui::Translations::defaultLocale();
     if (!aoi::ui::Translations::install(locale)) {
-        qCritical("Cannot load the UI text for '%s'.", qPrintable(locale));
+        reportStartupError(QStringLiteral("Cannot load the UI text for '%1'.").arg(locale));
         return 2;
     }
 
@@ -58,10 +68,21 @@ int main(int argc, char* argv[]) {
         bool ok = false;
         const aoi::ui::ThemeMode mode = parseTheme(parser.value(themeOpt), &ok);
         if (!ok) {
-            qCritical("Unknown theme '%s'.", qPrintable(parser.value(themeOpt)));
+            reportStartupError(QStringLiteral("Unknown theme '%1'.").arg(parser.value(themeOpt)));
             return 2;
         }
         theme.setMode(mode);
+    }
+
+    // 核心（back end、執行緒、use case）。S03 只組裝並驗證 --backend；S04 的 Presenter 才會使用它。
+    // back end 不存在或不可用時明確失敗，不退回別的 back end（使用者要的是哪一個，就是哪一個）。
+    const aoi::BackendRegistry registry = aoi::app::makeBackendRegistry();
+    aoi::Result<aoi::app::CoreServices> core =
+        aoi::app::composeCore(registry, parser.value(backendOpt).toStdString());
+    if (!core) {
+        reportStartupError(QStringLiteral("Cannot start the '%1' back end: %2")
+                               .arg(parser.value(backendOpt), QString::fromStdString(core.error().message)));
+        return 2;
     }
 
     aoi::ui::MainWindow window(theme);
@@ -74,7 +95,7 @@ int main(int argc, char* argv[]) {
         bool ok = false;
         const int boxes = parser.value(demoOpt).toInt(&ok);
         if (!ok || boxes < 0) {
-            qCritical("--demo needs a box count, for example --demo 5000.");
+            reportStartupError(QStringLiteral("--demo needs a box count, for example --demo 5000."));
             return 2;
         }
         const aoi::dev::FakeBoard board = aoi::dev::makeFakeBoard();

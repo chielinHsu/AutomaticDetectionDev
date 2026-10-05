@@ -1,0 +1,19 @@
+{
+  "violations": [
+    {
+      "file": "src/misc/x.h",
+      "line": 1,
+      "includes": ""
+    },
+    {
+      "file": "src/infrastructure/newthing/y.h",
+      "line": 1,
+      "includes": ""
+    },
+    {
+      "file": "src/infrastructure/loose.h",
+      "line": 1,
+      "includes": ""
+    }
+  ]
+}

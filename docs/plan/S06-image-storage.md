@@ -9,6 +9,8 @@
 
 > **S01 修訂（2026-10-05）**：照 ADR-006：要加**樣本庫**儲存（建議 Project＋User 兩層、料號與別名索引）與板子（元件實例＋用到的類型）的儲存。使用者已決定：**樣本庫存 µm、影像帶校正值**；**板子保存自己用到的類型複本**（記得 `libId`），庫與板子只透過〔從樣本庫更新〕與〔存入樣本庫〕同步（ADR-006 §5、§6）。
 
+> **S03 完成後的提醒（2026-10-05）**：S03 在標頭裡寫了 `IImageSource`、`IRecipeStore`、`ILibraryStore` 的契約（不存在回 `NotFound`；損壞的檔案回 `FormatInvalid`，不當機也不丟例外），以及 domain 型別 `Board`、`ComponentType`、`BoxGroup`、`Recipe`。`ImageView` 新增 `umPerPixel`（0 ＝ 未校正，既有欄位的意義沒變）。座標慣例（像素原點在左上角像素的左上角）見 ADR-010。
+
 <!--STE-->
 ## Purpose
 This step builds the image buffer, the converters and the recipe store. It also builds a generator for test images.

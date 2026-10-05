@@ -1,0 +1,3 @@
+add_library(aoi_threading STATIC ThreadPoolExecutor.cpp)
+target_link_libraries(aoi_threading PUBLIC aoi_application)
+aoi_set_warnings(aoi_threading)

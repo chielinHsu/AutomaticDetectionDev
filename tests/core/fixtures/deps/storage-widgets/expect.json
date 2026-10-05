@@ -1,0 +1,14 @@
+{
+  "violations": [
+    {
+      "file": "src/infrastructure/storage/S.h",
+      "line": 3,
+      "includes": "QWidget"
+    },
+    {
+      "file": "src/infrastructure/storage/S.h",
+      "line": 4,
+      "includes": "QtWidgets/QLabel"
+    }
+  ]
+}

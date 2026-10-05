@@ -24,6 +24,38 @@
 - 下一位 agent 需要知道的限制、否決的做法、不要還原的修改
 ```
 
+## 2026-10-05 — Claude Code (Claude Sonnet 5.5)（S03：系統核心）
+
+### 完成
+- 依 Step Protocol 做 S03，在隔離的 worktree 裡建立 `step/03-core`。基準：S02 的程式在這個 worktree 重新建置、5 個測試全過。
+- domain 型別與座標慣例（`geometry.h`）、九個 port（含 S01 加的 `ILibraryStore`、`ILibraryMatcher`，契約寫在標頭）、`Result`／`Error`、`CancelSource`／`CancelToken`、`JobRunner`（latest-wins）、use case `GenerateObjectsFromSample` 與 `classify`、暫代的 `SimpleGrid`、`BackendRegistry`、組裝根與 `--backend`、假 back end、`PerfProbe`、`ThreadPoolExecutor`。
+- `tools/check-deps.mjs`（掛 CTest）加 13 個 fixture 與 `--self-test`；`tst_cli` 從外面用真的行程驗證 `--backend`。
+- ADR-003（Qt Test 統一）、ADR-010（座標與角度慣例，解決 ADR-006 未決 #5）；`docs/steps/S03-core/` 的四種輸出與 `perf.md`；`perf/baseline/casparhsu1-core.json`；`docs/plan/S04`–`S10` 開頭各加一行「S03 完成後的提醒」；`AiInspTool.pro` 同步納入新的層。
+- 變異測試：植入 14 個缺陷，每一個都被對應的測試抓到（結果在 `perf.md`）。其中一個（`rotate()` 正負號反過來）只有 `tst_domain` 抓得到，因為其他測試的標準答案用同一個 `rotate()`。
+- 量測發現：`PerfProbe` 關閉的成本量不出來；暫代的晶格擬合在約 4 900 點要 97–134 ms；取消延遲在 1 ms 輪詢的工作上是 Windows 計時器解析度的函數。
+- 測試抓到／過程中踩到的錯：`explainer.html` 第一版把含單引號的錯誤訊息拼進 JavaScript 字串，在瀏覽器窗格才發現語法錯誤（改成走 JSON ＋ `esc()`）；`windows.h` 的 `min`／`max`／`near` 巨集弄壞 `perf_core`（改 `NOMINMAX`、改名）；Qt 在 Windows 上只有 stderr 是主控台時才寫 stderr，啟動錯誤原本用 `qCritical` 被管線接走就看不到（改寫到 stderr）。
+
+### 修改的檔案
+- 新增：`src/domain/`（`geometry.h`、`match.h`、`object_state.h`、`search_params.h`、`component.h`、`recipe.h`）、`src/application/`、`src/infrastructure/`（`backend_fake`、`perf`、`threading`）、`src/app/CompositionRoot.*`、`tools/check-deps.mjs`、`tests/core/`（含 `fixtures/deps/`）、`docs/steps/S03-core/`、`docs/adr/003`、`010`、`perf/baseline/casparhsu1-core.json`
+- 修改：`src/domain/image_view.h`（新增 `umPerPixel`，預設 0）、`src/app/main.cpp`（`--backend`、啟動錯誤寫 stderr）、各層的 `CMakeLists.txt`、`tests/CMakeLists.txt`、`AiInspTool/AiInspTool.pro`、`AI_CONTEXT.md`、`README.md`、`docs/architecture.md`、`docs/decisions.md`、`docs/current-status.md`、`docs/plan/S04`–`S10`、`.ai/handoff.md`
+
+### 驗證
+- `scripts/dev/test.ps1`：Release 與 Debug 各 17 個 CTest 項目全過（5 個 UI、8 個核心測試執行檔加 `tst_cli`、3 個 `check_deps*`）；`/W4 /WX` 無警告。
+- `node tools/check-deps.mjs`：80 個檔案 0 違規；`--self-test`：13 個 fixture 全過；`node tools/ste-lint.mjs --strict`：488 句 0 錯誤；`check-ai-structure.ps1`：OK。
+- `diagram.md` 10 張 Mermaid 用 mermaid 11 的解析器（jsdom）解析全過，只驗語法；先用一張故意寫壞的圖確認解析器會失敗。
+- `explainer.html` 在瀏覽器窗格（本機 HTTP 伺服器）實際操作：四張卡片的每個按鈕與滑桿、淺色與深色、窄寬度；靜態快照模式不執行 script，所以要用 HTTP。
+- `perf_core` 連跑 3 次（Release，量測衛生同 S02）。`aoi.exe --backend=opencv|halcon|turbo` 結束碼 2、訊息正確；預設與 `--backend=fake` 能啟動並持續執行。
+- `AiInspTool.pro`：獨立目錄 qmake ＋ jom（Release）建置成功。**沒有在 Qt Creator 裡載入過。**
+
+### 未完成
+- ADR-009（UI 工具集重審）仍等使用者決定，與 S03 無關。
+- 流程 B 只有 port 與型別；`SimpleGrid` 等 S05 取代；假 back end 不看影像；OpenCV／HALCON 的座標與角度轉換（ADR-010）未驗證。
+
+### 注意事項
+- 這個 session 在隔離的 worktree（分支 `claude/trusting-colden-06cdda`），`main` 在使用者的主工作目錄被檢出，所以「合併到 main」要在主工作目錄執行 `git merge`；細節見本步驟的收尾訊息。
+- 用 `node -e '…'` 或 heredoc 寫含反斜線、中文或單引號的字串會被 shell 弄壞（這次踩到兩次：反斜線被吃、換行被塞進字串）；一律用 Write／Edit 工具寫檔。PowerShell 5.1 讀 `.ps1` 不認無 BOM 的 UTF-8，腳本裡不要放中文字串。
+- `String.prototype.replace` 的替換字串裡 `$$` 會變成單一個 `$`（`AiInspTool.pro` 的 `$$PWD` 因此被弄壞過一次，已修）；程式化修改檔案時用函式型的替換。
+
 ## 2026-10-05 — Claude Code (Claude Sonnet 5.5)（AiInspTool：qmake 專案，用 Qt Creator 開啟 S02 程式）
 
 ### 完成

@@ -1,0 +1,14 @@
+{
+  "violations": [
+    {
+      "file": "src/presentation/Ui.h",
+      "line": 2,
+      "includes": "opencv2/core.hpp"
+    },
+    {
+      "file": "src/presentation/Ui.h",
+      "line": 3,
+      "includes": "infrastructure/backend_opencv/Cv.h"
+    }
+  ]
+}

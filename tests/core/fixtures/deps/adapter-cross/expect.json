@@ -1,0 +1,24 @@
+{
+  "violations": [
+    {
+      "file": "src/infrastructure/backend_opencv/Cv.h",
+      "line": 2,
+      "includes": "infrastructure/backend_halcon/Hl.h"
+    },
+    {
+      "file": "src/infrastructure/backend_opencv/Cv.h",
+      "line": 3,
+      "includes": "halconcpp/HalconCpp.h"
+    },
+    {
+      "file": "src/infrastructure/backend_halcon/Hl.h",
+      "line": 2,
+      "includes": "opencv2/core.hpp"
+    },
+    {
+      "file": "src/infrastructure/backend_halcon/Hl.h",
+      "line": 3,
+      "includes": "QWidget"
+    }
+  ]
+}

@@ -23,7 +23,7 @@ AOI 教學工具：使用者在影像上框一個樣本 ROI → 程式找出相�
 | UI | Qt Widgets ＋ QGraphicsView | ADR-001（已採用）；S02 起有程式 |
 | 建置 | CMake ＋ Ninja | `CMakeLists.txt`、`CMakePresets.json`（debug／release／relwithdebinfo）；自家程式碼 `/W4 /WX` |
 | 視覺 | OpenCV、HALCON | 只能在對應的 `infrastructure/backend_*` 使用 |
-| 測試 | Qt Test | ADR-003（S03 定案），以 CTest 執行 |
+| 測試 | Qt Test | [ADR-003](docs/adr/003-test-framework.md)（採用），以 CTest 執行 |
 | 工具腳本 | Node.js | `tools/*.mjs` |
 | 平台 | Windows 11、MSVC 2022 | 編譯器尚未驗證，見下表 |
 
@@ -44,16 +44,17 @@ AOI 教學工具：使用者在影像上框一個樣本 ROI → 程式找出相�
 - offscreen 平台不會自己找到字型：要設 `QT_QPA_FONTDIR=C:/Windows/Fonts`（CTest 與 test preset 已設）。
 - Qt 6.8 的 `LanguageChange` 是排入事件佇列的，語言切換後要等下一輪事件迴圈（測試用 `QCoreApplication::processEvents()`）。
 - Shell 是 Windows PowerShell 5.1：沒有 `&&`；commit 訊息寫成檔案再 `git commit -F <檔案>`，不要用 `-F -`（格式見 `project-rules.md`「Commit 訊息」）。
-- Node 可用（v22），工具腳本放 `tools/*.mjs`。`python.exe` 只是 Store 捷徑，不要依賴。
+- Node 可用（v22），工具腳本放 `tools/*.mjs`（`check-deps.mjs` 也由 CTest 呼叫，所以 `node` 要在 PATH 上）。`python.exe` 只是 Store 捷徑，不要依賴。
 - 以上路徑若有差異，**更新此表**。
 
 ## 重要目錄
 
 | 路徑 | 內容 |
 |---|---|
-| `src/` | 程式碼，依五層分（`domain`、`application`、`infrastructure`、`presentation`、`app`）。S02 起有 `domain`（只有 `image_view.h`）、`presentation`（`canvas/`、`tools/`、`shell/`、`theme/`、`i18n/`、`dev/`）、`app`；`application`、`infrastructure` 從 S03 起 |
+| `src/` | 程式碼，依五層分（`domain`、`application`、`infrastructure`、`presentation`、`app`）。`domain`：只有標頭（座標與角度慣例在 `geometry.h`）；`application`：`Error`／`Result`／`CancelToken`、`ports/`、`jobs/JobRunner`、`usecases/`、`backend/BackendRegistry`；`infrastructure`：`backend_fake/`、`perf/`、`threading/`（`backend_opencv`、`backend_halcon`、`storage` 在 S06–S08）；`presentation`（S02：`canvas/`、`tools/`、`shell/`、`theme/`、`i18n/`、`dev/`；S04 起接上 application）；`app`：`CompositionRoot`（組裝）與 `main.cpp`。檔案命名見 `docs/architecture.md` |
 | `tests/ui/` | Qt Test（S02）：`tst_*` 是單元測試，`perf_ui_baseline` 是效能基準線（label `perf`） |
-| `AiInspTool/` | 使用者用 Qt Creator 開啟的 **qmake 專案**（`AiInspTool.pro`＋`aoi_ux.qrc`）：直接建置 `../src` 的 domain、presentation 與 `app/main.cpp`（程式碼只有一份，用萬用字元納入）。精靈產生的 `main.cpp`、`mainwindow.*` 沒有被使用。**不在五層之內，`tools/check-deps.mjs`（S03）不要掃它**；單元測試只在 CMake。S03 起 `src/` 多出 application、infrastructure（OpenCV、HALCON）時，這個 `.pro` 要跟著調整，否則 Qt Creator 建置會壞（正式路徑是 CMake） |
+| `tests/core/` | Qt Test（S03）：核心的單元測試（`tst_domain`、`tst_core_types`、`tst_grid`、`tst_job_runner`、`tst_generate_objects`、`tst_fake_backend`、`tst_backend_registry`、`tst_perf_probe`）、`tst_cli`（從外面用真的 `aoi` 行程驗證 `--backend`）、`perf_core`（label `perf`）、`fixtures/deps/`（依賴檢查的 13 個 fixture）；`check_deps*` 的 CTest 項目也在這裡註冊 |
+| `AiInspTool/` | 使用者用 Qt Creator 開啟的 **qmake 專案**（`AiInspTool.pro`＋`aoi_ux.qrc`）：直接建置 `../src` 的 domain、presentation 與 `app/main.cpp`（程式碼只有一份，用萬用字元納入）。精靈產生的 `main.cpp`、`mainwindow.*` 沒有被使用。**不在五層之內，`tools/check-deps.mjs`（S03）不要掃它**；單元測試只在 CMake。S03 起 `src/` 多出 application、infrastructure（OpenCV、HALCON）時，這個 `.pro` 要跟著調整，否則 Qt Creator 建置會壞（正式路徑是 CMake）。S03 已把 application、`infrastructure/{backend_fake,perf,threading}` 與組裝根納入；S06 的 storage、S07／S08 的 OpenCV／HALCON 還沒有 |
 | `cmake/`、`CMakeLists.txt`、`CMakePresets.json` | 建置設定；`cmake/AoiTargets.cmake` 放警告設定與 `aoi_add_qt_test` |
 | `scripts/dev/` | `env.ps1`（進入開發環境）、`test.ps1`（建置＋跑測試，失敗時印 log） |
 | `perf/baseline/` | 各機器的效能基準線（入版控）；原始量測在 `perf/results/`（不入版控） |
@@ -74,10 +75,10 @@ AOI 教學工具：使用者在影像上框一個樣本 ROI → 程式找出相�
 | 目的 | 指令 | 備註 |
 |---|---|---|
 | 建置 | `. .\scripts\dev\env.ps1` 後 `cmake --preset release` 與 `cmake --build build/release`（`debug`、`relwithdebinfo` 同理） | S02 起可用。選項 `AOI_WITH_OPENCV`、`AOI_WITH_HALCON`（預設 OFF）、`AOI_BUILD_TESTS`、`AOI_DEMO_SCENE` |
-| 單元測試 | `powershell -ExecutionPolicy Bypass -File scripts/dev/test.ps1`（含建置；`-Preset debug` 可換組態） | S02 起 5 個 Qt Test 執行檔，經 CTest 在 offscreen 平台執行；契約測試 S09 起 |
-| 效能基準線 | `powershell -ExecutionPolicy Bypass -File scripts/dev/test.ps1 -Perf` | S02 的 UI 基準線（U1、U4、I1、I2、I5）；Release 才有意義；結果與預算比對見 `docs/steps/S02-ui-shell/perf.md` |
-| 執行程式 | 進入開發環境後 `build\release\aoi.exe`；`--demo 5000` 開合成板子與框，`--lang zh_TW\|en`、`--theme light\|dark\|system` | |
-| 依賴方向檢查 | `node tools/check-deps.mjs` | S03 建立；掃 `#include`，違規即失敗 |
+| 單元測試 | `powershell -ExecutionPolicy Bypass -File scripts/dev/test.ps1`（含建置；`-Preset debug` 可換組態） | S02 起 5 個 UI 的 Qt Test 執行檔；S03 起再加 8 個核心的測試執行檔、`tst_cli`（命令列）與 3 個 `check_deps*` 項目；經 CTest 在 offscreen 平台執行；契約測試 S09 起 |
+| 效能基準線 | `powershell -ExecutionPolicy Bypass -File scripts/dev/test.ps1 -Perf` | S02 的 UI 基準線（U1、U4、I1、I2、I5）與 S03 的核心量測（`perf_core`：PerfProbe 開關成本、工作延遲、取消延遲、use case 自己的成本）；Release 才有意義；結果見 `docs/steps/S02-ui-shell/perf.md`、`docs/steps/S03-core/perf.md`，基準線在 `perf/baseline/` |
+| 執行程式 | 進入開發環境後 `build\release\aoi.exe`；`--demo 5000` 開合成板子與框，`--lang zh_TW\|en`、`--theme light\|dark\|system`、`--backend fake\|opencv\|halcon`（預設 `fake`；沒編進程式的 back end 以結束碼 2 明確失敗，訊息寫到 stderr） | |
+| 依賴方向檢查 | `node tools/check-deps.mjs` | S03 起可用；掃 `src/` 的 `#include`，違規即失敗（結束碼 1）。`--self-test` 對 13 個 fixture 驗證它真的抓得到；`--root <dir>` 掃別的樹。CTest 的 `check_deps`、`check_deps_self_test`、`check_deps_catches_a_violation`（找不到 Node 時不註冊，configure 會警告） |
 | 文件風格檢查 | `node tools/ste-lint.mjs` | 現在可用；只檢查 `<!--STE-->` 標記之間的文字 |
 | 顏色對比檢查 | `node tools/check-contrast.mjs` | S01 起可用；驗算 `docs/ux/tokens.json`（文字 ≥ 4.5、圖形 ≥ 3）並檢查四種狀態線型不重複；改過顏色後加 `--write` 更新結果 |
 | 效能 | S10 的 harness | 預算在 `perf/budgets.json` |
@@ -88,7 +89,10 @@ AOI 教學工具：使用者在影像上框一個樣本 ROI → 程式找出相�
 ## 限制與不變條件
 
 - 分層與依賴方向見 `docs/architecture.md`，違規由 `check-deps` 擋下。
-- 不要在 `domain` 或 `application` include Qt、`cv::`、`HalconCpp`。
+- 不要在 `domain` 或 `application` include Qt、`cv::`、`HalconCpp`（`check-deps` 會擋）。
+- port 必須可重入（latest-wins 時新舊工作會重疊）、不丟例外、取消是協作式的；契約寫在各 port 的標頭，S09 變成契約測試。
+- 座標與角度慣例只有一種（ADR-010，`src/domain/geometry.h`）：adapter 自己轉換，不要在 domain 或 use case 裡補丁。
+- 不要在 `JobRunner` 的 `work`／`done` 裡解構那個 `JobRunner`（解構會等所有工作結束，等到自己）。
 - 不要讓 `cv::Mat`、`HalconCpp::HImage`、`QImage` 跨過 port（用 `ImageView`）。
 - 不要沒量測就做效能優化（S11 規則：先有 before 數字）。
 - 不要把效能預算數字當事實：`perf/budgets.json` 內為「提議值」，要在 S02 與 S07 用本機實測校準後才轉為正式。
@@ -104,6 +108,7 @@ AOI 教學工具：使用者在影像上框一個樣本 ROI → 程式找出相�
 | 改分層、新增模組 | `docs/architecture.md`、`docs/decisions.md`（索引，連到 `docs/adr/`） | 已記錄的決定沒有新證據不推翻 |
 | 寫步驟文件 | `docs/steps/_template/`、`project-rules.md` 的「每一步的四種輸出」 | 跑 `node tools/ste-lint.mjs` |
 | 效能相關 | `docs/perf-test-plan.md`、`perf/budgets.json` | 沒有 before 數字不動手 |
+| 改 port、use case 或新增 back end | `docs/steps/S03-core/spec.md`、port 標頭裡的契約、ADR-010、`docs/architecture.md` | 新 back end ＝ adapter ＋ 在 `CompositionRoot.cpp` 註冊；不要改 `application/`、`domain/` |
 | 接續別人的工作 | `.ai/handoff.md`、`docs/changelog-ai.md` | 先看 `git status`，別覆蓋未完成的修改 |
 | 收工、換 agent | `ai-handoff` skill | |
 
@@ -121,3 +126,6 @@ AOI 教學工具：使用者在影像上框一個樣本 ROI → 程式找出相�
 | port | application 層定義的介面，由 infrastructure 的 adapter 實作 |
 | `ImageView` | 跨過 port 傳遞影像的型別，不暴露任何函式庫的影像類別 |
 | Step Protocol | 每完成一步必做的流程，見 `project-rules.md` |
+| Candidate／classify | use case 一次回傳所有候選與分數（≥ 0.30）；`classify(proposal, threshold)` 依門檻分成 Sample／Found／Inferred／Rejected，拖門檻不必重新搜尋 |
+| latest-wins | `JobRunner`：新工作提交時舊工作的取消旗標立刻升起，不等它停下；過期結果靠工作編號與 `JobReport::latest` 丟棄 |
+| 假 back end（fake） | `infrastructure/backend_fake`：以樣本為中心排可重現的合成網格，不看影像；`--backend=fake`，S07 之前讓整個流程有東西可跑 |

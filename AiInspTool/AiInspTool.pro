@@ -4,8 +4,8 @@
 # 開啟、建置與執行；它會自動納入 ../src 底下的檔案，之後在 ../src/presentation 新增檔案不必改這裡。
 # 正式的建置與測試走 CMake（../CMakeLists.txt、../scripts/dev/test.ps1），單元測試也只在 CMake 那邊。
 #
-# 注意：S03 之後 ../src 會多出 application、infrastructure（OpenCV、HALCON）。到時候這個檔要跟著調整，
-#       不要只依賴它確認「全部都能建置」。
+# 注意：S03 起 ../src 有 application、infrastructure、組裝根，這個檔已經調整；S06 起還會有 storage、S07／S08 有 OpenCV／HALCON，
+#       到時候要跟著調整，不要只依賴它確認「全部都能建置」（正式的建置與測試走 CMake）。
 #
 # 精靈原本產生的 main.cpp、mainwindow.h、mainwindow.cpp、mainwindow.ui 現在沒有被使用（入口是 ../src/app/main.cpp）。
 
@@ -17,11 +17,23 @@ CONFIG += c++20
 
 INCLUDEPATH += $$PWD/../src
 
+# S03：src/ 多了 application、infrastructure（只有不依賴視覺函式庫的 backend_fake、perf、threading）與組裝根。
+# backend_opencv、backend_halcon（S07、S08）需要各自的函式庫，這個 qmake 專案不建置它們；到時候要用的話再加。
 SOURCES += $$PWD/../src/app/main.cpp
+SOURCES += $$PWD/../src/app/CompositionRoot.cpp
+SOURCES += $$files($$PWD/../src/application/*.cpp, true)
+SOURCES += $$files($$PWD/../src/infrastructure/backend_fake/*.cpp, true)
+SOURCES += $$files($$PWD/../src/infrastructure/perf/*.cpp, true)
+SOURCES += $$files($$PWD/../src/infrastructure/threading/*.cpp, true)
 SOURCES += $$files($$PWD/../src/presentation/*.cpp, true)
 
 # Q_OBJECT 的標頭一定要列進 HEADERS，qmake 才會對它們執行 moc。
 HEADERS += $$files($$PWD/../src/domain/*.h, true)
+HEADERS += $$files($$PWD/../src/application/*.h, true)
+HEADERS += $$files($$PWD/../src/infrastructure/backend_fake/*.h, true)
+HEADERS += $$files($$PWD/../src/infrastructure/perf/*.h, true)
+HEADERS += $$files($$PWD/../src/infrastructure/threading/*.h, true)
+HEADERS += $$PWD/../src/app/CompositionRoot.h
 HEADERS += $$files($$PWD/../src/presentation/*.h, true)
 
 # tokens.json 與 copy.json 是畫面顏色與文案的唯一來源，內嵌進執行檔。

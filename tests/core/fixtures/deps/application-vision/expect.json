@@ -1,0 +1,19 @@
+{
+  "violations": [
+    {
+      "file": "src/application/bad.h",
+      "line": 2,
+      "includes": "opencv2/core.hpp"
+    },
+    {
+      "file": "src/application/bad.h",
+      "line": 3,
+      "includes": "halconcpp/HalconCpp.h"
+    },
+    {
+      "file": "src/application/bad.h",
+      "line": 4,
+      "includes": "QtCore/QString"
+    }
+  ]
+}

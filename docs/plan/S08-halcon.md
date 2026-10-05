@@ -9,6 +9,8 @@
 
 > **S01 修訂（2026-10-05）**：照 ADR-006：HALCON 版 `ILibraryMatcher`。預期每個庫條目建一個 shape model 再一次找多個（**未驗證**，這一步確認）。T7 補 HALCON 的實測。
 
+> **S03 完成後的提醒（2026-10-05）**：新增 back end 的方式與 S07 相同（adapter ＋ 在 `CompositionRoot.cpp` 註冊）。HALCON 的角度是弧度、座標是 `(Row, Column)`：轉換放在 adapter，正負號與軸順序是 ADR-010 裡「未驗證」的部分，要實測並用 S09 的契約測試鎖住。這台機器只有 HALCON runtime（沒有標頭與程式庫），要先補裝開發元件。
+
 <!--STE-->
 ## Purpose
 This step builds the HALCON back end. It uses the HALCON shape model to find similar parts.

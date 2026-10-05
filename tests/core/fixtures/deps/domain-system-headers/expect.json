@@ -1,0 +1,14 @@
+{
+  "violations": [
+    {
+      "file": "src/domain/bad.h",
+      "line": 2,
+      "includes": "windows.h"
+    },
+    {
+      "file": "src/domain/bad.h",
+      "line": 3,
+      "includes": "boost/optional.hpp"
+    }
+  ]
+}

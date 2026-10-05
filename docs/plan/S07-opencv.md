@@ -9,6 +9,8 @@
 
 > **S01 修訂（2026-10-05）**：照 ADR-006：要實作 `ILibraryMatcher`（區域＋樣本庫 → 元件候選、位姿、分數、候選類型的分數）；成本預期隨庫大小 N 成長（**假設**，要實測）。新預算 T7（暫稱）在這一步實測後提案。
 
+> **S03 完成後的提醒（2026-10-05）**：新增 back end ＝ adapter ＋ 在 `src/app/CompositionRoot.cpp` 把 `registerUnavailable("opencv", …)` 換成 `registerBackend`；不要改 `application/`、`domain/`（`check-deps` 會擋）。`ITemplateBuilder`、`IPatternSearcher` 的契約（排序、視窗限制、取消、可重入、不丟例外）寫在標頭；`tests/core/tst_fake_backend.cpp` 是假 back end 版本的契約測試，`tst_backend_registry` 的 `ScriptedBackend` 示範怎麼放進新的 back end。OpenCV 只能出現在 `infrastructure/backend_opencv`（`check-deps` 的規則表已有這一列）；`AiInspTool.pro` 目前不納入它。ADR-010 的座標與角度轉換（像素中心偏移 0.5、`matchTemplate` 回傳左上角整數座標）只是文件上的假設，要實測。
+
 <!--STE-->
 ## Purpose
 This step builds the OpenCV back end. It builds the template and searches the image for similar parts.
