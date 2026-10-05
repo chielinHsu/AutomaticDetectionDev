@@ -26,7 +26,7 @@ qrc_*.cpp
 *.exp
 
 # Performance output (budgets and baselines ARE tracked, raw runs are not)
-perf/results/
+perf/results/*
 !perf/results/.gitkeep
 
 # Real production images (large, may be confidential). Use synthetic data in testdata/.
