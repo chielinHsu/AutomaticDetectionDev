@@ -44,7 +44,7 @@ The Composition root creates all objects and connects them.
 An inner layer must not include a header from an outer layer.
 <!--/STE-->
 
-**繁中**：五層。內層不可 include 外層的標頭檔。完整依賴表見 `CLAUDE.md`，圖見 [diagram.md](diagram.md)。
+**繁中**：五層。內層不可 include 外層的標頭檔。完整依賴表見 `docs/architecture.md`，圖見 [diagram.md](diagram.md)。
 
 <!--STE-->
 ## Two back ends

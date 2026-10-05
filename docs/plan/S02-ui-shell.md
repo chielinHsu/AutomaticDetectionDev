@@ -22,8 +22,8 @@ We get a measured baseline for screen speed. A later step cannot make the screen
 
 ## 任務
 
-1. **驗證工具鏈（第一件事）**：用 `vswhere` 找 VS 2022、確認 `vcvars64.bat` 可用；以 Qt `D:\Qt\6.8.0\msvc2022_64`＋Ninja 設定 CMake 能 configure/build。**把結果更新到 `CLAUDE.md` 環境表。**
-2. **專案骨架**：根 `CMakeLists.txt`、`CMakePresets.json`（debug / release / relwithdebinfo）、目標切分依 `CLAUDE.md` 分層；自家程式碼警告當錯誤（`/W4 /WX`）；選項 `AOI_WITH_OPENCV`、`AOI_WITH_HALCON`（此步預設 OFF）。
+1. **驗證工具鏈（第一件事）**：用 `vswhere` 找 VS 2022、確認 `vcvars64.bat` 可用；以 Qt `D:\Qt\6.8.0\msvc2022_64`＋Ninja 設定 CMake 能 configure/build。**把結果更新到 `AI_CONTEXT.md` 環境表。**
+2. **專案骨架**：根 `CMakeLists.txt`、`CMakePresets.json`（debug / release / relwithdebinfo）、目標切分依 `docs/architecture.md` 分層；自家程式碼警告當錯誤（`/W4 /WX`）；選項 `AOI_WITH_OPENCV`、`AOI_WITH_HALCON`（此步預設 OFF）。
 3. **MainWindow**：左工具列、右側 Objects／Params dock（先放空殼）、狀態列；S01 的 token 轉成 `QPalette`/QSS；i18n 骨架（zh_TW／en）；`QAction` 快捷鍵。
 4. **`ImageCanvas : QGraphicsView`**：游標中心縮放、平移、適配視窗、高 DPI。**`ImageItem`** 以零複製包裝共享影像緩衝為 `QImage`。
 5. **`RoiGraphicsItem`**（依狀態套用 S01 樣式、選取把手 ≥ 24 px）與 **`RoiLayerItem`**（大量框的批次繪製、只畫可見範圍、依縮放層級簡化）。
@@ -72,7 +72,7 @@ feat(ui): add Qt shell, zoomable image canvas and ROI items
 ## Start prompt（開新 session 時貼上）
 
 ```
-你正在 D:\AOI_Project\Qt\AutoCadCreated 繼續 AOI 專案。請先讀 CLAUDE.md、docs/STATUS.md、docs/plan/S02-ui-shell.md，
-再依 CLAUDE.md 的 Step Protocol 完成步驟 S02（分支 step/02-ui-shell）。只做 S02。第一件事是驗證 MSVC/Qt/CMake 工具鏈。
-完成後：commit、合併到 main、更新 STATUS.md、對我提示 commit 內容，並用 spawn_task 為 S03 開新 session。
+你正在 D:\AOI_Project\Qt\AutoCadCreated 繼續 AOI 專案。請先讀 AGENTS.md、docs/current-status.md、docs/plan/S02-ui-shell.md，
+再依 .agents/harness/project-rules.md 的 Step Protocol 完成步驟 S02（分支 step/02-ui-shell）。只做 S02。第一件事是驗證 MSVC/Qt/CMake 工具鏈。
+完成後：commit、合併到 main、更新 docs/current-status.md 與交接單（ai-handoff skill）、對我提示 commit 內容，並用 spawn_task 為 S03 開新 session。
 ```

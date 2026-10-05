@@ -72,8 +72,8 @@ feat(opencv): add OpenCV template builder and pattern searcher
 ## Start prompt（開新 session 時貼上）
 
 ```
-你正在 D:\AOI_Project\Qt\AutoCadCreated 繼續 AOI 專案。請先讀 CLAUDE.md、docs/STATUS.md、docs/plan/S07-opencv.md，
-再依 CLAUDE.md 的 Step Protocol 完成步驟 S07（分支 step/07-opencv）。只做 S07。
+你正在 D:\AOI_Project\Qt\AutoCadCreated 繼續 AOI 專案。請先讀 AGENTS.md、docs/current-status.md、docs/plan/S07-opencv.md，
+再依 .agents/harness/project-rules.md 的 Step Protocol 完成步驟 S07（分支 step/07-opencv）。只做 S07。
 開始前請向使用者要 1–2 張去識別化的真實板子影像（沒有的話先用合成影像並註明）。
-完成後：commit、合併到 main、更新 STATUS.md、對我提示 commit 內容，並用 spawn_task 為 S08 開新 session。
+完成後：commit、合併到 main、更新 docs/current-status.md 與交接單（ai-handoff skill）、對我提示 commit 內容，並用 spawn_task 為 S08 開新 session。
 ```
