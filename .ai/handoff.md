@@ -18,8 +18,8 @@
 
 ## 下一步
 
-- 使用者檢視分支 `chore/ai-agent-structure` 的 commit；同意後依專案慣例 `git merge --no-ff` 合併到 `main`（目前還沒合併）。
-- 合併之後再開 S01 新 session：prompt 在 `docs/plan/S01-ux-spec.md` 底部。必須先合併，因為該 prompt 已改成引用 `AGENTS.md` 與 `docs/current-status.md`，`main` 上還沒有這些檔案。
+- 開 S01 新 session：prompt 在 `docs/plan/S01-ux-spec.md` 底部。結構套用已合併到 `main`，prompt 引用的 `AGENTS.md` 與 `docs/current-status.md` 都在 `main` 上。
+- 是否 push 到遠端由使用者決定（目前沒有 push）。
 
 ## 相關檔案
 
@@ -38,7 +38,7 @@
 
 ## 未提交的變更
 
-- 無。套用結構的變更已 commit 在分支 `chore/ai-agent-structure`，尚未合併到 `main`。
+- 無。套用結構的變更已 commit（`fd4fd2a`）並以 `--no-ff` 合併到 `main`；沒有 push。
 - `ai-project-template/` 仍未追蹤，不屬於那次 commit。
 
 ## 假設與未驗證項目

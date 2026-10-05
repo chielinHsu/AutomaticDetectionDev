@@ -3,7 +3,7 @@
 新 session 開工前先讀這份，再讀 `docs/plan/Sxx-*.md`。步驟完成後由該步驟的 session 更新。原檔名 `STATUS.md`，2026-10-05 更名為本檔以符合共用結構（見 `docs/adr/000-ai-agent-structure.md`）。
 
 - 更新日期：2026-10-05
-- 階段：S00 完成；S01 待開始；AI 共用結構已 commit 在分支 `chore/ai-agent-structure`，尚未合併到 `main`（見「未解決事項」）
+- 階段：S00 完成；S01 待開始；AI 共用結構已合併到 `main`（2026-10-05，未 push）
 
 | 步驟 | 層級 | 主題 | 狀態 | 分支 | tag |
 |---|---|---|---|---|---|
@@ -32,6 +32,6 @@
 - UI 工具集（Widgets vs QML）— S01 決定（ADR-001）
 - MSVC 2022 工具鏈是否可用 — S02 第一件事驗證
 - 真實板子影像（去識別化 1–2 張）— S07 前請使用者提供
-- AI 共用結構（Codex 與 Claude Code）已於 2026-10-05 套用並 commit 在分支 `chore/ai-agent-structure`，**尚未合併到 `main`**，等使用者檢視後決定。**S01 必須在合併之後才開**：S01 的 Start prompt 已改成引用 `AGENTS.md` 與 `docs/current-status.md`，`main` 上還沒有這些檔案。變更含：新增 `AGENTS.md`、`AI_CONTEXT.md`、`.agents/`、`.claude/`、`.ai/`、`scripts/ai/`、`docs/adr/000-*`、`docs/architecture.md`、`docs/decisions.md`、`docs/changelog-ai.md`；改寫 `CLAUDE.md`；`docs/STATUS.md` 更名為本檔；14 個檔案的引用更新。stage 時一律明確列出路徑，不要 `git add -A`。
+- AI 共用結構（Codex 與 Claude Code）已於 2026-10-05 套用，commit `fd4fd2a` 並以 `--no-ff` 合併到 `main`，**沒有 push**。S01 的 Start prompt 已改成引用 `AGENTS.md` 與 `docs/current-status.md`，這些檔案都在 `main` 上。變更含：新增 `AGENTS.md`、`AI_CONTEXT.md`、`.agents/`、`.claude/`、`.ai/`、`scripts/ai/`、`docs/adr/000-*`、`docs/architecture.md`、`docs/decisions.md`、`docs/changelog-ai.md`；改寫 `CLAUDE.md`；`docs/STATUS.md` 更名為本檔；14 個檔案的引用更新。stage 時一律明確列出路徑，不要 `git add -A`。
 - `ai-project-template/`（非本計畫產生）：範本來源，保持未追蹤、不修改。要放哪裡或是否留在這個 repo，由使用者決定。
 - Codex 端的 AGENTS.md 流程沒有在本機端到端測過（該機器的 Codex CLI 無法執行 `codex exec`）。

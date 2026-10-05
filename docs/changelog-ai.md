@@ -46,7 +46,7 @@
 - 未驗證：Codex 端。這台的 Codex CLI 0.136.0 無法執行 `codex exec`（解析模型清單失敗），所以 `AGENTS.md` 的必讀清單流程沒有實測。
 
 ### 未完成
-- 變更已 commit 在分支 `chore/ai-agent-structure`（從 `main` 分出），尚未合併到 `main`，等使用者檢視。
+- 變更已 commit（`fd4fd2a`），並依使用者要求以 `--no-ff` 合併到 `main`。沒有 push，是否推到遠端由使用者決定。
 - `ai-project-template/` 仍在 repo 內且未追蹤，不在這次 commit，要放哪裡由使用者決定。
 
 ### 注意事項
