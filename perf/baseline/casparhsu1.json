@@ -1,0 +1,866 @@
+{
+  "schema": 1,
+  "step": "S02",
+  "note": "UI baseline recorded in S02. Numbers compare only on this machine. offscreen = Qt software raster CPU time, no display. windowsSubset = real window incl. backing store present.",
+  "method": "warm-up 5, measured 30 (comparisons: warm-up 3, measured 10); median and p95; time = event injection until the dirty region is painted",
+  "machine": {
+    "buildType": "Release",
+    "commit": "ea131db+uncommitted",
+    "compiler": "MSVC 194435228",
+    "cpu": "13th Gen Intel(R) Core(TM) i7-1360P",
+    "gpu": "Microsoft Remote Display Adapter | Intel(R) Iris(R) Xe Graphics | Microsoft Remote Display Adapter",
+    "logicalCores": 16,
+    "machineName": "CasparHsu1",
+    "measurementHygiene": "process priority HIGH; power throttling off; thread pinned to logical CPU 0 (efficiency class 1 of 2 classes)",
+    "os": "Windows 11 Version 23H2 (kernel 10.0.22631)",
+    "qpaPlatform": "offscreen",
+    "qt": "6.8.0",
+    "ramGB": 63.6
+  },
+  "metrics": [
+    {
+      "id": "U1a",
+      "label": "結果就緒→第一幀，200 框（批次繪製）",
+      "unit": "ms",
+      "n": 30,
+      "median": 5.125,
+      "p95": 5.89,
+      "max": 7.051,
+      "budget": 33,
+      "pass": true
+    },
+    {
+      "id": "U1b",
+      "label": "結果就緒→第一幀，5000 框（批次繪製）",
+      "unit": "ms",
+      "n": 30,
+      "median": 9.782,
+      "p95": 10.454,
+      "max": 11.781,
+      "budget": 50,
+      "pass": true
+    },
+    {
+      "id": "U1-1k",
+      "label": "結果就緒→第一幀，1000 框（批次繪製）",
+      "unit": "ms",
+      "n": 30,
+      "median": 6.902,
+      "p95": 8.532,
+      "max": 10.633
+    },
+    {
+      "id": "U1-20k",
+      "label": "結果就緒→第一幀，20000 框（批次繪製）",
+      "unit": "ms",
+      "n": 30,
+      "median": 4.769,
+      "p95": 5.262,
+      "max": 5.56
+    },
+    {
+      "id": "U4-BMP-decode",
+      "label": "開啟 5 MP BMP：解碼",
+      "unit": "ms",
+      "n": 30,
+      "median": 38.935,
+      "p95": 44.19,
+      "max": 46.581
+    },
+    {
+      "id": "U4-BMP-paint",
+      "label": "開啟 5 MP BMP：設定影像＋適配＋第一次繪製",
+      "unit": "ms",
+      "n": 30,
+      "median": 2.827,
+      "p95": 3.911,
+      "max": 4.019
+    },
+    {
+      "id": "U4-BMP",
+      "label": "開啟 5 MP BMP：合計",
+      "unit": "ms",
+      "n": 30,
+      "median": 41.548,
+      "p95": 47.406,
+      "max": 50.033,
+      "budget": 200,
+      "pass": true
+    },
+    {
+      "id": "U4-PNG-decode",
+      "label": "開啟 5 MP PNG：解碼",
+      "unit": "ms",
+      "n": 30,
+      "median": 121.293,
+      "p95": 138.899,
+      "max": 151.44
+    },
+    {
+      "id": "U4-PNG-paint",
+      "label": "開啟 5 MP PNG：設定影像＋適配＋第一次繪製",
+      "unit": "ms",
+      "n": 30,
+      "median": 2.703,
+      "p95": 3.77,
+      "max": 3.979
+    },
+    {
+      "id": "U4-PNG",
+      "label": "開啟 5 MP PNG：合計",
+      "unit": "ms",
+      "n": 30,
+      "median": 123.655,
+      "p95": 141.658,
+      "max": 154.468,
+      "budget": 200,
+      "pass": true
+    },
+    {
+      "id": "U4-JPG-decode",
+      "label": "開啟 5 MP JPG：解碼",
+      "unit": "ms",
+      "n": 30,
+      "median": 60.878,
+      "p95": 83.868,
+      "max": 92.84
+    },
+    {
+      "id": "U4-JPG-paint",
+      "label": "開啟 5 MP JPG：設定影像＋適配＋第一次繪製",
+      "unit": "ms",
+      "n": 30,
+      "median": 2.859,
+      "p95": 3.994,
+      "max": 4.332
+    },
+    {
+      "id": "U4-JPG",
+      "label": "開啟 5 MP JPG：合計",
+      "unit": "ms",
+      "n": 30,
+      "median": 63.483,
+      "p95": 87.707,
+      "max": 95.686,
+      "budget": 200,
+      "pass": true
+    },
+    {
+      "id": "I1",
+      "label": "平移／縮放幀時間，5000 框，視埠 1000×700（批次繪製）",
+      "unit": "ms",
+      "n": 2400,
+      "median": 6.663,
+      "p95": 15.202,
+      "max": 27.338,
+      "budget": 16.7,
+      "pass": true
+    },
+    {
+      "id": "I1-zoom",
+      "label": "　其中縮放的幀（全視埠重繪）",
+      "unit": "ms",
+      "n": 1200,
+      "median": 8.348,
+      "p95": 16.667,
+      "max": 27.338
+    },
+    {
+      "id": "I1-pan",
+      "label": "　其中平移的幀",
+      "unit": "ms",
+      "n": 1200,
+      "median": 6.293,
+      "p95": 9.504,
+      "max": 15.6
+    },
+    {
+      "id": "I1-1600x900",
+      "label": "平移／縮放幀時間，5000 框，視埠 1600×900（批次繪製）",
+      "unit": "ms",
+      "n": 800,
+      "median": 10.951,
+      "p95": 21.346,
+      "max": 31.745
+    },
+    {
+      "id": "I1-1600x900-zoom",
+      "label": "　其中縮放的幀（全視埠重繪）",
+      "unit": "ms",
+      "n": 400,
+      "median": 10.727,
+      "p95": 22.826,
+      "max": 31.745
+    },
+    {
+      "id": "I1-1600x900-pan",
+      "label": "　其中平移的幀",
+      "unit": "ms",
+      "n": 400,
+      "median": 10.978,
+      "p95": 14.066,
+      "max": 19.577
+    },
+    {
+      "id": "I1-100",
+      "label": "平移／縮放幀時間，100 框，視埠 1000×700（批次繪製）",
+      "unit": "ms",
+      "n": 800,
+      "median": 1.26,
+      "p95": 4.525,
+      "max": 7.529
+    },
+    {
+      "id": "I1-100-zoom",
+      "label": "　其中縮放的幀（全視埠重繪）",
+      "unit": "ms",
+      "n": 400,
+      "median": 1.799,
+      "p95": 5.368,
+      "max": 7.529
+    },
+    {
+      "id": "I1-100-pan",
+      "label": "　其中平移的幀",
+      "unit": "ms",
+      "n": 400,
+      "median": 1.005,
+      "p95": 1.309,
+      "max": 1.935
+    },
+    {
+      "id": "I1-1k",
+      "label": "平移／縮放幀時間，1000 框，視埠 1000×700（批次繪製）",
+      "unit": "ms",
+      "n": 800,
+      "median": 1.797,
+      "p95": 6.667,
+      "max": 11.311
+    },
+    {
+      "id": "I1-1k-zoom",
+      "label": "　其中縮放的幀（全視埠重繪）",
+      "unit": "ms",
+      "n": 400,
+      "median": 2.819,
+      "p95": 7.664,
+      "max": 11.311
+    },
+    {
+      "id": "I1-1k-pan",
+      "label": "　其中平移的幀",
+      "unit": "ms",
+      "n": 400,
+      "median": 1.539,
+      "p95": 2.12,
+      "max": 3.072
+    },
+    {
+      "id": "I1-20k",
+      "label": "平移／縮放幀時間，20000 框，視埠 1000×700（批次繪製）",
+      "unit": "ms",
+      "n": 800,
+      "median": 7.458,
+      "p95": 15.686,
+      "max": 20.816
+    },
+    {
+      "id": "I1-20k-zoom",
+      "label": "　其中縮放的幀（全視埠重繪）",
+      "unit": "ms",
+      "n": 400,
+      "median": 8.542,
+      "p95": 16.89,
+      "max": 20.816
+    },
+    {
+      "id": "I1-20k-pan",
+      "label": "　其中平移的幀",
+      "unit": "ms",
+      "n": 400,
+      "median": 7.347,
+      "p95": 9.429,
+      "max": 12.737
+    },
+    {
+      "id": "I2",
+      "label": "滑鼠按下→可見回饋（樣本工具，5000 框）",
+      "unit": "ms",
+      "n": 30,
+      "median": 0.791,
+      "p95": 1.545,
+      "max": 1.853,
+      "budget": 50,
+      "pass": true
+    },
+    {
+      "id": "I5",
+      "label": "拖曳樣本框幀時間（5000 框，5 MP）",
+      "unit": "ms",
+      "n": 3000,
+      "median": 3.083,
+      "p95": 6.43,
+      "max": 9.504,
+      "budget": 16.7,
+      "pass": true
+    },
+    {
+      "id": "CMP-batched-first-ics-100",
+      "label": "對照：批次，第一幀，100 框",
+      "unit": "ms",
+      "n": 10,
+      "median": 3.968,
+      "p95": 4.334,
+      "max": 4.538
+    },
+    {
+      "id": "CMP-batched-pan-ics-100",
+      "label": "對照：批次，平移／縮放幀，100 框",
+      "unit": "ms",
+      "n": 800,
+      "median": 1.261,
+      "p95": 4.451,
+      "max": 7.303
+    },
+    {
+      "id": "CMP-peritem-first-ics-100",
+      "label": "對照：逐一，第一幀（含建立 Item），100 框",
+      "unit": "ms",
+      "n": 10,
+      "median": 4.572,
+      "p95": 4.796,
+      "max": 4.874
+    },
+    {
+      "id": "CMP-peritem-pan-ics-100",
+      "label": "對照：逐一，平移／縮放幀，100 框",
+      "unit": "ms",
+      "n": 800,
+      "median": 1.261,
+      "p95": 4.701,
+      "max": 6.909
+    },
+    {
+      "id": "CMP-batched-first-ics-1000",
+      "label": "對照：批次，第一幀，1000 框",
+      "unit": "ms",
+      "n": 10,
+      "median": 6.745,
+      "p95": 6.977,
+      "max": 7.005
+    },
+    {
+      "id": "CMP-batched-pan-ics-1000",
+      "label": "對照：批次，平移／縮放幀，1000 框",
+      "unit": "ms",
+      "n": 800,
+      "median": 1.611,
+      "p95": 6.107,
+      "max": 9.078
+    },
+    {
+      "id": "CMP-peritem-first-ics-1000",
+      "label": "對照：逐一，第一幀（含建立 Item），1000 框",
+      "unit": "ms",
+      "n": 10,
+      "median": 12.687,
+      "p95": 16.915,
+      "max": 17.24
+    },
+    {
+      "id": "CMP-peritem-pan-ics-1000",
+      "label": "對照：逐一，平移／縮放幀，1000 框",
+      "unit": "ms",
+      "n": 800,
+      "median": 1.553,
+      "p95": 6.551,
+      "max": 10.345
+    },
+    {
+      "id": "CMP-batched-first-ics-5000",
+      "label": "對照：批次，第一幀，5000 框",
+      "unit": "ms",
+      "n": 10,
+      "median": 9.092,
+      "p95": 9.486,
+      "max": 9.534
+    },
+    {
+      "id": "CMP-batched-pan-ics-5000",
+      "label": "對照：批次，平移／縮放幀，5000 框",
+      "unit": "ms",
+      "n": 800,
+      "median": 6.414,
+      "p95": 14.12,
+      "max": 20.503
+    },
+    {
+      "id": "CMP-peritem-first-ics-5000",
+      "label": "對照：逐一，第一幀（含建立 Item），5000 框",
+      "unit": "ms",
+      "n": 10,
+      "median": 16.373,
+      "p95": 18.4,
+      "max": 18.809
+    },
+    {
+      "id": "CMP-peritem-pan-ics-5000",
+      "label": "對照：逐一，平移／縮放幀，5000 框",
+      "unit": "ms",
+      "n": 800,
+      "median": 4.387,
+      "p95": 15.735,
+      "max": 19.74
+    },
+    {
+      "id": "CMP-batched-first-ics-20000",
+      "label": "對照：批次，第一幀，20000 框",
+      "unit": "ms",
+      "n": 10,
+      "median": 4.643,
+      "p95": 5.112,
+      "max": 5.22
+    },
+    {
+      "id": "CMP-batched-pan-ics-20000",
+      "label": "對照：批次，平移／縮放幀，20000 框",
+      "unit": "ms",
+      "n": 800,
+      "median": 7.357,
+      "p95": 15.956,
+      "max": 20.833
+    },
+    {
+      "id": "CMP-peritem-first-ics-20000",
+      "label": "對照：逐一，第一幀（含建立 Item），20000 框",
+      "unit": "ms",
+      "n": 10,
+      "median": 7.781,
+      "p95": 8.313,
+      "max": 8.334
+    },
+    {
+      "id": "CMP-peritem-pan-ics-20000",
+      "label": "對照：逐一，平移／縮放幀，20000 框",
+      "unit": "ms",
+      "n": 800,
+      "median": 4.776,
+      "p95": 20.498,
+      "max": 26.577
+    },
+    {
+      "id": "CMP-batched-first-chips-1000",
+      "label": "對照：批次，第一幀，1000 框",
+      "unit": "ms",
+      "n": 10,
+      "median": 6.362,
+      "p95": 6.994,
+      "max": 7.101
+    },
+    {
+      "id": "CMP-batched-pan-chips-1000",
+      "label": "對照：批次，平移／縮放幀，1000 框",
+      "unit": "ms",
+      "n": 800,
+      "median": 2.964,
+      "p95": 7.35,
+      "max": 11.833
+    },
+    {
+      "id": "CMP-peritem-first-chips-1000",
+      "label": "對照：逐一，第一幀（含建立 Item），1000 框",
+      "unit": "ms",
+      "n": 10,
+      "median": 12.554,
+      "p95": 15.469,
+      "max": 16.552
+    },
+    {
+      "id": "CMP-peritem-pan-chips-1000",
+      "label": "對照：逐一，平移／縮放幀，1000 框",
+      "unit": "ms",
+      "n": 800,
+      "median": 2.556,
+      "p95": 9.197,
+      "max": 15.235
+    },
+    {
+      "id": "CMP-batched-first-chips-5000",
+      "label": "對照：批次，第一幀，5000 框",
+      "unit": "ms",
+      "n": 10,
+      "median": 15.694,
+      "p95": 17.09,
+      "max": 17.217
+    },
+    {
+      "id": "CMP-batched-pan-chips-5000",
+      "label": "對照：批次，平移／縮放幀，5000 框",
+      "unit": "ms",
+      "n": 800,
+      "median": 5.339,
+      "p95": 13.301,
+      "max": 19.293
+    },
+    {
+      "id": "CMP-peritem-first-chips-5000",
+      "label": "對照：逐一，第一幀（含建立 Item），5000 框",
+      "unit": "ms",
+      "n": 10,
+      "median": 34.366,
+      "p95": 36.71,
+      "max": 37.954
+    },
+    {
+      "id": "CMP-peritem-pan-chips-5000",
+      "label": "對照：逐一，平移／縮放幀，5000 框",
+      "unit": "ms",
+      "n": 800,
+      "median": 5.725,
+      "p95": 27.184,
+      "max": 44.245
+    },
+    {
+      "id": "CMP-batched-first-chips-20000",
+      "label": "對照：批次，第一幀，20000 框",
+      "unit": "ms",
+      "n": 10,
+      "median": 44.727,
+      "p95": 47.383,
+      "max": 48.43
+    },
+    {
+      "id": "CMP-batched-pan-chips-20000",
+      "label": "對照：批次，平移／縮放幀，20000 框",
+      "unit": "ms",
+      "n": 800,
+      "median": 10.627,
+      "p95": 37.995,
+      "max": 52.885
+    },
+    {
+      "id": "CMP-peritem-first-chips-20000",
+      "label": "對照：逐一，第一幀（含建立 Item），20000 框",
+      "unit": "ms",
+      "n": 10,
+      "median": 154.018,
+      "p95": 197.124,
+      "max": 200.177
+    },
+    {
+      "id": "CMP-peritem-pan-chips-20000",
+      "label": "對照：逐一，平移／縮放幀，20000 框",
+      "unit": "ms",
+      "n": 800,
+      "median": 15.926,
+      "p95": 78.715,
+      "max": 128.861
+    }
+  ],
+  "layerStatsAtFit": {
+    "100": {
+      "buckets": 7,
+      "considered": 100,
+      "drawn": 100,
+      "labels": 20,
+      "skippedByLod": 0
+    },
+    "1000": {
+      "buckets": 10,
+      "considered": 1000,
+      "drawn": 1000,
+      "labels": 40,
+      "skippedByLod": 0
+    },
+    "5000": {
+      "buckets": 8,
+      "considered": 5000,
+      "drawn": 2580,
+      "labels": 0,
+      "skippedByLod": 2420
+    },
+    "20000": {
+      "buckets": 4,
+      "considered": 20000,
+      "drawn": 520,
+      "labels": 0,
+      "skippedByLod": 19480
+    }
+  },
+  "zoomBreakdown5000": [
+    {
+      "boxesDrawn": 160,
+      "frameMs": 1.908,
+      "imageMs": 0.434,
+      "labels": 0,
+      "layerMs": 1.048,
+      "scale": 0.2,
+      "skippedByLod": 4840
+    },
+    {
+      "boxesDrawn": 160,
+      "frameMs": 2.765,
+      "imageMs": 0.904,
+      "labels": 0,
+      "layerMs": 1.471,
+      "scale": 0.29,
+      "skippedByLod": 4840
+    },
+    {
+      "boxesDrawn": 2580,
+      "frameMs": 11.092,
+      "imageMs": 1.444,
+      "labels": 0,
+      "layerMs": 8.994,
+      "scale": 0.35,
+      "skippedByLod": 2420
+    },
+    {
+      "boxesDrawn": 3133,
+      "frameMs": 16.236,
+      "imageMs": 1.781,
+      "labels": 91,
+      "layerMs": 13.916,
+      "scale": 0.5,
+      "skippedByLod": 0
+    },
+    {
+      "boxesDrawn": 1435,
+      "frameMs": 13.411,
+      "imageMs": 1.43,
+      "labels": 35,
+      "layerMs": 11.609,
+      "scale": 0.8,
+      "skippedByLod": 0
+    },
+    {
+      "boxesDrawn": 615,
+      "frameMs": 3.668,
+      "imageMs": 0.577,
+      "labels": 15,
+      "layerMs": 2.759,
+      "scale": 1.2,
+      "skippedByLod": 0
+    },
+    {
+      "boxesDrawn": 217,
+      "frameMs": 2.637,
+      "imageMs": 0.524,
+      "labels": 9,
+      "layerMs": 1.687,
+      "scale": 2.4,
+      "skippedByLod": 0
+    },
+    {
+      "boxesDrawn": 41,
+      "frameMs": 1.18,
+      "imageMs": 0.497,
+      "labels": 1,
+      "layerMs": 0.344,
+      "scale": 6,
+      "skippedByLod": 0
+    }
+  ],
+  "windowsSubset": {
+    "machine": {
+      "buildType": "Release",
+      "commit": "ea131db+uncommitted",
+      "compiler": "MSVC 194435228",
+      "cpu": "13th Gen Intel(R) Core(TM) i7-1360P",
+      "gpu": "Microsoft Remote Display Adapter | Intel(R) Iris(R) Xe Graphics | Microsoft Remote Display Adapter",
+      "logicalCores": 16,
+      "machineName": "CasparHsu1",
+      "measurementHygiene": "process priority HIGH; power throttling off; thread pinned to logical CPU 0 (efficiency class 1 of 2 classes)",
+      "os": "Windows 11 Version 23H2 (kernel 10.0.22631)",
+      "qpaPlatform": "windows",
+      "qt": "6.8.0",
+      "ramGB": 63.6
+    },
+    "metrics": [
+      {
+        "id": "U1a",
+        "label": "結果就緒→第一幀，200 框（批次繪製）",
+        "unit": "ms",
+        "n": 30,
+        "median": 11.114,
+        "p95": 14.161,
+        "max": 15.985,
+        "budget": 33,
+        "pass": true
+      },
+      {
+        "id": "U1b",
+        "label": "結果就緒→第一幀，5000 框（批次繪製）",
+        "unit": "ms",
+        "n": 30,
+        "median": 21.801,
+        "p95": 26.325,
+        "max": 28.95,
+        "budget": 50,
+        "pass": true
+      },
+      {
+        "id": "U1-1k",
+        "label": "結果就緒→第一幀，1000 框（批次繪製）",
+        "unit": "ms",
+        "n": 30,
+        "median": 19.291,
+        "p95": 25.062,
+        "max": 25.533
+      },
+      {
+        "id": "U1-20k",
+        "label": "結果就緒→第一幀，20000 框（批次繪製）",
+        "unit": "ms",
+        "n": 30,
+        "median": 8.75,
+        "p95": 13.917,
+        "max": 14.412
+      },
+      {
+        "id": "I1",
+        "label": "平移／縮放幀時間，5000 框，視埠 1000×700（批次繪製）",
+        "unit": "ms",
+        "n": 2400,
+        "median": 13.168,
+        "p95": 22.096,
+        "max": 32.207,
+        "budget": 16.7,
+        "pass": false
+      },
+      {
+        "id": "I1-zoom",
+        "label": "　其中縮放的幀（全視埠重繪）",
+        "unit": "ms",
+        "n": 1200,
+        "median": 12.645,
+        "p95": 23.536,
+        "max": 32.207
+      },
+      {
+        "id": "I1-pan",
+        "label": "　其中平移的幀",
+        "unit": "ms",
+        "n": 1200,
+        "median": 13.251,
+        "p95": 16.307,
+        "max": 23.93
+      },
+      {
+        "id": "I2",
+        "label": "滑鼠按下→可見回饋（樣本工具，5000 框）",
+        "unit": "ms",
+        "n": 30,
+        "median": 1.728,
+        "p95": 3.861,
+        "max": 5.104,
+        "budget": 50,
+        "pass": true
+      },
+      {
+        "id": "I5",
+        "label": "拖曳樣本框幀時間（5000 框，5 MP）",
+        "unit": "ms",
+        "n": 3000,
+        "median": 5.387,
+        "p95": 10.484,
+        "max": 15.431,
+        "budget": 16.7,
+        "pass": true
+      }
+    ]
+  },
+  "i1Runs": [
+    {
+      "when": "early, isolated process",
+      "median": 6.399,
+      "p95": 14.287,
+      "zoomP95": 15.331,
+      "panP95": 8.257
+    },
+    {
+      "when": "early, isolated process",
+      "median": 6.431,
+      "p95": 14.329,
+      "zoomP95": 15.579,
+      "panP95": 8.5
+    },
+    {
+      "when": "early, isolated process",
+      "median": 6.298,
+      "p95": 14.099,
+      "zoomP95": 15.27,
+      "panP95": 8.083
+    },
+    {
+      "when": "early, isolated process",
+      "median": 6.485,
+      "p95": 14.451,
+      "zoomP95": 15.682,
+      "panP95": 8.721
+    },
+    {
+      "when": "early, isolated process",
+      "median": 6.303,
+      "p95": 14.181,
+      "zoomP95": 15.364,
+      "panP95": 8.009
+    },
+    {
+      "when": "full suite (after U1 and U4)",
+      "median": 7.903,
+      "p95": 17.494,
+      "zoomP95": 19.279,
+      "panP95": 12.431
+    },
+    {
+      "when": "full suite (after U1 and U4)",
+      "median": 6.65,
+      "p95": 14.74,
+      "zoomP95": 15.94,
+      "panP95": 9.081
+    },
+    {
+      "when": "full suite, the recorded baseline",
+      "median": 6.663,
+      "p95": 15.202,
+      "zoomP95": 16.667,
+      "panP95": 9.504
+    },
+    {
+      "when": "later, isolated, pinned to logical CPU 0",
+      "median": 9.394,
+      "p95": 20.735,
+      "zoomP95": 23.368,
+      "panP95": 13.149
+    },
+    {
+      "when": "later, isolated, pinned to logical CPU 2",
+      "median": 8.997,
+      "p95": 19.449,
+      "zoomP95": 21.824,
+      "panP95": 12.703
+    },
+    {
+      "when": "later, isolated, pinned to logical CPU 4",
+      "median": 8.548,
+      "p95": 18.546,
+      "zoomP95": 20.809,
+      "panP95": 12.024
+    },
+    {
+      "when": "later, isolated, pinned to logical CPU 6",
+      "median": 7.844,
+      "p95": 17.647,
+      "zoomP95": 19.476,
+      "panP95": 10.567
+    },
+    {
+      "when": "later, isolated, pinned to logical CPU 8",
+      "median": 10.322,
+      "p95": 18.349,
+      "zoomP95": 19.987,
+      "panP95": 13.928
+    }
+  ]
+}

@@ -40,3 +40,12 @@
 - **重審條件**：S02 量測若在批次繪製與縮放簡化都做完後，I1（5 000 框）p95 仍 > 16.7 ms，且 profiler 顯示瓶頸在繪製，才新增一筆 ADR 重審（並標明取代本筆）。沒有這個證據不推翻。
 - Presenter 只依賴窄的 `I*View` / `I*Controller` 介面（`docs/ux/ux-spec.md` 第 11 節），不認識 `QWidget`。所以日後若要換 View 技術，不必改 Presenter。
 - `presentation` 層依賴 Qt Widgets（`docs/architecture.md` 的表已是如此），`application` 與 `domain` 不變。
+
+## S02 實測結果（2026-10-05 補充）
+
+S02 用數字回答了上面的假設（細節與限制見 [`docs/steps/S02-ui-shell/perf.md`](../steps/S02-ui-shell/perf.md)）：
+
+- 「批次層能讓 5 000 框夠快」：**部分成立，而且原因和假設不同**。讓 5 000 框變順的主要是畫法（cosmetic 描邊 → 整數像素的填色細矩形，純 QPainter 微基準快約 4 倍）與縮放簡化（LOD）；批次本身對平移／縮放幀的幫助不大（每個元件一個 Item 時兩者相近），價值在 Item 很多時的第一幀與 p95（每個元件一個框、20 000 框：第一幀 154 vs 45 ms）。
+- I1（5 000 框、p95 ≤ 16.7 ms）：offscreen 13 次執行落在 14.1–20.7 ms（7 次通過）；**真實視窗 22.1 ms，超標**。瓶頸在繪製（細矩形的填色與每幀約 6 ms 的呈現成本）。**重審條件在真實視窗成立**，所以新增 [ADR-009](009-ui-toolkit-review-after-s02.md)：整理證據與選項，**待使用者決定**；在使用者決定之前，本 ADR 照舊有效。
+- 其餘 UI 預算（U1a、U1b、U4、I2、I5）都通過，餘裕大。
+- 「`QGraphicsView` 不夠快時可以改用 OpenGL 視埠」：**仍未驗證**（ADR-009 的選項 B）。

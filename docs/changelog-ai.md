@@ -24,6 +24,37 @@
 - 下一位 agent 需要知道的限制、否決的做法、不要還原的修改
 ```
 
+## 2026-10-05 — Claude Code (Claude Sonnet 5.5)（S02：Qt UI 骨架與影像畫布）
+
+### 完成
+- 依 Step Protocol 做 S02：CMake＋presets、`src/` 三層（domain 只有 `ImageView`）、主視窗與 dock 空殼、影像畫布（游標中心縮放、平移、適配、零複製）、批次繪製層與單一物件 Item、四個工具與註冊表、暫代 controller、固定高度的訊息列、tokens → QPalette／QSS、文案直接讀 `copy.json`、`FakeScene`、5 個 Qt Test 單元測試執行檔、效能基準線，以及四種輸出與 `perf.md`。
+- 第一件事（工具鏈驗證）：VS 2022 17.14／`cl` 19.44、Qt 6.8.0、CMake 3.30.5、Ninja 1.12.1 實際 configure、build、執行；寫回 `AI_CONTEXT.md` 環境表。發現 HALCON 只有 runtime（沒有標頭與程式庫）、OpenCV 的 `OpenCV_DIR` 要指到 `build\x64\vc16\lib`。
+- 效能：第一版（描邊）I1 p95 約 50 ms，量測找到瓶頸是描邊的光柵化，改成整數像素的填色細矩形（純 QPainter 微基準約快 4 倍）。U1a、U1b、U4、I2、I5 通過；I1 在預算邊緣（offscreen 13 次執行 p95 14.1–20.7 ms）、真實視窗 22.1 ms 超標。預算數字沒改。
+- 更正原本的假設：批次繪製**不是** 5 000 框變順的主因（Item 不多時對平移縮放幀沒有幫助），價值在第一幀與 Item 很多時的 p95。
+- 測試抓到：Rejected 點線原本完全畫不出來（Qt 不畫長度 0 的虛線段）；變異測試確認三個關鍵行為的測試有效。
+- 發現並處理兩個環境問題：效能量測會被混合架構 CPU 的核心與電源狀態影響 2 倍（`MeasurementHygiene.h`）；繁中 Windows 下字碼頁不一致會讓 Ninja 掉標頭相依（`env.ps1` 對齊字碼頁）。
+- 新增 ADR-007（文案來源）、ADR-008（訊息列固定高度）、ADR-009（待使用者決定：S02 實測後重審 UI 工具集）；ADR-001 補了實測結果。
+
+### 修改的檔案
+- 新增：`CMakeLists.txt`、`CMakePresets.json`、`cmake/`、`src/`、`tests/ui/`、`scripts/dev/`（`env.ps1`、`test.ps1`）、`perf/baseline/casparhsu1.json`、`docs/steps/S02-ui-shell/`、`docs/adr/007`、`008`、`009`
+- 修改：`AI_CONTEXT.md`（環境表、目錄、建置與測試指令）、`README.md`、`docs/architecture.md`（模組表）、`docs/decisions.md`、`docs/adr/001-ui-toolkit.md`（補充）、`docs/current-status.md`、`.ai/handoff.md`、`docs/ux/tokens.json`（`sizes.messageBarHeight`）、`docs/ux/copy.json`（新增殼層 key）、`docs/ux/ux-spec.md`（修改紀錄）、`perf/budgets.json`（校準狀態與實測值，limit 沒改）
+
+### 驗證
+- `scripts/dev/test.ps1`：Release 與 Debug 各 5 個測試執行檔全過；變異測試（縮放錨點、LOD 門檻、框夾限）都會被抓到。
+- `node tools/ste-lint.mjs --strict`：434 句 0 錯誤；`node tools/check-contrast.mjs`：全過；`diagram.md` 4 張 Mermaid 用 mermaid 11 解析器全過（只驗語法）；`scripts/ai/check-ai-structure.ps1`：OK。
+- 效能基準線：offscreen 全套（量測衛生開啟，多次執行）、真實視窗子集、純 QPainter 微基準，結果在 `docs/steps/S02-ui-shell/perf.md` 與 `perf/baseline/casparhsu1.json`。
+- `-DAOI_WITH_HALCON=ON`：缺標頭時 configure 明確失敗；`-DAOI_WITH_OPENCV=ON`：找到 4.9.0（只 configure，沒有連結）。
+
+### 未完成
+- 等使用者決定 ADR-009（I1 與 UI 工具集）。
+- 拖曳移動元件、方向鍵微調、設定記憶、減少動態、高 DPI 螢幕實測：沒有做。U2、U3、I3、I4、I6：S04。
+- 暫代品：`ShellController`（S04）、`ImageLoader`（S06）、`ui.shell.*` 文案（S04）。
+
+### 注意事項
+- 一定要在 `scripts/dev/env.ps1` 之後 configure 與 build；Bash heredoc 會壓縮連續反斜線（寫含反斜線的內容用 Write／Edit）。
+- 效能數字只在同一台機器、同樣的量測衛生下可比較；同一份程式不同時間會飄 ±30%，回歸閘門（S10）要考慮。
+- `docs/ux/tokens.json`、`copy.json` 改了要重建（內嵌進執行檔）。
+
 ## 2026-10-05 — Claude Code (Claude Sonnet 5.5)（S01：UX 規格與可點擊原型）
 
 ### 完成

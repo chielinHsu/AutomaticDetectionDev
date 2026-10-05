@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S02 Qt UI 骨架與影像畫布</title>
+<style>
+:root{--bg:#f6f7f9;--panel:#fff;--ink:#18212b;--muted:#566273;--line:#d3d9e0;--accent:#1d4ed8;--accent-ink:#fff;
+  --sample:#1d4ed8;--found:#15803d;--infer:#b45309;--reject:#b91c1c;--pred:#6b7787;--board:#1a5c3a;--over:#b91c1c;--ok:#15803d}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#0f141a;--panel:#18202a;--ink:#e7edf4;--muted:#9aa8b8;--line:#2c3846;
+  --accent:#7aa7ff;--accent-ink:#0b1220;--sample:#7aa7ff;--found:#4ade80;--infer:#fbbf24;--reject:#f87171;--pred:#8fa0b4;--over:#f87171;--ok:#4ade80}}
+:root[data-theme="dark"]{--bg:#0f141a;--panel:#18202a;--ink:#e7edf4;--muted:#9aa8b8;--line:#2c3846;
+  --accent:#7aa7ff;--accent-ink:#0b1220;--sample:#7aa7ff;--found:#4ade80;--infer:#fbbf24;--reject:#f87171;--pred:#8fa0b4;--over:#f87171;--ok:#4ade80}
+*{box-sizing:border-box} html{color-scheme:light dark}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 system-ui,"Segoe UI","Microsoft JhengHei",sans-serif}
+.wrap{max-width:1100px;margin:0 auto;padding:16px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;margin-top:14px}
+h1{font-size:22px;margin:0 0 4px} h2{font-size:16px;margin:0 0 8px}
+h3{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--accent);margin:12px 0 2px}
+.zh{color:var(--muted);font-size:13.5px} .muted{color:var(--muted)} .small{font-size:12.5px}
+.row{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center}
+label{display:inline-flex;gap:6px;align-items:center;cursor:pointer}
+input[type=range]{width:min(360px,100%);accent-color:var(--accent)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{border:0;background:transparent;color:var(--ink);padding:6px 12px;font:inherit;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px} @media (max-width:760px){.grid{grid-template-columns:1fr}}
+.bar{height:22px;border-radius:5px;background:var(--line);position:relative;overflow:hidden}
+.bar i{position:absolute;left:0;top:0;bottom:0;border-radius:5px}
+.bar i.med{opacity:.55}
+.bar b{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--ink)}
+.barlab{display:flex;justify-content:space-between;font-size:13px;margin:8px 0 3px}
+.kpi{font-size:26px;font-weight:600;font-variant-numeric:tabular-nums}
+table{border-collapse:collapse;width:100%;font-size:13.5px;font-variant-numeric:tabular-nums}
+th,td{border-bottom:1px solid var(--line);padding:5px 8px;text-align:right}
+th:first-child,td:first-child,th:nth-child(2),td:nth-child(2){text-align:left}
+th{color:var(--muted);font-weight:500}
+.pass{color:var(--ok)} .over{color:var(--over)}
+canvas{width:100%;max-width:560px;height:auto;border:1px solid var(--line);border-radius:8px;background:var(--board);display:block}
+.legend span{display:inline-flex;align-items:center;gap:6px;margin-right:14px;font-size:13px}
+.legend svg{width:34px;height:10px}
+.note{border-left:4px solid var(--accent);padding:4px 10px;margin:10px 0;background:color-mix(in srgb,var(--accent) 8%,transparent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>S02 — Qt UI 骨架與影像畫布</h1>
+  <div class="zh">5 000 個框是怎麼畫得動的：<strong>畫法</strong>（描邊 → 填色細矩形）、<strong>層級簡化</strong>（太小的框不畫）、<strong>批次</strong>（Item 很多時第一幀快很多）。下面的數字是這一步在<strong>這台機器</strong>上的實測，其中有一項在預算邊緣、真實視窗超標，頁面最下面如實列出。</div>
+
+  <div class="card" id="stage">
+    <h2>逐一繪製 vs 批次繪製（實測）</h2>
+    <div class="row">
+      <div class="seg" role="group" aria-label="元件形狀">
+        <button type="button" data-layout="chips" aria-pressed="false">每元件 1 個框（電阻、電容）</button>
+        <button type="button" data-layout="ics" aria-pressed="true">每元件 41 個框（IC）</button>
+      </div>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <label>框數 <input type="range" id="n" min="0" max="3" step="1" value="2" aria-label="框數"></label>
+      <span class="kpi" id="nLabel">5 000</span>
+      <span class="small muted" id="itemsLabel"></span>
+      <div class="seg" role="group" aria-label="繪製方式">
+        <button type="button" data-mode="both" aria-pressed="true">並排</button>
+        <button type="button" data-mode="peritem" aria-pressed="false">逐一繪製</button>
+        <button type="button" data-mode="batched" aria-pressed="false">批次繪製</button>
+      </div>
+    </div>
+    <div class="note small" id="why"></div>
+    <div class="grid" id="bars"></div>
+    <div class="small muted" id="barsNote"></div>
+  </div>
+
+  <div class="card" id="drawCard">
+    <h2>畫法：描邊 vs 整數像素的填色細矩形（純 QPainter 微基準，2 600 個框）</h2>
+    <div id="drawBars"></div>
+    <p class="small muted">每個框畫兩次（外框＋描邊）。描邊要先把筆畫轉成路徑再光柵化；填色細矩形走快速的掃描線填充。代價：粗細只能是整數像素，虛線畫不了（虛線狀態仍用描邊）。</p>
+  </div>
+
+  <div class="card">
+    <h2>層級簡化（LOD）：什麼時候 Pin 與窗會消失？</h2>
+    <div class="row">
+      <label>縮放 <input type="range" id="zoom" min="5" max="400" step="1" value="30" aria-label="縮放百分比"></label>
+      <span class="kpi" id="zoomLabel">30%</span>
+    </div>
+    <div class="grid">
+      <div><canvas id="lod" width="560" height="320" aria-label="一顆 IC 在不同縮放下的繪製結果"></canvas></div>
+      <div>
+        <div class="legend"><span><svg viewBox="0 0 34 10"><line x1="1" y1="5" x2="33" y2="5" stroke="var(--found)" stroke-width="2"/></svg>主體</span>
+          <span><svg viewBox="0 0 34 10"><line x1="1" y1="5" x2="33" y2="5" stroke="var(--found)" stroke-width="1.5"/></svg>Pin</span>
+          <span><svg viewBox="0 0 34 10"><line x1="1" y1="5" x2="33" y2="5" stroke="var(--found)" stroke-width="1"/></svg>窗</span></div>
+        <p id="lodText" class="small"></p>
+        <p class="small muted">規則（S01 規格第 7 節）：Pin 與窗的短邊在螢幕上 &lt; 3 px 就不畫，主體永遠畫；元件外框寬度 ≥ 48 px 才顯示標籤。這一頁用的 IC 尺寸和 FakeScene 一樣（主體 200 × 110，Pin 11 × 24，窗 15.4 × 48.4 影像像素）。</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>預算對照（這台機器、offscreen、Release）</h2>
+    <div class="small muted" id="machine"></div>
+    <div style="overflow-x:auto"><table id="budgetTable"><thead><tr><th>ID</th><th>指標</th><th>預算 ms</th><th>中位數 ms</th><th>p95 ms</th><th>結果</th></tr></thead><tbody></tbody></table></div>
+    <div class="note small" id="winNote"></div>
+    <p class="small muted">量法：熱機 5 次、正式量 30 次、看中位數與 p95。時間是「注入事件 → 待重繪區域畫完」，是 Qt 軟體算繪的 CPU 時間，不含顯示器垂直同步與合成器。換機器數字會變，不要當成通則。</p>
+  </div>
+
+  <div class="card" id="text"></div>
+</div>
+
+<!-- Measured numbers. Filled from the S02 perf run (build/release/perf-results). -->
+<script type="application/json" id="perf-data">{"machine":{"buildType":"Release","commit":"ea131db+uncommitted","compiler":"MSVC 194435228","cpu":"13th Gen Intel(R) Core(TM) i7-1360P","gpu":"Microsoft Remote Display Adapter | Intel(R) Iris(R) Xe Graphics | Microsoft Remote Display Adapter","logicalCores":16,"machineName":"CasparHsu1","measurementHygiene":"process priority HIGH; power throttling off; thread pinned to logical CPU 0 (efficiency class 1 of 2 classes)","os":"Windows 11 Version 23H2 (kernel 10.0.22631)","qpaPlatform":"offscreen","qt":"6.8.0","ramGB":63.6},"method":"warm-up 5, measured 30 (comparisons: warm-up 3, measured 10); median and p95; time = event injection until the dirty region is painted","metrics":[{"id":"U1a","label":"結果就緒→第一幀，200 框（批次繪製）","unit":"ms","n":30,"median":5.125,"p95":5.89,"max":7.051,"budget":33,"pass":true},{"id":"U1b","label":"結果就緒→第一幀，5000 框（批次繪製）","unit":"ms","n":30,"median":9.782,"p95":10.454,"max":11.781,"budget":50,"pass":true},{"id":"U1-1k","label":"結果就緒→第一幀，1000 框（批次繪製）","unit":"ms","n":30,"median":6.902,"p95":8.532,"max":10.633},{"id":"U1-20k","label":"結果就緒→第一幀，20000 框（批次繪製）","unit":"ms","n":30,"median":4.769,"p95":5.262,"max":5.56},{"id":"U4-BMP-decode","label":"開啟 5 MP BMP：解碼","unit":"ms","n":30,"median":38.935,"p95":44.19,"max":46.581},{"id":"U4-BMP-paint","label":"開啟 5 MP BMP：設定影像＋適配＋第一次繪製","unit":"ms","n":30,"median":2.827,"p95":3.911,"max":4.019},{"id":"U4-BMP","label":"開啟 5 MP BMP：合計","unit":"ms","n":30,"median":41.548,"p95":47.406,"max":50.033,"budget":200,"pass":true},{"id":"U4-PNG-decode","label":"開啟 5 MP PNG：解碼","unit":"ms","n":30,"median":121.293,"p95":138.899,"max":151.44},{"id":"U4-PNG-paint","label":"開啟 5 MP PNG：設定影像＋適配＋第一次繪製","unit":"ms","n":30,"median":2.703,"p95":3.77,"max":3.979},{"id":"U4-PNG","label":"開啟 5 MP PNG：合計","unit":"ms","n":30,"median":123.655,"p95":141.658,"max":154.468,"budget":200,"pass":true},{"id":"U4-JPG-decode","label":"開啟 5 MP JPG：解碼","unit":"ms","n":30,"median":60.878,"p95":83.868,"max":92.84},{"id":"U4-JPG-paint","label":"開啟 5 MP JPG：設定影像＋適配＋第一次繪製","unit":"ms","n":30,"median":2.859,"p95":3.994,"max":4.332},{"id":"U4-JPG","label":"開啟 5 MP JPG：合計","unit":"ms","n":30,"median":63.483,"p95":87.707,"max":95.686,"budget":200,"pass":true},{"id":"I1","label":"平移／縮放幀時間，5000 框，視埠 1000×700（批次繪製）","unit":"ms","n":2400,"median":6.663,"p95":15.202,"max":27.338,"budget":16.7,"pass":true},{"id":"I1-zoom","label":"　其中縮放的幀（全視埠重繪）","unit":"ms","n":1200,"median":8.348,"p95":16.667,"max":27.338},{"id":"I1-pan","label":"　其中平移的幀","unit":"ms","n":1200,"median":6.293,"p95":9.504,"max":15.6},{"id":"I1-1600x900","label":"平移／縮放幀時間，5000 框，視埠 1600×900（批次繪製）","unit":"ms","n":800,"median":10.951,"p95":21.346,"max":31.745},{"id":"I1-1600x900-zoom","label":"　其中縮放的幀（全視埠重繪）","unit":"ms","n":400,"median":10.727,"p95":22.826,"max":31.745},{"id":"I1-1600x900-pan","label":"　其中平移的幀","unit":"ms","n":400,"median":10.978,"p95":14.066,"max":19.577},{"id":"I1-100","label":"平移／縮放幀時間，100 框，視埠 1000×700（批次繪製）","unit":"ms","n":800,"median":1.26,"p95":4.525,"max":7.529},{"id":"I1-100-zoom","label":"　其中縮放的幀（全視埠重繪）","unit":"ms","n":400,"median":1.799,"p95":5.368,"max":7.529},{"id":"I1-100-pan","label":"　其中平移的幀","unit":"ms","n":400,"median":1.005,"p95":1.309,"max":1.935},{"id":"I1-1k","label":"平移／縮放幀時間，1000 框，視埠 1000×700（批次繪製）","unit":"ms","n":800,"median":1.797,"p95":6.667,"max":11.311},{"id":"I1-1k-zoom","label":"　其中縮放的幀（全視埠重繪）","unit":"ms","n":400,"median":2.819,"p95":7.664,"max":11.311},{"id":"I1-1k-pan","label":"　其中平移的幀","unit":"ms","n":400,"median":1.539,"p95":2.12,"max":3.072},{"id":"I1-20k","label":"平移／縮放幀時間，20000 框，視埠 1000×700（批次繪製）","unit":"ms","n":800,"median":7.458,"p95":15.686,"max":20.816},{"id":"I1-20k-zoom","label":"　其中縮放的幀（全視埠重繪）","unit":"ms","n":400,"median":8.542,"p95":16.89,"max":20.816},{"id":"I1-20k-pan","label":"　其中平移的幀","unit":"ms","n":400,"median":7.347,"p95":9.429,"max":12.737},{"id":"I2","label":"滑鼠按下→可見回饋（樣本工具，5000 框）","unit":"ms","n":30,"median":0.791,"p95":1.545,"max":1.853,"budget":50,"pass":true},{"id":"I5","label":"拖曳樣本框幀時間（5000 框，5 MP）","unit":"ms","n":3000,"median":3.083,"p95":6.43,"max":9.504,"budget":16.7,"pass":true},{"id":"CMP-batched-first-ics-100","label":"對照：批次，第一幀，100 框","unit":"ms","n":10,"median":3.968,"p95":4.334,"max":4.538},{"id":"CMP-batched-pan-ics-100","label":"對照：批次，平移／縮放幀，100 框","unit":"ms","n":800,"median":1.261,"p95":4.451,"max":7.303},{"id":"CMP-peritem-first-ics-100","label":"對照：逐一，第一幀（含建立 Item），100 框","unit":"ms","n":10,"median":4.572,"p95":4.796,"max":4.874},{"id":"CMP-peritem-pan-ics-100","label":"對照：逐一，平移／縮放幀，100 框","unit":"ms","n":800,"median":1.261,"p95":4.701,"max":6.909},{"id":"CMP-batched-first-ics-1000","label":"對照：批次，第一幀，1000 框","unit":"ms","n":10,"median":6.745,"p95":6.977,"max":7.005},{"id":"CMP-batched-pan-ics-1000","label":"對照：批次，平移／縮放幀，1000 框","unit":"ms","n":800,"median":1.611,"p95":6.107,"max":9.078},{"id":"CMP-peritem-first-ics-1000","label":"對照：逐一，第一幀（含建立 Item），1000 框","unit":"ms","n":10,"median":12.687,"p95":16.915,"max":17.24},{"id":"CMP-peritem-pan-ics-1000","label":"對照：逐一，平移／縮放幀，1000 框","unit":"ms","n":800,"median":1.553,"p95":6.551,"max":10.345},{"id":"CMP-batched-first-ics-5000","label":"對照：批次，第一幀，5000 框","unit":"ms","n":10,"median":9.092,"p95":9.486,"max":9.534},{"id":"CMP-batched-pan-ics-5000","label":"對照：批次，平移／縮放幀，5000 框","unit":"ms","n":800,"median":6.414,"p95":14.12,"max":20.503},{"id":"CMP-peritem-first-ics-5000","label":"對照：逐一，第一幀（含建立 Item），5000 框","unit":"ms","n":10,"median":16.373,"p95":18.4,"max":18.809},{"id":"CMP-peritem-pan-ics-5000","label":"對照：逐一，平移／縮放幀，5000 框","unit":"ms","n":800,"median":4.387,"p95":15.735,"max":19.74},{"id":"CMP-batched-first-ics-20000","label":"對照：批次，第一幀，20000 框","unit":"ms","n":10,"median":4.643,"p95":5.112,"max":5.22},{"id":"CMP-batched-pan-ics-20000","label":"對照：批次，平移／縮放幀，20000 框","unit":"ms","n":800,"median":7.357,"p95":15.956,"max":20.833},{"id":"CMP-peritem-first-ics-20000","label":"對照：逐一，第一幀（含建立 Item），20000 框","unit":"ms","n":10,"median":7.781,"p95":8.313,"max":8.334},{"id":"CMP-peritem-pan-ics-20000","label":"對照：逐一，平移／縮放幀，20000 框","unit":"ms","n":800,"median":4.776,"p95":20.498,"max":26.577},{"id":"CMP-batched-first-chips-1000","label":"對照：批次，第一幀，1000 框","unit":"ms","n":10,"median":6.362,"p95":6.994,"max":7.101},{"id":"CMP-batched-pan-chips-1000","label":"對照：批次，平移／縮放幀，1000 框","unit":"ms","n":800,"median":2.964,"p95":7.35,"max":11.833},{"id":"CMP-peritem-first-chips-1000","label":"對照：逐一，第一幀（含建立 Item），1000 框","unit":"ms","n":10,"median":12.554,"p95":15.469,"max":16.552},{"id":"CMP-peritem-pan-chips-1000","label":"對照：逐一，平移／縮放幀，1000 框","unit":"ms","n":800,"median":2.556,"p95":9.197,"max":15.235},{"id":"CMP-batched-first-chips-5000","label":"對照：批次，第一幀，5000 框","unit":"ms","n":10,"median":15.694,"p95":17.09,"max":17.217},{"id":"CMP-batched-pan-chips-5000","label":"對照：批次，平移／縮放幀，5000 框","unit":"ms","n":800,"median":5.339,"p95":13.301,"max":19.293},{"id":"CMP-peritem-first-chips-5000","label":"對照：逐一，第一幀（含建立 Item），5000 框","unit":"ms","n":10,"median":34.366,"p95":36.71,"max":37.954},{"id":"CMP-peritem-pan-chips-5000","label":"對照：逐一，平移／縮放幀，5000 框","unit":"ms","n":800,"median":5.725,"p95":27.184,"max":44.245},{"id":"CMP-batched-first-chips-20000","label":"對照：批次，第一幀，20000 框","unit":"ms","n":10,"median":44.727,"p95":47.383,"max":48.43},{"id":"CMP-batched-pan-chips-20000","label":"對照：批次，平移／縮放幀，20000 框","unit":"ms","n":800,"median":10.627,"p95":37.995,"max":52.885},{"id":"CMP-peritem-first-chips-20000","label":"對照：逐一，第一幀（含建立 Item），20000 框","unit":"ms","n":10,"median":154.018,"p95":197.124,"max":200.177},{"id":"CMP-peritem-pan-chips-20000","label":"對照：逐一，平移／縮放幀，20000 框","unit":"ms","n":800,"median":15.926,"p95":78.715,"max":128.861}],"layer":{"100":{"buckets":7,"considered":100,"drawn":100,"labels":20,"skippedByLod":0},"1000":{"buckets":10,"considered":1000,"drawn":1000,"labels":40,"skippedByLod":0},"5000":{"buckets":8,"considered":5000,"drawn":2580,"labels":0,"skippedByLod":2420},"20000":{"buckets":4,"considered":20000,"drawn":520,"labels":0,"skippedByLod":19480}},"windows":[{"id":"U1a","label":"結果就緒→第一幀，200 框（批次繪製）","unit":"ms","n":30,"median":11.114,"p95":14.161,"max":15.985,"budget":33,"pass":true},{"id":"U1b","label":"結果就緒→第一幀，5000 框（批次繪製）","unit":"ms","n":30,"median":21.801,"p95":26.325,"max":28.95,"budget":50,"pass":true},{"id":"U1-1k","label":"結果就緒→第一幀，1000 框（批次繪製）","unit":"ms","n":30,"median":19.291,"p95":25.062,"max":25.533},{"id":"U1-20k","label":"結果就緒→第一幀，20000 框（批次繪製）","unit":"ms","n":30,"median":8.75,"p95":13.917,"max":14.412},{"id":"I1","label":"平移／縮放幀時間，5000 框，視埠 1000×700（批次繪製）","unit":"ms","n":2400,"median":13.168,"p95":22.096,"max":32.207,"budget":16.7,"pass":false},{"id":"I1-zoom","label":"　其中縮放的幀（全視埠重繪）","unit":"ms","n":1200,"median":12.645,"p95":23.536,"max":32.207},{"id":"I1-pan","label":"　其中平移的幀","unit":"ms","n":1200,"median":13.251,"p95":16.307,"max":23.93},{"id":"I2","label":"滑鼠按下→可見回饋（樣本工具，5000 框）","unit":"ms","n":30,"median":1.728,"p95":3.861,"max":5.104,"budget":50,"pass":true},{"id":"I5","label":"拖曳樣本框幀時間（5000 框，5 MP）","unit":"ms","n":3000,"median":5.387,"p95":10.484,"max":15.431,"budget":16.7,"pass":true}]}</script>
+
+<!-- Text for the page. Strings under the key "ste" are checked by tools/ste-lint.mjs. -->
+<script type="application/json" id="aoi-data">
+{
+  "sections": [
+    { "title": "Purpose",
+      "ste": { "text": "This page shows why a canvas with five thousand boxes runs fast. It uses numbers that we measured in step S02." },
+      "zh": "這一頁說明為什麼有 5 000 個框的畫布畫得動，用的是 S02 實測的數字。" },
+    { "title": "Reason",
+      "ste": { "text": "A stroked outline is slow. Four thin filled rectangles are fast. The canvas also skips a box that is too small to see." },
+      "zh": "描邊很慢，四條填色細矩形很快；畫布還會省掉小到看不見的框。" },
+    { "title": "Effect",
+      "ste": { "text": "On this PC, five of six speed budgets pass. One budget sits at its limit. It is over in a real window." },
+      "zh": "在這台機器上，六個速度預算裡五個通過；一個在邊緣，在真實視窗裡超標。" },
+    { "title": "How to use the page",
+      "ste": { "text": "Pick a part shape and a box count. Compare the two bars. Then move the zoom slider and watch the small boxes disappear." },
+      "zh": "選元件形狀與框數，比較兩條長條；再拉縮放滑桿，看小框什麼時候消失。" }
+  ]
+}
+</script>
+<script>
+(() => {
+  const $ = (s) => document.querySelector(s);
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const data = JSON.parse($('#aoi-data').textContent);
+  const perf = JSON.parse($('#perf-data').textContent);
+  const M = Object.fromEntries((perf.metrics || []).map((m) => [m.id, m]));
+  const NS = { ics: [100, 1000, 5000, 20000], chips: [1000, 5000, 20000] };
+  const BUDGET_FRAME = 16.7;
+  let mode = 'both', layout = 'ics';
+
+  $('#text').innerHTML = data.sections.map((s) => `<h3>${esc(s.title)}</h3><p lang="en">${esc(s.ste.text)}</p><p class="zh" lang="zh-Hant">${esc(s.zh)}</p>`).join('');
+
+  const fmt = (v) => (v == null ? '—' : v >= 100 ? v.toFixed(0) : v >= 10 ? v.toFixed(1) : v.toFixed(2));
+  const have = (id) => M[id] && M[id].n;
+
+  function barBlock(title, color, pan, first, max) {
+    if (!pan) return `<div><h3>${esc(title)}</h3><p class="muted">沒有這一組的實測資料。</p></div>`;
+    const w = (v) => Math.min(100, (v / max) * 100).toFixed(2);
+    const line = (BUDGET_FRAME / max) * 100;
+    return `<div><h3>${esc(title)}</h3>
+      <div class="barlab"><span>平移／縮放，每一幀</span><span><strong>p95 ${fmt(pan.p95)} ms</strong> · 中位數 ${fmt(pan.median)} ms</span></div>
+      <div class="bar" role="img" aria-label="p95 ${fmt(pan.p95)} 毫秒，預算線 16.7 毫秒"><i class="med" style="width:${w(pan.median)}%;background:${color}"></i><i style="width:${w(pan.p95)}%;background:${color};opacity:.9;height:8px;top:auto;bottom:0"></i><b style="left:${Math.min(99.5, line)}%" title="16.7 ms"></b></div>
+      <div class="barlab"><span>第一幀（結果 → 畫完${first && first.id.includes('peritem') ? '，含建立物件' : ''}）</span><span><strong>${first ? 'p95 ' + fmt(first.p95) : '—'} ms</strong>${first ? ' · 中位數 ' + fmt(first.median) + ' ms' : ''}</span></div>
+      <div class="bar" role="img" aria-label="第一幀 p95 ${first ? fmt(first.p95) : ''} 毫秒"><i style="width:${first ? w(first.p95) : 0}%;background:${color}"></i></div>
+    </div>`;
+  }
+
+  function renderBars() {
+    const list = NS[layout];
+    const slider = $('#n');
+    slider.max = String(list.length - 1);
+    if (+slider.value > list.length - 1) slider.value = String(list.length - 1);
+    const n = list[+slider.value];
+    $('#nLabel').textContent = n.toLocaleString('en-US');
+    const perItems = layout === 'ics' ? Math.floor(n / 41) + (n % 41) : n;
+    $('#itemsLabel').textContent = '逐一繪製時約 ' + perItems.toLocaleString('en-US') + ' 個 QGraphicsItem';
+    const key = (kind, what) => 'CMP-' + kind + '-' + what + '-' + layout + '-' + n;
+    const per = M[key('peritem', 'pan')], bat = M[key('batched', 'pan')];
+    const perF = M[key('peritem', 'first')], batF = M[key('batched', 'first')];
+    const all = (perf.metrics || []).filter((m) => /^CMP-/.test(m.id)).map((m) => m.p95);
+    const max = Math.max(BUDGET_FRAME * 1.5, ...all, 1);
+    let html = '';
+    if (mode !== 'batched') html += barBlock('逐一繪製（每個元件一個 QGraphicsItem）', 'var(--reject)', per, perF, max);
+    if (mode !== 'peritem') html += barBlock('批次繪製（一個 RoiLayerItem）', 'var(--found)', bat, batF, max);
+    $('#bars').innerHTML = html;
+    $('#bars').style.gridTemplateColumns = mode === 'both' ? '' : '1fr';
+    const L = layout === 'ics' && perf.layer && perf.layer[n];
+    let why = '';
+    if (L) {
+      why = `<strong>${n.toLocaleString('en-US')} 個框，適配視窗時：</strong>批次層掃過 ${L.considered.toLocaleString('en-US')} 個框，實際畫 ${L.drawn.toLocaleString('en-US')} 個（${L.skippedByLod.toLocaleString('en-US')} 個因為螢幕上太小而略過），一共用 ${L.buckets} 個桶，每個桶設兩次筆刷、畫兩次。逐一繪製則是每個 Item 各付一次固定成本（場景索引、樣式選項、畫筆狀態的存取與還原）。`;
+    }
+    $('#why').innerHTML = why || '';
+    $('#why').hidden = !why;
+    $('#barsNote').textContent = '長條上的直線是 60 fps 的幀時間 16.7 ms。淡色長條是中位數，深色細條是 p95。第一幀＝「結果交給畫布」到「畫完」。逐一繪製兩種版型都用同樣的填色畫法，只差在「Item 數」：IC 版型約 120–490 個 Item，chip 版型一個框一個 Item。平移縮放幀在 Item 不多時兩者相近；差別在第一幀，以及 Item 很多時的 p95。';
+  }
+
+  // ---- LOD 示範：和 FakeScene 的 IC 同樣的幾何 ----
+  const IC = (() => {
+    const body = { x: 0, y: 0, w: 200, h: 110 };
+    const boxes = [{ r: body, kind: 'body' }];
+    const pw = body.w / 10 * 0.55, ph = body.h * 0.22;
+    const pins = [];
+    for (let row = 0; row < 2; row++) for (let col = 0; col < 10; col++) {
+      const x = body.x + (col + 0.5) * body.w / 10 - pw / 2, y = row === 0 ? body.y - ph : body.y + body.h;
+      pins.push({ x, y, w: pw, h: ph });
+    }
+    pins.forEach((p) => boxes.push({ r: p, kind: 'pin' }));
+    pins.forEach((p) => { const w = p.w * 1.4, h = p.h * 2; boxes.push({ r: { x: p.x + p.w / 2 - w / 2, y: p.y + p.h / 2 - h / 2, w, h }, kind: 'win' }); });
+    return boxes;
+  })();
+  const css = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  function renderLod() {
+    const zoom = +$('#zoom').value / 100;
+    $('#zoomLabel').textContent = Math.round(zoom * 100) + '%';
+    const cv = $('#lod'), g = cv.getContext('2d');
+    const dpr = window.devicePixelRatio || 1;
+    cv.width = 560 * dpr; cv.height = 320 * dpr; g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    g.fillStyle = '#1a5c3a'; g.fillRect(0, 0, 560, 320);
+    const cx = 280 - 100 * zoom, cy = 160 - 55 * zoom;
+    let drawn = 0, skipped = 0;
+    const found = css('--found') || '#4ade80';
+    for (const kind of ['win', 'pin', 'body']) for (const b of IC) {
+      if (b.kind !== kind) continue;
+      const side = Math.min(b.r.w, b.r.h) * zoom;
+      if (kind !== 'body' && side < 3) { skipped++; continue; }
+      drawn++;
+      const w = kind === 'body' ? 2 : kind === 'pin' ? 1.5 : 1;
+      const x = cx + b.r.x * zoom, y = cy + b.r.y * zoom, ww = b.r.w * zoom, hh = b.r.h * zoom;
+      g.lineWidth = w + 2; g.strokeStyle = '#0d1117'; g.strokeRect(x, y, ww, hh);
+      g.lineWidth = w; g.strokeStyle = '#3fb950'; g.strokeRect(x, y, ww, hh);
+    }
+    const outlineW = (200) * zoom;
+    if (outlineW >= 48) {
+      g.font = '12px system-ui'; const t = '8371 0.97', tw = g.measureText(t).width + 8;
+      g.fillStyle = 'rgba(13,17,23,.82)'; g.fillRect(cx, cy - 36 * zoom - 22, tw, 18);
+      g.fillStyle = '#3fb950'; g.fillText(t, cx + 4, cy - 36 * zoom - 9);
+    }
+    const pinSide = 11 * zoom, winSide = 15.4 * zoom;
+    $('#lodText').innerHTML = `畫了 <strong>${drawn}</strong> 個框，略過 <strong>${skipped}</strong> 個。Pin 的短邊在螢幕上是 ${pinSide.toFixed(1)} px（${pinSide < 3 ? '< 3，不畫' : '≥ 3，畫'}）；窗是 ${winSide.toFixed(1)} px（${winSide < 3 ? '< 3，不畫' : '≥ 3，畫'}）。元件寬 ${outlineW.toFixed(0)} px（${outlineW >= 48 ? '≥ 48，顯示標籤' : '< 48，不顯示標籤'}）。`;
+  }
+
+  // ---- 預算表 ----
+  function renderTable() {
+    const mc = perf.machine || {};
+    $('#machine').textContent = mc.cpu ? `${mc.cpu} · ${mc.logicalCores} 執行緒 · ${mc.ramGB} GB · ${mc.os} · Qt ${mc.qt} · ${mc.compiler} · ${mc.buildType} · ${mc.qpaPlatform} 平台 · commit ${mc.commit}` : '尚無實測資料。';
+    const rows = (perf.metrics || []).filter((m) => m.budget != null);
+    const W = Object.fromEntries((perf.windows || []).map((m) => [m.id, m]));
+    const wi = ['U1a', 'U1b', 'I1', 'I2', 'I5'].filter((id) => W[id]).map((id) => id + ' ' + fmt(W[id].p95) + ' ms').join(' · ');
+    $('#winNote').innerHTML = wi ? '<strong>真實視窗（windows 平台，含後端緩衝呈現）p95：</strong>' + esc(wi) + '。<strong>I1 是 ' + fmt(W.I1 && W.I1.p95) + ' ms，超過 16.7 ms 的預算。</strong>offscreen 的 I1 在 13 次執行裡落在 14.1–20.7 ms（7 次通過），所以它是「在預算邊緣」，不是「通過」。' : '';
+    $('#budgetTable tbody').innerHTML = rows.map((m) => `<tr><td>${esc(m.id)}</td><td>${esc(m.label)}</td><td>${m.budget}</td><td>${fmt(m.median)}</td><td>${fmt(m.p95)}</td><td class="${m.pass ? 'pass' : 'over'}">${m.pass ? '通過' : '超標'}</td></tr>`).join('') || '<tr><td colspan="6" class="muted">沒有資料</td></tr>';
+  }
+
+  // ---- 畫法微基準（tests/ui/perf_paint_micro.cpp，2 600 個框，量測衛生開啟）----
+  const DRAW = [
+    { label: 'A. cosmetic 描邊，寬 4＋2（第一版）', ms: 21.9, color: 'var(--reject)' },
+    { label: 'B. 一個 QPainterPath，兩次描邊', ms: 53.1, color: 'var(--reject)' },
+    { label: 'C. 整數像素填色細矩形（現在的做法）', ms: 4.75, color: 'var(--found)' },
+    { label: 'D. 同樣的矩形，QRectF＋抗鋸齒', ms: 8.4, color: 'var(--infer)' }
+  ];
+  function renderDraw() {
+    const max = Math.max(...DRAW.map((d) => d.ms));
+    $('#drawBars').innerHTML = DRAW.map((d) => '<div class="barlab"><span>' + esc(d.label) + '</span><span><strong>' + d.ms.toFixed(1) + ' ms</strong>' + (d.ms === 4.75 ? ' · 約快 4 倍' : '') + '</span></div><div class="bar" role="img" aria-label="' + esc(d.label) + ' ' + d.ms + ' 毫秒"><i style="width:' + (d.ms / max * 100).toFixed(1) + '%;background:' + d.color + '"></i></div>').join('');
+  }
+
+  $('#n').addEventListener('input', renderBars);
+  $('#zoom').addEventListener('input', renderLod);
+  document.querySelectorAll('[data-mode]').forEach((b) => b.addEventListener('click', () => {
+    mode = b.dataset.mode;
+    document.querySelectorAll('[data-mode]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+    renderBars();
+  }));
+  document.querySelectorAll('[data-layout]').forEach((b) => b.addEventListener('click', () => {
+    layout = b.dataset.layout;
+    document.querySelectorAll('[data-layout]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+    renderBars();
+  }));
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', renderLod);
+  renderBars(); renderDraw(); renderLod(); renderTable();
+})();
+</script>
+</body>
+</html>
