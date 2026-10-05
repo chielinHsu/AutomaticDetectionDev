@@ -1,0 +1,41 @@
+# Build output
+build/
+out/
+cmake-build-*/
+CMakeUserPresets.json
+CMakeLists.txt.user*
+*.user
+.vs/
+.vscode/
+.idea/
+
+# Qt generated
+*.autosave
+moc_*.cpp
+ui_*.h
+qrc_*.cpp
+
+# Compiler / linker output
+*.obj
+*.o
+*.pdb
+*.ilk
+*.exe
+*.dll
+*.lib
+*.exp
+
+# Performance output (budgets and baselines ARE tracked, raw runs are not)
+perf/results/
+!perf/results/.gitkeep
+
+# Real production images (large, may be confidential). Use synthetic data in testdata/.
+/data/
+*.local.*
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Claude Code local state
+.claude/settings.local.json
