@@ -18,7 +18,7 @@
 - 原 `docs/STATUS.md` 更名為 `docs/current-status.md`，所有引用同步更新。
 - 決策維持一檔一檔的 `docs/adr/`，`docs/decisions.md` 作為索引。
 
-`CLAUDE.md` 原內容的去向（文字照搬；只有 Step Protocol 第 1、4、7 步有調整，細節見 `project-rules.md` 開頭）：
+`CLAUDE.md` 原內容的去向（文字照搬；Step Protocol 有少數步驟調整，細節見 `project-rules.md` 開頭）：
 
 | 原 `CLAUDE.md` 章節 | 新位置 |
 |---|---|
@@ -38,5 +38,6 @@
 
 - 12 份 `docs/plan/S*.md` 的 Start prompt、`00-master-plan.md`、`S00-overview/spec.md` 的引用已改成新路徑。
 - Step Protocol 第 4 步多了「更新交接單與 changelog」。
+- 後續（2026-10-05）：commit 訊息格式由原本的 Conventional Commits 改為使用者的 `[作者]屬性:` 格式，見 `project-rules.md`「Commit 訊息」；Step Protocol 第 5 步同步調整。
 - 分層規則原本每個 Claude session 都會載入（在 `CLAUDE.md`）。搬到 `docs/architecture.md` 後，為了維持這個行為，`CLAUDE.md` 額外匯入它，`AGENTS.md` 也把它列入必讀。這是本專案相對於範本預設的唯一增加。
 - Codex 端沒有在本機端到端測過（該機器的 Codex CLI 無法執行 `codex exec`）；Claude Code 端已實測匯入有載入。

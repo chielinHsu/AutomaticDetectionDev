@@ -35,7 +35,7 @@ AOI 教學工具：使用者在影像上框一個樣本 ROI → 程式找出相�
 | HALCON 24.11 Progress-Steady | `%HALCONROOT%` = `C:\Program Files\MVTec\HALCON-24.11-Progress-Steady` |
 | MSVC 2022 編譯器 | **尚未驗證**，S02 第一件事：確認 `vcvars64.bat` 可用 |
 
-- Shell 是 Windows PowerShell 5.1：沒有 `&&`；用 `git commit -m @'...'@`（here-string），不要用 `-F -`。
+- Shell 是 Windows PowerShell 5.1：沒有 `&&`；commit 訊息寫成檔案再 `git commit -F <檔案>`，不要用 `-F -`（格式見 `project-rules.md`「Commit 訊息」）。
 - Node 可用，工具腳本放 `tools/*.mjs`。`python.exe` 只是 Store 捷徑，不要依賴。
 - 以上路徑若在 S02 驗證後有差異，**更新此表**。
 
