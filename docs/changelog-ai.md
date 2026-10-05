@@ -24,6 +24,39 @@
 - 下一位 agent 需要知道的限制、否決的做法、不要還原的修改
 ```
 
+## 2026-10-05 — Claude Code (Claude Sonnet 5.5)（S01：UX 規格與可點擊原型）
+
+### 完成
+- 依 Step Protocol 做 S01（設計步驟，沒有 Qt 程式）：UX 規格、狀態語言 token（含顏色對比驗算工具）、文案（繁中＋英文）、ADR-001／002／006、可點擊原型，以及四種輸出與 perf.md。
+- 使用者看原型後把範圍擴大：加入樣本庫與區域掃描（流程 B）、Board › Component › Box 階層、元件類型編輯器（矩陣、相依窗、套用範圍）、CAD 清單。對照了使用者提供的三份 TRI 文件。
+- 使用者回饋「訊息蓋住料件」：所有要閱讀的訊息改放畫布下方的訊息列。
+- 使用者決定庫與板子是複本關係、庫存 µm；原型隨之改成複本語意（〔從樣本庫更新〕、〔存入樣本庫〕）。
+- 使用者找不到「存入樣本庫」的按鈕（原本只有 Enter 鍵、按鈕藏在 dock 下方）：預覽時在訊息列加上〔接受〕〔接受並存入樣本庫…〕〔捨棄〕，並修正說明文字的順序。
+- 使用者問「樣本庫很多不是要比很久」：新增「比對範圍」（先比板子已有的類型，找不到再擴大）與狀態列「比對 N 個樣本」；預篩選等寫入 ADR-006 §7，未量測。
+
+### 修改的檔案
+- 新增：`docs/ux/`（ux-spec.md、tokens.json、copy.json）、`docs/adr/001-ui-toolkit.md`、`002-undo-model.md`、`006-sample-library-and-hierarchy.md`、`docs/steps/S01-ux-spec/`（spec.md、diagram.md、explainer.html、storyboard.md、perf.md）、`tools/check-contrast.mjs`
+- 修改：`docs/decisions.md`、`docs/current-status.md`、`.ai/handoff.md`、`AI_CONTEXT.md`、`docs/00-master-plan.md`、`perf/budgets.json`（記錄 UI 預算確認與三點定義）、`docs/plan/S02`–`S10`、`S12`（開頭各加一行「S01 修訂」）
+
+### 驗證
+- `node tools/ste-lint.mjs --strict`：386 句，0 錯誤，0 警告；負向測試（長的被動句）會失敗。
+- `node tools/check-contrast.mjs`：淺色 18、深色 18、疊圖 24 組全過；負向測試（壞的 token）會失敗。
+- `diagram.md` 的 12 張 Mermaid 圖用 mermaid 11 的解析器（jsdom）解析全過，只驗語法，沒有渲染；解析器對壞語法會失敗。
+- 原型頁內腳本，對最終版：整套 124 項斷言全過，另有比對範圍約 20 項，主控台無錯誤。涵蓋流程 A／B／C、三個範圍的復原、複本語意、11 種原因中的 9 種無匹配、三種錯誤、忙碌 200 ms／進度 1 s 的時機、把手 24 px 點擊區正反面、CAD 清單、訊息不蓋在影像上、淺深色、繁中／英文、無非法轉移。
+- 建置、單元測試、`check-deps`：不適用（尚未建立）。效能：全部未量測。
+
+### 未完成
+- ADR-006 未決項目（見 `docs/current-status.md`）。
+- S02 由新的 session 做（Start prompt 在 `docs/plan/S02-ui-shell.md` 底部）。
+
+### 注意事項
+- 過程中抓到並修正的真實缺陷：接受後復原再重做會先重做殘留動作；畫面快取鍵漏看群組內容，編輯樣本庫後「與樣本庫不同」的提示不會出現；框到多個元件時的提示是錯的（舊提示說「沒框到元件」）。
+- 測試失敗多半是測試腳本自己的錯（期望值、順序、沒先選取群組），已改正重測；報告裡的數字是改正後對最終版的結果。
+- 真實滑鼠／鍵盤／滾輪的抽查只在第一版原型做過；新版是合成事件加截圖。
+- `main` 已在另一個工作樹 checkout，合併要在那邊做。
+- 使用者的 S01 提示寫「commit 範本在 plan 檔、用 `-m`」，與 `project-rules.md` 的格式規則衝突；問過一次，使用者沒回答格式，只說 commit。我選了 `project-rules.md` 的格式（`[Caspar]docs:`、`git commit -F` 讀檔），因為那是使用者稍早確認的；不合要求可以 amend（沒有 push）。
+- 合併是在 `main` 的工作樹（`D:/AOI_Project/Qt/AutoCadCreated`）用 `git -C` 做的，因為 `main` 在那邊已 checkout；做之前確認它是乾淨的。
+
 ## 2026-10-05 — Claude Code (Claude Sonnet 5.5)
 
 ### 完成

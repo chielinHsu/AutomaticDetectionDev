@@ -7,6 +7,8 @@
 | 依賴 | S01 |
 | 產出位置 | `CMakeLists.txt`、`src/presentation/`、`tests/ui/`、`docs/steps/S02-ui-shell/` |
 
+> **S01 修訂（2026-10-05）**：照 `docs/ux/ux-spec.md` 與 ADR-006 調整：工具 V／S／R／＋（編輯器 V／B）；dock＝樣本庫、物件樹（Board › Component › 框群組）、比對參數；畫布有「板子」與「元件類型」兩個場景；**訊息一律在畫布下方的訊息列，不蓋在影像上**；板上以**元件**為選取單位，框的縮放把手只出現在類型編輯器（點擊區 24 px）；層級簡化（LOD）；疊圖配色用 `docs/ux/tokens.json` 的 `overlay` 組。`RoiGraphicsItem`／`RoiLayerItem` 的單位從「框」改為「元件（含它的框）」。
+
 <!--STE-->
 ## Purpose
 This step builds the main window and the image canvas. The canvas zooms, pans and draws boxes.

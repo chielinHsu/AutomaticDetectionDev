@@ -7,6 +7,8 @@
 | 依賴 | S02、S03 |
 | 產出位置 | `src/presentation/presenters/`、`src/application/document/`、`tests/ui/`、`docs/steps/S04-presenter/` |
 
+> **S01 修訂（2026-10-05）**：照 `docs/ux/ux-spec.md`：互動狀態機 **8 個狀態**（第 6 節，含 `NoMatch`、`EditingType`、`UndoToPreview`）；Presenter 與介面名單（第 12 節）；復原有**三個範圍**（ADR-002）；辨識候選 `chooseAlternative`。
+
 <!--STE-->
 ## Purpose
 This step connects the screen to the core. It adds the interaction state machine, the object table and undo.

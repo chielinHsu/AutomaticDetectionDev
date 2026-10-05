@@ -1,0 +1,675 @@
+{
+  "schema": 1,
+  "status": "proposed",
+  "note": "UI text for S01. Flat i18n keys, one entry per key, with zh_TW and en. Placeholders use {name}. S02 maps them to Qt id-based translations and converts {name} to %1 or %n. Where the text gives the user a next step, the key name contains 'advice' or 'action'.",
+  "locales": [
+    "zh_TW",
+    "en"
+  ],
+  "keys": {
+    "app.title": {
+      "zh_TW": "AOI 教學工具",
+      "en": "AOI Teach Tool"
+    },
+    "action.open": {
+      "zh_TW": "開啟",
+      "en": "Open"
+    },
+    "action.save": {
+      "zh_TW": "儲存",
+      "en": "Save"
+    },
+    "action.export": {
+      "zh_TW": "匯出",
+      "en": "Export"
+    },
+    "action.undo": {
+      "zh_TW": "復原",
+      "en": "Undo"
+    },
+    "action.redo": {
+      "zh_TW": "重做",
+      "en": "Redo"
+    },
+    "action.fit": {
+      "zh_TW": "適配視窗",
+      "en": "Fit to window"
+    },
+    "action.accept": {
+      "zh_TW": "接受",
+      "en": "Accept"
+    },
+    "action.discard": {
+      "zh_TW": "捨棄",
+      "en": "Discard"
+    },
+    "action.delete": {
+      "zh_TW": "刪除",
+      "en": "Delete"
+    },
+    "action.cancel": {
+      "zh_TW": "取消",
+      "en": "Cancel"
+    },
+    "action.dismiss": {
+      "zh_TW": "關閉",
+      "en": "Dismiss"
+    },
+    "action.retry": {
+      "zh_TW": "再試一次",
+      "en": "Try again"
+    },
+    "tool.select": {
+      "zh_TW": "選取 / 移動",
+      "en": "Select / move"
+    },
+    "tool.sample": {
+      "zh_TW": "教樣本",
+      "en": "Teach sample"
+    },
+    "tool.add": {
+      "zh_TW": "補一個",
+      "en": "Add one"
+    },
+    "state.sample": {
+      "zh_TW": "樣本",
+      "en": "Sample"
+    },
+    "state.found": {
+      "zh_TW": "找到",
+      "en": "Found"
+    },
+    "state.inferred": {
+      "zh_TW": "推算",
+      "en": "Inferred"
+    },
+    "state.rejected": {
+      "zh_TW": "拒絕",
+      "en": "Rejected"
+    },
+    "origin.manual": {
+      "zh_TW": "手動",
+      "en": "Manual"
+    },
+    "ui.empty.title": {
+      "zh_TW": "尚未開啟影像",
+      "en": "No image open"
+    },
+    "ui.empty.body": {
+      "zh_TW": "開啟一張板子影像，再框選一個樣本元件。程式會找出其餘相似的元件。",
+      "en": "Open a board image. Then draw a box around one sample part. The program finds the similar parts."
+    },
+    "ui.empty.action.open": {
+      "zh_TW": "開啟影像…",
+      "en": "Open image…"
+    },
+    "ui.empty.hint.drop": {
+      "zh_TW": "也可以把影像檔拖進這個視窗。",
+      "en": "You can also drop an image file on this window."
+    },
+    "ui.idle.hint": {
+      "zh_TW": "S 教一個新樣本 · R 框選區域，用樣本庫找出元件",
+      "en": "S teaches a new sample · R scans a region with the library"
+    },
+    "ui.sample.hint": {
+      "zh_TW": "放開滑鼠開始搜尋 · Esc 取消",
+      "en": "Release to start the search · Esc to cancel"
+    },
+    "ui.sample.tooSmall": {
+      "zh_TW": "樣本太小（至少 {min} px）",
+      "en": "The sample is too small (minimum {min} px)"
+    },
+    "ui.search.busy": {
+      "zh_TW": "搜尋中…",
+      "en": "Searching…"
+    },
+    "ui.search.progress": {
+      "zh_TW": "搜尋中… {percent}%",
+      "en": "Searching… {percent}%"
+    },
+    "ui.search.cancelled": {
+      "zh_TW": "已取消搜尋",
+      "en": "Search cancelled"
+    },
+    "ui.preview.summary": {
+      "zh_TW": "找到 {found} 個 · 推算 {inferred} 個 · 拒絕 {rejected} 個",
+      "en": "Found {found} · Inferred {inferred} · Rejected {rejected}"
+    },
+    "ui.preview.hint": {
+      "zh_TW": "Enter 接受 · Esc 捨棄 · Del 刪除所選",
+      "en": "Enter to accept · Esc to discard · Del to delete the selection"
+    },
+    "ui.preview.lowConfidence": {
+      "zh_TW": "{count} 個框的信心偏低，建議檢查。",
+      "en": "{count} boxes have low confidence. Check them."
+    },
+    "ui.preview.accepted": {
+      "zh_TW": "已接受 {count} 個框 · Ctrl+Z 復原",
+      "en": "Accepted {count} boxes · Ctrl+Z to undo"
+    },
+    "ui.preview.discarded": {
+      "zh_TW": "已捨棄提案 · Ctrl+Z 復原",
+      "en": "Proposal discarded · Ctrl+Z to undo"
+    },
+    "ui.noMatch.title": {
+      "zh_TW": "沒有找到相似的元件",
+      "en": "No similar part found"
+    },
+    "ui.noMatch.body": {
+      "zh_TW": "程式找不到與樣本相似的元件。請試試下列做法：",
+      "en": "The program found no part that looks like the sample. Try one of these:"
+    },
+    "ui.noMatch.advice.sampleTooSmall": {
+      "zh_TW": "樣本太小：把框拉大，包含元件的完整外形。",
+      "en": "The sample is too small. Make the box larger so it holds the whole part."
+    },
+    "ui.noMatch.advice.sampleTooLarge": {
+      "zh_TW": "樣本比元件大很多：把框縮到元件的外形。",
+      "en": "The box is much larger than the part. Shrink the box to the outline of the part."
+    },
+    "ui.noMatch.advice.sampleCoversMany": {
+      "zh_TW": "樣本框到了不只一個元件：只框其中一個。要一次處理多個元件，請改用「區域掃描」（R）。",
+      "en": "The box holds more than one part. Draw it around one part only. To handle many parts at once, use Scan region (R)."
+    },
+    "ui.noMatch.advice.sampleOffPart": {
+      "zh_TW": "樣本沒有框到元件：把框移到一個元件上。",
+      "en": "The box is not on a part. Move the box onto one part."
+    },
+    "ui.noMatch.advice.onlyOne": {
+      "zh_TW": "板子上只有這一個相似的元件：改選一個有重複的元件當樣本。",
+      "en": "Only one such part exists on the board. Pick a part that repeats."
+    },
+    "ui.noMatch.advice.lowContrast": {
+      "zh_TW": "對比太低：元件與背景的差異不夠，換一個對比較高的元件當樣本。",
+      "en": "The contrast is too low. Pick a part that stands out more from the board."
+    },
+    "ui.noMatch.advice.lowerThreshold": {
+      "zh_TW": "分數門檻太高：目前最高分是 {best}，可降低到 {suggested} 再試。",
+      "en": "The score threshold is too high. The best score is {best}. Try {suggested}."
+    },
+    "ui.noMatch.action.lowerThreshold": {
+      "zh_TW": "降低門檻到 {suggested}",
+      "en": "Lower the threshold to {suggested}"
+    },
+    "ui.noMatch.action.redraw": {
+      "zh_TW": "重畫樣本",
+      "en": "Redraw the sample"
+    },
+    "ui.error.imageOpen.title": {
+      "zh_TW": "無法開啟影像",
+      "en": "Cannot open the image"
+    },
+    "ui.error.imageOpen.body": {
+      "zh_TW": "檔案 {name} 無法解碼。請確認檔案沒有損毀，或改用 PNG、BMP、JPEG。",
+      "en": "The file {name} cannot be decoded. Check that the file is not damaged, or use PNG, BMP or JPEG."
+    },
+    "ui.error.backend.title": {
+      "zh_TW": "{backend} 無法使用",
+      "en": "{backend} is not available"
+    },
+    "ui.error.backend.body": {
+      "zh_TW": "找不到授權或程式庫。請改用 {fallback}，或檢查授權。",
+      "en": "The license or the library is missing. Switch to {fallback}, or check the license."
+    },
+    "ui.error.searchFailed.title": {
+      "zh_TW": "搜尋失敗",
+      "en": "The search failed"
+    },
+    "ui.error.searchFailed.body": {
+      "zh_TW": "後端回報錯誤：{detail}。樣本框已保留，可以再試一次。",
+      "en": "The back end reported an error: {detail}. The sample box stays. You can try again."
+    },
+    "ui.status.summary": {
+      "zh_TW": "{backend} · {ms} ms · 找到 {found} · 推算 {inferred}",
+      "en": "{backend} · {ms} ms · Found {found} · Inferred {inferred}"
+    },
+    "ui.status.none": {
+      "zh_TW": "{backend} · — ms · 0 個物件",
+      "en": "{backend} · — ms · 0 objects"
+    },
+    "ui.status.zoom": {
+      "zh_TW": "縮放 {percent}%",
+      "en": "Zoom {percent}%"
+    },
+    "ui.objects.title": {
+      "zh_TW": "物件",
+      "en": "Objects"
+    },
+    "ui.objects.empty": {
+      "zh_TW": "還沒有物件。",
+      "en": "No objects yet."
+    },
+    "ui.params.title": {
+      "zh_TW": "比對參數",
+      "en": "Match parameters"
+    },
+    "ui.params.score": {
+      "zh_TW": "分數門檻",
+      "en": "Score threshold"
+    },
+    "ui.params.advanced": {
+      "zh_TW": "進階",
+      "en": "Advanced"
+    },
+    "ui.params.angle": {
+      "zh_TW": "角度範圍",
+      "en": "Angle range"
+    },
+    "ui.backend.label": {
+      "zh_TW": "Back end",
+      "en": "Back end"
+    },
+    "ui.settings.theme.light": {
+      "zh_TW": "淺色",
+      "en": "Light"
+    },
+    "ui.settings.theme.dark": {
+      "zh_TW": "深色",
+      "en": "Dark"
+    },
+    "ui.settings.theme.system": {
+      "zh_TW": "跟隨系統",
+      "en": "Follow system"
+    },
+    "ui.settings.fontScale": {
+      "zh_TW": "字級縮放",
+      "en": "Text size"
+    },
+    "tool.scan": {
+      "zh_TW": "區域掃描",
+      "en": "Scan region"
+    },
+    "ui.scan.hint": {
+      "zh_TW": "放開滑鼠，用樣本庫辨識區域內的元件 · Esc 取消",
+      "en": "Release to match the region with the library · Esc to cancel"
+    },
+    "ui.library.title": {
+      "zh_TW": "樣本庫",
+      "en": "Sample library"
+    },
+    "ui.library.empty": {
+      "zh_TW": "樣本庫還沒有樣本。先用「樣本」工具教一個。",
+      "en": "The library has no sample yet. Teach one with the Sample tool."
+    },
+    "ui.library.edit": {
+      "zh_TW": "編輯",
+      "en": "Edit"
+    },
+    "ui.library.delete": {
+      "zh_TW": "刪除",
+      "en": "Delete"
+    },
+    "ui.library.summary": {
+      "zh_TW": "{boxes} 個框 · 板子上的複本 {count} 個",
+      "en": "{boxes} boxes · {count} copies on the board"
+    },
+    "ui.tree.board": {
+      "zh_TW": "板子",
+      "en": "Board"
+    },
+    "ui.tree.local": {
+      "zh_TW": "未存入樣本庫",
+      "en": "Not in the library"
+    },
+    "role.body": {
+      "zh_TW": "主體",
+      "en": "Body"
+    },
+    "role.pin": {
+      "zh_TW": "Pin 腳",
+      "en": "Pin"
+    },
+    "role.other": {
+      "zh_TW": "其他",
+      "en": "Other"
+    },
+    "ui.preview.unrecognized": {
+      "zh_TW": "區域內還有 {count} 個元件沒有符合的樣本。",
+      "en": "{count} more parts in the region match no library sample."
+    },
+    "ui.preview.action.teachNew": {
+      "zh_TW": "教一個新樣本",
+      "en": "Teach a new sample"
+    },
+    "ui.preview.acceptSave": {
+      "zh_TW": "接受並存入樣本庫…",
+      "en": "Accept and save to library…"
+    },
+    "ui.preview.identify": {
+      "zh_TW": "可能的樣本",
+      "en": "Possible samples"
+    },
+    "ui.noMatch.advice.libraryEmpty": {
+      "zh_TW": "樣本庫是空的：先用「樣本」工具教一個樣本。",
+      "en": "The library is empty. Teach a sample first with the Sample tool."
+    },
+    "ui.noMatch.advice.regionEmpty": {
+      "zh_TW": "區域內沒有元件：把區域移到元件上，或拉大。",
+      "en": "The region holds no part. Move the region onto parts, or make it larger."
+    },
+    "ui.noMatch.advice.noLibraryMatch": {
+      "zh_TW": "區域內有 {count} 個元件，但樣本庫沒有符合的樣本：教一個新樣本。",
+      "en": "The region holds {count} parts, but no library sample matches. Teach a new sample."
+    },
+    "ui.noMatch.action.teachNew": {
+      "zh_TW": "教一個新樣本",
+      "en": "Teach a new sample"
+    },
+    "ui.editor.title": {
+      "zh_TW": "編輯元件類型",
+      "en": "Edit component type"
+    },
+    "ui.editor.partNo": {
+      "zh_TW": "料號",
+      "en": "Part number"
+    },
+    "ui.editor.name": {
+      "zh_TW": "名稱",
+      "en": "Name"
+    },
+    "ui.editor.groups": {
+      "zh_TW": "框群組",
+      "en": "Box groups"
+    },
+    "ui.editor.role": {
+      "zh_TW": "角色",
+      "en": "Role"
+    },
+    "ui.editor.pos": {
+      "zh_TW": "位置 x, y",
+      "en": "Position x, y"
+    },
+    "ui.editor.size": {
+      "zh_TW": "寬 × 高",
+      "en": "Width × height"
+    },
+    "ui.editor.rows": {
+      "zh_TW": "列數",
+      "en": "Rows"
+    },
+    "ui.editor.cols": {
+      "zh_TW": "欄數",
+      "en": "Columns"
+    },
+    "ui.editor.pitchX": {
+      "zh_TW": "水平間距",
+      "en": "Pitch X"
+    },
+    "ui.editor.pitchY": {
+      "zh_TW": "垂直間距",
+      "en": "Pitch Y"
+    },
+    "ui.editor.scope.group": {
+      "zh_TW": "只改這個矩陣",
+      "en": "This matrix only"
+    },
+    "ui.editor.save": {
+      "zh_TW": "儲存",
+      "en": "Save"
+    },
+    "ui.editor.cancel": {
+      "zh_TW": "取消",
+      "en": "Cancel"
+    },
+    "ui.editor.affects": {
+      "zh_TW": "儲存後，板上 {count} 個 {partNo} 元件會一起更新。",
+      "en": "After you save, {count} {partNo} components on the board update together."
+    },
+    "ui.editor.needPartNo": {
+      "zh_TW": "請輸入料號。",
+      "en": "Enter a part number."
+    },
+    "ui.editor.partNoTaken": {
+      "zh_TW": "料號 {partNo} 已在樣本庫中。",
+      "en": "The part number {partNo} is already in the library."
+    },
+    "ui.editor.needBox": {
+      "zh_TW": "至少要有一個框。",
+      "en": "The type needs at least one box."
+    },
+    "ui.editor.hint": {
+      "zh_TW": "B 畫框 · 改列數／欄數即可一次建立矩陣 · Del 刪除 · Esc 取消",
+      "en": "B draws a box · set rows and columns to make a matrix at once · Del deletes · Esc cancels"
+    },
+    "ui.editor.selectHint": {
+      "zh_TW": "選一個框群組來編輯。",
+      "en": "Select a box group to edit it."
+    },
+    "ui.toast.typeSaved": {
+      "zh_TW": "已儲存 {partNo}：更新 {count} 個元件",
+      "en": "Saved {partNo}. Updated {count} components."
+    },
+    "ui.status.boxes": {
+      "zh_TW": "{boxes} 個框",
+      "en": "{boxes} boxes"
+    },
+    "ui.status.editing": {
+      "zh_TW": "編輯 {partNo} · {boxes} 個框",
+      "en": "Editing {partNo} · {boxes} boxes"
+    },
+    "ui.editor.aliases": {
+      "zh_TW": "別名／料號",
+      "en": "Aliases / part numbers"
+    },
+    "ui.editor.category": {
+      "zh_TW": "類別",
+      "en": "Category"
+    },
+    "ui.editor.addWindow": {
+      "zh_TW": "＋檢測窗",
+      "en": "+ Window"
+    },
+    "ui.editor.addAll": {
+      "zh_TW": "一次產生標準檢測框",
+      "en": "Add all standard windows"
+    },
+    "ui.editor.kind": {
+      "zh_TW": "種類",
+      "en": "Kind"
+    },
+    "ui.editor.algo": {
+      "zh_TW": "檢測演算法",
+      "en": "Algorithm"
+    },
+    "ui.editor.offset": {
+      "zh_TW": "位移 x, y",
+      "en": "Offset x, y"
+    },
+    "ui.editor.ratio": {
+      "zh_TW": "寬 × 高（父框的比例）",
+      "en": "Width × height (of the parent)"
+    },
+    "ui.editor.scopeLabel": {
+      "zh_TW": "套用範圍",
+      "en": "Apply to"
+    },
+    "ui.editor.scope.kind": {
+      "zh_TW": "此類型中所有相同種類的框",
+      "en": "All boxes of the same kind in this type"
+    },
+    "ui.editor.parent": {
+      "zh_TW": "父框：{parent}",
+      "en": "Parent: {parent}"
+    },
+    "ui.editor.bodyOnce": {
+      "zh_TW": "每個元件只能有一個主體框。",
+      "en": "A component can have only one body box."
+    },
+    "ui.editor.bodyKeep": {
+      "zh_TW": "主體框不能刪除；先刪掉依附它的框，或改它的大小。",
+      "en": "You cannot delete the body box. Resize it instead."
+    },
+    "ui.editor.needParent": {
+      "zh_TW": "先選一個主體或 Pin 群組，當作檢測窗的父框。",
+      "en": "Select a body or a pin group first. It becomes the parent of the window."
+    },
+    "ui.editor.addedAll": {
+      "zh_TW": "已產生 {count} 組標準檢測窗。",
+      "en": "Added {count} standard window groups."
+    },
+    "ui.editor.noBody": {
+      "zh_TW": "先畫主體框（B），再畫 Pin。",
+      "en": "Draw the body box first (B). Then draw the pins."
+    },
+    "role.window": {
+      "zh_TW": "檢測窗",
+      "en": "Window"
+    },
+    "ui.library.filter": {
+      "zh_TW": "依料號、名稱、別名篩選",
+      "en": "Filter by part number, name or alias"
+    },
+    "ui.library.aliases": {
+      "zh_TW": "別名：{aliases}",
+      "en": "Aliases: {aliases}"
+    },
+    "ui.library.localOnly": {
+      "zh_TW": "這個類型只在這塊板子上，還沒存入樣本庫。",
+      "en": "This type exists on this board only. It is not in the library yet."
+    },
+    "ui.cad.title": {
+      "zh_TW": "CAD 清單（匯出預覽）",
+      "en": "CAD list (export preview)"
+    },
+    "ui.cad.note": {
+      "zh_TW": "5 個欄位：元件名稱、X、Y、角度、元件形式（再加正反面）。原型的座標單位是影像像素，原點在影像左上角；真正的匯出由 S12 實作，會轉成物理單位與 CAD 原點。",
+      "en": "Five fields: name, X, Y, angle and type, plus the side. The prototype uses image pixels with the origin at the top left. The real export in S12 converts to physical units and a CAD origin."
+    },
+    "ui.cad.copy": {
+      "zh_TW": "複製",
+      "en": "Copy"
+    },
+    "ui.cad.copied": {
+      "zh_TW": "已複製到剪貼簿。",
+      "en": "Copied to the clipboard."
+    },
+    "ui.cad.close": {
+      "zh_TW": "關閉",
+      "en": "Close"
+    },
+    "ui.cad.empty": {
+      "zh_TW": "板上還沒有元件。先接受一份提案。",
+      "en": "The board has no component yet. Accept a proposal first."
+    },
+    "ui.sel.component": {
+      "zh_TW": "{name} · {type}",
+      "en": "{name} · {type}"
+    },
+    "ui.sel.edit": {
+      "zh_TW": "編輯元件類型 (E)",
+      "en": "Edit component type (E)"
+    },
+    "ui.sel.saveLib": {
+      "zh_TW": "存入樣本庫…",
+      "en": "Save to library…"
+    },
+    "ui.sel.alts": {
+      "zh_TW": "可能的樣本（辨識分數）",
+      "en": "Possible samples (match score)"
+    },
+    "ui.sel.none": {
+      "zh_TW": "在畫布或物件樹選一個元件。",
+      "en": "Select a component on the canvas or in the tree."
+    },
+    "ui.objects.board": {
+      "zh_TW": "板子 {name}",
+      "en": "Board {name}"
+    },
+    "ui.toast.retyped": {
+      "zh_TW": "已改為 {partNo}",
+      "en": "Changed to {partNo}"
+    },
+    "ui.noMatch.advice.alreadyOnBoard": {
+      "zh_TW": "區域內的元件都已經在板上了。",
+      "en": "All parts in the region are on the board already."
+    },
+    "ui.editor.saveBoard": {
+      "zh_TW": "只儲存在這塊板子",
+      "en": "Save on this board only"
+    },
+    "ui.editor.saveBoth": {
+      "zh_TW": "儲存並存入樣本庫",
+      "en": "Save and add to the library"
+    },
+    "ui.editor.saveLibrary": {
+      "zh_TW": "儲存到樣本庫",
+      "en": "Save to the library"
+    },
+    "ui.editor.affectsLib": {
+      "zh_TW": "這是樣本庫的條目。板子上已有的複本不會自動更新（目前 {count} 個複本）。",
+      "en": "This is a library entry. Copies on boards do not update by themselves ({count} copies now)."
+    },
+    "ui.sel.localType": {
+      "zh_TW": "這個類型只在這塊板子上，還沒存入樣本庫。",
+      "en": "This type exists on this board only. It is not in the library yet."
+    },
+    "ui.sel.sameAsLib": {
+      "zh_TW": "與樣本庫相同。",
+      "en": "Same as the library."
+    },
+    "ui.sel.diffFromLib": {
+      "zh_TW": "與樣本庫不同。",
+      "en": "Different from the library."
+    },
+    "ui.sel.pull": {
+      "zh_TW": "從樣本庫更新",
+      "en": "Update from the library"
+    },
+    "ui.sel.push": {
+      "zh_TW": "存入樣本庫",
+      "en": "Add to the library"
+    },
+    "ui.toast.pulled": {
+      "zh_TW": "已從樣本庫更新 {partNo}：更新 {count} 個元件",
+      "en": "Updated {partNo} from the library. Updated {count} components."
+    },
+    "ui.toast.pushed": {
+      "zh_TW": "已存入樣本庫：{partNo}",
+      "en": "Added {partNo} to the library."
+    },
+    "ui.toast.libSaved": {
+      "zh_TW": "已儲存到樣本庫：{partNo}（板子上的複本不會自動更新）",
+      "en": "Saved {partNo} to the library. Copies on boards do not update by themselves."
+    },
+    "ui.toast.libAdded": {
+      "zh_TW": "已存入樣本庫",
+      "en": "added to the library"
+    },
+    "ui.add.needType": {
+      "zh_TW": "板子上還沒有元件類型：先接受一份提案。",
+      "en": "The board has no component type yet. Accept a proposal first."
+    },
+    "ui.params.scanScope": {
+      "zh_TW": "比對範圍",
+      "en": "Compare with"
+    },
+    "ui.params.scope.auto": {
+      "zh_TW": "先用板子已有的類型，找不到再擴大（建議）",
+      "en": "Board types first, then the whole library (proposed)"
+    },
+    "ui.params.scope.board": {
+      "zh_TW": "只用板子已有的類型",
+      "en": "Board types only"
+    },
+    "ui.params.scope.all": {
+      "zh_TW": "整個樣本庫",
+      "en": "The whole library"
+    },
+    "ui.status.compared": {
+      "zh_TW": "比對 {n} 個樣本",
+      "en": "{n} samples compared"
+    },
+    "ui.noMatch.advice.scopeBoard": {
+      "zh_TW": "區域內有 {count} 個元件，在整個樣本庫裡可能有符合的樣本，但目前只比對板子已有的類型。",
+      "en": "The region holds {count} parts that may match a library sample. The scope is board types only."
+    },
+    "ui.noMatch.action.widenScope": {
+      "zh_TW": "改用整個樣本庫",
+      "en": "Use the whole library"
+    },
+    "ui.preview.outOfScope": {
+      "zh_TW": "{count} 個元件在整個樣本庫裡可能有符合的樣本（目前只比對板子已有的類型）。",
+      "en": "{count} more parts may match a library sample. The scope is board types only."
+    }
+  }
+}

@@ -85,7 +85,7 @@ flowchart TB
 | 無匹配也要有路走 | 錯誤訊息直接建議下一步（降低門檻、放大樣本…） | 死路是最糟的 UX |
 | 鍵盤與滑鼠兼顧 | 游標中心縮放、Space＋拖曳平移、F 適配、Enter 接受、Del 刪除 | 重複性高的工作，效率靠快捷鍵 |
 
-完整的 UX 規格與可點擊原型在 **S01**。
+完整的 UX 規格與可點擊原型在 **S01**：[`ux/ux-spec.md`](ux/ux-spec.md)、[explainer.html](steps/S01-ux-spec/explainer.html)。S01 之後的修訂：加入樣本庫與區域掃描流程、Board › Component › Box 階層（[ADR-006](adr/006-sample-library-and-hierarchy.md)）；訊息不蓋在影像上。上方的版面草圖是 S01 前的版本。
 
 ## 5. 效能策略與測試
 

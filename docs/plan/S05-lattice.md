@@ -7,6 +7,8 @@
 | 依賴 | S03 |
 | 產出位置 | `src/domain/lattice/`、`tests/domain/`、`docs/steps/S05-lattice/` |
 
+> **S01 修訂（2026-10-05）**：照 ADR-006：晶格推算屬於**元件層級**（板上元件的陣列）。框層級的矩陣（Pin 的列數／欄數／間距）是 `BoxGroup` 展開的簡單算術，不需要晶格估計。
+
 <!--STE-->
 ## Purpose
 This step builds the array rules in pure C++. It finds the pitch, assigns grid indexes and fills the gaps.

@@ -8,45 +8,39 @@
 
 ## 正在做
 
-無。S00 已完成並合併；S01 待開始（依 Step Protocol 在新 session 做）。
+無。**S01（UX 規格與可點擊原型）已完成**：commit 在分支 `step/01-ux-spec`，以 `--no-ff` 合併到 `main`，tag `step-01-done`。全部只在本機，**沒有 push**。S02 由新的 session 做。
 
-## 已完成
+## 已完成（S01）
 
-- 套用 AI 共用結構（Codex 與 Claude Code）到本專案：`CLAUDE.md` 改為薄入口，原內容搬到 `AI_CONTEXT.md`、`docs/architecture.md`、`.agents/harness/project-rules.md`。
-- `docs/STATUS.md` 更名為 `docs/current-status.md`，14 個檔案的引用同步更新。
-- 新增 `docs/adr/000-ai-agent-structure.md` 與 `docs/decisions.md` 索引。
-- 把 `ai-project-template/` 納入版控，並更新文件中「未追蹤」的說法。
-- 前三個 commit 的訊息改寫成使用者的 `[作者]屬性:` 格式；`project-rules.md` 的 Commit 規則同步改為該格式，並已合併到 `main`。
+- 設計：`docs/ux/ux-spec.md`、`tokens.json`、`copy.json`；`docs/adr/001`（Widgets + QGraphicsView）、`002`（復原模型）、`006`（樣本庫與 Board › Component › Box 階層），三者都「採用」。四種輸出與 `perf.md` 在 `docs/steps/S01-ux-spec/`。
+- 原型 `explainer.html`（單一 HTML，離線可開）：教樣本、區域掃描與比對範圍、物件樹、樣本庫（複本語意）、類型編輯器（矩陣、相依窗）、CAD 清單。
+- 工具：`tools/check-contrast.mjs`；後續步驟的提醒在 `docs/plan/S02`–`S10`、`S12` 開頭「S01 修訂」。
+
+## 使用者已決定（2026-10-05）
+
+Widgets + QGraphicsView；UI 預算 U/I 照原數字＋三點定義；兩種流程並存；庫與板子是**複本**；庫存 **µm**＋影像校正值；疊圖固定亮色；接受／捨棄後 `Ctrl+Z` 回 Preview；`Esc` 捨棄不確認；手動補的元件標示「手動」；訊息不蓋在影像上。
 
 ## 下一步
 
-- 確認改寫後的歷史沒問題後，刪除備份分支 `backup/before-commit-reformat`。
-- 開 S01 新 session：prompt 在 `docs/plan/S01-ux-spec.md` 底部。結構套用已合併到 `main`，prompt 引用的 `AGENTS.md` 與 `docs/current-status.md` 都在 `main` 上。
-- 是否 push 到遠端由使用者決定（目前沒有 push）。
-
-## 相關檔案
-
-- `AGENTS.md`、`CLAUDE.md`、`AI_CONTEXT.md`
-- `.agents/harness/project-rules.md`（Step Protocol 在此）
-- `docs/adr/000-ai-agent-structure.md`
+**S02：Qt UI 骨架與影像畫布**（`docs/plan/S02-ui-shell.md`）。第一件事是驗證 MSVC 2022／Qt 6.8／CMake 工具鏈，並把結果寫回 `AI_CONTEXT.md` 的環境表。開工前讀 `docs/ux/ux-spec.md`（版面、工具、狀態語言、訊息列）與 ADR-001／006 的「後果」。
 
 ## 不要動
 
 - `ai-project-template/`：與產品無關的 AI 結構範本，已納入版控；除非使用者要求，不要修改。
+- 其他步驟的 plan 檔只加了「S01 修訂」提醒，內容沒改。
 
-## 已知問題
+## 已知問題與風險
 
-- Codex 端的 AGENTS.md 流程沒有在本機實測過（Codex CLI 0.136.0 無法執行 `codex exec`）。
-- 範本的檢查腳本 `*.ps1` 在 `.gitattributes` 下 checkout 會是 CRLF；`git add` 可能出現換行提示，屬預期。
-- 12 份 `docs/plan/S*.md` 的「Commit 範本」仍是英文 Conventional 風格；`project-rules.md` 規定它們只當內容參考，commit 格式以規則為準。
+- 原型的比對是**假的**（用板子上零件的真值），耗時是公式模擬；真實的 `ILibraryMatcher` 在 S07／S08，成本隨比對的樣本數成長（假設，未實測）。庫很大時的做法見 ADR-006 §7，除了「先比板子類型」外都是未量測的選項。
+- 原型用像素；樣本庫的 µm 是決定，還沒有實作。
+- 疊圖的綠色 Found 對綠板只有 3.14:1（剛好過線）；板子顏色是合成的參考色，不是實測。
+- 真實滑鼠／鍵盤／滾輪的抽查只在第一版原型做過；新版是合成事件（整套 124 項，另有比對範圍約 20 項）加截圖目視。
+- ADR-006 未決：實例覆寫、Panel 多連板、角度正負號、窗的演算法與參數、自由公式、庫的 System／Project 層。
+- Codex 端的 AGENTS.md 流程沒有在本機實測過。
 
-## 未提交的變更
+## 驗證（都已實際執行）
 
-- 無。套用結構的變更已 commit（`fd4fd2a`）並以 `--no-ff` 合併到 `main`；沒有 push。
-- `ai-project-template/`（含同步改好的 commit 格式預設）已納入版控。
-- commit 格式規則的變更已合併到 `main`（`--no-ff`）；沒有 push。
-
-## 假設與未驗證項目
-
-- 假設沒有其他進行中的 session：套用前 `git branch` 只有 `main` 與 `step/00-master-plan`，`git worktree list` 只有主目錄。
-- `.claude/settings.json` 的 deny 規則在 Claude Code 信任此資料夾之後才生效。
+- `node tools/ste-lint.mjs --strict`：386 句，0 錯誤。
+- `node tools/check-contrast.mjs`：淺 18、深 18、疊圖 24 組全過。
+- `diagram.md` 的 12 張 Mermaid：mermaid 11 解析器全過（只驗語法）。
+- 建置、單元測試、`check-deps`：不適用（尚未建立）。效能：全部未量測。

@@ -7,6 +7,8 @@
 | 依賴 | S11 |
 | 產出位置 | `src/infrastructure/export/`、`packaging/`、`docs/manual/`、`docs/steps/S12-release/` |
 
+> **S01 修訂（2026-10-05）**：匯出要包含 **CAD 清單**：元件名稱、X、Y、角度、元件類型（料號）、正反面（`docs/ux/ux-spec.md` §12.1 #9）；S01 原型有預覽。單位與原點見 ADR-006 未決 #1。
+
 <!--STE-->
 ## Purpose
 This step finishes the first release. It adds export, builds an installer and completes the user manual.

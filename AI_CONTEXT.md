@@ -8,6 +8,8 @@
 AOI 教學工具：使用者在影像上框一個樣本 ROI → 程式找出相似元件 → 推算陣列間距並補漏 → 產生檢測框（"CAD objects"）。
 **OpenCV 與 HALCON 兩個 back end 共用同一份程式碼**，執行時可切換。
 
+2026-10-05（S01）起有第二個流程：使用者框**任意區域** → 程式與**樣本庫**所有樣本比對 → 列出對應的 CAD 框。資料模型是 Board › Component › Box，框由「元件類型」推導，見 `docs/adr/006-sample-library-and-hierarchy.md`。
+
 - 完整計畫：`docs/00-master-plan.md`
 - 目前進度：`docs/current-status.md`（開工前先讀）
 - 每一步的細節與交接 prompt：`docs/plan/Sxx-*.md`
@@ -49,7 +51,8 @@ AOI 教學工具：使用者在影像上框一個樣本 ROI → 程式找出相�
 | `docs/steps/` | 每一步的四種輸出；範本在 `_template/` |
 | `docs/adr/` | 設計決策，一檔一決策（`NNN-slug.md`） |
 | `perf/` | 效能預算；實測結果在 `perf/results/`（不入版控） |
-| `tools/` | Node 工具：`ste-lint.mjs`；`check-deps.mjs` 在 S03 建立 |
+| `docs/ux/` | UX 規格（`ux-spec.md`）、狀態語言 token（`tokens.json`）、文案（`copy.json`）；S02 的 QPalette／QSS 與 i18n 以此為來源 |
+| `tools/` | Node 工具：`ste-lint.mjs`、`check-contrast.mjs`；`check-deps.mjs` 在 S03 建立 |
 | `ai-project-template/` | 與本產品無關的 AI 結構範本（Codex 與 Claude Code 共用）：`New-AiProject.ps1` 把結構套到新資料夾，設計說明見其 `README.md`。已納入版控；除非使用者要求，不要修改 |
 | `.agents/`、`.claude/`、`.ai/`、`scripts/ai/` | AI agent 的規範、skill、交接單與檢查腳本，各檔職責見 `.agents/harness/engineering-workflow.md` 第 0 節 |
 
@@ -63,6 +66,7 @@ AOI 教學工具：使用者在影像上框一個樣本 ROI → 程式找出相�
 | 單元與契約測試 | 尚未建立 | S03 起，Qt Test 經 CTest |
 | 依賴方向檢查 | `node tools/check-deps.mjs` | S03 建立；掃 `#include`，違規即失敗 |
 | 文件風格檢查 | `node tools/ste-lint.mjs` | 現在可用；只檢查 `<!--STE-->` 標記之間的文字 |
+| 顏色對比檢查 | `node tools/check-contrast.mjs` | S01 起可用；驗算 `docs/ux/tokens.json`（文字 ≥ 4.5、圖形 ≥ 3）並檢查四種狀態線型不重複；改過顏色後加 `--write` 更新結果 |
 | 效能 | S10 的 harness | 預算在 `perf/budgets.json` |
 | AI 結構檢查 | `powershell -ExecutionPolicy Bypass -File scripts/ai/check-ai-structure.ps1` | 改過入口檔或 skill 後執行 |
 
@@ -94,8 +98,12 @@ AOI 教學工具：使用者在影像上框一個樣本 ROI → 程式找出相�
 
 | 詞 | 意義 |
 |---|---|
-| ROI | 使用者在影像上框選的樣本區域 |
-| CAD objects | 程式產生的檢測矩形 |
+| ROI | 使用者在影像上框選的區域（教樣本時是一個元件；區域掃描時可含很多元件） |
+| Board | 一塊板子：影像＋所有元件 |
+| Component（元件） | 板上的一個零件實例，一筆 CAD 記錄（名稱、X、Y、角度、類型）；框不屬於它，而是從它的類型推導 |
+| ComponentType（元件類型） | 樣本庫的一個條目（料號、別名、框群組）；改它，同類型的所有元件一起更新 |
+| BoxGroup（框群組） | Body（每類型一個）、Pin（矩陣）、Window（連結到父群組，大小用父框的比例） |
+| CAD objects／Box（框） | 程式產生的檢測矩形 |
 | back end | 視覺實作：OpenCV 或 HALCON，執行時可切換 |
 | port | application 層定義的介面，由 infrastructure 的 adapter 實作 |
 | `ImageView` | 跨過 port 傳遞影像的型別，不暴露任何函式庫的影像類別 |

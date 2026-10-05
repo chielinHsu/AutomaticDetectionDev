@@ -7,6 +7,8 @@
 | 依賴 | S03 |
 | 產出位置 | `src/infrastructure/{image,storage}/`、`tests/support/synthetic_board.*`、`tests/infra/`、`docs/steps/S06-image-storage/` |
 
+> **S01 修訂（2026-10-05）**：照 ADR-006：要加**樣本庫**儲存（建議 Project＋User 兩層、料號與別名索引）與板子（元件實例＋用到的類型）的儲存。使用者已決定：**樣本庫存 µm、影像帶校正值**；**板子保存自己用到的類型複本**（記得 `libId`），庫與板子只透過〔從樣本庫更新〕與〔存入樣本庫〕同步（ADR-006 §5、§6）。
+
 <!--STE-->
 ## Purpose
 This step builds the image buffer, the converters and the recipe store. It also builds a generator for test images.
