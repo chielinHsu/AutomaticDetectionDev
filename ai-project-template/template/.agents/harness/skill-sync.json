@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "sourceDirectory": ".agents/skills",
+  "targetDirectory": ".claude/skills",
+  "claudeOnly": [],
+  "codexOnly": [],
+  "ignoredDirectoryNames": [
+    "__pycache__"
+  ],
+  "ignoredExtensions": [
+    ".pyc",
+    ".pyo"
+  ]
+}

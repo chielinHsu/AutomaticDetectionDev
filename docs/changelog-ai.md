@@ -27,6 +27,29 @@
 ## 2026-10-05 — Claude Code (Claude Sonnet 5.5)
 
 ### 完成
+- 依使用者決定，把 `ai-project-template/`（共用結構範本、套用腳本、設計說明，共 18 個檔案）納入版控，放在這個 repo 內。這個範本是同一個 session 依使用者「設計共用結構」的要求產生的，並非產品計畫的一部分。
+- 更新文件中「未追蹤、不要 stage」的說法：`AI_CONTEXT.md`、`project-rules.md`、`current-status.md`、`handoff.md`。`current-status.md` 原本寫「非本計畫產生」，造成誰做的、為什麼做的看不出來，改成寫明來源。
+
+### 修改的檔案
+- 新增：`ai-project-template/`（18 個檔案）
+- 修改：`AI_CONTEXT.md`、`.agents/harness/project-rules.md`、`docs/current-status.md`、`.ai/handoff.md`、`docs/changelog-ai.md`
+
+### 驗證
+- `git add -n` 預覽：18 個檔案，沒有被 ignore 的內容；掃描沒有密鑰或機器路徑（只有規則裡拿 `HQ\Caspar.Hsu` 當作者名字的範例）。
+- `scripts/ai/check-ai-structure.ps1 -Strict`：通過，0 警告。
+- `node tools/ste-lint.mjs`：206 句，0 錯誤（它只掃 `docs/`，不含範本）。
+- 用 repo 內這份範本重新建立範例專案：建置腳本結束碼 0，結構檢查通過。
+
+### 未完成
+- 已合併的分支（`chore/ai-agent-structure`、`chore/commit-format`）與備份分支 `backup/before-commit-reformat` 還沒清。
+
+### 注意事項
+- 範本放在產品 repo 內但與產品無關。它底下的 `template/CLAUDE.md`、`template/AGENTS.md`、`template/.claude/settings.json` 是給「新專案」用的檔案，不是這個 repo 根目錄的設定；agent 在這個 repo 工作時，以根目錄的 `AGENTS.md`、`CLAUDE.md` 為準。
+- 若日後要把範本搬離這個 repo，同步更新 `AI_CONTEXT.md` 等引用它的文件。
+
+## 2026-10-05 — Claude Code (Claude Sonnet 5.5)
+
+### 完成
 - 把前三個 commit 的訊息改寫成使用者的 `[作者]屬性:` 格式（檔案內容、作者、時間不變；新編號 `fd4fd2a`、`13230f8`、`74272a2`）。改寫前的完整歷史留在分支 `backup/before-commit-reformat`。
 - `project-rules.md` 的 Commit 規則由 Conventional Commits 改為該格式，並訂為唯一權威；Step Protocol 第 5 步同步調整。訊息一律寫成檔案再 `git commit -F`，`AI_CONTEXT.md` 的 shell 備註同步修改。
 - ADR-000 補上這次格式變更的說明。

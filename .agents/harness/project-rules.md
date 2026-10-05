@@ -44,7 +44,7 @@
 ## Git
 
 - 調查、review、狀態詢問不授權 commit 或 push；要做就先取得使用者同意。本專案明確授權的流程是 Step Protocol 第 5 步：每步完成後在本機 commit、`merge --no-ff`、打 tag；**不包含 push**。
-- Stage 時明確列出路徑，禁止 `git add .` 與 `git add -A`（`.claude/settings.json` 也設了 deny）。工作目錄裡的 `ai-project-template/` 是未追蹤的外部範本，不要 stage。
+- Stage 時明確列出路徑，禁止 `git add .` 與 `git add -A`（`.claude/settings.json` 也設了 deny）。
 - Commit 前看 `git status` 與 `git diff --staged`。
 - 工作目錄可能有他人或其他 session 的未提交修改。同一個檔案混有他人修改時，先確認自己的精確 diff，不整檔 stage，也不回復他人的內容。
 - Commit 訊息一律寫成檔案（UTF-8）再用 `git commit -F <檔案>`；不用 `-F -`（stdin）、heredoc 或拼接多個 `-m`。原因：Bash heredoc 會壓縮連續反斜線，多行訊息經 shell 也可能被改寫，檔案不受影響。

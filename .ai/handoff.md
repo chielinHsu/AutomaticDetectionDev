@@ -15,6 +15,7 @@
 - 套用 AI 共用結構（Codex 與 Claude Code）到本專案：`CLAUDE.md` 改為薄入口，原內容搬到 `AI_CONTEXT.md`、`docs/architecture.md`、`.agents/harness/project-rules.md`。
 - `docs/STATUS.md` 更名為 `docs/current-status.md`，14 個檔案的引用同步更新。
 - 新增 `docs/adr/000-ai-agent-structure.md` 與 `docs/decisions.md` 索引。
+- 把 `ai-project-template/` 納入版控，並更新文件中「未追蹤」的說法。
 - 前三個 commit 的訊息改寫成使用者的 `[作者]屬性:` 格式；`project-rules.md` 的 Commit 規則同步改為該格式，並已合併到 `main`。
 
 ## 下一步
@@ -31,7 +32,7 @@
 
 ## 不要動
 
-- `ai-project-template/`：未追蹤的範本來源，不修改、不 stage。
+- `ai-project-template/`：與產品無關的 AI 結構範本，已納入版控；除非使用者要求，不要修改。
 
 ## 已知問題
 
@@ -42,7 +43,7 @@
 ## 未提交的變更
 
 - 無。套用結構的變更已 commit（`fd4fd2a`）並以 `--no-ff` 合併到 `main`；沒有 push。
-- `ai-project-template/` 仍未追蹤，不屬於那次 commit；它的 `project-rules.md` 已同步改成同一份 commit 格式，也尚未 commit。
+- `ai-project-template/`（含同步改好的 commit 格式預設）已納入版控。
 - commit 格式規則的變更已合併到 `main`（`--no-ff`）；沒有 push。
 
 ## 假設與未驗證項目
