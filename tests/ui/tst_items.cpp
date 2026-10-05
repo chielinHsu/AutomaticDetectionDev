@@ -364,6 +364,106 @@ private slots:
         QVERIFY2(dotted > 10 && dotted < 152 * 0.6, qPrintable(QString::number(dotted)));
     }
 
+    // ---- 虛線與點線也用填色矩形（S04）----
+    void dashSpecsFollowTheTokensAndTheCapStyle() {
+        OverlayStyle style(tokens());
+        // Inferred：8 畫 4 空、平端點 → 每 12 像素畫 8 個
+        const BoxFrames::DashSpec inferred = style.dashSpec(OverlayState::Inferred, BoxKind::Body, false);
+        QVERIFY(inferred.valid());
+        QCOMPARE(inferred.visible, 8);
+        QCOMPARE(inferred.period, 12);
+        // Rejected：長度 0、間隔 4、圓端點 → 一個線寬大的點，每 4 像素一個
+        const BoxFrames::DashSpec dotted = style.dashSpec(OverlayState::Rejected, BoxKind::Body, false);
+        QCOMPARE(dotted.visible, 2);  // 主體線寬 2
+        QCOMPARE(dotted.period, 4);
+        QCOMPARE(style.dashSpec(OverlayState::Rejected, BoxKind::Pin, false).visible, 1);  // Pin 線寬 1
+        // 實線沒有 dash
+        QVERIFY(!style.dashSpec(OverlayState::Found, BoxKind::Body, false).valid());
+        QVERIFY(!style.dashSpec(OverlayState::Sample, BoxKind::Body, false).valid());
+        // 四個狀態都能用填色矩形畫
+        for (OverlayState s : {OverlayState::Sample, OverlayState::Found, OverlayState::Inferred, OverlayState::Rejected})
+            QVERIFY(style.frameable(s));
+    }
+
+    void aDashedFrameIsCutIntoPiecesAlongEachEdge() {
+        BoxFrames::Batch batch;
+        BoxFrames::appendDashed(batch, QRectF(0, 0, 20, 6), 2, {2, 4});
+        // 上、下各 5 個（x ＝ 0、4、8、12、16，各 2 寬）；左、右夾在中間（內高 2）各 1 個。
+        QCOMPARE(static_cast<int>(batch.stroke.size()), 12);
+        QCOMPARE(batch.stroke.front(), QRect(0, 0, 2, 2));
+        QCOMPARE(batch.stroke[4], QRect(16, 0, 2, 2));
+        QCOMPARE(batch.stroke[5], QRect(0, 4, 2, 2));   // 下緣從 x ＝ 0 起算
+        QCOMPARE(batch.stroke[10], QRect(0, 2, 2, 2));  // 左緣
+        QCOMPARE(batch.stroke[11], QRect(18, 2, 2, 2));  // 右緣
+        // 外框：每一段每側多 1 px
+        QCOMPARE(static_cast<int>(batch.casing.size()), 12);
+        for (std::size_t i = 0; i < batch.stroke.size(); ++i) QCOMPARE(batch.casing[i], batch.stroke[i].adjusted(-1, -1, 1, 1));
+    }
+
+    void theLastPieceOfAnEdgeIsClippedAndNothingLeavesTheBox() {
+        BoxFrames::Batch batch;
+        BoxFrames::appendDashed(batch, QRectF(10, 10, 15, 8), 2, {8, 12});  // 上緣：0..8 一段、12..15 被截成 3 寬
+        QRect hull;
+        for (const QRect& r : batch.stroke) hull = hull.united(r);
+        QCOMPARE(hull, QRect(10, 10, 15, 8));  // 描邊沒有超出框
+        QCOMPARE(batch.stroke[0], QRect(10, 10, 8, 2));
+        QCOMPARE(batch.stroke[1], QRect(22, 10, 3, 2));
+    }
+
+    void anInvalidDashFallsBackToASolidFrame() {
+        BoxFrames::Batch dashed, solid;
+        BoxFrames::appendDashed(dashed, QRectF(0, 0, 20, 10), 2, {});
+        BoxFrames::append(solid, QRectF(0, 0, 20, 10), 2);
+        QCOMPARE(dashed.stroke, solid.stroke);
+        QCOMPARE(dashed.casing, solid.casing);
+    }
+
+    void tinyDashedBoxesStayVisible() {
+        BoxFrames::Batch batch;
+        BoxFrames::appendDashed(batch, QRectF(10, 10, 2, 2), 2, {2, 4});
+        QVERIFY(!batch.stroke.empty());
+        QRect hull;
+        for (const QRect& r : batch.stroke) hull = hull.united(r);
+        QCOMPARE(hull, QRect(10, 10, 2, 2));
+    }
+
+    void aDottedBoxIsMadeOfSeparateDotsInTheStateColor() {
+        // Rejected：沿著上緣每 4 像素一個 2 × 2 的點。取描邊所在的那兩列（y ＝ 20、21）檢查：有點、有間隔，沒有連成線。
+        const QColor stroke = tokens().overlay.state[static_cast<size_t>(stateIndex(OverlayState::Rejected))].stroke;
+        const QImage img = renderLayer(oneBox(OverlayState::Rejected, QRectF(20, 20, 80, 40)), QSizeF(120, 80), 1.0);
+        int runs = 0;
+        bool inRun = false;
+        for (int x = 20; x < 100; ++x) {
+            const bool on = QColor(img.pixel(x, 20)).rgb() == stroke.rgb();
+            if (on && !inRun) ++runs;
+            inRun = on;
+        }
+        QCOMPARE(runs, 20);  // 80 像素 ÷ 週期 4 ＝ 20 個點
+        // 點的下一列（y ＝ 21）也是同樣的點：2 像素高。
+        QCOMPARE(QColor(img.pixel(20, 21)).rgb(), stroke.rgb());
+        QVERIFY(QColor(img.pixel(22, 21)).rgb() != stroke.rgb());  // 間隔
+        // 框內沒有任何描邊色的像素（中心點）。
+        QVERIFY(QColor(img.pixel(60, 40)).rgb() != stroke.rgb());
+    }
+
+    void aDashedBoxHasDashesOfTheRightLengthAndGap() {
+        const QColor stroke = tokens().overlay.state[static_cast<size_t>(stateIndex(OverlayState::Inferred))].stroke;
+        const QImage img = renderLayer(oneBox(OverlayState::Inferred, QRectF(20, 20, 120, 40)), QSizeF(160, 80), 1.0);
+        std::vector<int> runLengths;
+        int len = 0;
+        for (int x = 20; x <= 140; ++x) {
+            const bool on = x < 140 && QColor(img.pixel(x, 20)).rgb() == stroke.rgb();
+            if (on) ++len;
+            else if (len > 0) {
+                runLengths.push_back(len);
+                len = 0;
+            }
+        }
+        QVERIFY(runLengths.size() >= 9);
+        QCOMPARE(runLengths.front(), 8);  // 畫 8
+        QCOMPARE(runLengths[1], 8);       // 每 12 像素重複：空 4
+    }
+
     void tinyBoxesStayVisibleAsABlob() {
         // 螢幕上只有 2 × 2 px 的主體框也要看得到（Body 永遠畫）。
         BoxFrames::Batch batch;

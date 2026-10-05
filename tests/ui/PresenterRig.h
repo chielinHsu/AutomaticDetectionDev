@@ -1,0 +1,202 @@
+#pragma once
+
+#include <QApplication>
+#include <QDoubleSpinBox>
+#include <QLabel>
+#include <QSlider>
+#include <QTreeView>
+#include <QPushButton>
+#include <QSignalSpy>
+#include <QStatusBar>
+#include <QTest>
+#include <atomic>
+#include <chrono>
+#include <memory>
+#include <thread>
+
+#include "TestSupport.h"
+#include "app/CompositionRoot.h"
+#include "application/backend/BackendRegistry.h"
+#include "infrastructure/backend_fake/FakeBackend.h"
+#include "presentation/canvas/ImageCanvas.h"
+#include "presentation/dev/FakeScene.h"
+#include "presentation/i18n/Translations.h"
+#include "presentation/objects/ObjectsPanel.h"
+#include "presentation/shell/EmptyCard.h"
+#include "presentation/params/ParamsPanel.h"
+#include "presentation/presenters/AppPresenters.h"
+#include "presentation/shell/MainWindow.h"
+#include "presentation/shell/MessageBar.h"
+#include "presentation/theme/ThemeManager.h"
+#include "presentation/theme/ThemeTokens.h"
+
+// Presenter 的測試台：和產品一模一樣的接線（core → MainWindow → AppPresenters），只是 back end 換成可以計數、
+// 可以讓搜尋變慢或失敗的假 back end 包裝。測試走的就是使用者走的路徑：滑鼠事件進畫布，結果從畫面讀出來。
+namespace aoi::test {
+
+// 包在假 back end 外面：記下被呼叫的次數，必要時讓搜尋失敗。
+struct BackendProbe {
+    std::atomic<int> builds{0};
+    std::atomic<int> finds{0};
+    std::atomic<bool> fail{false};
+    // 視窗驗證（use case 的最後一個階段）的閘門：開著的時候，每一次視窗搜尋依到達順序領一張號碼牌，
+    // 要等 windowReleased 大於等於號碼才返回。測試用它讓兩個搜尋「同時卡在最後一步」。
+    std::atomic<bool> gateWindows{false};
+    std::atomic<int> windowEntered{0};
+    std::atomic<int> windowReleased{0};
+};
+
+class ProbedBuilder final : public aoi::ITemplateBuilder {
+public:
+    ProbedBuilder(std::shared_ptr<BackendProbe> probe, aoi::fake::FakeSpec spec) : probe_(std::move(probe)), inner_(std::move(spec)) {}
+    std::string_view backendId() const noexcept override { return inner_.backendId(); }
+    aoi::Result<aoi::TemplatePtr> build(const aoi::ImageView& image, const aoi::Rect& sample, const aoi::SearchParams& params,
+                                        const aoi::CancelToken& cancel) override {
+        ++probe_->builds;
+        return inner_.build(image, sample, params, cancel);
+    }
+
+private:
+    std::shared_ptr<BackendProbe> probe_;
+    aoi::fake::FakeTemplateBuilder inner_;
+};
+
+class ProbedSearcher final : public aoi::IPatternSearcher {
+public:
+    ProbedSearcher(std::shared_ptr<BackendProbe> probe, aoi::fake::FakeSpec spec) : probe_(std::move(probe)), inner_(std::move(spec)) {}
+    std::string_view backendId() const noexcept override { return inner_.backendId(); }
+    aoi::Result<std::vector<aoi::Match>> find(const aoi::ImageView& image, const aoi::ITemplate& tmpl, const aoi::SearchRegion& region,
+                                              const aoi::SearchParams& params, const aoi::CancelToken& cancel) override {
+        ++probe_->finds;
+        const bool gated = region.kind == aoi::SearchRegion::Kind::Windows && probe_->gateWindows;
+        if (gated) {
+            const int ticket = ++probe_->windowEntered;
+            const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
+            while (probe_->windowReleased < ticket && std::chrono::steady_clock::now() < deadline)
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
+        if (probe_->fail) return aoi::makeError(aoi::ErrorCode::BackendFailed, "the test back end was told to fail");
+        // 閘門後面模擬「不可中斷的函式庫呼叫」：它不看取消旗標，照樣成功返回。取消的結果怎麼處理，是 Presenter 的事。
+        return inner_.find(image, tmpl, region, params, gated ? aoi::CancelToken{} : cancel);
+    }
+
+private:
+    std::shared_ptr<BackendProbe> probe_;
+    aoi::fake::FakeSearcher inner_;
+};
+
+// 預設的假世界：樣本左右各 4 格、上下各 2 格，其中約 20% 分數低（會被 0.70 的門檻拒絕）、約 10% 缺件（推算）。
+inline aoi::fake::FakeSpec defaultWorld() {
+    aoi::fake::FakeSpec spec;
+    spec.halfCols = 4;
+    spec.halfRows = 2;
+    spec.weakFraction = 0.2;
+    spec.missingFraction = 0.1;
+    spec.seed = 3;
+    return spec;
+}
+
+struct Rig {
+    std::shared_ptr<BackendProbe> probe = std::make_shared<BackendProbe>();
+    aoi::ui::ThemeManager theme{*qApp, aoi::ui::ThemeTokens::builtin()};
+    aoi::BackendRegistry registry;
+    aoi::Result<aoi::app::CoreServices> core;
+    aoi::ui::MainWindow window;
+    std::unique_ptr<aoi::ui::AppPresenters> presenters;
+    aoi::dev::FakeBoard board;
+
+    explicit Rig(aoi::fake::FakeSpec world = defaultWorld(), bool fastTimings = true,
+                 aoi::app::ExecutorKind executor = aoi::app::ExecutorKind::QtThreadPool)
+        : core(makeCore(registry, probe, std::move(world), executor)), window(theme) {
+        aoi::ui::Translations::install(QStringLiteral("zh_TW"));
+        aoi::app::CoreServices& services = core.value();
+        aoi::ui::PresenterServices presenterServices{*services.generateObjects, *services.runner, services.probe.get(),
+                                                     QStringLiteral("Fake (test)"), QStringLiteral("OpenCV")};
+        presenters = std::make_unique<aoi::ui::AppPresenters>(window, presenterServices, aoi::ui::ThemeTokens::builtin());
+        if (fastTimings) {
+            aoi::ui::PresenterSettings s = presenter().settings();
+            s.busyAfterMs = 40;
+            s.progressAfterMs = 150;
+            s.busyMinShowMs = 120;
+            presenter().setSettings(s);
+        }
+        window.show();
+        Q_UNUSED(QTest::qWaitForWindowExposed(&window));
+    }
+
+    ~Rig() {
+        // 先停掉進行中的工作，再解構（JobRunner 解構會等工作結束）。
+        presenter().cancelSearch();
+    }
+
+    static aoi::Result<aoi::app::CoreServices> makeCore(aoi::BackendRegistry& registry, const std::shared_ptr<BackendProbe>& probe,
+                                                         aoi::fake::FakeSpec world, aoi::app::ExecutorKind executor) {
+        (void)registry.registerBackend("fake", "Fake (test)", [probe, world]() -> aoi::Result<aoi::Backend> {
+            aoi::Backend backend;
+            backend.id = "fake";
+            backend.displayName = "Fake (test)";
+            backend.templateBuilder = std::make_unique<ProbedBuilder>(probe, world);
+            backend.searcher = std::make_unique<ProbedSearcher>(probe, world);
+            return aoi::Result<aoi::Backend>(std::move(backend));
+        });
+        return aoi::app::composeCore(registry, "fake", false, executor);
+    }
+
+    aoi::ui::AutoRoiPresenter& presenter() { return presenters->autoRoi(); }
+    aoi::ui::ImageCanvas* canvas() { return window.canvas(); }
+    QWidget* vp() { return window.canvas()->viewport(); }
+    aoi::InteractionState state() { return presenter().state(); }
+    QPointF at(double x, double y) { return aoi::test::toView(*window.canvas(), QPointF(x, y)); }
+
+    void open(int w = 1200, int h = 800) {
+        board = aoi::dev::makeFakeBoard(w, h);
+        window.setImage(board.toQImage(), QStringLiteral("board.png"));
+        QCoreApplication::processEvents();
+    }
+
+    // 選一個工具，在畫布上拖出一個框（場景座標），放開。
+    void drag(aoi::ui::ToolId tool, const QRectF& scene) {
+        window.toolAction(tool)->trigger();
+        aoi::test::press(vp(), at(scene.left(), scene.top()));
+        aoi::test::move(vp(), at(scene.center().x(), scene.center().y()));
+        aoi::test::move(vp(), at(scene.right(), scene.bottom()));
+        aoi::test::release(vp(), at(scene.right(), scene.bottom()));
+    }
+
+    // 教一個樣本，等結果出來。
+    bool teachSample(const QRectF& scene = QRectF(560, 360, 60, 32)) {
+        drag(aoi::ui::ToolId::Sample, scene);
+        return waitState(aoi::InteractionState::Preview) || state() == aoi::InteractionState::NoMatch;
+    }
+
+    bool waitState(aoi::InteractionState s, int timeoutMs = 8000) {
+        return QTest::qWaitFor([&] { return state() == s; }, timeoutMs);
+    }
+
+    QList<QPushButton*> cardButtons() {
+        QWidget* card = window.messageBar()->findChild<QWidget*>(QStringLiteral("messageCard"));
+        return card ? card->findChildren<QPushButton*>() : QList<QPushButton*>();
+    }
+
+    QString summary() { return window.summaryLabel()->text(); }
+    QString hint() { return window.messageBar()->hintText(); }
+    const aoi::ui::Scene& scene() { return presenter().lastScene(); }
+    int boxCount() { return canvas()->layerItem()->boxCount(); }
+    int componentCount() { return canvas()->layerItem()->componentCount(); }
+    int treeRows() { return window.objectsPanel()->model()->visibleCount(); }
+    const aoi::InspectionDocument& document() { return presenter().session().document(); }
+
+    // 場景裡第 index 個元件的外框中心（場景座標）。
+    QPointF centerOfComponent(int index) {
+        return scene().snapshot->components[static_cast<std::size_t>(index)].outline.center();
+    }
+    void clickComponent(int index, Qt::KeyboardModifiers mods = {}) {
+        window.toolAction(aoi::ui::ToolId::Select)->trigger();
+        const QPointF c = centerOfComponent(index);
+        aoi::test::press(vp(), at(c.x(), c.y()), Qt::LeftButton, mods);
+        aoi::test::release(vp(), at(c.x(), c.y()));
+    }
+    void key(int k, Qt::KeyboardModifiers mods = {}) { aoi::test::sendKey(canvas(), k, QEvent::KeyPress, mods); }
+};
+
+}  // namespace aoi::test

@@ -11,6 +11,7 @@
 #include "presentation/canvas/OverlayStyle.h"
 #include "presentation/canvas/RoiGraphicsItem.h"
 #include "presentation/canvas/RoiLayerItem.h"
+#include "presentation/presenters/ViewInterfaces.h"
 #include "presentation/theme/ThemeTokens.h"
 #include "presentation/tools/ITool.h"
 #include "presentation/tools/ToolRegistry.h"
@@ -23,7 +24,7 @@ namespace aoi::ui {
 //
 // 場景座標 ＝ 影像像素（原點在影像左上角，x 向右、y 向下）。縮放百分比 ＝ 螢幕（裝置無關）像素／影像像素 × 100。
 // 縮放、平移、適配是畫布自己的檢視狀態，不經過 Presenter，也不進復原堆疊。
-class ImageCanvas : public QGraphicsView, public ICanvasView, public IToolHost {
+class ImageCanvas : public QGraphicsView, public ICanvasView, public IToolHost, public ICanvasInputGate {
     Q_OBJECT
 public:
     explicit ImageCanvas(const ThemeTokens& tokens, QWidget* parent = nullptr);
@@ -36,16 +37,26 @@ public:
     void setSelection(const std::vector<int>& componentIds) override;
     void setInteraction(ToolId tool) override;
 
+    // ---- ICanvasInputGate ----
+    // 搜尋中、錯誤時畫布暫停：工具不收指標與按鍵（縮放、平移照常）。忙碌時游標變 progress。
+    void setToolsEnabled(bool enabled) override;
+    void setBusyCursor(bool busy) override;
+    bool toolsEnabled() const { return toolsEnabled_; }
+    bool busyCursor() const { return busyCursor_; }
+
     // 影像檔解碼之後的路徑（QImage 隱式共享，不複製像素）。空影像＝清除。
     void setImage(const QImage& image);
 
     // ---- IToolHost ----
     ICanvasController* canvasController() override { return controller_; }
     ISelectionController* selectionController() override { return selectionController_; }
+    QRectF outlineOf(const std::vector<int>& componentIds) override { return layerItem_->outlineOf(componentIds); }
 
     // 兩個 controller 都不歸畫布所有。
     void setController(ICanvasController* controller) { controller_ = controller; }
     void setSelectionController(ISelectionController* controller) { selectionController_ = controller; }
+    // 工具沒用到的按鍵（Enter、Esc、Del、方向鍵…）轉給它；沒有設定時，Esc 清除選取、Del 刪除所選（S02 的行為）。
+    void setKeyboardController(IKeyboardController* controller) { keyboard_ = controller; }
 
     ToolRegistry& tools() { return tools_; }
     ToolId activeTool() const { return activeTool_; }
@@ -82,6 +93,8 @@ signals:
     void framePainted(double ms);
     // 左鍵在畫布上按下並被工具接手（true），或放開（false）。訊息列用它換「放開滑鼠開始搜尋」的提示。
     void pointerDragChanged(bool active, ToolId tool);
+    // 目前的工具換了（程式換的也算，例如〔重畫樣本〕）。工具列的按鈕靠它同步。
+    void activeToolChanged(ToolId tool);
 
 protected:
     void wheelEvent(QWheelEvent* event) override;
@@ -117,7 +130,10 @@ private:
     ToolId activeTool_ = ToolId::Select;
     ICanvasController* controller_ = nullptr;
     ISelectionController* selectionController_ = nullptr;
+    IKeyboardController* keyboard_ = nullptr;
     std::vector<int> selected_;
+    bool toolsEnabled_ = true;
+    bool busyCursor_ = false;
 
     bool fitted_ = true;
     bool spaceDown_ = false;

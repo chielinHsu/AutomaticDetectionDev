@@ -1,13 +1,65 @@
 #include "presentation/tools/Tools.h"
 
 #include <algorithm>
+#include <cmath>
 
 namespace aoi::ui {
 
 // ---- SelectTool ------------------------------------------------------------------------------------------
 
+void SelectTool::deactivate(IToolHost& host) {
+    if (drag_) cancelDrag(host, true);
+}
+
+// 放棄拖曳。report ＝ true 時回報位移 0，讓 Presenter 把拖曳中蓋掉的畫面（例如預覽的區域框）還原。
+void SelectTool::cancelDrag(IToolHost& host, bool report) {
+    if (!drag_) return;
+    const Drag drag = *drag_;
+    drag_.reset();
+    host.showRegionDraft(std::nullopt, DraftMode::Region);
+    if (report && drag.moving) {
+        if (ICanvasController* controller = host.canvasController()) controller->onComponentsMoved(drag.ids, QPointF(0, 0));
+    }
+}
+
+bool SelectTool::startDrag(const ToolEvent& event, IToolHost& host, const std::vector<int>& ids) {
+    Drag drag;
+    drag.ids = ids;
+    drag.start = event.scenePos;
+    drag.outline = host.outlineOf(ids);
+    if (!drag.outline.isNull()) drag_ = std::move(drag);  // 找不到外框（不該發生）：當作一次點擊
+    return true;
+}
+
 bool SelectTool::handle(const ToolEvent& event, IToolHost& host) {
     using Type = ToolEvent::Type;
+    if (event.type == Type::KeyPress) {
+        if (event.key == Qt::Key_Escape && drag_) {
+            cancelDrag(host, true);
+            return true;
+        }
+        return false;
+    }
+    if (event.type == Type::Move) {
+        if (!drag_) return false;
+        const QPointF delta = event.scenePos - drag_->start;
+        if (!drag_->moving) {
+            if (std::hypot(delta.x(), delta.y()) * event.viewScale < kDragStartScreenPx) return true;
+            drag_->moving = true;
+        }
+        host.showRegionDraft(drag_->outline.translated(delta), DraftMode::Region);
+        return true;
+    }
+    if (event.type == Type::Release) {
+        if (!drag_) return false;
+        const Drag drag = *drag_;
+        const QPointF delta = event.scenePos - drag.start;
+        drag_.reset();
+        if (!drag.moving) return true;  // 只是點擊：選取在按下時已經處理了
+        host.showRegionDraft(std::nullopt, DraftMode::Region);
+        if (ICanvasController* controller = host.canvasController()) controller->onComponentsMoved(drag.ids, delta);
+        return true;
+    }
     if (event.button != Qt::LeftButton) return false;
 
     if (event.type == Type::Press) {
@@ -20,15 +72,20 @@ bool SelectTool::handle(const ToolEvent& event, IToolHost& host) {
             return true;
         }
         std::vector<int> next;
+        std::vector<int> dragIds;
         if (event.modifiers & Qt::ShiftModifier) {
             next = event.selected;
             const auto it = std::find(next.begin(), next.end(), hit);
             if (it == next.end()) next.push_back(hit);
             else next.erase(it);
+        } else if (std::find(event.selected.begin(), event.selected.end(), hit) != event.selected.end()) {
+            return startDrag(event, host, event.selected);  // 按在已選取的元件上：整個選取一起走，選取不變
         } else {
             next = {hit};
+            dragIds = next;
         }
         selection->select(next);
+        if (!dragIds.empty()) startDrag(event, host, dragIds);
         return true;
     }
     if (event.type == Type::DoubleClick && event.hitComponent >= 0) {

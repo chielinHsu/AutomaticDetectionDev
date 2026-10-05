@@ -3,20 +3,40 @@
 #include <QPointF>
 #include <QRectF>
 #include <optional>
+#include <vector>
 
 #include "presentation/tools/ITool.h"
 
 namespace aoi::ui {
 
-// V：點擊選取元件（Shift＋點擊加入或移除；點空白處清除）；雙擊開啟元件類型編輯器。
-// 拖曳移動元件要有 Presenter 與模型才有意義（S04），本步驟不做。
+// V：點擊選取元件（Shift＋點擊加入或移除；點空白處清除）；雙擊開啟元件類型編輯器；
+// 按住元件拖曳＝移動整個選取（S04）：拖曳中畫出「放開後會落在哪裡」的外框，放開時回報一次 onComponentsMoved
+// （一次拖曳是一個 Command，ADR-002 規則 7）；拖曳中按 Esc 放棄（回報位移 0，Presenter 把畫面還原）。
+// 按下的是還沒選取的元件時，先選取它再拖；按下的是已選取的元件時，整個選取一起走（不先縮成一個）。
 class SelectTool final : public ITool {
 public:
+    // 滑鼠移動超過這麼多螢幕像素才算拖曳；之內是點擊（手抖不會移動元件）。
+    static constexpr double kDragStartScreenPx = 4.0;
+
     ToolId id() const override { return ToolId::Select; }
     Qt::CursorShape cursor() const override { return Qt::ArrowCursor; }
     void activate(IToolHost&) override {}
-    void deactivate(IToolHost&) override {}
+    void deactivate(IToolHost& host) override;
     bool handle(const ToolEvent& event, IToolHost& host) override;
+
+    bool dragging() const { return drag_.has_value(); }
+
+private:
+    struct Drag {
+        std::vector<int> ids;
+        QPointF start;
+        QRectF outline;  // 開始拖曳時，這些元件的外框聯集
+        bool moving = false;
+    };
+    bool startDrag(const ToolEvent& event, IToolHost& host, const std::vector<int>& ids);
+    void cancelDrag(IToolHost& host, bool report);
+
+    std::optional<Drag> drag_;
 };
 
 // 橡皮筋框選的共用部分：按下 → 拖曳（即時顯示框）→ 放開時回報；拖曳中按 Esc 放棄。

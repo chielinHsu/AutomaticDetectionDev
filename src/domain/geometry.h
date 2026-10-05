@@ -60,10 +60,10 @@ inline Rect rectFromCenter(Point2D center, Size2D size) noexcept {
 }
 
 inline Rect intersection(const Rect& a, const Rect& b) noexcept {
-    const double left = std::max(a.x, b.x);
-    const double top = std::max(a.y, b.y);
-    const double right = std::min(a.right(), b.right());
-    const double bottom = std::min(a.bottom(), b.bottom());
+    const double left = (std::max)(a.x, b.x);  // 括號：擋掉 <windows.h> 的 min／max 巨集
+    const double top = (std::max)(a.y, b.y);
+    const double right = (std::min)(a.right(), b.right());
+    const double bottom = (std::min)(a.bottom(), b.bottom());
     if (right <= left || bottom <= top) return {};
     return {left, top, right - left, bottom - top};
 }

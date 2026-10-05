@@ -6,6 +6,8 @@
 #include <QLabel>
 #include <QMimeData>
 #include <QPushButton>
+#include <QSet>
+#include <QSignalSpy>
 #include <QStatusBar>
 #include <QTemporaryDir>
 #include <QTest>
@@ -102,18 +104,15 @@ private slots:
         for (ToolId id : {ToolId::Select, ToolId::Sample, ToolId::Region, ToolId::Add})
             QVERIFY(!f.window.toolAction(id)->isEnabled());
         QVERIFY(!f.window.fitAction()->isEnabled());
-        QVERIFY(f.window.messageBar()->hintText().isEmpty());
-        QVERIFY(f.window.summaryLabel()->text().contains(QStringLiteral("0 個物件")));
     }
 
-    void loadingAnImageEnablesToolsAndShowsTheIdleHint() {
+    void loadingAnImageEnablesTools() {
         Fixture f(true);
         QVERIFY(f.canvas()->hasImage());
         QVERIFY(!f.window.emptyCard()->isVisible());
         for (ToolId id : {ToolId::Select, ToolId::Sample, ToolId::Region, ToolId::Add})
             QVERIFY(f.window.toolAction(id)->isEnabled());
         QVERIFY(f.window.fitAction()->isEnabled());
-        QCOMPARE(f.window.messageBar()->hintText(), qtTrId("ui.idle.hint"));
         QVERIFY(f.window.windowTitle().startsWith(QStringLiteral("board.png")));
     }
 
@@ -163,10 +162,80 @@ private slots:
         QList<int> clicked;
         QObject::connect(bar, &MessageBar::actionTriggered, [&](int i) { clicked << i; });
         bar->showCard(QStringLiteral("t"), QStringLiteral("b"), {}, {QStringLiteral("A"), QStringLiteral("B")});
-        const auto buttons = bar->findChildren<QPushButton*>();
+        const auto buttons = bar->findChild<QWidget*>(QStringLiteral("messageCard"))->findChildren<QPushButton*>();
         QCOMPARE(static_cast<int>(buttons.size()), 2);
         buttons.at(1)->click();
         QCOMPARE(clicked, (QList<int>{1}));
+    }
+
+    // ---- 訊息列的進度列（S04）----
+    void theProgressRowShowsTheBarAndTheCancelButton() {
+        Fixture f(true);
+        MessageBar* bar = f.window.messageBar();
+        QVERIFY(!bar->progressVisible());
+        const QSize canvasSize = f.canvas()->size();
+        bar->showProgress(QStringLiteral("搜尋中… 40%"), 0.4, QStringLiteral("取消 (Esc)"));
+        QVERIFY(bar->progressVisible());
+        QCOMPARE(bar->progressValue(), 40);
+        QCOMPARE(bar->height(), tokens().sizes.messageBarHeight);  // 固定高度：畫布不會被擠動
+        QCOMPARE(f.canvas()->size(), canvasSize);
+        bar->showProgress(QStringLiteral("搜尋中… 120%"), 1.7, QStringLiteral("取消 (Esc)"));
+        QCOMPARE(bar->progressValue(), 100);  // 夾在 0..100
+        QCOMPARE(bar->findChild<QPushButton*>(QStringLiteral("messageCancel"))->text(), QStringLiteral("取消 (Esc)"));
+    }
+
+    void theCancelButtonEmitsCancelRequested() {
+        Fixture f(true);
+        MessageBar* bar = f.window.messageBar();
+        QSignalSpy spy(bar, &MessageBar::cancelRequested);
+        bar->showProgress(QStringLiteral("x"), 0.1, QStringLiteral("取消"));
+        bar->findChild<QPushButton*>(QStringLiteral("messageCancel"))->click();
+        QCOMPARE(spy.count(), 1);
+    }
+
+    void aCardReplacesTheProgressRowAndClearingProgressBringsTheHintBack() {
+        Fixture f(true);
+        MessageBar* bar = f.window.messageBar();
+        bar->setHint(QStringLiteral("hint"));
+        bar->showProgress(QStringLiteral("x"), 0.5, QStringLiteral("取消"));
+        bar->setHint(QStringLiteral("newer hint"));  // 進度列顯示時，提示不出現
+        bar->clearProgress();
+        QVERIFY(!bar->progressVisible());
+        QCOMPARE(bar->hintText(), QStringLiteral("newer hint"));  // 關掉進度列後還原成最新的提示
+
+        bar->showProgress(QStringLiteral("x"), 0.5, QStringLiteral("取消"));
+        bar->showCard(QStringLiteral("t"), QStringLiteral("b"), {}, {QStringLiteral("A")});
+        QVERIFY(!bar->progressVisible());  // 結果卡片來了，進度列收起
+        QVERIFY(bar->cardVisible());
+    }
+
+    void clearingCardsOrProgressThatAreNotShownIsHarmless() {
+        Fixture f(true);
+        MessageBar* bar = f.window.messageBar();
+        bar->setHint(QStringLiteral("hint"));
+        bar->clearProgress();
+        bar->clearCard();
+        QCOMPARE(bar->hintText(), QStringLiteral("hint"));
+    }
+
+    void aCardKeepsItsButtonsWhenOnlyTheTextChanges() {
+        Fixture f(true);
+        MessageBar* bar = f.window.messageBar();
+        bar->showCard(QStringLiteral("找到 10 個"), QStringLiteral("b"), {}, {QStringLiteral("接受"), QStringLiteral("捨棄")});
+        const auto before = bar->findChild<QWidget*>(QStringLiteral("messageCard"))->findChildren<QPushButton*>();
+        QCOMPARE(static_cast<int>(before.size()), 2);
+        bar->showCard(QStringLiteral("找到 11 個"), QStringLiteral("b"), {}, {QStringLiteral("接受"), QStringLiteral("捨棄")});
+        const auto after = bar->findChild<QWidget*>(QStringLiteral("messageCard"))->findChildren<QPushButton*>();
+        QCOMPARE(after, before);  // 同樣的按鈕物件：門檻拖動時不重建、不搶焦點
+        QCOMPARE(bar->cardTitle(), QStringLiteral("找到 11 個"));
+        bar->showCard(QStringLiteral("t"), QStringLiteral("b"), {}, {QStringLiteral("A"), QStringLiteral("B")});  // 個數一樣、文字不同
+        const auto renamed = bar->findChild<QWidget*>(QStringLiteral("messageCard"))->findChildren<QPushButton*>();
+        QCOMPARE(static_cast<int>(renamed.size()), 2);
+        QSet<QString> labels;
+        for (const QPushButton* b : renamed) labels.insert(b->text());
+        QCOMPARE(labels, (QSet<QString>{QStringLiteral("A"), QStringLiteral("B")}));
+        bar->showCard(QStringLiteral("t"), QStringLiteral("b"), {}, {QStringLiteral("只有一個")});
+        QCOMPARE(static_cast<int>(bar->findChild<QWidget*>(QStringLiteral("messageCard"))->findChildren<QPushButton*>().size()), 1);
     }
 
     void toastReturnsToTheLatestHintAfterItsTime() {
@@ -206,42 +275,6 @@ private slots:
         QVERIFY(!f.window.undoAction()->isEnabled());  // 復原堆疊在 S04
     }
 
-    void dragHintFollowsThePointerAndComesBack() {
-        Fixture f(true);
-        f.window.toolAction(ToolId::Sample)->trigger();
-        press(f.vp(), f.at(300, 300));
-        QCOMPARE(f.window.messageBar()->hintText(), qtTrId("ui.sample.hint"));
-        sendKey(f.canvas(), Qt::Key_Escape);  // 放棄
-        release(f.vp(), f.at(300, 300));
-        QCOMPARE(f.window.messageBar()->hintText(), qtTrId("ui.idle.hint"));
-
-        f.window.toolAction(ToolId::Region)->trigger();
-        press(f.vp(), f.at(300, 300));
-        QCOMPARE(f.window.messageBar()->hintText(), qtTrId("ui.scan.hint"));
-        release(f.vp(), f.at(500, 400));
-    }
-
-    // ---- 暫代 controller：每個操作都有回應 ----
-    void aDrawnRegionIsAcknowledgedInTheMessageBar() {
-        Fixture f(true);
-        f.window.toolAction(ToolId::Sample)->trigger();
-        press(f.vp(), f.at(100, 100));
-        move(f.vp(), f.at(160, 132));
-        release(f.vp(), f.at(160, 132));
-        QVERIFY2(f.window.messageBar()->hintText().contains(QStringLiteral("60 × 32 px")),
-                 qPrintable(f.window.messageBar()->hintText()));
-        QVERIFY(f.canvas()->draftItem()->isVisible());
-    }
-
-    void aTooSmallSampleSaysSoAndClearsTheBox() {
-        Fixture f(true);
-        f.window.toolAction(ToolId::Sample)->trigger();
-        press(f.vp(), f.at(100, 100));
-        release(f.vp(), f.at(103, 102));
-        QCOMPARE(f.window.messageBar()->hintText(), QStringLiteral("樣本太小（至少 8 px）"));
-        QVERIFY(!f.canvas()->draftItem()->isVisible());
-    }
-
     // ---- 狀態列 ----
     void statusBarShowsCursorPositionAndZoom() {
         Fixture f(true);
@@ -265,8 +298,6 @@ private slots:
         QCoreApplication::processEvents();  // Qt 6.8：LanguageChange 是排入佇列的事件，下一輪事件迴圈才送達
         QCOMPARE(f.window.openAction()->text(), QStringLiteral("Open"));
         QCOMPARE(f.window.libraryDock()->windowTitle(), QStringLiteral("Sample library"));
-        QCOMPARE(f.window.messageBar()->hintText(), qtTrId("ui.idle.hint"));
-        QVERIFY(f.window.messageBar()->hintText().startsWith(QStringLiteral("S teaches")));
         QVERIFY(f.window.toolAction(ToolId::Sample)->toolTip().contains(QStringLiteral("Teach sample")));
         QVERIFY(f.window.windowTitle().contains(QStringLiteral("AOI Teach Tool")));
         QVERIFY(Translations::install(QStringLiteral("zh_TW")));
@@ -325,7 +356,7 @@ private slots:
         QVERIFY(f.window.windowTitle().startsWith(QStringLiteral("board.png")));
     }
 
-    void aBrokenFileShowsAnErrorCardAndKeepsTheOldImage() {
+    void aBrokenFileKeepsTheOldImageAndReportsTheFailure() {
         Fixture f(true);
         QTemporaryDir dir(QDir::current().filePath(QStringLiteral("aoi-test-XXXXXX")));
         QVERIFY(dir.isValid());
@@ -335,24 +366,34 @@ private slots:
         file.write("this is not a png");
         file.close();
 
+        QSignalSpy failed(&f.window, &MainWindow::imageOpenFailed);
+        QSignalSpy opened(&f.window, &MainWindow::imageOpened);
         QVERIFY(!f.window.openImage(path));
-        QVERIFY(f.window.messageBar()->cardVisible());
-        QCOMPARE(f.window.messageBar()->cardTitle(), qtTrId("ui.error.imageOpen.title"));
+        QCOMPARE(failed.count(), 1);
+        QCOMPARE(failed.first().at(0).toString(), QStringLiteral("broken.png"));
+        QVERIFY(!failed.first().at(1).toString().isEmpty());  // 原因（Qt 的錯誤字串）
+        QCOMPARE(opened.count(), 0);
         QVERIFY(f.canvas()->hasImage());  // 舊影像保留
         QCOMPARE(f.canvas()->imageRect().size(), QSizeF(1200, 800));
-
-        const auto buttons = f.window.messageBar()->findChildren<QPushButton*>();
-        QCOMPARE(static_cast<int>(buttons.size()), 1);
-        buttons.first()->click();  // 〔關閉〕
-        QVERIFY(!f.window.messageBar()->cardVisible());
     }
 
     void aBrokenFileWithNoOldImageKeepsTheEmptyState() {
         Fixture f;
+        QSignalSpy failed(&f.window, &MainWindow::imageOpenFailed);
         QVERIFY(!f.window.openImage(QStringLiteral("this-file-does-not-exist.png")));
-        QVERIFY(f.window.messageBar()->cardVisible());
+        QCOMPARE(failed.count(), 1);
         QVERIFY(!f.canvas()->hasImage());
         QVERIFY(f.window.emptyCard()->isVisible());
+    }
+
+    void openingAnImageAnnouncesItWithTheNameAndPixels() {
+        Fixture f;
+        QSignalSpy opened(&f.window, &MainWindow::imageOpened);
+        f.board = aoi::dev::makeFakeBoard(300, 200);
+        f.window.setImage(f.board.toQImage(), QStringLiteral("board.png"));
+        QCOMPARE(opened.count(), 1);
+        QCOMPARE(opened.first().at(0).value<QImage>().size(), QSize(300, 200));
+        QCOMPARE(opened.first().at(1).toString(), QStringLiteral("board.png"));
     }
 
     void droppingAnImageFileOpensIt() {

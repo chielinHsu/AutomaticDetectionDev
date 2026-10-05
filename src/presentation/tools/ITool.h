@@ -39,6 +39,8 @@ public:
     virtual ICanvasController* canvasController() = 0;
     virtual ISelectionController* selectionController() = 0;
     virtual void showRegionDraft(std::optional<QRectF> rect, DraftMode mode) = 0;
+    // 這些元件的外框聯集（影像像素）；找不到任何一個時回傳空的矩形。拖曳移動時用它畫「放開後會落在哪裡」的外框。
+    virtual QRectF outlineOf(const std::vector<int>& componentIds) = 0;
 };
 
 // 一個工具一個類別（SOLID 的 S）；新增工具＝新增類別＋在 ToolRegistry 註冊，不改畫布（O）。

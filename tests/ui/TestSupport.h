@@ -82,13 +82,14 @@ public:
     int aborted = 0;
     std::vector<QPointF> adds;
     std::vector<std::pair<int, QPointF>> editors;
+    std::vector<std::pair<std::vector<int>, QPointF>> moves;
     std::vector<std::vector<int>> selections;
     int deletes = 0;
 
     void onRegionDrawn(const QRectF& rect, aoi::ui::DraftMode mode) override { regions.push_back({rect, mode}); }
     void onRegionAborted() override { ++aborted; }
     void onAddRequested(const QPointF& p) override { adds.push_back(p); }
-    void onComponentsMoved(const std::vector<int>&, const QPointF&) override {}
+    void onComponentsMoved(const std::vector<int>& ids, const QPointF& delta) override { moves.push_back({ids, delta}); }
     void onOpenTypeEditor(int id, const QPointF& p) override { editors.push_back({id, p}); }
     void select(const std::vector<int>& ids) override { selections.push_back(ids); }
     void deleteSelected() override { ++deletes; }

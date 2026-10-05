@@ -1,4 +1,5 @@
 #include <QApplication>
+#include <QSignalSpy>
 #include <QTest>
 #include <cmath>
 #include <memory>
@@ -263,6 +264,205 @@ private slots:
         QCOMPARE(f.rec.deletes, 1);
         sendKey(&f.canvas, Qt::Key_Backspace);
         QCOMPARE(f.rec.deletes, 2);
+    }
+
+    // ---- V：拖曳移動（S04）----
+    void draggingAComponentMovesItByTheDeltaInImagePixels() {
+        Fixture f;
+        press(f.vp(), f.at(150, 120));  // A（編號 1）還沒選取：先選取再拖
+        QCOMPARE(f.rec.selections.back(), (std::vector<int>{1}));
+        f.canvas.setSelection({1});     // Presenter 把選取回送給畫布
+        move(f.vp(), f.at(180, 140));
+        move(f.vp(), f.at(250, 160));
+        release(f.vp(), f.at(250, 160));
+        QCOMPARE(static_cast<int>(f.rec.moves.size()), 1);          // 一次拖曳 ＝ 一次回報（一個 Command）
+        QCOMPARE(f.rec.moves[0].first, (std::vector<int>{1}));
+        QVERIFY2(std::abs(f.rec.moves[0].second.x() - 100) <= 0.6 && std::abs(f.rec.moves[0].second.y() - 40) <= 0.6,
+                 qPrintable(QStringLiteral("%1,%2").arg(f.rec.moves[0].second.x()).arg(f.rec.moves[0].second.y())));
+        QVERIFY(!f.canvas.draftItem()->isVisible());                 // 放開後外框收起來
+    }
+
+    void aGhostOutlineShowsWhereTheComponentsWillLand() {
+        Fixture f;
+        press(f.vp(), f.at(150, 120));
+        f.canvas.setSelection({1});
+        move(f.vp(), f.at(200, 170));
+        QVERIFY(f.canvas.draftItem()->isVisible());
+        QVERIFY(near(f.canvas.draftItem()->rect(), QRectF(150, 150, 200, 100)));  // A 的外框 (100,100,200,100) 右下各移 50
+        QCOMPARE(f.canvas.draftItem()->look(), RoiGraphicsItem::Look::RegionDraft);
+        release(f.vp(), f.at(200, 170));
+    }
+
+    void draggingASelectedComponentMovesTheWholeSelection() {
+        Fixture f;
+        f.canvas.setSelection({1, 2});
+        press(f.vp(), f.at(150, 120));  // 按在已選取的 A 上：整個選取一起走，選取不變
+        QVERIFY(f.rec.selections.empty());
+        move(f.vp(), f.at(170, 130));
+        release(f.vp(), f.at(170, 130));
+        QCOMPARE(static_cast<int>(f.rec.moves.size()), 1);
+        QCOMPARE(f.rec.moves[0].first, (std::vector<int>{1, 2}));
+    }
+
+    void aSmallWobbleIsAClickNotADrag() {
+        Fixture f;
+        press(f.vp(), f.at(150, 120));
+        move(f.vp(), f.at(151, 121));  // 約 1 個螢幕像素：手抖
+        release(f.vp(), f.at(151, 121));
+        QVERIFY(f.rec.moves.empty());
+        QCOMPARE(f.rec.selections.back(), (std::vector<int>{1}));
+        QVERIFY(!f.canvas.draftItem()->isVisible());
+    }
+
+    void shiftClickNeverStartsADrag() {
+        Fixture f;
+        f.canvas.setSelection({1});
+        press(f.vp(), f.at(550, 330), Qt::LeftButton, Qt::ShiftModifier);
+        move(f.vp(), f.at(700, 400));
+        release(f.vp(), f.at(700, 400));
+        QVERIFY(f.rec.moves.empty());
+    }
+
+    void escapeDuringADragCancelsItAndReportsNoMovement() {
+        Fixture f;
+        press(f.vp(), f.at(150, 120));
+        f.canvas.setSelection({1});
+        move(f.vp(), f.at(250, 160));
+        QVERIFY(f.canvas.draftItem()->isVisible());
+        sendKey(&f.canvas, Qt::Key_Escape);
+        QVERIFY(!f.canvas.draftItem()->isVisible());
+        QCOMPARE(static_cast<int>(f.rec.moves.size()), 1);
+        QVERIFY(f.rec.moves[0].second.isNull());  // 位移 0：Presenter 還原被蓋掉的畫面，不產生 Command
+        release(f.vp(), f.at(250, 160));
+        QCOMPARE(static_cast<int>(f.rec.moves.size()), 1);  // 放開不再回報
+        QVERIFY(f.rec.selections.size() == 1);              // Esc 也沒有清掉選取（工具用掉了這個鍵）
+    }
+
+    void switchingToolsMidDragCancelsTheMove() {
+        Fixture f;
+        press(f.vp(), f.at(150, 120));
+        f.canvas.setSelection({1});
+        move(f.vp(), f.at(250, 160));
+        f.canvas.setInteraction(ToolId::Region);
+        QVERIFY(!f.canvas.draftItem()->isVisible());
+        QCOMPARE(static_cast<int>(f.rec.moves.size()), 1);
+        QVERIFY(f.rec.moves[0].second.isNull());
+    }
+
+    void outlineOfUnitesTheOutlinesAndIgnoresUnknownIds() {
+        Fixture f;
+        QCOMPARE(f.canvas.outlineOf({1, 2}), QRectF(100, 100, 200, 100).united(QRectF(500, 300, 150, 80)));
+        QCOMPARE(f.canvas.outlineOf({2}), QRectF(500, 300, 150, 80));
+        QVERIFY(f.canvas.outlineOf({99}).isNull());
+        QVERIFY(f.canvas.outlineOf({}).isNull());
+    }
+
+    // ---- 畫布的輸入閘門與鍵盤（S04）----
+    void pausedCanvasIgnoresThePointerButStillZooms() {
+        Fixture f;
+        f.canvas.setInteraction(ToolId::Sample);
+        f.canvas.setToolsEnabled(false);
+        press(f.vp(), f.at(300, 200));
+        move(f.vp(), f.at(400, 300));
+        release(f.vp(), f.at(400, 300));
+        QVERIFY(f.rec.regions.empty());
+        QVERIFY(!f.canvas.draftItem()->isVisible());
+        const double before = f.canvas.zoomPercent();
+        sendWheel(f.vp(), QPointF(f.vp()->width() / 2.0, f.vp()->height() / 2.0), 2);
+        QVERIFY(f.canvas.zoomPercent() > before);  // 縮放與平移是檢視狀態，不受閘門影響
+        f.canvas.setToolsEnabled(true);
+        press(f.vp(), f.at(300, 200));
+        release(f.vp(), f.at(400, 300));
+        QCOMPARE(static_cast<int>(f.rec.regions.size()), 1);
+    }
+
+    void pausingTheCanvasAbandonsADragInProgress() {
+        Fixture f;
+        f.canvas.setInteraction(ToolId::Sample);
+        press(f.vp(), f.at(300, 200));
+        move(f.vp(), f.at(350, 230));
+        QVERIFY(f.canvas.draftItem()->isVisible());
+        f.canvas.setToolsEnabled(false);
+        QVERIFY(!f.canvas.draftItem()->isVisible());
+        QCOMPARE(f.rec.aborted, 1);
+        release(f.vp(), f.at(350, 230));
+        QVERIFY(f.rec.regions.empty());  // 放開時已經沒有可回報的框
+    }
+
+    void theBusyCursorOverridesTheToolCursorAndComesBack() {
+        Fixture f;
+        QCOMPARE(f.vp()->cursor().shape(), Qt::ArrowCursor);
+        f.canvas.setBusyCursor(true);
+        QCOMPARE(f.vp()->cursor().shape(), Qt::BusyCursor);
+        f.canvas.setBusyCursor(false);
+        QCOMPARE(f.vp()->cursor().shape(), Qt::ArrowCursor);
+    }
+
+    void unhandledKeysGoToTheKeyboardControllerFirst() {
+        struct Keys final : IKeyboardController {
+            std::vector<std::pair<int, Qt::KeyboardModifiers>> keys;
+            bool consume = true;
+            bool onKeyPressed(int key, Qt::KeyboardModifiers m) override {
+                keys.push_back({key, m});
+                return consume;
+            }
+        } keys;
+        Fixture f;
+        f.canvas.setKeyboardController(&keys);
+        f.canvas.setSelection({1});
+        sendKey(&f.canvas, Qt::Key_Return);
+        sendKey(&f.canvas, Qt::Key_Right, QEvent::KeyPress, Qt::ShiftModifier);
+        QCOMPARE(static_cast<int>(keys.keys.size()), 2);
+        QCOMPARE(keys.keys[0].first, static_cast<int>(Qt::Key_Return));
+        QVERIFY(keys.keys[1].second.testFlag(Qt::ShiftModifier));
+
+        // 有鍵盤 controller 時，Esc 與 Del 歸它，畫布自己的備援（清除選取、刪除）不再動作。
+        sendKey(&f.canvas, Qt::Key_Escape);
+        sendKey(&f.canvas, Qt::Key_Delete);
+        QVERIFY(f.rec.selections.empty());
+        QCOMPARE(f.rec.deletes, 0);
+        f.canvas.setKeyboardController(nullptr);
+    }
+
+    void aKeyTheKeyboardControllerDeclinesFallsBackToTheCanvasDefaults() {
+        struct Decline final : IKeyboardController {
+            bool onKeyPressed(int, Qt::KeyboardModifiers) override { return false; }
+        } decline;
+        Fixture f;
+        f.canvas.setKeyboardController(&decline);
+        f.canvas.setSelection({1});
+        sendKey(&f.canvas, Qt::Key_Escape);
+        // 有鍵盤 controller（即使它不處理）時，備援不動作：責任在 Presenter，畫布不替它猜。
+        QVERIFY(f.rec.selections.empty());
+        f.canvas.setKeyboardController(nullptr);
+        sendKey(&f.canvas, Qt::Key_Escape);
+        QCOMPARE(static_cast<int>(f.rec.selections.size()), 1);
+    }
+
+    void pausedCanvasStillForwardsEscToTheKeyboardController() {
+        struct Keys final : IKeyboardController {
+            int calls = 0;
+            bool onKeyPressed(int key, Qt::KeyboardModifiers) override {
+                if (key == Qt::Key_Escape) ++calls;
+                return key == Qt::Key_Escape;
+            }
+        } keys;
+        Fixture f;
+        f.canvas.setKeyboardController(&keys);
+        f.canvas.setToolsEnabled(false);
+        sendKey(&f.canvas, Qt::Key_Escape);  // 搜尋中：Esc 取消搜尋，要送得到 Presenter
+        QCOMPARE(keys.calls, 1);
+        f.canvas.setKeyboardController(nullptr);
+    }
+
+    void activeToolChangesAreAnnounced() {
+        Fixture f;
+        QSignalSpy spy(&f.canvas, &ImageCanvas::activeToolChanged);
+        f.canvas.setInteraction(ToolId::Region);
+        f.canvas.setInteraction(ToolId::Region);  // 同一個：不重複通知
+        f.canvas.setInteraction(ToolId::Select);
+        QCOMPARE(spy.count(), 2);
+        QCOMPARE(spy.at(0).at(0).value<ToolId>(), ToolId::Region);
     }
 
     void missingControllersAreTolerated() {

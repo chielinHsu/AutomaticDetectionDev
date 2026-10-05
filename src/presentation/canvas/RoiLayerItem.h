@@ -30,6 +30,8 @@ public:
 
     // 點擊判定：回傳外框包含該點、面積最小的元件編號；沒有則 -1。
     int componentAt(const QPointF& scenePos) const;
+    // 這些元件的外框聯集；找不到任何一個時回傳空的矩形。
+    QRectF outlineOf(const std::vector<int>& componentIds) const;
 
     int componentCount() const { return snapshot_ ? static_cast<int>(snapshot_->components.size()) : 0; }
     int boxCount() const { return snapshot_ ? static_cast<int>(snapshot_->boxCount()) : 0; }

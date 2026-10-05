@@ -11,6 +11,8 @@
 
 > **S03 完成後的提醒（2026-10-05）**：S03 的 `PerfProbe` 與切片名稱（`uc.sample.template`、`.seed`、`.fit`、`.verify`、`.total`、`job.queue`、`job.run`）已經就位，可輸出 JSON；`perf_core` 的量測方法（熱機、p95、機器指紋、連跑 3 次看範圍）可沿用；核心基準線在 `perf/baseline/casparhsu1-core.json`。
 
+> **S04 完成後的提醒（2026-10-06）**：（1）新增 `perf_ui_s04`（U2、U3、I3、I4、I6）與 `perf_paint_micro` 的 `dashedAndDottedFrames`；基準線在 `perf/baseline/casparhsu1-presenter.json`。PerfProbe 新增 `ui.*` 切片：`ui.threshold`、`ui.threshold.refilter`、`ui.threshold.params`、`ui.publishAll`、`ui.publishScene`、`ui.scene.build`、`ui.scene.canvas`、`ui.scene.tree`、`ui.chrome`、`ui.draft`、`ui.selection`。（2）同一份程式在這台機器連跑 3 次會差到 30%，I3 的餘裕只有 16–38%：閘門不能拿單次 p95 比預算，要用多次執行的範圍。（3）效能矩陣要加兩個維度：被拒絕（點線）的框的比例（ADR-012 之前成本差 12 倍）、背景已接受的元件數（`U3-bg` 比沒有背景慢約 16–28 ms）。（4）`perf_ui_s04` 用 `knownOver("U3")` 把已知超標的 U3 排除在失敗條件之外（其他指標超標仍會失敗）；閘門要有同樣的「已知、不擋」機制，並在 S11 處理 U3 後拿掉。
+
 <!--STE-->
 ## Purpose
 This step builds the full performance test. It measures the search time, the screen update time and the interaction time.

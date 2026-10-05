@@ -24,6 +24,40 @@
 - 下一位 agent 需要知道的限制、否決的做法、不要還原的修改
 ```
 
+## 2026-10-06 — Claude Code (Claude Sonnet 5.5)（S04：Presenter、互動狀態機、復原／重做）
+
+### 完成
+- 依 Step Protocol 做 S04，在隔離的 worktree 裡建立 `step/04-presenter`。基準：S03 的程式在這個 worktree 重新建置、全部測試通過。
+- 互動規則放在沒有 Qt 的 application 層（ADR-011）：`InteractionStateMachine`（8 狀態、19 事件）、`InspectionSession`、`ProposalSession`（memento 式復原）、`InspectionDocument`（5 種 Command）、`UndoStack`（Command 不可變、深度 200、乾淨位置）。domain 新增 `box_expander.h`；infrastructure 新增 `QtThreadPoolExecutor`。
+- presentation：`AutoRoiPresenter`（世代丟棄遲到的結果、忙碌提示、取消立即回 Idle）、`ParamsPresenter`（防抖）、`SceneBuilder`、`ObjectsModel`／`ObjectsPanel`、`ParamsPanel`、`MessageTexts`、`AppPresenters`；`MainWindow` 變純 View；`SelectTool` 拖曳移動與方向鍵微調；`ShellController` 移除。
+- 量到 S02 的繪製假設不成立（「虛線與點線的框很少」）：預覽時拖分數門檻，上千個框一次變成點線，一個畫格要 24–289 ms。改成填色矩形（ADR-012），點線畫格由 289 ms 降到約 31 ms。
+- 量到 U2 的 98 ms 瓶頸是物件表欄位的 `ResizeToContents`；改成固定寬度後約 6 ms。
+- 變異測試：植入 41 個缺陷，最終全被抓到（過程在 `perf.md`）。第一輪 37 個中 31 個第一次抓到；補測試與換寫法後其餘抓到，其中 M18（遲到的成功結果）第一次補的測試仍抓不到，原因是測試台的假 back end 一看到取消旗標就回 `Cancelled`。
+- `docs/steps/S04-presenter/`（四種輸出＋`perf.md`）、ADR-011、ADR-012、`perf/baseline/casparhsu1-presenter.json`；`perf/budgets.json` 標註 U2、I3、I4、I6 `calibrated`、U3 `measured-over-limit`（limit 沒改）；`docs/plan/S05`–`S07`、`S10`、`S11` 開頭各加一行「S04 完成後的提醒」。
+
+### 修改的檔案
+- 新增：`src/domain/box_expander.h`、`src/application/{document,interaction}/`、`src/infrastructure/threading/QtThreadPoolExecutor.*`、`src/presentation/{presenters,objects,params}/`、`src/presentation/shell/ImageViewAdapter.*`、`tests/core/`（`tst_undo_stack`、`tst_state_machine`、`tst_box_expander`、`tst_proposal_session`、`tst_document`、`tst_session`、`tst_qt_executor`、`ProposalTestSupport.h`、`QtTestPrinters.h`）、`tests/ui/`（`tst_presenter`、`tst_objects_model`、`tst_params`、`tst_messages`、`tst_scene`、`PresenterRig.h`、`PerfSupport.h`、`perf_ui_s04`）、`docs/steps/S04-presenter/`、`docs/adr/011`、`012`、`perf/baseline/casparhsu1-presenter.json`
+- 修改：`src/presentation/canvas/`（`BoxFrames`、`OverlayStyle`、`RoiLayerItem`、`ImageCanvas`、`ICanvasController`）、`src/presentation/shell/`（`MainWindow`、`MessageBar`）、`src/presentation/tools/`、`src/domain/geometry.h`（Windows 的 `min`／`max` 巨集）、`src/app/`（`CompositionRoot`、`main.cpp`）、各層的 `CMakeLists.txt`、`tests/ui/`（`tst_tools`、`tst_items`、`tst_shell`、`TestSupport.h`、`perf_paint_micro`）、`perf/budgets.json`、`docs/ux/ux-spec.md`、`docs/ux/copy.json`、`docs/architecture.md`、`docs/decisions.md`、`docs/current-status.md`、`docs/plan/S05`–`S07`、`S10`、`S11`、`AI_CONTEXT.md`、`README.md`、`AiInspTool/AiInspTool.pro`（只改註解）、`.ai/handoff.md`
+- 刪除：`src/presentation/shell/ShellController.*`
+
+### 驗證
+- Release：`scripts/dev/test.ps1` 29 個 CTest 項目全過。Debug 也是 29 個全過（第一次有 1 個失敗：`tst_proposal_session` 的測試把指標指進暫存的 `objects()`，Release 碰巧通過，是測試的錯；已改成指向活著的物件後重跑）。
+- `node tools/check-deps.mjs`：112 個檔案 0 違規；`--self-test` 13 個 fixture 全過。`ste-lint --strict`：549 句 0 錯誤。`check-contrast`：0 失敗。`diagram.md` 9 張 Mermaid 解析全過（只驗語法）。`check-ai-structure.ps1`：OK（0 警告）。
+- 效能：`perf_ui_s04` 連跑 3 次（`perf.md`）：U2、I3、I4、I6 在預算內，**U3 超標**（5 832 個元件 p95 46–61 ms，預算 16 ms）。
+- `AiInspTool.pro`：命令列 qmake ＋ jom（Release）建置成功；`AiInspTool.exe --backend opencv` 結束碼 2，`--demo 500` 啟動 4 秒仍在執行；沒有在 Qt Creator 裡載入過。
+- `explainer.html` 在瀏覽器窗格實際操作過（狀態機、復原堆疊的接受／復原／重做流程、數字卡、窄寬度）；深色外觀沒有驗證（窗格對本機文件固定淺色）。
+
+### 未完成
+- U3 超標，處置由使用者決定（降低成本或重新定義預算）。預算數字沒有改。
+- `LibraryPresenter`、`TypeEditorPresenter`（樣本庫面板、元件類型編輯器、流程 C）沒有任何 plan 檔涵蓋，需要使用者決定放進哪一步。
+- 沒有量真實視窗；沒有量 Debug；文件沒有存檔（S06）；流程 B 的比對（S07）。
+
+### 注意事項
+- 變異測試腳本沒有留在 repo。還原要用 `WriteAllBytes` 並驗證雜湊：`Copy-Item` 會保留舊的修改時間，Ninja 不會重建，留下變異過的目標檔；一次還原失敗讓接著跑的兩個變異結果不可信，是靠雜湊檢查發現的。
+- `tests/ui/PresenterRig.h` 的視窗閘門故意不看取消旗標（模擬不可中斷的函式庫呼叫），不要「修正」它。
+- `perf_ui_s04` 的 `knownOver("U3")` 是已知超標的記錄，不是放寬預算；S11 處理 U3 後要拿掉。
+- 這個 session 的 bash 工具有時無法解析 heredoc，`node -e` 會吃掉引號；產生腳本一律用 Write 工具寫檔再執行。
+
 ## 2026-10-05 — Claude Code (Claude Sonnet 5.5)（S03：系統核心）
 
 ### 完成

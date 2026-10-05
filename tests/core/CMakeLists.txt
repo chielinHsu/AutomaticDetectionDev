@@ -1,6 +1,6 @@
 # 核心（domain、application、infrastructure 的非視覺部分）的測試。ADR-003：統一用 Qt Test。
 # 測試本身不是五層之一（check-deps 不掃 tests/），所以可以同時連到各層。
-set(AOI_CORE_TEST_LIBS aoi_application aoi_backend_fake aoi_perf aoi_threading aoi_app_core)
+set(AOI_CORE_TEST_LIBS aoi_application aoi_backend_fake aoi_perf aoi_threading aoi_threading_qt aoi_app_core)
 
 aoi_add_qt_test(tst_domain SOURCES tst_domain.cpp LIBS ${AOI_CORE_TEST_LIBS})
 aoi_add_qt_test(tst_core_types SOURCES tst_core_types.cpp LIBS ${AOI_CORE_TEST_LIBS})
@@ -10,6 +10,15 @@ aoi_add_qt_test(tst_generate_objects SOURCES tst_generate_objects.cpp LIBS ${AOI
 aoi_add_qt_test(tst_fake_backend SOURCES tst_fake_backend.cpp LIBS ${AOI_CORE_TEST_LIBS})
 aoi_add_qt_test(tst_backend_registry SOURCES tst_backend_registry.cpp LIBS ${AOI_CORE_TEST_LIBS})
 aoi_add_qt_test(tst_perf_probe SOURCES tst_perf_probe.cpp LIBS ${AOI_CORE_TEST_LIBS})
+
+# S04：互動狀態機、復原、文件與工作階段（application 層，沒有 Qt 的畫面）。
+aoi_add_qt_test(tst_undo_stack SOURCES tst_undo_stack.cpp LIBS ${AOI_CORE_TEST_LIBS})
+aoi_add_qt_test(tst_state_machine SOURCES tst_state_machine.cpp LIBS ${AOI_CORE_TEST_LIBS})
+aoi_add_qt_test(tst_box_expander SOURCES tst_box_expander.cpp LIBS ${AOI_CORE_TEST_LIBS})
+aoi_add_qt_test(tst_proposal_session SOURCES tst_proposal_session.cpp LIBS ${AOI_CORE_TEST_LIBS})
+aoi_add_qt_test(tst_document SOURCES tst_document.cpp LIBS ${AOI_CORE_TEST_LIBS})
+aoi_add_qt_test(tst_session SOURCES tst_session.cpp LIBS ${AOI_CORE_TEST_LIBS})
+aoi_add_qt_test(tst_qt_executor SOURCES tst_qt_executor.cpp LIBS ${AOI_CORE_TEST_LIBS})
 
 # 效能量測（label perf）：PerfProbe 單次成本、JobRunner 延遲與取消延遲、use case 本身的成本。
 # 只有 Release／RelWithDebInfo 才把「PerfProbe 關閉時 < 1 µs」當成失敗條件；預設的 test preset 排除 label=perf。

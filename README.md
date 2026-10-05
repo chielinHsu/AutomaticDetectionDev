@@ -6,8 +6,9 @@ and creates inspection rectangles ("CAD objects").
 
 Two vision back ends share one code base: **OpenCV** and **HALCON**.
 
-Status: steps S00–S03 are done (plan, UX spec, Qt UI shell with the image canvas, and the core:
-ports, use case, job runner, fake back end, dependency check).
+Status: steps S00–S04 are done (plan, UX spec, Qt UI shell with the image canvas, the core:
+ports, use case, job runner, fake back end, dependency check, and the presenters:
+interaction state machine, undo and redo, object tree, parameter panel).
 No real vision code yet: the `fake` back end draws a synthetic grid (`--backend=fake`, the default). See [docs/current-status.md](docs/current-status.md) and [docs/00-master-plan.md](docs/00-master-plan.md).
 
 Build and test on Windows 11 (PowerShell, MSVC 2022, Qt 6.8):

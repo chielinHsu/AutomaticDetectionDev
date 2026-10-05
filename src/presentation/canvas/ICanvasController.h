@@ -2,6 +2,7 @@
 
 #include <QPointF>
 #include <QRectF>
+#include <Qt>
 #include <vector>
 
 #include "presentation/canvas/OverlayTypes.h"
@@ -29,6 +30,15 @@ public:
 
     virtual void select(const std::vector<int>& componentIds) = 0;
     virtual void deleteSelected() = 0;
+};
+
+// 工具沒有用到的按鍵（ux-spec 第 8 節）：Enter 接受、Esc 退回一層、Del 刪除所選、方向鍵微調、E 開類型編輯器。
+// 回傳 true ＝ 用掉了（畫布不再處理）。Presenter 實作；畫布只管轉交，不知道每個鍵的意義。
+class IKeyboardController {
+public:
+    virtual ~IKeyboardController() = default;
+
+    virtual bool onKeyPressed(int key, Qt::KeyboardModifiers modifiers) = 0;
 };
 
 }  // namespace aoi::ui
