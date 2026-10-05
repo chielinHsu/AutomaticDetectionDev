@@ -24,6 +24,29 @@
 - 下一位 agent 需要知道的限制、否決的做法、不要還原的修改
 ```
 
+## 2026-10-05 — Claude Code (Claude Sonnet 5.5)（AiInspTool：qmake 專案，用 Qt Creator 開啟 S02 程式）
+
+### 完成
+- 使用者在 `AiInspTool/` 用 Qt Creator 建了 qmake 的 Qt Widgets 專案（第一次建的是 Qt Quick，建錯後砍掉重建）。把 `AiInspTool.pro` 改成直接建置 `../src` 的 S02 程式（domain、presentation、`app/main.cpp`，萬用字元納入，程式碼只有一份），新增 `aoi_ux.qrc` 內嵌 `tokens.json`、`copy.json`。精靈產生的 `main.cpp`、`mainwindow.*` 保留但沒有被使用。
+- commit `fd899ce`（直接提交在 `main`，因為主工作目錄正開在 Qt Creator，切換分支會讓追蹤的檔案暫時消失）。清掉了使用者砍掉的舊檔留下的 intent-to-add 索引殘留（`CMakeLists.txt`、`Main.qml`）。
+- 解釋了使用者的疑問：S 拖框只會顯示框與訊息列，**S02 還沒有建樣本與搜尋**（S04 起有假資料的完整流程，S07 才有真的搜尋）。
+
+### 修改的檔案
+- 新增：`AiInspTool/`（`AiInspTool.pro`、`aoi_ux.qrc`，以及使用者的精靈檔案 `.gitignore`、`main.cpp`、`mainwindow.cpp`、`mainwindow.h`、`mainwindow.ui`）
+- 修改：`AI_CONTEXT.md`（目錄表）、`.ai/handoff.md`、`docs/changelog-ai.md`
+
+### 驗證
+- 在獨立的建置目錄用 qmake 加 jom 建出 `AiInspTool.exe`，沒有錯誤（55 秒）；離屏執行 `--demo 5000` 五秒沒有當機。
+- **沒有在 Qt Creator 裡實際載入專案並執行**；Qt Creator 要手動「執行 qmake」才會讀到新的 `.pro`。
+
+### 未完成
+- 使用者的 `AiInspTool/.gitignore` 沒有涵蓋 `release/`、`debug/`、`.qtc_clangd/`，目前是未追蹤的建置產物（沒有納入 commit，也沒有改使用者的檔案）。
+- S03 起 `src/` 新增 application、infrastructure 時，`AiInspTool.pro` 要跟著調整。
+
+### 注意事項
+- 這個 session 在隔離的 worktree，編輯工具被護欄擋在主工作目錄之外；放進 `AiInspTool/` 的兩個檔案是經使用者同意後用 `Copy-Item` 複製的（複製前確認使用者的 `.pro` 與備份相同）。
+- `AiInspTool/` 不在五層之內，`tools/check-deps.mjs`（S03）不要掃它。
+
 ## 2026-10-05 — Claude Code (Claude Sonnet 5.5)（S02：Qt UI 骨架與影像畫布）
 
 ### 完成
