@@ -3,7 +3,7 @@
 新 session 開工前先讀這份，再讀 `docs/plan/Sxx-*.md`。步驟完成後由該步驟的 session 更新。原檔名 `STATUS.md`，2026-10-05 更名為本檔以符合共用結構（見 `docs/adr/000-ai-agent-structure.md`）。
 
 - 更新日期：2026-10-05
-- 階段：S00 完成；S01 待開始；AI 共用結構已合併到 `main`（2026-10-05，未 push）
+- 階段：S00 完成；S01 待開始；AI 共用結構已合併到 `main`（2026-10-05，未 push）；commit 格式規則的更新在分支 `chore/commit-format`，尚未合併
 
 | 步驟 | 層級 | 主題 | 狀態 | 分支 | tag |
 |---|---|---|---|---|---|
