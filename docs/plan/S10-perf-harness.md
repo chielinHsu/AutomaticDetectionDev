@@ -9,6 +9,8 @@
 
 > **S01 修訂（2026-10-05）**：效能矩陣要加「樣本庫大小 N」維度（ADR-006、`docs/steps/S01-ux-spec/perf.md` 新增項目）。
 
+> **S03 完成後的提醒（2026-10-05）**：S03 的 `PerfProbe` 與切片名稱（`uc.sample.template`、`.seed`、`.fit`、`.verify`、`.total`、`job.queue`、`job.run`）已經就位，可輸出 JSON；`perf_core` 的量測方法（熱機、p95、機器指紋、連跑 3 次看範圍）可沿用；核心基準線在 `perf/baseline/casparhsu1-core.json`。
+
 <!--STE-->
 ## Purpose
 This step builds the full performance test. It measures the search time, the screen update time and the interaction time.

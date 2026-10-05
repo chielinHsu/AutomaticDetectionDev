@@ -1,0 +1,14 @@
+{
+  "violations": [
+    {
+      "file": "src/app/main.cpp",
+      "line": 1,
+      "includes": "opencv2/core.hpp"
+    },
+    {
+      "file": "src/app/main.cpp",
+      "line": 2,
+      "includes": "halconcpp/HalconCpp.h"
+    }
+  ]
+}

@@ -1,0 +1,280 @@
+{
+  "schema": 1,
+  "step": "S03",
+  "note": "Core baseline recorded in S03. Numbers compare only on this machine. Each metric is the last of 3 runs; medianRangeOf3Runs shows the spread of the median over all 3 runs. The fake back end has no search cost: P4 measures the use case itself, not a real search. P3-poll1ms depends on the Windows timer resolution, which is a system-wide state.",
+  "method": "P1: 9 repetitions of 2 000 000 calls (500 000 for the enabled probe), first repetition dropped; P2: 300 jobs, first 20 dropped, 2 ms pause between jobs; P3: 100 cancels, first 10 dropped; P4: 23 runs, first 3 dropped",
+  "machine": {
+    "buildType": "Release",
+    "commit": "38bbbdf+uncommitted",
+    "compiler": "MSVC 194435228",
+    "cpu": "13th Gen Intel(R) Core(TM) i7-1360P",
+    "logicalCores": 16,
+    "machineName": "CasparHsu1",
+    "measurementHygiene": "process priority HIGH; power throttling off; thread pinned to logical CPU 0 (efficiency class 1 of 2 classes)",
+    "os": "Windows 11 Version 23H2 (kernel 10.0.22631)",
+    "qt": "6.8.0",
+    "ramGB": 63.6
+  },
+  "metrics": [
+    {
+      "id": "P1-baseline",
+      "label": "empty loop body (volatile increment)",
+      "max": 6.1738,
+      "median": 5.9568,
+      "n": 9,
+      "note": "reference only",
+      "p95": 6.1738,
+      "unit": "ns",
+      "medianRangeOf3Runs": [
+        5.887,
+        6.141
+      ]
+    },
+    {
+      "id": "P1-null",
+      "label": "ScopedTimer with a null probe",
+      "max": 7.12665,
+      "median": 6.7452,
+      "n": 9,
+      "note": "includes the volatile loop body above",
+      "p95": 7.12665,
+      "unit": "ns",
+      "medianRangeOf3Runs": [
+        6.009,
+        6.745
+      ]
+    },
+    {
+      "id": "P1-off",
+      "label": "ScopedTimer with a disabled PerfProbe",
+      "max": 7.25655,
+      "median": 6.31005,
+      "n": 9,
+      "note": "includes the volatile loop body above",
+      "p95": 7.25655,
+      "unit": "ns",
+      "medianRangeOf3Runs": [
+        5.706,
+        6.31
+      ]
+    },
+    {
+      "id": "P1-on",
+      "label": "ScopedTimer with an enabled PerfProbe (ring buffer, mutex)",
+      "max": 288.9102,
+      "median": 257.3444,
+      "n": 9,
+      "note": "two clock reads plus one record()",
+      "p95": 288.9102,
+      "unit": "ns",
+      "medianRangeOf3Runs": [
+        257.3,
+        290.7
+      ]
+    },
+    {
+      "id": "P1-clock",
+      "label": "two steady_clock::now() calls",
+      "max": 147.057,
+      "median": 113.7592,
+      "n": 9,
+      "note": "the floor for any enabled timer",
+      "p95": 147.057,
+      "unit": "ns",
+      "medianRangeOf3Runs": [
+        113.8,
+        133.8
+      ]
+    },
+    {
+      "id": "P2-queue",
+      "label": "job submit → start of work (idle pool, 2 workers)",
+      "max": 0.2711,
+      "median": 0.0413,
+      "n": 280,
+      "note": "worker wake-up included",
+      "p95": 0.1049,
+      "unit": "ms",
+      "medianRangeOf3Runs": [
+        0.0413,
+        0.0472
+      ]
+    },
+    {
+      "id": "P2-submit",
+      "label": "submit() duration on the calling thread",
+      "max": 0.1888,
+      "median": 0.0245,
+      "n": 280,
+      "note": "what the UI thread pays",
+      "p95": 0.0433,
+      "unit": "ms",
+      "medianRangeOf3Runs": [
+        0.0245,
+        0.0297
+      ]
+    },
+    {
+      "id": "P3-spin",
+      "label": "cancel() → work sees the flag (work spins on the flag)",
+      "max": 0.1311,
+      "median": 0.0113,
+      "n": 90,
+      "note": "flag visibility only",
+      "p95": 0.0186,
+      "unit": "ms",
+      "medianRangeOf3Runs": [
+        0.0113,
+        0.0138
+      ]
+    },
+    {
+      "id": "P3-poll1ms",
+      "label": "cancel() → work sees the flag (work checks every 1 ms, like the fake back end)",
+      "max": 18.8851,
+      "median": 1.437,
+      "n": 90,
+      "note": "polling interval dominates; Windows sleep granularity applies",
+      "p95": 16.9374,
+      "unit": "ms",
+      "medianRangeOf3Runs": [
+        1.437,
+        8.724
+      ]
+    },
+    {
+      "id": "P4-225-off",
+      "label": "use case on a 5 MP image, ~225 parts (probe off)",
+      "max": 1.8025,
+      "median": 1.3302,
+      "n": 20,
+      "note": "225 candidates; the fake search costs almost nothing, so this is the use case's own cost",
+      "p95": 1.7388,
+      "unit": "ms",
+      "medianRangeOf3Runs": [
+        1.33,
+        2.176
+      ]
+    },
+    {
+      "id": "P4-225-seed",
+      "label": "use case on a 5 MP image, ~225 parts: seed stage",
+      "max": 0.046,
+      "median": 0.0218,
+      "n": 20,
+      "p95": 0.0318,
+      "unit": "ms",
+      "medianRangeOf3Runs": [
+        0.0218,
+        0.0367
+      ]
+    },
+    {
+      "id": "P4-225-fit",
+      "label": "use case on a 5 MP image, ~225 parts: fit stage (simple stand-in)",
+      "max": 1.6501,
+      "median": 1.2113,
+      "n": 20,
+      "p95": 1.6208,
+      "unit": "ms",
+      "medianRangeOf3Runs": [
+        1.211,
+        1.958
+      ]
+    },
+    {
+      "id": "P4-225-verify",
+      "label": "use case on a 5 MP image, ~225 parts: verify stage",
+      "max": 0.0275,
+      "median": 0.0204,
+      "n": 20,
+      "p95": 0.0247,
+      "unit": "ms",
+      "medianRangeOf3Runs": [
+        0.0204,
+        0.0283
+      ]
+    },
+    {
+      "id": "P4-225-on",
+      "label": "use case on a 5 MP image, ~225 parts (probe on)",
+      "max": 2.4019,
+      "median": 1.5299,
+      "n": 20,
+      "note": "225 candidates; the fake search costs almost nothing, so this is the use case's own cost",
+      "p95": 2.3406,
+      "unit": "ms",
+      "medianRangeOf3Runs": [
+        1.53,
+        2.323
+      ]
+    },
+    {
+      "id": "P4-4900-off",
+      "label": "use case on a 5 MP image, ~4 900 parts (probe off)",
+      "max": 177.323,
+      "median": 148.4667,
+      "n": 20,
+      "note": "4941 candidates; the fake search costs almost nothing, so this is the use case's own cost",
+      "p95": 174.2369,
+      "unit": "ms",
+      "medianRangeOf3Runs": [
+        106.4,
+        148.5
+      ]
+    },
+    {
+      "id": "P4-4900-seed",
+      "label": "use case on a 5 MP image, ~4 900 parts: seed stage",
+      "max": 2.5054,
+      "median": 2.0835,
+      "n": 20,
+      "p95": 2.4333,
+      "unit": "ms",
+      "medianRangeOf3Runs": [
+        1.48,
+        2.083
+      ]
+    },
+    {
+      "id": "P4-4900-fit",
+      "label": "use case on a 5 MP image, ~4 900 parts: fit stage (simple stand-in)",
+      "max": 160.1911,
+      "median": 134.4406,
+      "n": 20,
+      "p95": 158.2681,
+      "unit": "ms",
+      "medianRangeOf3Runs": [
+        96.72,
+        134.4
+      ]
+    },
+    {
+      "id": "P4-4900-verify",
+      "label": "use case on a 5 MP image, ~4 900 parts: verify stage",
+      "max": 10.4518,
+      "median": 7.9776,
+      "n": 20,
+      "p95": 9.5752,
+      "unit": "ms",
+      "medianRangeOf3Runs": [
+        6.701,
+        7.978
+      ]
+    },
+    {
+      "id": "P4-4900-on",
+      "label": "use case on a 5 MP image, ~4 900 parts (probe on)",
+      "max": 117.4082,
+      "median": 96.732,
+      "n": 20,
+      "note": "4941 candidates; the fake search costs almost nothing, so this is the use case's own cost",
+      "p95": 117.0016,
+      "unit": "ms",
+      "medianRangeOf3Runs": [
+        96.73,
+        138.9
+      ]
+    }
+  ]
+}

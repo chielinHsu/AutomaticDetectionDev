@@ -9,8 +9,9 @@
 // ImageView 是跨過 port 傳遞影像的型別：它「借用」一塊像素，並用 owner 讓這塊像素在
 // 所有 view 消失之前不會被釋放。任何函式庫的影像類別（QImage、cv::Mat、HImage）都不跨過 port。
 //
-// S02 先放最小版，因為畫布要零複製地顯示共享緩衝。所有權規則、格式轉換與複製計數
-// 在 S03／S06 定案；那時可以擴充欄位，但這裡的欄位意義不要改。
+// S02 先放最小版，因為畫布要零複製地顯示共享緩衝。S03 加了校正值 umPerPixel（預設 0，既有欄位的意義沒變）。
+// 所有權規則、格式轉換與複製計數在 S06 定案；那時可以再擴充欄位，但這裡的欄位意義不要改。
+// 座標慣例（像素原點、軸向、角度）在 geometry.h。
 namespace aoi {
 
 enum class PixelFormat {
@@ -36,6 +37,9 @@ struct ImageView {
     PixelFormat format = PixelFormat::Gray8;
     // 擁有者：只負責讓 data 活著，不描述型別。可以是空的（呼叫端保證 data 活得比 view 久）。
     std::shared_ptr<const void> owner;
+    // 校正值：一個像素有多少 µm（S03 新增；ADR-006 §6）。0 ＝ 未校正，不可拿來換算。
+    // 樣本庫存 µm，影像帶這個值，庫才能跨影像、跨相機重複使用。
+    double umPerPixel = 0.0;
 
     bool valid() const noexcept {
         return data != nullptr && width > 0 && height > 0 &&

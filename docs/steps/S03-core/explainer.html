@@ -1,0 +1,383 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S03 系統核心：ports、use case、工作執行器</title>
+<style>
+:root{--bg:#f6f7f9;--panel:#fff;--ink:#18212b;--muted:#566273;--line:#d3d9e0;--accent:#1d4ed8;--accent-ink:#fff;
+  --sample:#1d4ed8;--found:#15803d;--infer:#b45309;--reject:#b91c1c;--board:#1a5c3a;--ok:#15803d;--bad:#b91c1c;--term:#0f1720;--term-ink:#d7e2ee}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#0f141a;--panel:#18202a;--ink:#e7edf4;--muted:#9aa8b8;--line:#2c3846;
+  --accent:#7aa7ff;--accent-ink:#0b1220;--sample:#7aa7ff;--found:#4ade80;--infer:#fbbf24;--reject:#f87171;--ok:#4ade80;--bad:#f87171;--term:#0a0f14}}
+:root[data-theme="dark"]{--bg:#0f141a;--panel:#18202a;--ink:#e7edf4;--muted:#9aa8b8;--line:#2c3846;
+  --accent:#7aa7ff;--accent-ink:#0b1220;--sample:#7aa7ff;--found:#4ade80;--infer:#fbbf24;--reject:#f87171;--ok:#4ade80;--bad:#f87171;--term:#0a0f14}
+*{box-sizing:border-box} html{color-scheme:light dark}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 system-ui,"Segoe UI","Microsoft JhengHei",sans-serif}
+.wrap{max-width:1100px;margin:0 auto;padding:16px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;margin-top:14px}
+h1{font-size:22px;margin:0 0 4px} h2{font-size:16px;margin:0 0 8px}
+.zh{color:var(--muted);font-size:13.5px} .muted{color:var(--muted)} .small{font-size:12.5px}
+.row{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center}
+label{display:inline-flex;gap:6px;align-items:center;cursor:pointer}
+input[type=range]{width:min(360px,100%);accent-color:var(--accent)}
+select{font:inherit;padding:5px 8px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink);max-width:100%}
+.seg{display:inline-flex;flex-wrap:wrap;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{border:0;background:transparent;color:var(--ink);padding:6px 12px;font:inherit;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+.btn{border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:6px 12px;border-radius:8px;font:inherit;cursor:pointer}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px} @media (max-width:760px){.grid{grid-template-columns:1fr}}
+.note{border-left:4px solid var(--accent);padding:4px 10px;margin:10px 0;background:color-mix(in srgb,var(--accent) 8%,transparent)}
+.kpi{font-size:26px;font-weight:600;font-variant-numeric:tabular-nums}
+.ok{color:var(--ok)} .bad{color:var(--bad)}
+/* back end swap */
+.swap{display:grid;grid-template-columns:1fr 70px 1fr;gap:6px;align-items:stretch;margin-top:10px}
+@media (max-width:760px){.swap{grid-template-columns:1fr}}
+.box{border:2px solid var(--line);border-radius:10px;padding:10px;background:color-mix(in srgb,var(--panel) 94%,var(--ink))}
+.box h3{margin:0 0 4px;font-size:14px}
+.box.core{border-color:var(--accent)}
+.box.adapter.live{border-color:var(--ok)} .box.adapter.dead{border-color:var(--bad);border-style:dashed}
+.sockets{display:flex;flex-direction:column;justify-content:center;align-items:center;gap:8px;color:var(--muted);font-size:11px;text-align:center}
+.sockets i{display:block;width:100%;height:4px;border-radius:2px;background:var(--muted)}
+.zero{font-size:30px;font-weight:700;color:var(--ok);font-variant-numeric:tabular-nums}
+pre.term{background:var(--term);color:var(--term-ink);border-radius:8px;padding:10px;overflow-x:auto;font:12.5px/1.5 Consolas,"Cascadia Mono",monospace;white-space:pre-wrap;word-break:break-word;margin:8px 0 0}
+pre.term .red{color:#ff8a80} pre.term .grn{color:#7ee787} pre.term .dim{color:#8b9bb0}
+/* jobs */
+.job{display:grid;grid-template-columns:70px 1fr 230px;gap:8px;align-items:center;margin:6px 0;font-size:13px}
+@media (max-width:760px){.job{grid-template-columns:60px 1fr}.job .st{grid-column:1/3}}
+.track{height:16px;border-radius:5px;background:var(--line);overflow:hidden;position:relative}
+.track i{display:block;height:100%;width:0;background:var(--accent)}
+.track i.cancelled{background:var(--muted)} .track i.done{background:var(--ok)}
+.flag{position:absolute;top:0;bottom:0;width:3px;background:var(--bad)}
+/* threshold */
+canvas{width:100%;max-width:640px;height:auto;border:1px solid var(--line);border-radius:8px;background:var(--board);display:block}
+.legend span{display:inline-flex;align-items:center;gap:6px;margin-right:14px;font-size:13px}
+.legend svg{width:34px;height:10px}
+table{border-collapse:collapse;width:100%;font-size:13.5px;font-variant-numeric:tabular-nums}
+th,td{border-bottom:1px solid var(--line);padding:5px 8px;text-align:right}
+th:first-child,td:first-child,th:nth-child(2),td:nth-child(2){text-align:left}
+th{color:var(--muted);font-weight:500}
+.bar{height:14px;border-radius:4px;background:var(--line);position:relative;min-width:80px}
+.bar i{position:absolute;left:0;top:0;bottom:0;border-radius:4px;background:var(--accent)}
+@media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>S03 — 系統核心：ports、use case、工作執行器</h1>
+  <div class="zh">核心沒有畫面、不認識 OpenCV 或 HALCON。這一頁讓你<strong>動手</strong>看四件事：換 back end 時 use case 一個字不改；有人偷 include 函式庫時依賴檢查怎麼擋；新舊搜尋同時在跑時「最新的贏」；分數門檻只是重新過濾、不必重新搜尋。標「示意」的是動畫，其餘文字與數字是程式或工具<strong>真的輸出</strong>（執行後逐字抄下，來源見各卡片）。</div>
+
+  <!-- 1. swap the back end -->
+  <div class="card" id="swapCard">
+    <h2>1　換 back end，use case 不動</h2>
+    <div class="seg" role="group" aria-label="選擇 back end" id="backendSeg">
+      <button type="button" data-be="fake" aria-pressed="true">Fake（現在預設）</button>
+      <button type="button" data-be="scripted" aria-pressed="false">全新的 back end（測試裡的 Scripted）</button>
+      <button type="button" data-be="opencv" aria-pressed="false">OpenCV（S07）</button>
+      <button type="button" data-be="halcon" aria-pressed="false">HALCON（S08）</button>
+    </div>
+    <div class="swap">
+      <div class="box core">
+        <h3>use case：GenerateObjectsFromSample</h3>
+        <div class="small muted">src/application/usecases/</div>
+        <div class="small">只認識 <code>ITemplateBuilder</code>、<code>IPatternSearcher</code>。</div>
+        <div style="margin-top:8px"><span class="zero" id="changed">0</span> <span class="small">個檔案因為換 back end 而改動（<code>src/application</code>、<code>src/domain</code>）</span></div>
+      </div>
+      <div class="sockets" aria-hidden="true"><span>port</span><i></i><i></i><span>port</span></div>
+      <div class="box adapter live" id="adapterBox">
+        <h3 id="adapterTitle"></h3>
+        <div class="small" id="adapterBody"></div>
+      </div>
+    </div>
+    <div id="swapOut"></div>
+    <p class="small muted">「0 個檔案」是結構事實，不是量測：<code>tst_backend_registry::aBrandNewBackendRunsTheWholeUseCaseUnchanged</code> 在測試檔裡定義一個全新的 back end、註冊後經 <code>composeCore</code> 與 <code>JobRunner</code> 跑完整個 use case，沒有動 <code>src/application</code> 與 <code>src/domain</code>。這不代表「任何 back end 都零成本」：真的 OpenCV／HALCON adapter 還是要寫（S07、S08），只是不必改 use case。</p>
+  </div>
+
+  <!-- 2. sneak an include -->
+  <div class="card" id="depsCard">
+    <h2>2　偷 include：依賴檢查會怎麼說</h2>
+    <div class="row">
+      <label>要偷的 include
+        <select id="sneak" aria-label="選擇違規情境"></select>
+      </label>
+      <button type="button" class="btn primary" id="sneakBtn">加上這個 include</button>
+      <button type="button" class="btn" id="cleanBtn">還原</button>
+    </div>
+    <pre class="term" id="term" aria-live="polite"></pre>
+    <p class="small muted">終端機裡的字是 <code>node tools/check-deps.mjs --root tests/core/fixtures/deps/&lt;情境&gt;</code> 的<strong>真實輸出</strong>（這 13 個 fixture 同時是檢查器自己的測試：<code>--self-test</code> 要求「該報的一個不漏、不該報的一個不多」）。「還原」那一行是對真的 <code>src/</code> 執行的輸出。限制：只看 <code>#include</code> 文字；CMake 的連結關係是另一道防線。</p>
+  </div>
+
+  <!-- 3. latest wins -->
+  <div class="card" id="jobsCard">
+    <h2>3　新舊搜尋同時在跑：最新的贏（示意）</h2>
+    <div class="row">
+      <button type="button" class="btn primary" id="submitBtn">框一個樣本（submit）</button>
+      <button type="button" class="btn" id="cancelBtn">Esc（cancel）</button>
+      <label><input type="checkbox" id="stubborn"> 舊工作不看取消旗標（跑到結束）</label>
+      <button type="button" class="btn" id="resetJobs">清空</button>
+    </div>
+    <div id="jobs" aria-live="polite" style="margin-top:8px"></div>
+    <div class="note small" id="screenNow">畫面目前顯示：（還沒有結果）</div>
+    <p class="small muted">這是 <code>JobRunner</code> 規則的<strong>示意動畫</strong>（JavaScript 重寫的，不是 C++ 的輸出）。真正的行為由 <code>tst_job_runner</code> 的 17 個測試函式驗證，例如排隊中就被取代的工作根本不執行、不看旗標的舊工作仍被報告為 <code>Cancelled</code>。紅線是取消旗標升起的時間。</p>
+  </div>
+
+  <!-- 4. threshold -->
+  <div class="card" id="thrCard">
+    <h2>4　分數門檻只是重新過濾（真實輸出）</h2>
+    <div class="row">
+      <div class="seg" role="group" aria-label="情境" id="variantSeg"></div>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <label>分數門檻 <input type="range" id="thr" min="30" max="99" step="1" value="80" aria-label="分數門檻"></label>
+      <span class="kpi" id="thrLabel">0.80</span>
+      <span class="small muted" id="counts"></span>
+    </div>
+    <div class="grid" style="margin-top:8px">
+      <div><canvas id="board" width="800" height="600" aria-label="候選元件依門檻分類後的樣子"></canvas></div>
+      <div>
+        <div class="legend">
+          <span><svg viewBox="0 0 34 10"><line x1="1" y1="5" x2="33" y2="5" stroke="var(--sample)" stroke-width="3"/></svg>樣本</span>
+          <span><svg viewBox="0 0 34 10"><line x1="1" y1="5" x2="33" y2="5" stroke="var(--found)" stroke-width="2"/></svg>找到</span>
+          <span><svg viewBox="0 0 34 10"><line x1="1" y1="5" x2="33" y2="5" stroke="var(--infer)" stroke-width="2" stroke-dasharray="8 4"/></svg>推算</span>
+          <span><svg viewBox="0 0 34 10"><line x1="1" y1="5" x2="33" y2="5" stroke="var(--reject)" stroke-width="2" stroke-dasharray="1 4" stroke-linecap="round"/></svg>拒絕</span>
+        </div>
+        <p id="variantText" class="small"></p>
+        <div class="note small" id="noMatch" hidden></div>
+        <table id="sources"><thead><tr><th>來源</th><th>說明</th><th>數量</th></tr></thead><tbody></tbody></table>
+      </div>
+    </div>
+    <p class="small muted">資料是 <code>perf_core</code> 的 <code>p5_demoRunsForTheExplainer</code> 用假 back end <strong>真的跑 use case</strong> 得到的候選（位置、分數、來源）。這一頁的 JavaScript 只做 <code>classify()</code> 做的事：分數 ≥ 門檻是「找到」，否則「拒絕」；沒有分數的是「推算」。拖滑桿時<strong>沒有任何搜尋</strong>。「降低門檻到」的建議值取到小數第二位、向下取整，所以按下去最高分的候選一定過關。</p>
+  </div>
+
+  <!-- 5. costs -->
+  <div class="card" id="costCard">
+    <h2>5　量到的成本（這台機器、Release）</h2>
+    <div class="small muted" id="machine"></div>
+    <div style="overflow-x:auto"><table id="costTable"><thead><tr><th>ID</th><th>量什麼</th><th>中位數</th><th>p95</th><th>3 次範圍</th><th></th></tr></thead><tbody></tbody></table></div>
+    <div class="note small" id="costNote"></div>
+    <p class="small muted">全部在 <code>perf_core</code>（label perf）。假 back end 沒有搜尋成本，所以 P4 量的是 use case 自己（擬合、指派、打包），<strong>不是真實搜尋時間</strong>。「PerfProbe 關閉」的額外成本小到量不出來（差距在量測誤差內，不是精確的 0）。換機器數字會變；同一份程式不同時間量會飄，這台機器曾飄到 ±30%（S02）。</p>
+  </div>
+
+  <div class="card" id="text"></div>
+</div>
+
+<script type="application/json" id="deps-data">{"clean":"check-deps: 80 files scanned, 0 violation(s)","scenarios":[{"label":"domain：加一行 #include <QString>","root":"tests/core/fixtures/deps/domain-qt","lines":["src/domain/bad.h:3: #include QString — domain must not include Qt (<QString>): domain only uses the C++ standard library"],"summary":"check-deps: 1 files scanned, 1 violation(s)"},{"label":"application：加 OpenCV、HALCON、Qt 的標頭","root":"tests/core/fixtures/deps/application-vision","lines":["src/application/bad.h:2: #include opencv2/core.hpp — application must not include OpenCV (<opencv2/core.hpp>): application only depends on domain (and the standard library)","src/application/bad.h:3: #include halconcpp/HalconCpp.h — application must not include HALCON (<halconcpp/HalconCpp.h>): application only depends on domain (and the standard library)","src/application/bad.h:4: #include QtCore/QString — application must not include Qt (<QtCore/QString>): application only depends on domain (and the standard library)"],"summary":"check-deps: 1 files scanned, 3 violation(s)"},{"label":"application：反向 include presentation、infrastructure、app","root":"tests/core/fixtures/deps/application-upward","lines":["src/application/bad.h:2: #include presentation/Ui.h — application must not include presentation (\"presentation/Ui.h\"): application only depends on domain (and the standard library)","src/application/bad.h:3: #include infrastructure/perf/P.h — application must not include infrastructure (\"infrastructure/perf/P.h\"): application only depends on domain (and the standard library)","src/application/bad.h:4: #include app/Root.h — application must not include app (\"app/Root.h\"): application only depends on domain (and the standard library)"],"summary":"check-deps: 4 files scanned, 3 violation(s)"},{"label":"OpenCV／HALCON adapter：互相 include 對方","root":"tests/core/fixtures/deps/adapter-cross","lines":["src/infrastructure/backend_halcon/Hl.h:2: #include opencv2/core.hpp — infrastructure/backend_halcon must not include OpenCV (<opencv2/core.hpp>): the HALCON adapter may use HALCON, never Qt Widgets, OpenCV or another adapter","src/infrastructure/backend_halcon/Hl.h:3: #include QWidget — infrastructure/backend_halcon must not include Qt Widgets/Gui or an unknown Qt header (<QWidget>): the HALCON adapter may use HALCON, never Qt Widgets, OpenCV or another adapter","src/infrastructure/backend_opencv/Cv.h:2: #include infrastructure/backend_halcon/Hl.h — infrastructure/backend_opencv must not include another adapter (infrastructure/backend_halcon)","src/infrastructure/backend_opencv/Cv.h:3: #include halconcpp/HalconCpp.h — infrastructure/backend_opencv must not include HALCON (<halconcpp/HalconCpp.h>): the OpenCV adapter may use OpenCV, never Qt Widgets, HALCON or another adapter"],"summary":"check-deps: 2 files scanned, 4 violation(s)"},{"label":"presentation：include OpenCV 與 infrastructure","root":"tests/core/fixtures/deps/presentation-vision","lines":["src/presentation/Ui.h:2: #include opencv2/core.hpp — presentation must not include OpenCV (<opencv2/core.hpp>): presentation may use Qt, never a vision library or infrastructure","src/presentation/Ui.h:3: #include infrastructure/backend_opencv/Cv.h — presentation must not include infrastructure (\"infrastructure/backend_opencv/Cv.h\"): presentation may use Qt, never a vision library or infrastructure"],"summary":"check-deps: 2 files scanned, 2 violation(s)"}],"errors":{"opencv":"Cannot start the 'opencv' back end: The OpenCV back end is not built into this program yet. It arrives in step S07. Available back ends: fake.","halcon":"Cannot start the 'halcon' back end: The HALCON back end is not built into this program yet. It arrives in step S08. Available back ends: fake."}}</script>
+<script type="application/json" id="demo-data">[{"candidates":[{"score":0.99,"source":"sample","x":400,"y":300},{"score":0.99,"source":"seed","x":460,"y":390},{"score":0.984,"source":"seed","x":160,"y":300},{"score":0.983,"source":"seed","x":220,"y":345},{"score":0.982,"source":"seed","x":640,"y":300},{"score":0.981,"source":"seed","x":580,"y":300},{"score":0.98,"source":"seed","x":640,"y":255},{"score":0.974,"source":"seed","x":400,"y":390},{"score":0.972,"source":"seed","x":580,"y":210},{"score":0.971,"source":"seed","x":520,"y":255},{"score":0.968,"source":"seed","x":280,"y":210},{"score":0.967,"source":"seed","x":460,"y":255},{"score":0.966,"source":"seed","x":640,"y":345},{"score":0.965,"source":"seed","x":460,"y":300},{"score":0.961,"source":"seed","x":340,"y":210},{"score":0.96,"source":"seed","x":160,"y":390},{"score":0.959,"source":"seed","x":400,"y":210},{"score":0.959,"source":"seed","x":400,"y":255},{"score":0.949,"source":"seed","x":220,"y":210},{"score":0.942,"source":"seed","x":640,"y":390},{"score":0.941,"source":"seed","x":340,"y":255},{"score":0.941,"source":"seed","x":280,"y":345},{"score":0.94,"source":"seed","x":280,"y":255},{"score":0.94,"source":"seed","x":160,"y":345},{"score":0.938,"source":"seed","x":340,"y":345},{"score":0.938,"source":"seed","x":580,"y":255},{"score":0.937,"source":"seed","x":280,"y":390},{"score":0.936,"source":"seed","x":160,"y":255},{"score":0.935,"source":"seed","x":460,"y":345},{"score":0.935,"source":"seed","x":340,"y":390},{"score":0.933,"source":"seed","x":160,"y":210},{"score":0.926,"source":"seed","x":580,"y":345},{"score":0.925,"source":"seed","x":220,"y":390},{"score":0.923,"source":"seed","x":640,"y":210},{"score":0.917,"source":"seed","x":520,"y":345},{"score":0.914,"source":"seed","x":220,"y":255},{"score":0.914,"source":"seed","x":520,"y":210},{"score":0.913,"source":"seed","x":520,"y":390},{"score":0.913,"source":"seed","x":460,"y":210},{"score":0.912,"source":"seed","x":520,"y":300},{"score":0.91,"source":"seed","x":580,"y":390},{"score":0.907,"source":"seed","x":340,"y":300},{"score":0.906,"source":"seed","x":220,"y":300},{"score":0.906,"source":"seed","x":400,"y":345},{"score":0.905,"source":"seed","x":280,"y":300}],"id":"clean","image":[800,600],"label":"clean grid: every part found by the seed search","part":[40,30]},{"candidates":[{"score":0.99,"source":"sample","x":400,"y":300},{"score":0.982,"source":"seed","x":520,"y":300},{"score":0.98,"source":"seed","x":520,"y":255},{"score":0.979,"source":"seed","x":340,"y":210},{"score":0.971,"source":"seed","x":640,"y":255},{"score":0.968,"source":"seed","x":580,"y":300},{"score":0.966,"source":"seed","x":520,"y":345},{"score":0.964,"source":"seed","x":340,"y":300},{"score":0.957,"source":"seed","x":460,"y":255},{"score":0.952,"source":"seed","x":580,"y":210},{"score":0.951,"source":"seed","x":160,"y":210},{"score":0.951,"source":"seed","x":160,"y":300},{"score":0.948,"source":"seed","x":400,"y":390},{"score":0.947,"source":"seed","x":220,"y":300},{"score":0.947,"source":"seed","x":160,"y":255},{"score":0.945,"source":"seed","x":580,"y":390},{"score":0.942,"source":"seed","x":520,"y":390},{"score":0.931,"source":"seed","x":280,"y":390},{"score":0.93,"source":"seed","x":340,"y":345},{"score":0.929,"source":"seed","x":280,"y":255},{"score":0.929,"source":"seed","x":340,"y":255},{"score":0.923,"source":"seed","x":520,"y":210},{"score":0.922,"source":"seed","x":460,"y":390},{"score":0.922,"source":"seed","x":280,"y":210},{"score":0.917,"source":"seed","x":580,"y":255},{"score":0.916,"source":"seed","x":460,"y":300},{"score":0.913,"source":"seed","x":640,"y":390},{"score":0.913,"source":"seed","x":340,"y":390},{"score":0.912,"source":"seed","x":640,"y":300},{"score":0.911,"source":"seed","x":160,"y":390},{"score":0.904,"source":"seed","x":220,"y":345},{"score":0.574,"source":"verified","x":220,"y":210},{"score":0.552,"source":"verified","x":400,"y":210},{"score":0.644,"source":"verified","x":460,"y":210},{"score":0.439,"source":"verified","x":640,"y":210},{"score":0.44,"source":"verified","x":220,"y":255},{"score":0.429,"source":"verified","x":400,"y":255},{"score":0.577,"source":"verified","x":280,"y":300},{"score":0.517,"source":"verified","x":160,"y":345},{"score":0.401,"source":"verified","x":280,"y":345},{"score":0.617,"source":"verified","x":400,"y":345},{"score":0.647,"source":"verified","x":460,"y":345},{"score":0.627,"source":"verified","x":580,"y":345},{"score":0.446,"source":"verified","x":640,"y":345},{"score":0.613,"source":"verified","x":220,"y":390}],"id":"weak","image":[800,600],"label":"25% weak parts: only the window search finds them","part":[40,30]},{"candidates":[{"score":0.99,"source":"sample","x":400,"y":300},{"score":0.99,"source":"seed","x":580,"y":390},{"score":0.984,"source":"seed","x":280,"y":300},{"score":0.983,"source":"seed","x":340,"y":345},{"score":0.981,"source":"seed","x":460,"y":300},{"score":0.974,"source":"seed","x":520,"y":390},{"score":0.972,"source":"seed","x":460,"y":210},{"score":0.971,"source":"seed","x":400,"y":255},{"score":0.968,"source":"seed","x":160,"y":210},{"score":0.965,"source":"seed","x":580,"y":300},{"score":0.961,"source":"seed","x":220,"y":210},{"score":0.96,"source":"seed","x":280,"y":390},{"score":0.949,"source":"seed","x":340,"y":210},{"score":0.948,"source":"seed","x":640,"y":390},{"score":0.941,"source":"seed","x":160,"y":345},{"score":0.94,"source":"seed","x":280,"y":345},{"score":0.938,"source":"seed","x":220,"y":345},{"score":0.935,"source":"seed","x":580,"y":345},{"score":0.935,"source":"seed","x":220,"y":390},{"score":0.933,"source":"seed","x":280,"y":210},{"score":0.926,"source":"seed","x":460,"y":345},{"score":0.925,"source":"seed","x":340,"y":390},{"score":0.914,"source":"seed","x":340,"y":255},{"score":0.914,"source":"seed","x":400,"y":210},{"score":0.913,"source":"seed","x":400,"y":390},{"score":0.913,"source":"seed","x":580,"y":210},{"score":0.91,"source":"seed","x":460,"y":390},{"score":0.907,"source":"seed","x":220,"y":300},{"score":0.906,"source":"seed","x":340,"y":300},{"score":0.905,"source":"seed","x":160,"y":300},{"score":null,"source":"predicted","x":520,"y":210},{"score":null,"source":"predicted","x":640,"y":210},{"score":null,"source":"predicted","x":160,"y":255},{"score":null,"source":"predicted","x":220,"y":255},{"score":null,"source":"predicted","x":280,"y":255},{"score":null,"source":"predicted","x":460,"y":255},{"score":null,"source":"predicted","x":520,"y":255},{"score":null,"source":"predicted","x":580,"y":255},{"score":null,"source":"predicted","x":640,"y":255},{"score":null,"source":"predicted","x":520,"y":300},{"score":null,"source":"predicted","x":640,"y":300},{"score":null,"source":"predicted","x":400,"y":345},{"score":null,"source":"predicted","x":520,"y":345},{"score":null,"source":"predicted","x":640,"y":345},{"score":null,"source":"predicted","x":160,"y":390}],"id":"missing","image":[800,600],"label":"20% missing parts: the grid predicts them (inferred)","part":[40,30]},{"candidates":[{"score":0.99,"source":"sample","x":400,"y":300},{"score":0.987,"source":"seed","x":577.47,"y":244.98},{"score":0.987,"source":"seed","x":525.01,"y":383.35},{"score":0.985,"source":"seed","x":163.42,"y":357.77},{"score":0.985,"source":"seed","x":639.36,"y":288.02},{"score":0.984,"source":"seed","x":522,"y":339.11},{"score":0.984,"source":"seed","x":281.75,"y":351.83},{"score":0.983,"source":"seed","x":636.75,"y":242.42},{"score":0.977,"source":"seed","x":344.82,"y":393.07},{"score":0.97,"source":"seed","x":223.19,"y":354.3},{"score":0.964,"source":"seed","x":584.42,"y":379.93},{"score":0.959,"source":"seed","x":217.31,"y":264.96},{"score":0.953,"source":"seed","x":395.17,"y":209.83},{"score":0.953,"source":"seed","x":644.45,"y":377.99},{"score":0.953,"source":"seed","x":462.63,"y":341.18},{"score":0.952,"source":"seed","x":335.33,"y":212.5},{"score":0.951,"source":"seed","x":456.82,"y":251.41},{"score":0.951,"source":"seed","x":157.64,"y":267.11},{"score":0.949,"source":"seed","x":214.93,"y":219.25},{"score":0.949,"source":"seed","x":278.06,"y":261.5},{"score":0.948,"source":"seed","x":464.26,"y":386.72},{"score":0.948,"source":"seed","x":520.13,"y":294.21},{"score":0.945,"source":"seed","x":580.19,"y":290.09},{"score":0.94,"source":"seed","x":337.28,"y":258.98},{"score":0.935,"source":"seed","x":155.8,"y":222.71},{"score":0.931,"source":"seed","x":220.57,"y":309.16},{"score":0.93,"source":"seed","x":285.27,"y":395.44},{"score":0.928,"source":"seed","x":275.81,"y":216.86},{"score":0.916,"source":"seed","x":581.8,"y":336.11},{"score":0.915,"source":"seed","x":460.26,"y":296.09},{"score":0.914,"source":"seed","x":280.17,"y":305.95},{"score":0.908,"source":"seed","x":397.27,"y":255.47},{"score":0.908,"source":"seed","x":159.58,"y":312.44},{"score":0.906,"source":"seed","x":641.91,"y":333.04},{"score":0.906,"source":"seed","x":635.21,"y":198.05},{"score":null,"source":"predicted","x":455.02,"y":207},{"score":0.511,"source":"verified","x":514.84,"y":203.86},{"score":0.404,"source":"verified","x":575.23,"y":200.1},{"score":0.484,"source":"verified","x":517.7,"y":249.04},{"score":null,"source":"predicted","x":340.05,"y":303.11},{"score":0.624,"source":"verified","x":342.24,"y":347.42},{"score":0.411,"source":"verified","x":402.7,"y":344.58},{"score":0.569,"source":"verified","x":165.28,"y":402.5},{"score":null,"source":"predicted","x":225.07,"y":399.22},{"score":0.645,"source":"verified","x":404.51,"y":390.55}],"id":"mixed","image":[800,600],"label":"rotated 3 degrees, noisy, weak and missing parts together","part":[40,30]}]</script>
+<script type="application/json" id="perf-data">{"machine":{"buildType":"Release","commit":"38bbbdf+uncommitted","compiler":"MSVC 194435228","cpu":"13th Gen Intel(R) Core(TM) i7-1360P","logicalCores":16,"machineName":"CasparHsu1","measurementHygiene":"process priority HIGH; power throttling off; thread pinned to logical CPU 0 (efficiency class 1 of 2 classes)","os":"Windows 11 Version 23H2 (kernel 10.0.22631)","qt":"6.8.0","ramGB":63.6},"metrics":[{"id":"P1-baseline","label":"empty loop body (volatile increment)","unit":"ns","n":9,"median":5.957,"p95":6.174,"medianRangeOf3Runs":[5.887,6.141],"note":"reference only"},{"id":"P1-null","label":"ScopedTimer with a null probe","unit":"ns","n":9,"median":6.745,"p95":7.127,"medianRangeOf3Runs":[6.009,6.745],"note":"includes the volatile loop body above"},{"id":"P1-off","label":"ScopedTimer with a disabled PerfProbe","unit":"ns","n":9,"median":6.31,"p95":7.257,"medianRangeOf3Runs":[5.706,6.31],"note":"includes the volatile loop body above"},{"id":"P1-on","label":"ScopedTimer with an enabled PerfProbe (ring buffer, mutex)","unit":"ns","n":9,"median":257.3,"p95":288.9,"medianRangeOf3Runs":[257.3,290.7],"note":"two clock reads plus one record()"},{"id":"P1-clock","label":"two steady_clock::now() calls","unit":"ns","n":9,"median":113.8,"p95":147.1,"medianRangeOf3Runs":[113.8,133.8],"note":"the floor for any enabled timer"},{"id":"P2-queue","label":"job submit → start of work (idle pool, 2 workers)","unit":"ms","n":280,"median":0.0413,"p95":0.1049,"medianRangeOf3Runs":[0.0413,0.0472],"note":"worker wake-up included"},{"id":"P2-submit","label":"submit() duration on the calling thread","unit":"ms","n":280,"median":0.0245,"p95":0.0433,"medianRangeOf3Runs":[0.0245,0.0297],"note":"what the UI thread pays"},{"id":"P3-spin","label":"cancel() → work sees the flag (work spins on the flag)","unit":"ms","n":90,"median":0.0113,"p95":0.0186,"medianRangeOf3Runs":[0.0113,0.0138],"note":"flag visibility only"},{"id":"P3-poll1ms","label":"cancel() → work sees the flag (work checks every 1 ms, like the fake back end)","unit":"ms","n":90,"median":1.437,"p95":16.94,"medianRangeOf3Runs":[1.437,8.724],"note":"polling interval dominates; Windows sleep granularity applies"},{"id":"P4-225-off","label":"use case on a 5 MP image, ~225 parts (probe off)","unit":"ms","n":20,"median":1.33,"p95":1.739,"medianRangeOf3Runs":[1.33,2.176],"note":"225 candidates; the fake search costs almost nothing, so this is the use case's own cost"},{"id":"P4-225-seed","label":"use case on a 5 MP image, ~225 parts: seed stage","unit":"ms","n":20,"median":0.0218,"p95":0.0318,"medianRangeOf3Runs":[0.0218,0.0367],"note":""},{"id":"P4-225-fit","label":"use case on a 5 MP image, ~225 parts: fit stage (simple stand-in)","unit":"ms","n":20,"median":1.211,"p95":1.621,"medianRangeOf3Runs":[1.211,1.958],"note":""},{"id":"P4-225-verify","label":"use case on a 5 MP image, ~225 parts: verify stage","unit":"ms","n":20,"median":0.0204,"p95":0.0247,"medianRangeOf3Runs":[0.0204,0.0283],"note":""},{"id":"P4-225-on","label":"use case on a 5 MP image, ~225 parts (probe on)","unit":"ms","n":20,"median":1.53,"p95":2.341,"medianRangeOf3Runs":[1.53,2.323],"note":"225 candidates; the fake search costs almost nothing, so this is the use case's own cost"},{"id":"P4-4900-off","label":"use case on a 5 MP image, ~4 900 parts (probe off)","unit":"ms","n":20,"median":148.5,"p95":174.2,"medianRangeOf3Runs":[106.4,148.5],"note":"4941 candidates; the fake search costs almost nothing, so this is the use case's own cost"},{"id":"P4-4900-seed","label":"use case on a 5 MP image, ~4 900 parts: seed stage","unit":"ms","n":20,"median":2.083,"p95":2.433,"medianRangeOf3Runs":[1.48,2.083],"note":""},{"id":"P4-4900-fit","label":"use case on a 5 MP image, ~4 900 parts: fit stage (simple stand-in)","unit":"ms","n":20,"median":134.4,"p95":158.3,"medianRangeOf3Runs":[96.72,134.4],"note":""},{"id":"P4-4900-verify","label":"use case on a 5 MP image, ~4 900 parts: verify stage","unit":"ms","n":20,"median":7.978,"p95":9.575,"medianRangeOf3Runs":[6.701,7.978],"note":""},{"id":"P4-4900-on","label":"use case on a 5 MP image, ~4 900 parts (probe on)","unit":"ms","n":20,"median":96.73,"p95":117,"medianRangeOf3Runs":[96.73,138.9],"note":"4941 candidates; the fake search costs almost nothing, so this is the use case's own cost"}]}</script>
+
+<!-- Text for the page. Strings under the key "ste" are checked by tools/ste-lint.mjs. -->
+<script type="application/json" id="aoi-data">
+{
+  "sections": [
+    { "title": "Purpose",
+      "ste": { "text": "This page shows how the core works without a screen. You can swap a back end, break a rule and cancel a job." },
+      "zh": "這一頁說明沒有畫面的核心怎麼運作：換 back end、違反規則、取消工作。" },
+    { "title": "Reason",
+      "ste": { "text": "The use case knows only ports. So a new back end does not change it. A checker keeps the layers apart." },
+      "zh": "use case 只認識 port，所以新 back end 不必改它；一個檢查器守住分層。" },
+    { "title": "Effect",
+      "ste": { "text": "We swap the back end and the use case stays the same. A wrong include fails the build. The latest job wins." },
+      "zh": "換 back end，use case 不變；偷 include 會讓建置失敗；最新的工作贏。" },
+    { "title": "How to use the page",
+      "ste": { "text": "Pick a back end in card one. Add a wrong include in card two. Submit jobs in card three. Move the threshold in card four." },
+      "zh": "在第一張卡片選 back end，第二張加違規的 include，第三張提交工作，第四張拖門檻。" },
+    { "title": "What is real",
+      "ste": { "text": "The error text, the checker output and the candidates come from the real program. The job animation is only a sketch." },
+      "zh": "錯誤訊息、檢查器輸出與候選是程式真的輸出；工作動畫只是示意。" }
+  ]
+}
+</script>
+<script>
+(() => {
+  const $ = (s) => document.querySelector(s);
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const deps = JSON.parse($('#deps-data').textContent);
+  const demo = JSON.parse($('#demo-data').textContent);
+  const perf = JSON.parse($('#perf-data').textContent);
+  const data = JSON.parse($('#aoi-data').textContent);
+  const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+
+  /* ---------- 1. swap the back end ---------- */
+  const failOut = (id) => '<pre class="term"><span class="dim">$ aoi.exe --backend=' + id + '</span>\n<span class="red">' + esc(deps.errors[id]) + '</span>\n<span class="dim">結束碼 2（tst_cli 驗證）</span></pre>';
+  const BACKENDS = {
+    fake: { title: 'FakeTemplateBuilder + FakeSearcher', live: true,
+      body: '<strong>已經在 repo 裡</strong>（<code>src/infrastructure/backend_fake/</code>）。只用標準庫，不看影像：以樣本為中心排一個合成網格。<br>接上去只要在 <code>CompositionRoot.cpp</code> 註冊一行。',
+      out: '<pre class="term"><span class="dim">$ aoi.exe --backend=fake</span>\n<span class="grn">視窗開啟，程式持續執行。</span>（<code>tst_cli</code> 驗證：2.5 秒後行程仍在執行）</pre>' },
+    scripted: { title: 'ScriptedBuilder + ScriptedSearcher（只存在於測試）', live: true,
+      body: '兩個類別，各實作一個 port，回報固定的兩個匹配。<br>新增的檔案：<strong>只有測試檔</strong>，加上一次 <code>registry.registerBackend(...)</code>。',
+      out: '<pre class="term"><span class="dim">tst_backend_registry::aBrandNewBackendRunsTheWholeUseCaseUnchanged</span>\n<span class="grn">PASS</span>  經 composeCore、JobRunner 跑完整個 use case：樣本 + 1 個鄰居 = 2 個候選</pre>' },
+    opencv: { title: 'OpenCvTemplateBuilder + OpenCvPatternSearcher', live: false,
+      body: '<strong>還沒有</strong>（S07）。組裝根把它登記成「不可用」，並附原因。',
+      out: () => failOut('opencv') },
+    halcon: { title: 'HalconTemplateBuilder + HalconPatternSearcher', live: false,
+      body: '<strong>還沒有</strong>（S08；而且這台機器只有 HALCON runtime，沒有 C++ 標頭與程式庫）。',
+      out: () => failOut('halcon') }
+  };
+  function showBackend(id) {
+    const b = BACKENDS[id];
+    document.querySelectorAll('#backendSeg button').forEach((x) => x.setAttribute('aria-pressed', String(x.dataset.be === id)));
+    $('#adapterTitle').textContent = b.title;
+    $('#adapterBody').innerHTML = b.body;
+    $('#adapterBox').className = 'box adapter ' + (b.live ? 'live' : 'dead');
+    $('#swapOut').innerHTML = typeof b.out === 'function' ? b.out() : b.out;
+    $('#changed').textContent = '0';
+  }
+  document.querySelectorAll('#backendSeg button').forEach((x) => x.addEventListener('click', () => showBackend(x.dataset.be)));
+  showBackend('fake');
+
+  /* ---------- 2. sneak an include ---------- */
+  const sneak = $('#sneak');
+  deps.scenarios.forEach((s, i) => { const o = document.createElement('option'); o.value = String(i); o.textContent = s.label; sneak.appendChild(o); });
+  const term = $('#term');
+  function renderClean() {
+    term.innerHTML = '<span class="dim">$ node tools/check-deps.mjs</span>\n<span class="grn">' + esc(deps.clean) + '</span>\n<span class="dim">結束碼 0；CTest 的 check_deps：Passed</span>';
+  }
+  function renderBroken() {
+    const s = deps.scenarios[Number(sneak.value)];
+    term.innerHTML = '<span class="dim">$ node tools/check-deps.mjs --root ' + esc(s.root) + '</span>\n' +
+      s.lines.map((l) => '<span class="red">' + esc(l) + '</span>').join('\n') + '\n<span class="dim">' + esc(s.summary) + '\n結束碼 1；CTest 的 check_deps：Failed → 建置不算通過</span>';
+  }
+  $('#sneakBtn').addEventListener('click', renderBroken);
+  $('#cleanBtn').addEventListener('click', renderClean);
+  sneak.addEventListener('change', renderBroken);
+  renderClean();
+
+  /* ---------- 3. latest wins (sketch) ---------- */
+  const JOB_MS = 2400, POLL_MS = 60;
+  let jobs = [], nextId = 1, latest = 0, clock = null, shown = 0;
+  const now = () => performance.now();
+  function stateText(j) {
+    if (j.state === 'running') return j.flagAt ? '執行中，旗標已升起' + (j.stubborn ? '（不看旗標）' : '，快停了') : '執行中';
+    if (j.state === 'done') return '<span class="ok">Completed ＋ latest：結果顯示</span>';
+    return '<span class="muted">Cancelled：結果丟棄</span>';
+  }
+  function renderJobs() {
+    const t = now();
+    $('#jobs').innerHTML = jobs.map((j) => {
+      const end = j.endedAt || t;
+      const pct = Math.min(100, ((end - j.startedAt) / JOB_MS) * 100);
+      const flag = j.flagAt ? '<div class="flag" style="left:' + Math.min(99, ((j.flagAt - j.startedAt) / JOB_MS) * 100) + '%"></div>' : '';
+      return '<div class="job"><b>Job ' + j.id + '</b><div class="track"><i class="' + (j.state === 'cancelled' ? 'cancelled' : j.state === 'done' ? 'done' : '') + '" style="width:' + pct + '%"></i>' + flag + '</div><div class="st">' + stateText(j) + '</div></div>';
+    }).join('') || '<div class="small muted">按「框一個樣本」提交工作。</div>';
+    $('#screenNow').textContent = '畫面目前顯示：' + (shown ? 'Job ' + shown + ' 的結果' : '（還沒有結果）');
+  }
+  function tick() {
+    const t = now();
+    let active = false;
+    for (const j of jobs) {
+      if (j.state !== 'running') continue;
+      const finishesAt = j.startedAt + JOB_MS;
+      const stopsAt = j.flagAt && !j.stubborn ? j.flagAt + POLL_MS : Infinity;
+      const endAt = Math.min(finishesAt, stopsAt);
+      if (t >= endAt) {
+        j.endedAt = endAt;
+        // JobRunner：結束時旗標已升起 → Cancelled；否則 Completed。是不是最新的，結束那一刻算。
+        if (j.flagAt && j.flagAt <= endAt) j.state = 'cancelled';
+        else { j.state = 'done'; if (latest === j.id) shown = j.id; }
+      } else active = true;
+    }
+    renderJobs();
+    if (!active && clock) { clearInterval(clock); clock = null; }
+  }
+  function ensureClock() { if (!clock) clock = setInterval(tick, 40); }
+  $('#submitBtn').addEventListener('click', () => {
+    const t = now();
+    const prev = jobs.find((j) => j.id === latest && j.state === 'running');
+    if (prev && !prev.flagAt) prev.flagAt = t;           // latest-wins：舊工作的旗標立刻升起，不等它停下
+    jobs.push({ id: nextId, startedAt: t, state: 'running', stubborn: $('#stubborn').checked, flagAt: 0, endedAt: 0 });
+    latest = nextId++;
+    ensureClock(); tick();
+  });
+  $('#cancelBtn').addEventListener('click', () => {
+    const cur = jobs.find((j) => j.id === latest && j.state === 'running');
+    if (cur && !cur.flagAt) cur.flagAt = now();
+    latest = 0;                                           // cancel()：目前沒有最新的工作
+    ensureClock(); tick();
+  });
+  $('#resetJobs').addEventListener('click', () => { jobs = []; latest = 0; shown = 0; renderJobs(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') $('#cancelBtn').click(); });
+  renderJobs();
+
+  /* ---------- 4. threshold ---------- */
+  const variantSeg = $('#variantSeg');
+  const SOURCE_TEXT = { sample: '使用者框的那一個', seed: '種子搜尋找到（整張影像，分數 ≥ 0.70）', verified: '視窗驗證找到（分數 ≥ 0.30）', predicted: '晶格預測有、影像上沒找到（沒有分數）' };
+  const VARIANT_TEXT = {
+    clean: '所有零件都被種子搜尋找到，沒有補漏。',
+    weak: '25% 的零件分數偏低（0.40–0.65）：種子搜尋看不到，晶格預測出缺格後，小視窗以較低的下限找回來。把門檻拉到 0.65 以上，它們就變成「拒絕」。',
+    missing: '20% 的格子沒有零件：晶格預測它們存在、視窗裡什麼都沒有，所以是「推算」（沒有分數，不偽造）。',
+    mixed: '網格轉 3°、位置有雜訊、同時有低分與缺件。'
+  };
+  let variant = demo[0].id;
+  demo.forEach((d) => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.dataset.v = d.id; b.textContent = d.id; b.setAttribute('aria-pressed', String(d.id === variant));
+    b.addEventListener('click', () => { variant = d.id; drawVariant(); });
+    variantSeg.appendChild(b);
+  });
+  function classify(c, thr) {
+    if (c.source === 'sample') return 'sample';
+    if (c.source === 'predicted') return 'inferred';
+    return c.score >= thr ? 'found' : 'rejected';
+  }
+  function drawVariant() {
+    variantSeg.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === variant)));
+    const d = demo.find((x) => x.id === variant);
+    const thr = Number($('#thr').value) / 100;
+    $('#thrLabel').textContent = thr.toFixed(2);
+    const cv = $('#board'), ctx = cv.getContext('2d');
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    ctx.fillStyle = '#1a5c3a'; ctx.fillRect(0, 0, cv.width, cv.height);
+    const style = { sample: [css('--sample'), 4, []], found: [css('--found'), 2, []], inferred: [css('--infer'), 2, [10, 6]], rejected: [css('--reject'), 2, [2, 6]] };
+    const counts = { sample: 0, found: 0, inferred: 0, rejected: 0 };
+    let highest = 0, others = 0;
+    const [pw, ph] = d.part;
+    d.candidates.forEach((c) => {
+      const st = classify(c, thr);
+      counts[st]++;
+      if (c.source === 'seed' || c.source === 'verified') { others++; highest = Math.max(highest, c.score); }
+      const [color, w, dash] = style[st];
+      ctx.save(); ctx.translate(c.x, c.y);
+      ctx.lineWidth = w + 2; ctx.strokeStyle = 'rgba(0,0,0,.65)'; ctx.setLineDash(dash.length ? dash : []); ctx.strokeRect(-pw / 2, -ph / 2, pw, ph);
+      ctx.lineWidth = w; ctx.strokeStyle = color; ctx.lineCap = st === 'rejected' ? 'round' : 'butt'; ctx.strokeRect(-pw / 2, -ph / 2, pw, ph);
+      ctx.restore();
+    });
+    $('#counts').textContent = '找到 ' + counts.found + ' · 拒絕 ' + counts.rejected + ' · 推算 ' + counts.inferred + ' · 樣本 1（共 ' + d.candidates.length + ' 個候選，沒有重新搜尋）';
+    $('#variantText').textContent = VARIANT_TEXT[d.id] || '';
+    const nm = $('#noMatch');
+    if (counts.found === 0 && others > 0) {
+      const suggested = Math.max(0.30, Math.floor(highest * 100) / 100);
+      nm.hidden = false;
+      nm.textContent = '沒有候選達到門檻（ThresholdTooHigh）：最高分 ' + highest.toFixed(3) + '，建議降低到 ' + suggested.toFixed(2) + '。';
+    } else nm.hidden = true;
+    const by = {};
+    d.candidates.forEach((c) => { by[c.source] = (by[c.source] || 0) + 1; });
+    $('#sources tbody').innerHTML = ['sample', 'seed', 'verified', 'predicted'].filter((k) => by[k]).map((k) => '<tr><td>' + k + '</td><td>' + esc(SOURCE_TEXT[k]) + '</td><td>' + by[k] + '</td></tr>').join('');
+  }
+  $('#thr').addEventListener('input', drawVariant);
+  drawVariant();
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', drawVariant);
+
+  /* ---------- 5. costs ---------- */
+  const fmt = (v, unit) => unit === 'ns' ? (v >= 100 ? v.toFixed(0) : v.toFixed(1)) + ' ns' : (v >= 10 ? v.toFixed(1) : v >= 1 ? v.toFixed(2) : v.toFixed(3)) + ' ms';
+  const SHOW = ['P1-baseline', 'P1-null', 'P1-off', 'P1-on', 'P1-clock', 'P2-queue', 'P2-submit', 'P3-spin', 'P3-poll1ms', 'P4-225-off', 'P4-225-fit', 'P4-4900-off', 'P4-4900-fit', 'P4-4900-verify'];
+  const byId = Object.fromEntries(perf.metrics.map((m) => [m.id, m]));
+  const maxByUnit = {};
+  SHOW.forEach((id) => { const m = byId[id]; if (m) maxByUnit[m.unit] = Math.max(maxByUnit[m.unit] || 0, m.median); });
+  $('#costTable tbody').innerHTML = SHOW.filter((id) => byId[id]).map((id) => {
+    const m = byId[id];
+    const r = m.medianRangeOf3Runs;
+    const w = Math.max(1, (Math.log10(m.median + 1) / Math.log10(maxByUnit[m.unit] + 1)) * 100);
+    return '<tr><td>' + id + '</td><td>' + esc(m.label) + '</td><td>' + fmt(m.median, m.unit) + '</td><td>' + fmt(m.p95, m.unit) + '</td><td>' + fmt(r[0], m.unit) + ' – ' + fmt(r[1], m.unit) + '</td><td><div class="bar" title="對數刻度"><i style="width:' + w + '%"></i></div></td></tr>';
+  }).join('');
+  const mc = perf.machine;
+  $('#machine').textContent = mc.cpu + '；' + mc.logicalCores + ' 個執行緒；' + mc.os + '；' + mc.compiler + '，' + mc.buildType + '；' + mc.measurementHygiene;
+  const off = byId['P1-off'].median - byId['P1-baseline'].median;
+  $('#costNote').innerHTML = '<strong>PerfProbe 關閉</strong>：中位數 ' + byId['P1-off'].median.toFixed(1) + ' ns，空迴圈 ' + byId['P1-baseline'].median.toFixed(1) + ' ns，差 ' + off.toFixed(2) + ' ns（在量測誤差內；目標是 &lt; 1 000 ns）。<strong>開啟</strong>：約 ' + byId['P1-on'].median.toFixed(0) + ' ns，其中兩次讀時鐘約 ' + byId['P1-clock'].median.toFixed(0) + ' ns。<br><strong>要注意的發現</strong>：暫代的晶格擬合（<code>SimpleGrid</code>）在約 4 900 點要 ' + byId['P4-4900-fit'].median.toFixed(0) + ' ms，比 S05 要達到的 T3（1 000 點 ≤ 2 ms）慢很多。這一步不優化暫代品，由 S05 取代。';
+
+  /* ---------- text (STE) ---------- */
+  $('#text').innerHTML = '<h2>文字（STE 風格，繁中摘要）</h2>' + data.sections.map((s) => '<h3 style="margin:10px 0 2px;font-size:13px">' + esc(s.title) + '</h3><div>' + esc(s.ste.text) + '</div><div class="zh">' + esc(s.zh) + '</div>').join('');
+})();
+</script>
+</body>
+</html>

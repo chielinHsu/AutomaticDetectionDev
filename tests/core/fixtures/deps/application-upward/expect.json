@@ -1,0 +1,19 @@
+{
+  "violations": [
+    {
+      "file": "src/application/bad.h",
+      "line": 2,
+      "includes": "presentation/Ui.h"
+    },
+    {
+      "file": "src/application/bad.h",
+      "line": 3,
+      "includes": "infrastructure/perf/P.h"
+    },
+    {
+      "file": "src/application/bad.h",
+      "line": 4,
+      "includes": "app/Root.h"
+    }
+  ]
+}

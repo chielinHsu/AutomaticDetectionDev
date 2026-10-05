@@ -9,6 +9,8 @@
 
 > **S01 修訂（2026-10-05）**：照 ADR-006：晶格推算屬於**元件層級**（板上元件的陣列）。框層級的矩陣（Pin 的列數／欄數／間距）是 `BoxGroup` 展開的簡單算術，不需要晶格估計。
 
+> **S03 完成後的提醒（2026-10-05）**：S03 的暫代 `SimpleGrid`（`src/application/usecases/SimpleGrid.*`：`fitGrid`、`gridHoles`）就是這一步要取代的對象；use case 只透過這兩個函式用它。`tests/core/tst_grid.cpp` 是現成的規格，其中「間距差 20 倍會被當成一排」記錄的是暫代版的已知限制，S05 取代後應改成預期找得到第二個方向。實測：暫代版在約 4 900 點要 97–134 ms（`docs/steps/S03-core/perf.md`），T3 的目標是 1 000 點 ≤ 2 ms。座標與角度慣例見 ADR-010。
+
 <!--STE-->
 ## Purpose
 This step builds the array rules in pure C++. It finds the pitch, assigns grid indexes and fills the gaps.

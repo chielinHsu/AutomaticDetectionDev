@@ -1,0 +1,9 @@
+{
+  "violations": [
+    {
+      "file": "src/domain/bad.h",
+      "line": 2,
+      "includes": "../application/Up.h"
+    }
+  ]
+}

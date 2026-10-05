@@ -9,6 +9,8 @@
 
 > **S01 修訂（2026-10-05）**：契約測試要涵蓋 `ILibraryMatcher`：辨識正確率、候選排序、位姿誤差、庫大小 N 的行為（ADR-006）。
 
+> **S03 完成後的提醒（2026-10-05）**：`tests/core/tst_fake_backend.cpp` 已經是「對假 back end 跑的契約測試」：把它的斷言改成以工廠參數化、對每個已編入的 back end 各跑一次（沒編入的標示 SKIPPED）。ADR-010 的角度慣例要用旋轉過的合成影像鎖住（目前只有 `tst_domain` 用數字鎖 domain 的數學）。
+
 <!--STE-->
 ## Purpose
 This step proves that the two back ends are interchangeable. It also shows their differences on the screen.

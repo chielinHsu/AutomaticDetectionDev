@@ -9,6 +9,8 @@
 
 > **S01 修訂（2026-10-05）**：照 `docs/ux/ux-spec.md`：互動狀態機 **8 個狀態**（第 6 節，含 `NoMatch`、`EditingType`、`UndoToPreview`）；Presenter 與介面名單（第 12 節）；復原有**三個範圍**（ADR-002）；辨識候選 `chooseAlternative`。
 
+> **S03 完成後的提醒（2026-10-05）**：S03 已提供：`JobRunner`（`submit`、`cancel`、`JobReport::usable()`，latest-wins）、`GenerateObjectsFromSample::run`（回傳 `SampleProposal`：所有候選與分數）、`classify(proposal, threshold)`（門檻 → 狀態，純函式，U3 用它，拖門檻不必重新搜尋）、`composeCore`／`CoreServices`（`main.cpp` 已組裝並驗證 `--backend`，但還沒有交給畫面）、`IProgressSink`、`IExecutor`（`ThreadPoolExecutor` 是 std::thread 版；Qt 的 `QThreadPool` 版是這一步的工作，要滿足契約：FIFO、解構時執行完已排入的工作）。`JobReport::latest` 是在 worker 上算的，Presenter 轉回 UI 執行緒後要用自己的狀態再檢查一次。預設的 `--backend=fake` 以樣本為中心排合成網格，不看影像內容。流程 B 只有 port（`ILibraryMatcher`）與型別，沒有 use case。
+
 <!--STE-->
 ## Purpose
 This step connects the screen to the core. It adds the interaction state machine, the object table and undo.
