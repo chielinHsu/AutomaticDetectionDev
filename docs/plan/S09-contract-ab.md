@@ -7,6 +7,8 @@
 | 依賴 | S07、S08 |
 | 產出位置 | `tests/contract/`、`src/presentation/compare/`、`docs/steps/S09-contract-ab/` |
 
+> **S01 修訂（2026-10-05）**：契約測試要涵蓋 `ILibraryMatcher`：辨識正確率、候選排序、位姿誤差、庫大小 N 的行為（ADR-006）。
+
 <!--STE-->
 ## Purpose
 This step proves that the two back ends are interchangeable. It also shows their differences on the screen.

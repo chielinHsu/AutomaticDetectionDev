@@ -7,6 +7,8 @@
 | 依賴 | S03、S05、S06 |
 | 產出位置 | `src/infrastructure/backend_opencv/`、`cmake/FindOpenCVLocal.cmake`、`tests/backend/`、`docs/steps/S07-opencv/` |
 
+> **S01 修訂（2026-10-05）**：照 ADR-006：要實作 `ILibraryMatcher`（區域＋樣本庫 → 元件候選、位姿、分數、候選類型的分數）；成本預期隨庫大小 N 成長（**假設**，要實測）。新預算 T7（暫稱）在這一步實測後提案。
+
 <!--STE-->
 ## Purpose
 This step builds the OpenCV back end. It builds the template and searches the image for similar parts.

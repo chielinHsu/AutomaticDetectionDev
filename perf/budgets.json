@@ -2,6 +2,7 @@
   "schema": 1,
   "status": "proposed",
   "note": "Starting values, NOT measured facts. Calibrate on the target PC with the S02 (UI) and S07 (OpenCV) baselines, then change status to 'calibrated'. Numbers are only comparable on the same machine: every run records a machine fingerprint.",
+  "uiConfirmation": { "date": "2026-10-05", "by": "user", "step": "S01", "scope": "U1a U1b U2 U3 U4 I1 I2 I3 I4 I5 I6", "numbersChanged": false, "note": "The user confirmed the UI numbers and the three definitions marked 'definition' below. They stay 'proposed' until S02 and S04 calibrate them." },
   "method": { "warmupRuns": 5, "measuredRuns": 30, "statistic": "median and p95", "regressionLimitPercent": 15 },
   "budgets": [
     { "id": "T1", "category": "search", "metric": "Template build, 64x32 sample", "unit": "ms", "limit": 30, "firstMeasuredIn": "S07" },
@@ -15,12 +16,12 @@
     { "id": "U1a", "category": "ui", "metric": "Result ready to first painted frame, 200 boxes", "unit": "ms", "limit": 33, "firstMeasuredIn": "S02" },
     { "id": "U1b", "category": "ui", "metric": "Result ready to first painted frame, 5000 boxes", "unit": "ms", "limit": 50, "firstMeasuredIn": "S02" },
     { "id": "U2", "category": "ui", "metric": "Fill object table, 5000 rows", "unit": "ms", "limit": 50, "firstMeasuredIn": "S04" },
-    { "id": "U3", "category": "ui", "metric": "Parameter slider change to repaint", "unit": "ms", "limit": 16, "firstMeasuredIn": "S04" },
-    { "id": "U4", "category": "ui", "metric": "Open 5 MP image to first paint", "unit": "ms", "limit": 200, "firstMeasuredIn": "S02" },
+    { "id": "U3", "category": "ui", "metric": "Parameter slider change to repaint", "unit": "ms", "limit": 16, "firstMeasuredIn": "S04", "definition": "Applies to parameters that re-filter cached candidates, such as the score threshold. A parameter that needs a new search is debounced (120 ms) and falls under T5." },
+    { "id": "U4", "category": "ui", "metric": "Open 5 MP image to first paint", "unit": "ms", "limit": 200, "firstMeasuredIn": "S02", "definition": "Record decode time and first-paint time as two parts. S02 measures BMP, PNG and JPEG, then calibrates the total." },
     { "id": "I1", "category": "interaction", "metric": "Pan and zoom frame time p95, 5000 boxes", "unit": "ms", "limit": 16.7, "firstMeasuredIn": "S02" },
     { "id": "I2", "category": "interaction", "metric": "Mouse press to visible feedback", "unit": "ms", "limit": 50, "firstMeasuredIn": "S02" },
     { "id": "I3", "category": "interaction", "metric": "Longest event loop block during a search", "unit": "ms", "limit": 50, "firstMeasuredIn": "S04" },
-    { "id": "I4", "category": "interaction", "metric": "Cancel click to UI idle", "unit": "ms", "limit": 100, "firstMeasuredIn": "S04" },
+    { "id": "I4", "category": "interaction", "metric": "Cancel click to UI idle", "unit": "ms", "limit": 100, "firstMeasuredIn": "S04", "definition": "Measures the time until the UI is idle. It does not wait for the worker to stop. The presenter drops the late result." },
     { "id": "I5", "category": "interaction", "metric": "Sample box drag frame time p95", "unit": "ms", "limit": 16.7, "firstMeasuredIn": "S02" },
     { "id": "I6", "category": "interaction", "metric": "Undo of a 1000 box commit", "unit": "ms", "limit": 50, "firstMeasuredIn": "S04" }
   ]

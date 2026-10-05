@@ -7,6 +7,8 @@
 | 依賴 | S03、S05、S06、S07（用 S07 當對照基準） |
 | 產出位置 | `src/infrastructure/backend_halcon/`、`cmake/FindHalconLocal.cmake`、`tests/backend/`、`docs/steps/S08-halcon/` |
 
+> **S01 修訂（2026-10-05）**：照 ADR-006：HALCON 版 `ILibraryMatcher`。預期每個庫條目建一個 shape model 再一次找多個（**未驗證**，這一步確認）。T7 補 HALCON 的實測。
+
 <!--STE-->
 ## Purpose
 This step builds the HALCON back end. It uses the HALCON shape model to find similar parts.

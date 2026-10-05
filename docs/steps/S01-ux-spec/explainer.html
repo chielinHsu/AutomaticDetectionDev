@@ -1,0 +1,1841 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AOI UX 原型</title>
+<style>
+:root{
+  --window:#F6F8FA; --panel:#FFFFFF; --canvas:#D8DEE4; --text:#1F2328; --muted:#59636E; --border:#D0D7DE;
+  --accent:#0969DA; --onAccent:#FFFFFF; --focus:#0969DA;
+  --fs:1;
+}
+*{box-sizing:border-box}
+[hidden]{display:none !important}
+html{color-scheme:light dark;font-size:calc(15px * var(--fs))}
+body{margin:0;background:var(--window);color:var(--text);font:1rem/1.5 system-ui,"Segoe UI","Microsoft JhengHei",sans-serif}
+.wrap{max-width:1240px;margin:0 auto;padding:12px 16px 40px}
+header{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:8px}
+h1{font-size:1.4rem;margin:0}
+h2{font-size:1.1rem;margin:0 0 6px}
+.sub{margin:2px 0 0;color:var(--muted);font-size:.87rem}
+.hdr{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.seg{display:inline-flex;border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.seg button{border:0;border-radius:0;border-right:1px solid var(--border)}
+.seg button:last-child{border-right:0}
+button,select,input,textarea{font:inherit;color:inherit}
+button{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:5px 11px;cursor:pointer;min-height:34px}
+button:hover:not(:disabled){border-color:var(--accent)}
+button:disabled{opacity:.45;cursor:not-allowed}
+button[aria-pressed="true"],button[aria-selected="true"]{background:var(--accent);color:var(--onAccent);border-color:var(--accent)}
+button:focus-visible,select:focus-visible,input:focus-visible,.cvw:focus-visible,.row:focus-visible,textarea:focus-visible,.trow:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+select,input[type=number],input[type=text],textarea{background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:4px 6px;min-height:32px}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 12px}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:12px;min-width:0}
+.muted{color:var(--muted)}
+.small{font-size:.85rem}
+.zh-note{color:var(--muted);font-size:.85rem}
+.intro{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:12px}
+.intro h3{margin:0 0 2px;font-size:.78rem;letter-spacing:.07em;text-transform:uppercase;color:var(--accent)}
+.intro p{margin:0 0 4px}
+@media (max-width:900px){.intro{grid-template-columns:1fr}}
+
+/* state strip */
+.strip{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:8px}
+.pill{border:1px solid var(--border);background:var(--panel);border-radius:999px;padding:2px 12px;font-size:.85rem;display:inline-flex;gap:6px;align-items:center}
+.pill[aria-current="true"]{background:var(--accent);color:var(--onAccent);border-color:var(--accent);font-weight:600}
+.jump{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.jump button{min-height:28px;padding:1px 8px;font-size:.82rem}
+
+/* app mock */
+.app{border:1px solid var(--border);border-radius:10px;background:var(--window);overflow:hidden}
+.tb{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:6px 8px;background:var(--panel);border-bottom:1px solid var(--border)}
+.tb .sp{flex:1}
+.tb label{display:inline-flex;gap:6px;align-items:center;font-size:.88rem}
+.mid{display:grid;grid-template-columns:48px minmax(0,1fr) 310px}
+@media (max-width:900px){.mid{grid-template-columns:48px minmax(0,1fr)} .docks{grid-column:1 / -1;border-left:0 !important;border-top:1px solid var(--border)}}
+@media (max-width:560px){.mid{grid-template-columns:1fr} .rail{flex-direction:row !important;border-right:0 !important;border-bottom:1px solid var(--border)}}
+.rail{display:flex;flex-direction:column;gap:6px;padding:6px;background:var(--panel);border-right:1px solid var(--border)}
+.rail button{width:36px;height:36px;padding:0;font-weight:700;position:relative}
+.cvw{position:relative;height:min(62vh,540px);min-height:360px;background:var(--canvas);overflow:hidden;touch-action:none;outline-offset:-3px}
+.cvw svg{position:absolute;inset:0;width:100%;height:100%;display:block}
+.cvw.gray svg,.cvw.gray .swatches{filter:grayscale(1)}
+.cvw.pan{cursor:grab}.cvw.panning{cursor:grabbing}.cvw.busy{cursor:progress}.cvw.sampling{cursor:crosshair}.cvw.adding{cursor:copy}
+.cvw.dis{cursor:default}
+.float{position:absolute;background:var(--panel);color:var(--text);border:1px solid var(--border);border-radius:12px;padding:12px 14px;box-shadow:0 6px 24px rgba(0,0,0,.25);max-width:min(460px,calc(100% - 24px))}
+.float h3{margin:0 0 4px;font-size:1.02rem}
+.float p{margin:0 0 6px}
+.float ul{margin:0 0 8px;padding-left:1.1em}
+.float .acts{display:flex;gap:8px;flex-wrap:wrap}
+#msgEmpty{left:50%;top:50%;transform:translate(-50%,-50%);text-align:center}
+.cvcol{display:flex;flex-direction:column;min-width:0}
+/* Messages never cover the image: they live in a bar under the canvas. */
+#msgBar{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;padding:6px 10px;min-height:2.5rem;background:var(--panel);border-top:1px solid var(--border)}
+#hintbar{font-size:.85rem;color:var(--muted)}
+#previewBar{display:flex;gap:8px;flex-wrap:wrap}
+#progress{display:flex;gap:10px;align-items:center;flex:1 1 320px;min-width:0}
+#progress .bar{flex:1;height:8px;border-radius:4px;background:var(--border);overflow:hidden}
+#progress .bar i{display:block;height:100%;background:var(--accent);width:0}
+.barcard{flex:1 1 100%;min-width:0}
+.barcard h3{margin:0 0 2px;font-size:.95rem}
+.barcard p{margin:0 0 2px}
+.barcard ul{margin:0 0 6px;padding-left:1.1em}
+.barcard .acts{display:flex;gap:8px;flex-wrap:wrap}
+#msgError{border-left:6px solid var(--rej);padding-left:10px}
+#toast{margin-left:auto;background:var(--text);color:var(--window);border-radius:8px;padding:2px 12px;font-size:.85rem;max-width:100%}
+.docks{border-left:1px solid var(--border);background:var(--panel);display:flex;flex-direction:column;min-width:0;max-height:min(62vh,540px);overflow:auto}
+@media (max-width:900px){.docks{max-height:none}}
+.dock{padding:8px 10px;border-bottom:1px solid var(--border)}
+.dock h2{font-size:.82rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0 0 6px}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px}
+.chip{min-height:26px;padding:0 9px;font-size:.8rem;border-radius:999px;display:inline-flex;align-items:center;gap:5px}
+.chip svg{width:22px;height:8px}
+.tree{max-height:230px;overflow:auto;border:1px solid var(--border);border-radius:8px;font-size:.84rem}
+.trow{display:grid;grid-template-columns:18px 30px minmax(0,1fr) auto;gap:4px;align-items:center;width:100%;text-align:left;border:0;border-bottom:1px solid var(--border);border-radius:0;min-height:26px;padding:1px 6px;background:var(--panel);cursor:pointer}
+.trow.root{grid-template-columns:minmax(0,1fr) auto;font-weight:600;cursor:default}
+.trow.child{padding-left:30px;grid-template-columns:30px minmax(0,1fr) auto;min-height:24px;font-size:.8rem}
+.trow:last-child{border-bottom:0}
+.trow[aria-selected="true"]{background:var(--accent);color:var(--onAccent)}
+.trow svg{width:28px;height:10px}
+.trow .sc{font-variant-numeric:tabular-nums}
+.trow small{opacity:.7}
+.tw{border:0;background:none;padding:0;min-height:22px;width:18px;color:inherit}
+.lib{display:grid;grid-template-columns:64px minmax(0,1fr) auto;gap:8px;align-items:center;padding:4px 0;border-bottom:1px solid var(--border)}
+.lib:last-child{border-bottom:0}
+.lib svg.th{width:64px;height:40px;background:var(--canvas);border-radius:4px}
+.lib b{font-variant-numeric:tabular-nums}
+.lib .b2{display:flex;flex-direction:column;gap:4px}
+.lib button{min-height:26px;padding:0 8px;font-size:.8rem}
+.slider{display:flex;gap:8px;align-items:center}
+.slider input[type=range]{flex:1;min-width:0}
+.sb{display:flex;gap:14px;flex-wrap:wrap;align-items:center;padding:4px 10px;background:var(--panel);border-top:1px solid var(--border);font-size:.84rem;min-height:30px}
+.sb .grow{flex:1}
+.sb .mono{font-variant-numeric:tabular-nums}
+.spin{display:inline-block;width:.8em;height:.8em;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:sp .8s linear infinite;vertical-align:-1px;margin-right:6px}
+@keyframes sp{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.spin{animation:none}}
+.field{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:6px 0}
+.field label{min-width:7.5em}
+.ed .field label{min-width:6.2em;font-size:.85rem}
+.ed input[type=number]{width:4.8em}
+.ed input[type=text]{width:9em}
+.ed .pair{display:flex;gap:4px;align-items:center}
+#edGroups{max-height:140px}
+.fail{color:var(--rej);font-weight:700}.pass{color:var(--fnd);font-weight:700}
+
+.cols2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;margin-top:12px}
+@media (max-width:860px){.cols2{grid-template-columns:1fr}}
+#log{max-height:210px;overflow:auto;font:.78rem/1.45 Consolas,monospace;margin:0;padding:0;list-style:none}
+#log li{border-bottom:1px dotted var(--border);padding:1px 0}
+#log .ev{color:var(--accent)} #log .cmd{color:var(--fnd)} #log .ign{color:var(--muted)}
+table{border-collapse:collapse;width:100%;font-size:.88rem}
+th,td{border-bottom:1px solid var(--border);padding:5px 6px;text-align:left;vertical-align:top}
+th{font-weight:600;color:var(--muted);font-size:.78rem;text-transform:uppercase;letter-spacing:.05em}
+kbd{font:.8rem Consolas,monospace;border:1px solid var(--border);border-bottom-width:2px;border-radius:5px;padding:0 5px;background:var(--window);white-space:nowrap}
+.mono{font-variant-numeric:tabular-nums}
+td.pass,td.fail{font-weight:600}
+.lab{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}
+@media (max-width:860px){.lab{grid-template-columns:1fr}}
+.swatches{display:flex;flex-direction:column;gap:10px;padding:12px;border-radius:8px}
+.swatches .sw{display:flex;align-items:center;gap:10px}
+.swatches svg{width:120px;height:26px;flex:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div>
+    <h1 data-zh="S01 · UX 原型" data-en="S01 · UX prototype"></h1>
+    <p class="sub" data-zh="可點擊原型：教樣本、用樣本庫掃描區域、編輯元件類型（Board › Component › Box）。這不是 Qt 程式，只驗證版面、狀態語言與互動規則。" data-en="A clickable prototype: teach a sample, scan a region with the library, edit a component type (Board › Component › Box). It is not Qt code. It checks the layout, the state language and the rules."></p>
+  </div>
+  <div class="hdr">
+    <button id="lang" aria-label="language">EN</button>
+    <div class="seg" role="group" aria-label="theme">
+      <button data-theme-set="system" data-i18n="ui.settings.theme.system"></button>
+      <button data-theme-set="light" data-i18n="ui.settings.theme.light"></button>
+      <button data-theme-set="dark" data-i18n="ui.settings.theme.dark"></button>
+    </div>
+    <div class="seg" role="group" aria-label="font scale"><span class="small muted" style="padding:6px 8px" data-i18n="ui.settings.fontScale"></span>
+      <button data-fs="1">100%</button><button data-fs="1.25">125%</button><button data-fs="1.5">150%</button>
+    </div>
+  </div>
+</header>
+
+<nav class="tabs" role="tablist">
+  <button role="tab" id="tab1" aria-controls="p1" aria-selected="true" data-zh="1 · 互動原型" data-en="1 · Prototype"></button>
+  <button role="tab" id="tab2" aria-controls="p2" aria-selected="false" data-zh="2 · 狀態語言實驗室" data-en="2 · State language lab"></button>
+  <button role="tab" id="tab3" aria-controls="p3" aria-selected="false" data-zh="3 · 規則與快捷鍵" data-en="3 · Rules and keys"></button>
+</nav>
+
+<!-- ============ TAB 1 ============ -->
+<section id="p1" role="tabpanel" aria-labelledby="tab1">
+  <div class="intro card" id="intro"></div>
+
+  <div class="strip" id="strip" aria-label="state">
+    <div class="jump" id="jump"></div>
+  </div>
+
+  <div class="app" id="app">
+    <div class="tb">
+      <button id="bOpen"></button>
+      <button id="bSave" disabled></button>
+      <label><span data-i18n="ui.backend.label"></span>
+        <select id="backend"><option value="OpenCV">OpenCV</option><option value="HALCON">HALCON</option></select></label>
+      <span class="sp"></span>
+      <button id="bUndo"></button>
+      <button id="bRedo"></button>
+      <button id="bFit"></button>
+      <button id="bExport"></button>
+    </div>
+    <div class="mid">
+      <div class="rail" id="rail" role="toolbar" aria-label="tools">
+        <button data-tool="select" aria-pressed="true">V</button>
+        <button data-tool="sample" aria-pressed="false">S</button>
+        <button data-tool="scan" aria-pressed="false">R</button>
+        <button data-tool="add" aria-pressed="false">+</button>
+      </div>
+      <div class="rail" id="railEd" role="toolbar" aria-label="editor tools" hidden>
+        <button data-edtool="select" aria-pressed="true">V</button>
+        <button data-edtool="box" aria-pressed="false">B</button>
+      </div>
+      <div class="cvcol">
+        <div class="cvw" id="cvw" tabindex="0" role="application" aria-label="Image canvas">
+          <svg id="cv" xmlns="http://www.w3.org/2000/svg"><g id="board"></g><g id="ov"></g></svg>
+          <div class="float" id="msgEmpty"></div>
+        </div>
+        <div id="msgBar">
+          <div id="previewBar" hidden><button id="pbAccept" aria-pressed="true"></button><button id="pbAcceptSave"></button><button id="pbDiscard"></button></div>
+          <div id="hintbar"></div>
+          <div id="progress" role="status"><span id="progText"></span><span class="bar"><i id="progBar"></i></span><button id="progCancel"></button></div>
+          <div class="barcard" id="msgNoMatch" role="status"></div>
+          <div class="barcard" id="msgError" role="alert"></div>
+          <div id="toast" role="status" hidden></div>
+        </div>
+      </div>
+      <aside class="docks" id="docks">
+        <div id="boardDocks">
+          <div class="dock">
+            <h2 id="libTitle"></h2>
+            <input id="libFilter" type="text" placeholder="🔍" aria-label="library filter" style="width:100%;margin-bottom:4px">
+            <div id="libList"></div>
+          </div>
+          <div class="dock">
+            <h2 id="objTitle"></h2>
+            <div class="chips" id="chips"></div>
+            <div id="tree" class="tree" role="tree" aria-label="objects"></div>
+            <div id="selInfo" class="small" style="margin-top:6px"></div>
+            <div id="previewActions" style="margin-top:6px"></div>
+          </div>
+          <div class="dock">
+            <h2 data-i18n="ui.params.title"></h2>
+            <div class="field" style="margin-top:0"><label for="scanScope" data-i18n="ui.params.scanScope" style="min-width:0"></label><select id="scanScope" style="max-width:100%"><option value="auto" data-i18n="ui.params.scope.auto"></option><option value="board" data-i18n="ui.params.scope.board"></option><option value="all" data-i18n="ui.params.scope.all"></option></select></div>
+            <div class="slider"><span class="small" data-i18n="ui.params.score"></span><input id="thr" type="range" min="0.30" max="0.99" step="0.01" value="0.70"><b class="mono" id="thrVal">0.70</b></div>
+            <details style="margin-top:6px"><summary data-i18n="ui.params.advanced"></summary>
+              <div class="field"><label for="angle" data-i18n="ui.params.angle"></label>
+                <select id="angle"><option value="0">0°</option><option value="5">±5°</option><option value="180">±180°</option></select></div>
+            </details>
+            <p class="small muted" id="confHint" style="margin:6px 0 0"></p>
+          </div>
+        </div>
+        <div id="editorPanel" class="ed" hidden>
+          <div class="dock">
+            <h2 data-i18n="ui.editor.title"></h2>
+            <div class="field"><label for="edPart" data-i18n="ui.editor.partNo"></label><input id="edPart" type="text" maxlength="16" autocomplete="off"></div>
+            <div class="field"><label for="edName" data-i18n="ui.editor.name"></label><input id="edName" type="text" maxlength="40" autocomplete="off"></div>
+            <div class="field"><label for="edAlias" data-i18n="ui.editor.aliases"></label><input id="edAlias" type="text" maxlength="60" autocomplete="off" placeholder="R0603, 0603"></div>
+            <div class="field"><label for="edCat" data-i18n="ui.editor.category"></label>
+              <select id="edCat"><option value="Chip">Chip</option><option value="IC">IC</option><option value="Other">Other</option></select></div>
+            <p class="small muted" id="edAffects" style="margin:0"></p>
+            <p class="small fail" id="edError" role="alert" style="margin:4px 0 0"></p>
+          </div>
+          <div class="dock">
+            <h2 data-i18n="ui.editor.groups"></h2>
+            <div id="edGroups" class="tree"></div>
+            <div class="field"><button id="edAddWin" data-i18n="ui.editor.addWindow"></button><button id="edAddAll" data-i18n="ui.editor.addAll"></button></div>
+          </div>
+          <div class="dock" id="edForm">
+            <div class="field"><label data-i18n="ui.editor.kind"></label><b id="fKind"></b><span class="small muted" id="fParent"></span></div>
+            <div class="field" data-for="Window"><label for="fAlgo" data-i18n="ui.editor.algo"></label>
+              <select id="fAlgo"><option value="Void">Void</option><option value="Solder">Solder</option><option value="Color">Color</option></select></div>
+            <div class="field" data-for="Body Pin"><label data-i18n="ui.editor.pos"></label><span class="pair"><input id="fX" type="number" step="1" aria-label="x"><input id="fY" type="number" step="1" aria-label="y"></span></div>
+            <div class="field" data-for="Body Pin"><label data-i18n="ui.editor.size"></label><span class="pair"><input id="fW" type="number" min="1" step="1" aria-label="width"><span>×</span><input id="fH" type="number" min="1" step="1" aria-label="height"></span></div>
+            <div class="field" data-for="Pin"><label for="fRows" data-i18n="ui.editor.rows"></label><input id="fRows" type="number" min="1" max="60" step="1">
+              <label for="fCols" style="min-width:0" data-i18n="ui.editor.cols"></label><input id="fCols" type="number" min="1" max="60" step="1"></div>
+            <div class="field" data-for="Pin"><label for="fPx" data-i18n="ui.editor.pitchX"></label><input id="fPx" type="number" step="1">
+              <label for="fPy" style="min-width:0" data-i18n="ui.editor.pitchY"></label><input id="fPy" type="number" step="1"></div>
+            <div class="field" data-for="Window"><label data-i18n="ui.editor.offset"></label><span class="pair"><input id="fOx" type="number" step="5" aria-label="offset x %"><input id="fOy" type="number" step="5" aria-label="offset y %"></span><span class="small muted">%</span></div>
+            <div class="field" data-for="Window"><label data-i18n="ui.editor.ratio"></label><span class="pair"><input id="fRw" type="number" min="5" step="5" aria-label="width %"><span>×</span><input id="fRh" type="number" min="5" step="5" aria-label="height %"></span><span class="small muted">%</span></div>
+            <div class="field"><label for="fScope" data-i18n="ui.editor.scopeLabel"></label>
+              <select id="fScope"><option value="group" data-i18n="ui.editor.scope.group"></option><option value="kind" data-i18n="ui.editor.scope.kind"></option></select></div>
+            <div class="field"><button id="fDelete"></button></div>
+            <p class="small muted" id="edSelHint" style="margin:0"></p>
+          </div>
+          <div class="dock">
+            <div class="field"><button id="edSaveLib"></button><button id="edSave" aria-pressed="true"></button><button id="edCancel" data-i18n="ui.editor.cancel"></button></div>
+          </div>
+        </div>
+      </aside>
+    </div>
+    <div class="sb" role="status">
+      <span id="sbBusy" hidden><span class="spin"></span><span id="sbBusyText"></span></span>
+      <span class="mono" id="sbSummary"></span>
+      <span class="grow"></span>
+      <span class="mono muted" id="sbCursor"></span>
+      <span class="mono" id="sbZoom"></span>
+    </div>
+  </div>
+
+  <div class="cols2">
+    <div class="card">
+      <h2 data-zh="情境開關（只有原型有）" data-en="Scenario switches (prototype only)"></h2>
+      <div class="field"><label for="simMs" data-zh="模擬搜尋耗時" data-en="Simulated search time"></label>
+        <input id="simMs" type="range" min="50" max="6000" step="50" value="600" style="flex:1;min-width:120px"><b class="mono" id="simMsVal">600 ms</b></div>
+      <div class="field"><label data-zh="模擬失敗" data-en="Simulate"></label>
+        <label><input type="checkbox" id="optFail"> <span data-zh="搜尋失敗" data-en="search failure"></span></label>
+        <label><input type="checkbox" id="optLowC"> <span data-zh="低對比元件" data-en="low contrast parts"></span></label>
+        <label><input type="checkbox" id="optNoLic"> <span data-zh="HALCON 無授權" data-en="no HALCON license"></span></label></div>
+      <div class="field"><label for="boardColor" data-zh="板子顏色" data-en="Board color"></label>
+        <select id="boardColor"><option value="green">green</option><option value="blue">blue</option><option value="black">black</option></select>
+        <label for="ovPal" data-zh="疊圖配色" data-en="Overlay colors"></label>
+        <select id="ovPal"><option value="fixed" data-zh="固定亮色（建議）" data-en="fixed bright (proposed)"></option><option value="theme" data-zh="跟隨主題" data-en="follow theme"></option></select>
+        <label><input type="checkbox" id="optGray"> <span data-zh="灰階（色盲檢查）" data-en="gray scale (color-blind check)"></span></label>
+        <label><input type="checkbox" id="optHit"> <span data-zh="顯示 24 px 點擊區" data-en="show 24 px hit areas"></span></label></div>
+      <div class="field"><button id="bResetLib" data-zh="重設樣本庫與板子" data-en="Reset library and board"></button></div>
+      <p class="small muted" data-zh="耗時只是模擬值，用來觀察 200 ms 忙碌與 1 s 進度／取消何時出現。狀態列的毫秒數不是實測。樣本庫只存在這個頁面的記憶體裡，不會存檔。" data-en="The time is a simulation. Use it to see when the busy sign and the progress bar appear. The ms in the status bar is not a measurement. The library lives in page memory only. It is never saved."></p>
+    </div>
+    <div class="card">
+      <h2 data-zh="事件記錄（FSM 事件與 Command）" data-en="Event log (FSM events and commands)"></h2>
+      <ul id="log" aria-live="off"></ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============ TAB 2 ============ -->
+<section id="p2" role="tabpanel" aria-labelledby="tab2" hidden>
+  <div class="card" style="margin-bottom:12px"><p id="labIntro" style="margin:0"></p></div>
+  <div class="lab">
+    <div class="card" id="labControls"></div>
+    <div class="card">
+      <h2 data-zh="預覽" data-en="Preview"></h2>
+      <div class="swatches" id="labPrev"></div>
+      <h2 style="margin-top:12px" data-zh="對比驗算" data-en="Contrast check"></h2>
+      <table id="labTable"></table>
+      <p class="small muted" data-zh="圖形需 ≥ 3:1（WCAG 2.1 AA）。公式與 tools/check-contrast.mjs 相同。板子顏色是合成的參考色，不是實測。" data-en="Graphics need 3:1 (WCAG 2.1 AA). The formula equals tools/check-contrast.mjs. The board colors are synthetic references, not measured."></p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ TAB 3 ============ -->
+<section id="p3" role="tabpanel" aria-labelledby="tab3" hidden>
+  <div class="card" style="margin-bottom:12px"><p id="rulesIntro" style="margin:0"></p></div>
+  <div class="card"><table id="rulesTable"></table></div>
+  <div class="card" style="margin-top:12px"><h2 data-zh="狀態轉移表（原型實際使用的表）" data-en="Transition table (the table this prototype uses)"></h2><table id="fsmTable"></table></div>
+</section>
+</div>
+
+<dialog id="cadDlg" style="max-width:min(720px,94vw);border:1px solid var(--border);border-radius:12px;background:var(--panel);color:var(--text)">
+  <h2 id="cadTitle"></h2>
+  <p class="small muted" id="cadNote"></p>
+  <textarea id="cadText" rows="12" readonly style="width:100%;font:.8rem/1.4 Consolas,monospace"></textarea>
+  <div class="field"><button id="cadCopy"></button><button id="cadClose" aria-pressed="true"></button></div>
+</dialog>
+
+<script type="application/json" id="aoi-data">
+{
+  "ste": {
+    "purpose": "This page is a clickable prototype of the AOI screen. It shows two ways to make inspection boxes. You teach one sample, or you scan a region against the library.",
+    "reason": "A wrong layout costs more to fix after coding. A prototype shows the problems in minutes. You can try every state now.",
+    "effect": "The team agrees on the screens, the states and the keys first. Step S02 then builds a known design.",
+    "howto": "Press R and drag a region over a chip. The program matches the region with the library. It shows every box of the part. Press Enter to accept.",
+    "howto2": "To teach a new part, press S and draw a box around one capacitor. Press Accept and save to library. In the editor, set rows and columns for the pins. Then press Save and add.",
+    "lab": "Each state has its own color and its own line style. The state must not depend on color alone. Switch on gray scale to test this.",
+    "rulesIntro": "Every rule has a reason. Read the reason before you change a rule."
+  },
+  "zh": {
+    "purpose": "這個頁面是 AOI 畫面的可點擊原型，示範兩種產生檢測框的方式：教一個樣本，或用樣本庫掃描一個區域。",
+    "reason": "版面錯了，寫完程式才改成本更高。原型幾分鐘就能暴露問題，現在就能試每一個狀態。",
+    "effect": "團隊先對畫面、狀態與快捷鍵取得共識，S02 再照著已確認的設計來做。",
+    "howto": "按 R，在一顆晶片上拖出區域。程式用樣本庫辨識它，列出這個元件的所有框。按 Enter 接受。",
+    "howto2": "要教新元件：按 S，在一顆電容上框一個樣本，按〔接受並存入樣本庫…〕；在編輯器裡用列數、欄數建立 Pin 矩陣，再按〔儲存並存入樣本庫〕。",
+    "lab": "每個狀態有自己的顏色與線型，狀態不能只靠顏色。打開灰階就能驗證。",
+    "rulesIntro": "每條規則都有原因。改規則之前，先讀原因。"
+  },
+  "rules": [
+    { "keys": "Wheel", "action": "Zoom", "zh_action": "縮放",
+      "ste": "The wheel zooms around the cursor. The part under the cursor stays still, so you do not lose it.",
+      "zh": "滾輪以游標為中心縮放。游標下的元件不會移位，所以不會跟丟。" },
+    { "keys": "Space + drag · Middle drag", "action": "Pan", "zh_action": "平移",
+      "ste": "Space and drag pans the view. The left button stays free for drawing and moving. You need no extra mode.",
+      "zh": "Space＋拖曳或中鍵拖曳平移。左鍵留給畫框與移動，不需要多一個模式。" },
+    { "keys": "F", "action": "Fit to window", "zh_action": "適配視窗",
+      "ste": "F fits the image to the window. One key returns you to a known view after you zoom in.",
+      "zh": "F 把影像縮到剛好放進視窗。放大之後，一個鍵就回到已知的視圖。" },
+    { "keys": "R", "action": "Scan a region", "zh_action": "區域掃描",
+      "ste": "R drags a region. The program matches the region with every library sample. It lists all parts it knows, with their boxes.",
+      "zh": "R 拖出一個區域。程式用樣本庫裡所有樣本比對，列出它認得的全部元件和它們的框。" },
+    { "keys": "S", "action": "Teach a sample", "zh_action": "教樣本",
+      "ste": "S draws a box around one part. The program finds the same parts on the board. Save the result to the library to use it again.",
+      "zh": "S 在一個元件上框一個樣本，程式在板上找出相同的元件。存入樣本庫之後就能重複使用。" },
+    { "keys": "Enter", "action": "Accept", "zh_action": "接受",
+      "ste": "Enter accepts the proposal. Accepting is the goal of the flow, so it has the shortest path.",
+      "zh": "Enter 接受提案。接受是整個流程的目的，所以路徑最短。" },
+    { "keys": "Esc", "action": "Go back one level", "zh_action": "退回一層",
+      "ste": "Esc goes back one level. It cancels a drawing or a search, clears a selection, then discards a proposal. You can undo a discard.",
+      "zh": "Esc 退回一層：取消畫框或搜尋、清除選取，最後才捨棄提案。捨棄可以復原。" },
+    { "keys": "Click · Double-click", "action": "Select a component · Edit its type", "zh_action": "選元件・編輯它的類型",
+      "ste": "A click selects the whole component. A double-click opens its type editor with the clicked box selected.",
+      "zh": "點一下選取整個元件；點兩下開啟它的類型編輯器，並選取點到的那個框。" },
+    { "keys": "Del · Backspace", "action": "Delete selection", "zh_action": "刪除所選",
+      "ste": "On the board, Del removes the selected components. In the type editor, Del removes the selected box group.",
+      "zh": "在板上，Del 刪除所選的元件；在類型編輯器，Del 刪除所選的框群組。" },
+    { "keys": "Ctrl+Z · Ctrl+Y", "action": "Undo · Redo", "zh_action": "復原・重做",
+      "ste": "Auto results are sometimes wrong. A fix must cost one key press. Undo and redo cover every edit.",
+      "zh": "自動結果有時會錯，修正只能花一次按鍵。復原與重做涵蓋每一種編輯。" },
+    { "keys": "V · S · R · A · B", "action": "Tools", "zh_action": "工具",
+      "ste": "V selects and moves. S teaches. R scans. A adds one component. B draws a box in the type editor.",
+      "zh": "V 選取／移動，S 教樣本，R 區域掃描，A 補一個元件，B 在類型編輯器畫框。" },
+    { "keys": "Rows · Columns", "action": "Matrix", "zh_action": "矩陣",
+      "ste": "Set rows and columns on a Pin group. The program makes the whole matrix at once. One change moves every pin of the matrix.",
+      "zh": "在 Pin 群組上設列數與欄數，程式一次建立整個矩陣。改一個參數，整個矩陣的 Pin 一起變。" },
+    { "keys": "Link", "action": "Window follows its parent", "zh_action": "子框跟著父框",
+      "ste": "A window links to a parent box. It keeps its size as a ratio of the parent. When the parent changes, the window follows.",
+      "zh": "視窗框連結到父框，大小用父框的比例表示。父框一改，視窗框跟著變。" },
+    { "keys": "Scope", "action": "Same kind", "zh_action": "相同種類",
+      "ste": "Choose the scope to edit all boxes of the same kind together. Every component of this type updates in one step.",
+      "zh": "選「相同種類」就能同時修改同類型的框；這個類型的所有元件一次更新。" },
+    { "keys": "Add all", "action": "Standard windows", "zh_action": "一次產生標準檢測框",
+      "ste": "Add all makes the standard windows for the body and every pin group. You then fine tune the sizes.",
+      "zh": "「一次產生」為主體與每個 Pin 群組建立標準檢測框，再微調大小。" },
+    { "keys": "Handles", "action": "8 px look, 24 px hit", "zh_action": "看起來 8 px，點擊區 24 px",
+      "ste": "A handle looks small, 8 px. Its hit area is 24 px. You hit it with ease and it hides little of the part.",
+      "zh": "把手看起來小（8 px），點擊區有 24 px。容易點中，又不遮住元件。" },
+    { "keys": "Time", "action": "50 ms · 200 ms · 1 s", "zh_action": "50 ms · 200 ms · 1 s",
+      "ste": "Visual feedback comes within 50 ms. A wait over 200 ms shows a busy sign. A wait over 1 s shows progress and Cancel.",
+      "zh": "視覺回饋 50 ms 內出現；超過 200 ms 顯示忙碌；超過 1 s 顯示進度與取消。" },
+    { "keys": "Status bar", "action": "Back end · ms · count", "zh_action": "back end · 耗時 · 數量",
+      "ste": "The status bar always shows the back end, the time and the count. You see at once what the program did.",
+      "zh": "狀態列永遠顯示 back end、耗時與數量，一眼就知道程式做了什麼。" },
+    { "keys": "Check hint", "action": "Low score or inferred", "zh_action": "低分或推算",
+      "ste": "A component with a low score gets a check hint. An inferred component gets one too. You know where to look first.",
+      "zh": "分數偏低或推算補上的元件會有「建議檢查」提示，使用者知道先看哪裡。" }
+  ]
+}
+</script>
+<script type="application/json" id="ux-copy">{"schema":1,"status":"proposed","note":"UI text for S01. Flat i18n keys, one entry per key, with zh_TW and en. Placeholders use {name}. S02 maps them to Qt id-based translations and converts {name} to %1 or %n. Where the text gives the user a next step, the key name contains 'advice' or 'action'.","locales":["zh_TW","en"],"keys":{"app.title":{"zh_TW":"AOI 教學工具","en":"AOI Teach Tool"},"action.open":{"zh_TW":"開啟","en":"Open"},"action.save":{"zh_TW":"儲存","en":"Save"},"action.export":{"zh_TW":"匯出","en":"Export"},"action.undo":{"zh_TW":"復原","en":"Undo"},"action.redo":{"zh_TW":"重做","en":"Redo"},"action.fit":{"zh_TW":"適配視窗","en":"Fit to window"},"action.accept":{"zh_TW":"接受","en":"Accept"},"action.discard":{"zh_TW":"捨棄","en":"Discard"},"action.delete":{"zh_TW":"刪除","en":"Delete"},"action.cancel":{"zh_TW":"取消","en":"Cancel"},"action.dismiss":{"zh_TW":"關閉","en":"Dismiss"},"action.retry":{"zh_TW":"再試一次","en":"Try again"},"tool.select":{"zh_TW":"選取 / 移動","en":"Select / move"},"tool.sample":{"zh_TW":"教樣本","en":"Teach sample"},"tool.add":{"zh_TW":"補一個","en":"Add one"},"state.sample":{"zh_TW":"樣本","en":"Sample"},"state.found":{"zh_TW":"找到","en":"Found"},"state.inferred":{"zh_TW":"推算","en":"Inferred"},"state.rejected":{"zh_TW":"拒絕","en":"Rejected"},"origin.manual":{"zh_TW":"手動","en":"Manual"},"ui.empty.title":{"zh_TW":"尚未開啟影像","en":"No image open"},"ui.empty.body":{"zh_TW":"開啟一張板子影像，再框選一個樣本元件。程式會找出其餘相似的元件。","en":"Open a board image. Then draw a box around one sample part. The program finds the similar parts."},"ui.empty.action.open":{"zh_TW":"開啟影像…","en":"Open image…"},"ui.empty.hint.drop":{"zh_TW":"也可以把影像檔拖進這個視窗。","en":"You can also drop an image file on this window."},"ui.idle.hint":{"zh_TW":"S 教一個新樣本 · R 框選區域，用樣本庫找出元件","en":"S teaches a new sample · R scans a region with the library"},"ui.sample.hint":{"zh_TW":"放開滑鼠開始搜尋 · Esc 取消","en":"Release to start the search · Esc to cancel"},"ui.sample.tooSmall":{"zh_TW":"樣本太小（至少 {min} px）","en":"The sample is too small (minimum {min} px)"},"ui.search.busy":{"zh_TW":"搜尋中…","en":"Searching…"},"ui.search.progress":{"zh_TW":"搜尋中… {percent}%","en":"Searching… {percent}%"},"ui.search.cancelled":{"zh_TW":"已取消搜尋","en":"Search cancelled"},"ui.preview.summary":{"zh_TW":"找到 {found} 個 · 推算 {inferred} 個 · 拒絕 {rejected} 個","en":"Found {found} · Inferred {inferred} · Rejected {rejected}"},"ui.preview.hint":{"zh_TW":"Enter 接受 · Esc 捨棄 · Del 刪除所選","en":"Enter to accept · Esc to discard · Del to delete the selection"},"ui.preview.lowConfidence":{"zh_TW":"{count} 個框的信心偏低，建議檢查。","en":"{count} boxes have low confidence. Check them."},"ui.preview.accepted":{"zh_TW":"已接受 {count} 個框 · Ctrl+Z 復原","en":"Accepted {count} boxes · Ctrl+Z to undo"},"ui.preview.discarded":{"zh_TW":"已捨棄提案 · Ctrl+Z 復原","en":"Proposal discarded · Ctrl+Z to undo"},"ui.noMatch.title":{"zh_TW":"沒有找到相似的元件","en":"No similar part found"},"ui.noMatch.body":{"zh_TW":"程式找不到與樣本相似的元件。請試試下列做法：","en":"The program found no part that looks like the sample. Try one of these:"},"ui.noMatch.advice.sampleTooSmall":{"zh_TW":"樣本太小：把框拉大，包含元件的完整外形。","en":"The sample is too small. Make the box larger so it holds the whole part."},"ui.noMatch.advice.sampleTooLarge":{"zh_TW":"樣本比元件大很多：把框縮到元件的外形。","en":"The box is much larger than the part. Shrink the box to the outline of the part."},"ui.noMatch.advice.sampleCoversMany":{"zh_TW":"樣本框到了不只一個元件：只框其中一個。要一次處理多個元件，請改用「區域掃描」（R）。","en":"The box holds more than one part. Draw it around one part only. To handle many parts at once, use Scan region (R)."},"ui.noMatch.advice.sampleOffPart":{"zh_TW":"樣本沒有框到元件：把框移到一個元件上。","en":"The box is not on a part. Move the box onto one part."},"ui.noMatch.advice.onlyOne":{"zh_TW":"板子上只有這一個相似的元件：改選一個有重複的元件當樣本。","en":"Only one such part exists on the board. Pick a part that repeats."},"ui.noMatch.advice.lowContrast":{"zh_TW":"對比太低：元件與背景的差異不夠，換一個對比較高的元件當樣本。","en":"The contrast is too low. Pick a part that stands out more from the board."},"ui.noMatch.advice.lowerThreshold":{"zh_TW":"分數門檻太高：目前最高分是 {best}，可降低到 {suggested} 再試。","en":"The score threshold is too high. The best score is {best}. Try {suggested}."},"ui.noMatch.action.lowerThreshold":{"zh_TW":"降低門檻到 {suggested}","en":"Lower the threshold to {suggested}"},"ui.noMatch.action.redraw":{"zh_TW":"重畫樣本","en":"Redraw the sample"},"ui.error.imageOpen.title":{"zh_TW":"無法開啟影像","en":"Cannot open the image"},"ui.error.imageOpen.body":{"zh_TW":"檔案 {name} 無法解碼。請確認檔案沒有損毀，或改用 PNG、BMP、JPEG。","en":"The file {name} cannot be decoded. Check that the file is not damaged, or use PNG, BMP or JPEG."},"ui.error.backend.title":{"zh_TW":"{backend} 無法使用","en":"{backend} is not available"},"ui.error.backend.body":{"zh_TW":"找不到授權或程式庫。請改用 {fallback}，或檢查授權。","en":"The license or the library is missing. Switch to {fallback}, or check the license."},"ui.error.searchFailed.title":{"zh_TW":"搜尋失敗","en":"The search failed"},"ui.error.searchFailed.body":{"zh_TW":"後端回報錯誤：{detail}。樣本框已保留，可以再試一次。","en":"The back end reported an error: {detail}. The sample box stays. You can try again."},"ui.status.summary":{"zh_TW":"{backend} · {ms} ms · 找到 {found} · 推算 {inferred}","en":"{backend} · {ms} ms · Found {found} · Inferred {inferred}"},"ui.status.none":{"zh_TW":"{backend} · — ms · 0 個物件","en":"{backend} · — ms · 0 objects"},"ui.status.zoom":{"zh_TW":"縮放 {percent}%","en":"Zoom {percent}%"},"ui.objects.title":{"zh_TW":"物件","en":"Objects"},"ui.objects.empty":{"zh_TW":"還沒有物件。","en":"No objects yet."},"ui.params.title":{"zh_TW":"比對參數","en":"Match parameters"},"ui.params.score":{"zh_TW":"分數門檻","en":"Score threshold"},"ui.params.advanced":{"zh_TW":"進階","en":"Advanced"},"ui.params.angle":{"zh_TW":"角度範圍","en":"Angle range"},"ui.backend.label":{"zh_TW":"Back end","en":"Back end"},"ui.settings.theme.light":{"zh_TW":"淺色","en":"Light"},"ui.settings.theme.dark":{"zh_TW":"深色","en":"Dark"},"ui.settings.theme.system":{"zh_TW":"跟隨系統","en":"Follow system"},"ui.settings.fontScale":{"zh_TW":"字級縮放","en":"Text size"},"tool.scan":{"zh_TW":"區域掃描","en":"Scan region"},"ui.scan.hint":{"zh_TW":"放開滑鼠，用樣本庫辨識區域內的元件 · Esc 取消","en":"Release to match the region with the library · Esc to cancel"},"ui.library.title":{"zh_TW":"樣本庫","en":"Sample library"},"ui.library.empty":{"zh_TW":"樣本庫還沒有樣本。先用「樣本」工具教一個。","en":"The library has no sample yet. Teach one with the Sample tool."},"ui.library.edit":{"zh_TW":"編輯","en":"Edit"},"ui.library.delete":{"zh_TW":"刪除","en":"Delete"},"ui.library.summary":{"zh_TW":"{boxes} 個框 · 板子上的複本 {count} 個","en":"{boxes} boxes · {count} copies on the board"},"ui.tree.board":{"zh_TW":"板子","en":"Board"},"ui.tree.local":{"zh_TW":"未存入樣本庫","en":"Not in the library"},"role.body":{"zh_TW":"主體","en":"Body"},"role.pin":{"zh_TW":"Pin 腳","en":"Pin"},"role.other":{"zh_TW":"其他","en":"Other"},"ui.preview.unrecognized":{"zh_TW":"區域內還有 {count} 個元件沒有符合的樣本。","en":"{count} more parts in the region match no library sample."},"ui.preview.action.teachNew":{"zh_TW":"教一個新樣本","en":"Teach a new sample"},"ui.preview.acceptSave":{"zh_TW":"接受並存入樣本庫…","en":"Accept and save to library…"},"ui.preview.identify":{"zh_TW":"可能的樣本","en":"Possible samples"},"ui.noMatch.advice.libraryEmpty":{"zh_TW":"樣本庫是空的：先用「樣本」工具教一個樣本。","en":"The library is empty. Teach a sample first with the Sample tool."},"ui.noMatch.advice.regionEmpty":{"zh_TW":"區域內沒有元件：把區域移到元件上，或拉大。","en":"The region holds no part. Move the region onto parts, or make it larger."},"ui.noMatch.advice.noLibraryMatch":{"zh_TW":"區域內有 {count} 個元件，但樣本庫沒有符合的樣本：教一個新樣本。","en":"The region holds {count} parts, but no library sample matches. Teach a new sample."},"ui.noMatch.action.teachNew":{"zh_TW":"教一個新樣本","en":"Teach a new sample"},"ui.editor.title":{"zh_TW":"編輯元件類型","en":"Edit component type"},"ui.editor.partNo":{"zh_TW":"料號","en":"Part number"},"ui.editor.name":{"zh_TW":"名稱","en":"Name"},"ui.editor.groups":{"zh_TW":"框群組","en":"Box groups"},"ui.editor.role":{"zh_TW":"角色","en":"Role"},"ui.editor.pos":{"zh_TW":"位置 x, y","en":"Position x, y"},"ui.editor.size":{"zh_TW":"寬 × 高","en":"Width × height"},"ui.editor.rows":{"zh_TW":"列數","en":"Rows"},"ui.editor.cols":{"zh_TW":"欄數","en":"Columns"},"ui.editor.pitchX":{"zh_TW":"水平間距","en":"Pitch X"},"ui.editor.pitchY":{"zh_TW":"垂直間距","en":"Pitch Y"},"ui.editor.scope.group":{"zh_TW":"只改這個矩陣","en":"This matrix only"},"ui.editor.save":{"zh_TW":"儲存","en":"Save"},"ui.editor.cancel":{"zh_TW":"取消","en":"Cancel"},"ui.editor.affects":{"zh_TW":"儲存後，板上 {count} 個 {partNo} 元件會一起更新。","en":"After you save, {count} {partNo} components on the board update together."},"ui.editor.needPartNo":{"zh_TW":"請輸入料號。","en":"Enter a part number."},"ui.editor.partNoTaken":{"zh_TW":"料號 {partNo} 已在樣本庫中。","en":"The part number {partNo} is already in the library."},"ui.editor.needBox":{"zh_TW":"至少要有一個框。","en":"The type needs at least one box."},"ui.editor.hint":{"zh_TW":"B 畫框 · 改列數／欄數即可一次建立矩陣 · Del 刪除 · Esc 取消","en":"B draws a box · set rows and columns to make a matrix at once · Del deletes · Esc cancels"},"ui.editor.selectHint":{"zh_TW":"選一個框群組來編輯。","en":"Select a box group to edit it."},"ui.toast.typeSaved":{"zh_TW":"已儲存 {partNo}：更新 {count} 個元件","en":"Saved {partNo}. Updated {count} components."},"ui.status.boxes":{"zh_TW":"{boxes} 個框","en":"{boxes} boxes"},"ui.status.editing":{"zh_TW":"編輯 {partNo} · {boxes} 個框","en":"Editing {partNo} · {boxes} boxes"},"ui.editor.aliases":{"zh_TW":"別名／料號","en":"Aliases / part numbers"},"ui.editor.category":{"zh_TW":"類別","en":"Category"},"ui.editor.addWindow":{"zh_TW":"＋檢測窗","en":"+ Window"},"ui.editor.addAll":{"zh_TW":"一次產生標準檢測框","en":"Add all standard windows"},"ui.editor.kind":{"zh_TW":"種類","en":"Kind"},"ui.editor.algo":{"zh_TW":"檢測演算法","en":"Algorithm"},"ui.editor.offset":{"zh_TW":"位移 x, y","en":"Offset x, y"},"ui.editor.ratio":{"zh_TW":"寬 × 高（父框的比例）","en":"Width × height (of the parent)"},"ui.editor.scopeLabel":{"zh_TW":"套用範圍","en":"Apply to"},"ui.editor.scope.kind":{"zh_TW":"此類型中所有相同種類的框","en":"All boxes of the same kind in this type"},"ui.editor.parent":{"zh_TW":"父框：{parent}","en":"Parent: {parent}"},"ui.editor.bodyOnce":{"zh_TW":"每個元件只能有一個主體框。","en":"A component can have only one body box."},"ui.editor.bodyKeep":{"zh_TW":"主體框不能刪除；先刪掉依附它的框，或改它的大小。","en":"You cannot delete the body box. Resize it instead."},"ui.editor.needParent":{"zh_TW":"先選一個主體或 Pin 群組，當作檢測窗的父框。","en":"Select a body or a pin group first. It becomes the parent of the window."},"ui.editor.addedAll":{"zh_TW":"已產生 {count} 組標準檢測窗。","en":"Added {count} standard window groups."},"ui.editor.noBody":{"zh_TW":"先畫主體框（B），再畫 Pin。","en":"Draw the body box first (B). Then draw the pins."},"role.window":{"zh_TW":"檢測窗","en":"Window"},"ui.library.filter":{"zh_TW":"依料號、名稱、別名篩選","en":"Filter by part number, name or alias"},"ui.library.aliases":{"zh_TW":"別名：{aliases}","en":"Aliases: {aliases}"},"ui.library.localOnly":{"zh_TW":"這個類型只在這塊板子上，還沒存入樣本庫。","en":"This type exists on this board only. It is not in the library yet."},"ui.cad.title":{"zh_TW":"CAD 清單（匯出預覽）","en":"CAD list (export preview)"},"ui.cad.note":{"zh_TW":"5 個欄位：元件名稱、X、Y、角度、元件形式（再加正反面）。原型的座標單位是影像像素，原點在影像左上角；真正的匯出由 S12 實作，會轉成物理單位與 CAD 原點。","en":"Five fields: name, X, Y, angle and type, plus the side. The prototype uses image pixels with the origin at the top left. The real export in S12 converts to physical units and a CAD origin."},"ui.cad.copy":{"zh_TW":"複製","en":"Copy"},"ui.cad.copied":{"zh_TW":"已複製到剪貼簿。","en":"Copied to the clipboard."},"ui.cad.close":{"zh_TW":"關閉","en":"Close"},"ui.cad.empty":{"zh_TW":"板上還沒有元件。先接受一份提案。","en":"The board has no component yet. Accept a proposal first."},"ui.sel.component":{"zh_TW":"{name} · {type}","en":"{name} · {type}"},"ui.sel.edit":{"zh_TW":"編輯元件類型 (E)","en":"Edit component type (E)"},"ui.sel.saveLib":{"zh_TW":"存入樣本庫…","en":"Save to library…"},"ui.sel.alts":{"zh_TW":"可能的樣本（辨識分數）","en":"Possible samples (match score)"},"ui.sel.none":{"zh_TW":"在畫布或物件樹選一個元件。","en":"Select a component on the canvas or in the tree."},"ui.objects.board":{"zh_TW":"板子 {name}","en":"Board {name}"},"ui.toast.retyped":{"zh_TW":"已改為 {partNo}","en":"Changed to {partNo}"},"ui.noMatch.advice.alreadyOnBoard":{"zh_TW":"區域內的元件都已經在板上了。","en":"All parts in the region are on the board already."},"ui.editor.saveBoard":{"zh_TW":"只儲存在這塊板子","en":"Save on this board only"},"ui.editor.saveBoth":{"zh_TW":"儲存並存入樣本庫","en":"Save and add to the library"},"ui.editor.saveLibrary":{"zh_TW":"儲存到樣本庫","en":"Save to the library"},"ui.editor.affectsLib":{"zh_TW":"這是樣本庫的條目。板子上已有的複本不會自動更新（目前 {count} 個複本）。","en":"This is a library entry. Copies on boards do not update by themselves ({count} copies now)."},"ui.sel.localType":{"zh_TW":"這個類型只在這塊板子上，還沒存入樣本庫。","en":"This type exists on this board only. It is not in the library yet."},"ui.sel.sameAsLib":{"zh_TW":"與樣本庫相同。","en":"Same as the library."},"ui.sel.diffFromLib":{"zh_TW":"與樣本庫不同。","en":"Different from the library."},"ui.sel.pull":{"zh_TW":"從樣本庫更新","en":"Update from the library"},"ui.sel.push":{"zh_TW":"存入樣本庫","en":"Add to the library"},"ui.toast.pulled":{"zh_TW":"已從樣本庫更新 {partNo}：更新 {count} 個元件","en":"Updated {partNo} from the library. Updated {count} components."},"ui.toast.pushed":{"zh_TW":"已存入樣本庫：{partNo}","en":"Added {partNo} to the library."},"ui.toast.libSaved":{"zh_TW":"已儲存到樣本庫：{partNo}（板子上的複本不會自動更新）","en":"Saved {partNo} to the library. Copies on boards do not update by themselves."},"ui.toast.libAdded":{"zh_TW":"已存入樣本庫","en":"added to the library"},"ui.add.needType":{"zh_TW":"板子上還沒有元件類型：先接受一份提案。","en":"The board has no component type yet. Accept a proposal first."},"ui.params.scanScope":{"zh_TW":"比對範圍","en":"Compare with"},"ui.params.scope.auto":{"zh_TW":"先用板子已有的類型，找不到再擴大（建議）","en":"Board types first, then the whole library (proposed)"},"ui.params.scope.board":{"zh_TW":"只用板子已有的類型","en":"Board types only"},"ui.params.scope.all":{"zh_TW":"整個樣本庫","en":"The whole library"},"ui.status.compared":{"zh_TW":"比對 {n} 個樣本","en":"{n} samples compared"},"ui.noMatch.advice.scopeBoard":{"zh_TW":"區域內有 {count} 個元件，在整個樣本庫裡可能有符合的樣本，但目前只比對板子已有的類型。","en":"The region holds {count} parts that may match a library sample. The scope is board types only."},"ui.noMatch.action.widenScope":{"zh_TW":"改用整個樣本庫","en":"Use the whole library"},"ui.preview.outOfScope":{"zh_TW":"{count} 個元件在整個樣本庫裡可能有符合的樣本（目前只比對板子已有的類型）。","en":"{count} more parts may match a library sample. The scope is board types only."}}}</script>
+<script type="application/json" id="ux-tokens">{"schema":1,"version":"0.1.0","status":"overlay palette confirmed by the user on 2026-10-05; the rest is proposed until S02 uses it","note":"Design tokens for the AOI UI (S01). Colors are per theme. Line styles are shared by both themes, so the state is readable without color. Run `node tools/check-contrast.mjs` to verify. Run it with --write to refresh contrastResults after any color change. S02 turns these tokens into QPalette / QSS.","themes":{"light":{"surface":{"window":"#F6F8FA","panel":"#FFFFFF","canvas":"#D8DEE4","text":"#1F2328","textMuted":"#59636E","border":"#D0D7DE","accent":"#0969DA","onAccent":"#FFFFFF","focusRing":"#0969DA"},"state":{"sample":{"stroke":"#0550AE","casing":"#FFFFFF"},"found":{"stroke":"#1A7F37","casing":"#FFFFFF"},"inferred":{"stroke":"#9A6700","casing":"#FFFFFF"},"rejected":{"stroke":"#CF222E","casing":"#FFFFFF"}}},"dark":{"surface":{"window":"#0D1117","panel":"#161B22","canvas":"#010409","text":"#E6EDF3","textMuted":"#8B949E","border":"#30363D","accent":"#58A6FF","onAccent":"#0D1117","focusRing":"#58A6FF"},"state":{"sample":{"stroke":"#58A6FF","casing":"#0D1117"},"found":{"stroke":"#3FB950","casing":"#0D1117"},"inferred":{"stroke":"#D29922","casing":"#0D1117"},"rejected":{"stroke":"#FF7B72","casing":"#0D1117"}}}},"overlay":{"note":"Boxes drawn on the image use this palette in BOTH themes. The image does not change with the theme, and most boards are dark. board.* are synthetic reference colors, not measured from real boards (unverified).","state":{"sample":{"stroke":"#58A6FF","casing":"#0D1117"},"found":{"stroke":"#3FB950","casing":"#0D1117"},"inferred":{"stroke":"#D29922","casing":"#0D1117"},"rejected":{"stroke":"#FF7B72","casing":"#0D1117"}},"board":{"green":"#1A5C3A","blue":"#1F3F78","black":"#16181D"},"region":{"stroke":"#FFFFFF","casing":"#0D1117","fillOpacity":0.1,"width":1.5,"lineStyle":"solid","note":"The area the user dragged to scan. Solid, thin, with a light fill. It must not look like a state box."},"definition":{"stroke":"#FFFFFF","casing":"#0D1117","widthBody":2,"widthPin":1.5,"pinFillOpacity":0.18,"note":"Boxes in the component type editor. They are definitions, not match results, so they use a neutral color."}},"stateStyle":{"sample":{"lineStyle":"solid","width":3,"dash":[],"cap":"butt","marker":"S"},"found":{"lineStyle":"solid","width":2,"dash":[],"cap":"butt","marker":"F"},"inferred":{"lineStyle":"dashed","width":2,"dash":[8,4],"cap":"butt","marker":"I"},"rejected":{"lineStyle":"dotted","width":2,"dash":[0,4],"cap":"round","marker":"R"},"selected":{"widthDelta":1,"handles":true},"casingExtraWidth":2,"dashUnit":"px along the path. Divide by width for QPen::setDashPattern, which counts in pen widths.","hierarchy":{"note":"A component draws all its boxes in the style of its own state. The selected component adds 1 to every width. Labels show the part number and the score."}},"sizes":{"unit":"device-independent px","strokeIsCosmetic":true,"handleVisual":8,"handleHit":24,"minHitTarget":24,"handlesMoveOutsideBelow":72,"toolbarButton":36,"statusBarHeight":28,"dockMinWidth":280,"windowMin":[1024,640],"spacing":[4,8,12,16,24]},"font":{"basePt":9,"scaleOptions":[1,1.25,1.5],"monoFamily":"Consolas"},"interaction":{"zoomStepPerNotch":1.1,"zoomMinPercent":5,"zoomMaxPercent":3200,"fitMarginPx":24,"minSampleSidePx":8},"timing":{"unit":"ms","visualFeedbackMax":50,"busyAfter":200,"busyMinShow":400,"progressAfter":1000,"cancelToIdleMax":100,"paramDebounce":120,"toast":4000},"contrastRules":[{"kind":"text","min":4.5,"pairs":[["surface.text","surface.window"],["surface.text","surface.panel"],["surface.textMuted","surface.panel"],["surface.onAccent","surface.accent"]]},{"kind":"graphic","min":3,"pairs":[["surface.accent","surface.panel"],["surface.focusRing","surface.panel"],["state.sample.stroke","surface.panel"],["state.found.stroke","surface.panel"],["state.inferred.stroke","surface.panel"],["state.rejected.stroke","surface.panel"],["state.sample.stroke","surface.canvas"],["state.found.stroke","surface.canvas"],["state.inferred.stroke","surface.canvas"],["state.rejected.stroke","surface.canvas"],["state.sample.stroke","state.sample.casing"],["state.found.stroke","state.found.casing"],["state.inferred.stroke","state.inferred.casing"],["state.rejected.stroke","state.rejected.casing"]]},{"kind":"graphic","min":3,"scope":"overlay","pairs":[["state.sample.stroke","board.green"],["state.sample.stroke","board.blue"],["state.sample.stroke","board.black"],["state.found.stroke","board.green"],["state.found.stroke","board.blue"],["state.found.stroke","board.black"],["state.inferred.stroke","board.green"],["state.inferred.stroke","board.blue"],["state.inferred.stroke","board.black"],["state.rejected.stroke","board.green"],["state.rejected.stroke","board.blue"],["state.rejected.stroke","board.black"],["state.sample.stroke","state.sample.casing"],["state.found.stroke","state.found.casing"],["state.inferred.stroke","state.inferred.casing"],["state.rejected.stroke","state.rejected.casing"],["region.stroke","board.green"],["region.stroke","board.blue"],["region.stroke","board.black"],["region.stroke","region.casing"],["definition.stroke","board.green"],["definition.stroke","board.blue"],["definition.stroke","board.black"],["definition.stroke","definition.casing"]]}],"contrastResults":{"light":[{"kind":"text","fg":"surface.text","bg":"surface.window","min":4.5,"ratio":14.84,"pass":true},{"kind":"text","fg":"surface.text","bg":"surface.panel","min":4.5,"ratio":15.8,"pass":true},{"kind":"text","fg":"surface.textMuted","bg":"surface.panel","min":4.5,"ratio":6.11,"pass":true},{"kind":"text","fg":"surface.onAccent","bg":"surface.accent","min":4.5,"ratio":5.19,"pass":true},{"kind":"graphic","fg":"surface.accent","bg":"surface.panel","min":3,"ratio":5.19,"pass":true},{"kind":"graphic","fg":"surface.focusRing","bg":"surface.panel","min":3,"ratio":5.19,"pass":true},{"kind":"graphic","fg":"state.sample.stroke","bg":"surface.panel","min":3,"ratio":7.59,"pass":true},{"kind":"graphic","fg":"state.found.stroke","bg":"surface.panel","min":3,"ratio":5.08,"pass":true},{"kind":"graphic","fg":"state.inferred.stroke","bg":"surface.panel","min":3,"ratio":4.87,"pass":true},{"kind":"graphic","fg":"state.rejected.stroke","bg":"surface.panel","min":3,"ratio":5.36,"pass":true},{"kind":"graphic","fg":"state.sample.stroke","bg":"surface.canvas","min":3,"ratio":5.6,"pass":true},{"kind":"graphic","fg":"state.found.stroke","bg":"surface.canvas","min":3,"ratio":3.75,"pass":true},{"kind":"graphic","fg":"state.inferred.stroke","bg":"surface.canvas","min":3,"ratio":3.59,"pass":true},{"kind":"graphic","fg":"state.rejected.stroke","bg":"surface.canvas","min":3,"ratio":3.95,"pass":true},{"kind":"graphic","fg":"state.sample.stroke","bg":"state.sample.casing","min":3,"ratio":7.59,"pass":true},{"kind":"graphic","fg":"state.found.stroke","bg":"state.found.casing","min":3,"ratio":5.08,"pass":true},{"kind":"graphic","fg":"state.inferred.stroke","bg":"state.inferred.casing","min":3,"ratio":4.87,"pass":true},{"kind":"graphic","fg":"state.rejected.stroke","bg":"state.rejected.casing","min":3,"ratio":5.36,"pass":true}],"dark":[{"kind":"text","fg":"surface.text","bg":"surface.window","min":4.5,"ratio":16.02,"pass":true},{"kind":"text","fg":"surface.text","bg":"surface.panel","min":4.5,"ratio":14.64,"pass":true},{"kind":"text","fg":"surface.textMuted","bg":"surface.panel","min":4.5,"ratio":5.62,"pass":true},{"kind":"text","fg":"surface.onAccent","bg":"surface.accent","min":4.5,"ratio":7.49,"pass":true},{"kind":"graphic","fg":"surface.accent","bg":"surface.panel","min":3,"ratio":6.85,"pass":true},{"kind":"graphic","fg":"surface.focusRing","bg":"surface.panel","min":3,"ratio":6.85,"pass":true},{"kind":"graphic","fg":"state.sample.stroke","bg":"surface.panel","min":3,"ratio":6.85,"pass":true},{"kind":"graphic","fg":"state.found.stroke","bg":"surface.panel","min":3,"ratio":6.81,"pass":true},{"kind":"graphic","fg":"state.inferred.stroke","bg":"surface.panel","min":3,"ratio":6.85,"pass":true},{"kind":"graphic","fg":"state.rejected.stroke","bg":"surface.panel","min":3,"ratio":6.86,"pass":true},{"kind":"graphic","fg":"state.sample.stroke","bg":"surface.canvas","min":3,"ratio":8.13,"pass":true},{"kind":"graphic","fg":"state.found.stroke","bg":"surface.canvas","min":3,"ratio":8.08,"pass":true},{"kind":"graphic","fg":"state.inferred.stroke","bg":"surface.canvas","min":3,"ratio":8.14,"pass":true},{"kind":"graphic","fg":"state.rejected.stroke","bg":"surface.canvas","min":3,"ratio":8.14,"pass":true},{"kind":"graphic","fg":"state.sample.stroke","bg":"state.sample.casing","min":3,"ratio":7.49,"pass":true},{"kind":"graphic","fg":"state.found.stroke","bg":"state.found.casing","min":3,"ratio":7.45,"pass":true},{"kind":"graphic","fg":"state.inferred.stroke","bg":"state.inferred.casing","min":3,"ratio":7.5,"pass":true},{"kind":"graphic","fg":"state.rejected.stroke","bg":"state.rejected.casing","min":3,"ratio":7.51,"pass":true}],"overlay":[{"kind":"graphic","fg":"state.sample.stroke","bg":"board.green","min":3,"ratio":3.15,"pass":true},{"kind":"graphic","fg":"state.sample.stroke","bg":"board.blue","min":3,"ratio":4.07,"pass":true},{"kind":"graphic","fg":"state.sample.stroke","bg":"board.black","min":3,"ratio":7.03,"pass":true},{"kind":"graphic","fg":"state.found.stroke","bg":"board.green","min":3,"ratio":3.14,"pass":true},{"kind":"graphic","fg":"state.found.stroke","bg":"board.blue","min":3,"ratio":4.05,"pass":true},{"kind":"graphic","fg":"state.found.stroke","bg":"board.black","min":3,"ratio":6.99,"pass":true},{"kind":"graphic","fg":"state.inferred.stroke","bg":"board.green","min":3,"ratio":3.16,"pass":true},{"kind":"graphic","fg":"state.inferred.stroke","bg":"board.blue","min":3,"ratio":4.08,"pass":true},{"kind":"graphic","fg":"state.inferred.stroke","bg":"board.black","min":3,"ratio":7.04,"pass":true},{"kind":"graphic","fg":"state.rejected.stroke","bg":"board.green","min":3,"ratio":3.16,"pass":true},{"kind":"graphic","fg":"state.rejected.stroke","bg":"board.blue","min":3,"ratio":4.08,"pass":true},{"kind":"graphic","fg":"state.rejected.stroke","bg":"board.black","min":3,"ratio":7.04,"pass":true},{"kind":"graphic","fg":"state.sample.stroke","bg":"state.sample.casing","min":3,"ratio":7.49,"pass":true},{"kind":"graphic","fg":"state.found.stroke","bg":"state.found.casing","min":3,"ratio":7.45,"pass":true},{"kind":"graphic","fg":"state.inferred.stroke","bg":"state.inferred.casing","min":3,"ratio":7.5,"pass":true},{"kind":"graphic","fg":"state.rejected.stroke","bg":"state.rejected.casing","min":3,"ratio":7.51,"pass":true},{"kind":"graphic","fg":"region.stroke","bg":"board.green","min":3,"ratio":7.97,"pass":true},{"kind":"graphic","fg":"region.stroke","bg":"board.blue","min":3,"ratio":10.29,"pass":true},{"kind":"graphic","fg":"region.stroke","bg":"board.black","min":3,"ratio":17.76,"pass":true},{"kind":"graphic","fg":"region.stroke","bg":"region.casing","min":3,"ratio":18.92,"pass":true},{"kind":"graphic","fg":"definition.stroke","bg":"board.green","min":3,"ratio":7.97,"pass":true},{"kind":"graphic","fg":"definition.stroke","bg":"board.blue","min":3,"ratio":10.29,"pass":true},{"kind":"graphic","fg":"definition.stroke","bg":"board.black","min":3,"ratio":17.76,"pass":true},{"kind":"graphic","fg":"definition.stroke","bg":"definition.casing","min":3,"ratio":18.92,"pass":true}]}}</script>
+
+<script>
+(() => {
+'use strict';
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const r2 = (v) => Math.round(v * 100) / 100;
+const clone = (o) => JSON.parse(JSON.stringify(o));
+const hash = (s) => { let h = 0; for (const ch of String(s)) h = (h * 31 + ch.charCodeAt(0)) | 0; return Math.abs(h); };
+const DATA = JSON.parse($('#aoi-data').textContent);
+const COPY = JSON.parse($('#ux-copy').textContent);
+const TOK = JSON.parse($('#ux-tokens').textContent);
+
+/* ================= i18n ================= */
+let lang = 'zh_TW';
+const t = (k, p = {}) => {
+  const e = COPY.keys[k];
+  if (!e) return k;
+  return e[lang].replace(/\{(\w+)\}/g, (m, n) => (p[n] !== undefined ? p[n] : m));
+};
+const T = (zh, en) => (lang === 'en' ? en : zh);
+
+/* ================= theme and style tokens ================= */
+let themePref = 'system';
+const effTheme = () => (themePref === 'system' ? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : themePref);
+const ST = clone(TOK.stateStyle);
+const colorOverride = {};
+const NAMES = ['sample', 'found', 'inferred', 'rejected'];
+const colorFor = (n) => colorOverride[n] || TOK.themes[effTheme()].state[n].stroke;
+const casingFor = (n) => TOK.themes[effTheme()].state[n].casing;
+// Boxes on the image: the image does not follow the theme, so the proposed palette is fixed (tokens.overlay).
+const overlayFixed = () => ($('#ovPal') ? $('#ovPal').value === 'fixed' : true);
+const colorOn = (n) => colorOverride[n] || (overlayFixed() ? TOK.overlay.state[n].stroke : TOK.themes[effTheme()].state[n].stroke);
+const casingOn = (n) => (overlayFixed() ? TOK.overlay.state[n].casing : TOK.themes[effTheme()].state[n].casing);
+function applyTheme() {
+  const th = effTheme();
+  const s = TOK.themes[th].surface;
+  const r = document.documentElement.style;
+  r.setProperty('--window', s.window); r.setProperty('--panel', s.panel); r.setProperty('--canvas', s.canvas);
+  r.setProperty('--text', s.text); r.setProperty('--muted', s.textMuted); r.setProperty('--border', s.border);
+  r.setProperty('--accent', s.accent); r.setProperty('--onAccent', s.onAccent); r.setProperty('--focus', s.focusRing);
+  r.setProperty('--sam', colorFor('sample')); r.setProperty('--fnd', colorFor('found'));
+  r.setProperty('--inf', colorFor('inferred')); r.setProperty('--rej', colorFor('rejected'));
+  document.documentElement.dataset.theme = th;
+  document.documentElement.style.colorScheme = th;
+  $$('[data-theme-set]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.themeSet === themePref));
+}
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (themePref === 'system') { applyTheme(); render(); renderLab(); } });
+
+/* ================= synthetic board (ground truth) ================= */
+const BW = 1200, BH = 800, FLOOR = 0.30, LOWCONF = 0.10;
+const LOOK = { A: { w: 56, h: 28, prefix: 'R', cat: 'Chip' }, B: { w: 90, h: 50, prefix: 'C', cat: 'Chip' }, C: { w: 200, h: 110, prefix: 'U', cat: 'IC' } };
+const PARTS = [];
+let partSeq = 0;
+function addPart(look, cx, cy, rot, contrast, extra = {}) { const d = LOOK[look]; PARTS.push({ id: `p${++partSeq}`, look, cx, cy, rot, w: d.w, h: d.h, contrast, ...extra }); }
+(() => {
+  const missing = new Set(['3,1', '7,2']);
+  const lowc = { '5,3': 0.66, '2,0': 0.58 };
+  for (let j = 0; j < 4; j++) for (let i = 0; i < 10; i++) {
+    const k = `${i},${j}`;
+    if (missing.has(k)) continue;
+    addPart('A', 110 + 100 * i + 28, 150 + 120 * j + 14, 0, lowc[k] ?? r2(0.94 + ((i * 7 + j * 13) % 5) * 0.01), { i, j });
+  }
+  for (let k = 0; k < 3; k++) addPart('B', 875 + 110 * k, 665, 0, 0.95);
+  addPart('C', 210, 675, 0, 0.97);
+  addPart('C', 480, 675, 0, 0.96);
+  addPart('C', 720, 680, 90, 0.95);
+})();
+const GRID = { x0: 110, y0: 150, px: 100, py: 120, cols: 10, rows: 4 };
+const aabb = (p) => (p.rot % 180 ? { x: p.cx - p.h / 2, y: p.cy - p.w / 2, w: p.h, h: p.w } : { x: p.cx - p.w / 2, y: p.cy - p.h / 2, w: p.w, h: p.h });
+const BOARDS = { green: ['#1a5c3a', '#2c7a52', '#0f3f27'], blue: ['#1f3f78', '#3a62a3', '#122a54'], black: ['#16181d', '#2c313a', '#0c0d10'] };
+function partSVG(p, trace) {
+  const low = p.contrast < 0.7;
+  let s = `<g transform="translate(${p.cx} ${p.cy}) rotate(${p.rot})">`;
+  if (p.look === 'A') {
+    s += `<rect x="-28" y="-14" width="56" height="28" rx="3" fill="${low ? trace : '#26272b'}"/>`;
+    s += `<rect x="-28" y="-14" width="14" height="28" rx="3" fill="${low ? '#4d8a66' : '#d3d6db'}"/><rect x="14" y="-14" width="14" height="28" rx="3" fill="${low ? '#4d8a66' : '#d3d6db'}"/>`;
+  } else if (p.look === 'B') {
+    s += `<rect x="-45" y="-25" width="90" height="50" rx="6" fill="#c9a24a"/><rect x="-39" y="-19" width="78" height="10" rx="4" fill="#e8cf86"/>`;
+  } else {
+    s += `<rect x="-100" y="-55" width="200" height="110" rx="4" fill="#1b1c20"/>`;
+    for (let k = 0; k < 10; k++) s += `<rect x="${-90 + k * 19}" y="-63" width="9" height="8" fill="#cfd3d8"/><rect x="${-90 + k * 19}" y="55" width="9" height="8" fill="#cfd3d8"/>`;
+    s += `<circle cx="-82" cy="-37" r="6" fill="#2f3138"/>`;
+  }
+  return s + '</g>';
+}
+function boardSVG(color) {
+  const [bg, trace, dark] = BOARDS[color];
+  let s = `<rect width="${BW}" height="${BH}" fill="${bg}"/>`;
+  for (let j = 0; j < 4; j++) s += `<rect x="40" y="${150 + 120 * j + 11}" width="1120" height="6" fill="${trace}"/>`;
+  for (let i = 0; i < 12; i++) s += `<circle cx="${60 + i * 100}" cy="60" r="9" fill="${dark}" stroke="${trace}" stroke-width="3"/>`;
+  for (const p of PARTS) s += partSVG(p, trace);
+  return s;
+}
+
+/* ================= component types (the library) ================= */
+// A type is a set of box groups in a local frame centered on the body. Kinds: Body (exactly one), Pin (a matrix), Window (linked to a parent).
+const DEFAULT_TYPES = {
+  t5102: { id: 't5102', partNo: '5102', name: 'Chip resistor', aliases: ['R0603', '0603'], category: 'Chip', look: 'A', refRot: 0, saved: true, groups: [
+    { id: 'g1', kind: 'Body', x: -28, y: -14, w: 56, h: 28 },
+    { id: 'g2', kind: 'Pin', x: -28, y: -14, w: 14, h: 28, rows: 1, cols: 2, px: 42, py: 0, skip: [] },
+    { id: 'g3', kind: 'Window', algo: 'Void', parent: 'g1', ox: 0, oy: 0, rw: 0.67, rh: 0.6 },
+    { id: 'g4', kind: 'Window', algo: 'Solder', parent: 'g2', ox: 0, oy: 0, rw: 1, rh: 1.3 }
+  ] },
+  t8371: { id: 't8371', partNo: '8371', name: 'SOIC-20', aliases: ['SOP20', '20-SOIC'], category: 'IC', look: 'C', refRot: 0, saved: true, groups: [
+    { id: 'g1', kind: 'Body', x: -100, y: -55, w: 200, h: 110 },
+    { id: 'g2', kind: 'Pin', x: -90, y: -63, w: 9, h: 8, rows: 2, cols: 10, px: 19, py: 118, skip: [] },
+    { id: 'g3', kind: 'Window', algo: 'Solder', parent: 'g2', ox: 0, oy: 0, rw: 1.4, rh: 2 }
+  ] }
+};
+function cellsOf(g) {
+  const rows = g.kind === 'Pin' ? g.rows : 1, cols = g.kind === 'Pin' ? g.cols : 1, out = [];
+  for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+    const idx = r * cols + c;
+    if ((g.skip || []).includes(idx)) continue;
+    out.push({ idx, rect: { x: g.x + c * (g.px || 0), y: g.y + r * (g.py || 0), w: g.w, h: g.h } });
+  }
+  return out;
+}
+function expandGroups(groups) { // [{gid, idx, kind, algo, rect}] in the type frame
+  const out = [], cells = {};
+  for (const g of groups) if (g.kind !== 'Window') { cells[g.id] = cellsOf(g); for (const c of cells[g.id]) out.push({ gid: g.id, idx: c.idx, kind: g.kind, rect: c.rect }); }
+  for (const g of groups) if (g.kind === 'Window') {
+    for (const p of cells[g.parent] || []) {
+      const pw = p.rect.w, ph = p.rect.h, cx = p.rect.x + pw / 2 + g.ox * pw, cy = p.rect.y + ph / 2 + g.oy * ph, w = g.rw * pw, h = g.rh * ph;
+      out.push({ gid: g.id, idx: p.idx, kind: 'Window', algo: g.algo, rect: { x: cx - w / 2, y: cy - h / 2, w, h } });
+    }
+  }
+  return out;
+}
+const rotPt = (x, y, rot) => (rot === 0 ? [x, y] : rot === 90 ? [-y, x] : rot === 180 ? [-x, -y] : [y, -x]);
+function toWorld(r, inst) {
+  const c = rotPt(r.x + r.w / 2, r.y + r.h / 2, inst.rot), swap = inst.rot === 90 || inst.rot === 270;
+  const w = swap ? r.h : r.w, h = swap ? r.w : r.h;
+  return { x: inst.cx + c[0] - w / 2, y: inst.cy + c[1] - h / 2, w, h };
+}
+const typeOf = (id) => S.types[id] || S.lib[id] || (S.prop && S.prop.tempType && S.prop.tempType.id === id ? S.prop.tempType : null);
+function instBoxes(inst) {
+  const ty = typeOf(inst.typeId);
+  if (!ty) return [];
+  return expandGroups(ty.groups).map((b) => ({ ...b, id: `${inst.id}/${b.gid}:${b.idx}`, rect: toWorld(b.rect, inst) }));
+}
+function bboxOf(boxes) {
+  if (!boxes.length) return { x: 0, y: 0, w: 0, h: 0 };
+  let x1 = 1e9, y1 = 1e9, x2 = -1e9, y2 = -1e9;
+  for (const b of boxes) { x1 = Math.min(x1, b.rect.x); y1 = Math.min(y1, b.rect.y); x2 = Math.max(x2, b.rect.x + b.rect.w); y2 = Math.max(y2, b.rect.y + b.rect.h); }
+  return { x: x1, y: y1, w: x2 - x1, h: y2 - y1 };
+}
+
+/* ================= model ================= */
+class Stack {
+  constructor() { this.list = []; this.i = 0; }
+  push(c) { this.list.length = this.i; this.list.push(c); this.i++; if (this.list.length > 200) { this.list.shift(); this.i--; } }
+  get canUndo() { return this.i > 0; }
+  get canRedo() { return this.i < this.list.length; }
+  get undoLabel() { return this.canUndo ? this.list[this.i - 1].label() : null; }
+  get redoLabel() { return this.canRedo ? this.list[this.i].label() : null; }
+  undo() { const c = this.list[--this.i]; c.undo(); return c; }
+  redo() { const c = this.list[this.i++]; c.redo(); return c; }
+  dropRedo() { this.list.length = this.i; }
+  clear() { this.list = []; this.i = 0; }
+}
+let seq = 0, tmpSeq = 0;
+const newId = () => `c${++seq}`;
+const S = {
+  state: 'Empty', drawOrigin: 'Idle', errorOrigin: 'Empty', error: null, scene: 'board',
+  tool: 'select', view: { s: 1, tx: 0, ty: 0, auto: true }, viewBoard: null,
+  types: {}, lib: {}, prop: null, region: null, draftRect: null, draftMode: null, lastSearch: null,
+  doc: { comps: [] }, nameSeq: {}, sel: new Set(), selGroup: null, expanded: new Set(),
+  thr: 0.70, angle: '0', filter: { found: true, inferred: true, rejected: true },
+  session: new Stack(), docStack: new Stack(), edit: null,
+  last: null, backend: 'OpenCV', lastTypeId: null, busyShownAt: 0, progShown: false, space: false, cursor: null, drag: null, job: null, imageName: '', libFilter: ''
+};
+function resetLibrary() { S.lib = clone(DEFAULT_TYPES); S.types = {}; }
+resetLibrary();
+
+/* ----- FSM (this table is what diagram.md and S04 use) ----- */
+const FSM = {
+  Empty: { ImageOpened: ['Idle'], ImageFailed: ['Error'] },
+  Idle: { ImageOpened: ['Idle'], ImageFailed: ['Error'], PressRegion: ['DrawingRegion'], UndoToPreview: ['Preview'], EditType: ['EditingType'] },
+  DrawingRegion: { Release: ['Searching'], ReleaseTooSmall: ['Idle', 'Preview', 'NoMatch'], Esc: ['Idle', 'Preview', 'NoMatch'] },
+  Searching: { ResultFound: ['Preview'], ResultEmpty: ['NoMatch'], Failure: ['Error'], Cancel: ['Idle'], ParamsChanged: ['Searching'], ImageOpened: ['Idle'] },
+  Preview: { ThresholdChanged: ['Preview'], ParamsChanged: ['Searching'], Accept: ['Idle'], Discard: ['Idle'], PressRegion: ['DrawingRegion'], ImageOpened: ['Idle'], ImageFailed: ['Error'] },
+  NoMatch: { ThresholdChanged: ['Preview', 'NoMatch'], ParamsChanged: ['Searching'], Dismiss: ['Idle'], PressRegion: ['DrawingRegion'], ImageOpened: ['Idle'], ImageFailed: ['Error'] },
+  Error: { Dismiss: ['Idle', 'Empty'], Retry: ['Searching'], ImageOpened: ['Idle'] },
+  EditingType: { Save: ['Idle'], Cancel: ['Idle'] }
+};
+const STATES = ['Empty', 'Idle', 'DrawingRegion', 'Searching', 'Preview', 'NoMatch', 'Error', 'EditingType'];
+const t0 = performance.now();
+function log(msg, cls = '') {
+  const li = document.createElement('li');
+  li.className = cls;
+  li.textContent = `+${((performance.now() - t0) / 1000).toFixed(2)}s  ${msg}`;
+  const ul = $('#log');
+  ul.prepend(li);
+  while (ul.children.length > 80) ul.lastChild.remove();
+}
+function go(ev, to) {
+  const allowed = FSM[S.state] && FSM[S.state][ev];
+  if (!allowed || !allowed.includes(to)) { log(`IGNORED ${ev} in ${S.state}`, 'ign'); return false; }
+  log(`${ev}: ${S.state} → ${to}`, 'ev');
+  S.state = to;
+  return true;
+}
+
+/* ================= fake search (two flows) ================= */
+const iou = (a, b) => { const x1 = Math.max(a.x, b.x), y1 = Math.max(a.y, b.y), x2 = Math.min(a.x + a.w, b.x + b.w), y2 = Math.min(a.y + a.h, b.y + b.h); const i = Math.max(0, x2 - x1) * Math.max(0, y2 - y1); return i / (a.w * a.h + b.w * b.h - i); };
+const overlapFrac = (rect, p) => { const ox = Math.max(0, Math.min(rect.x + rect.w, p.x + p.w) - Math.max(rect.x, p.x)), oy = Math.max(0, Math.min(rect.y + rect.h, p.y + p.h) - Math.max(rect.y, p.y)); return (ox * oy) / (p.w * p.h); };
+const onBoardAlready = (p) => S.doc.comps.some((c) => Math.hypot(c.cx - p.cx, c.cy - p.cy) < 12);
+const savedTypes = () => Object.values(S.lib);
+const typeSame = (a, b) => JSON.stringify([a.partNo, a.name, a.aliases, a.category, a.groups]) === JSON.stringify([b.partNo, b.name, b.aliases, b.category, b.groups]);
+function bodyOf(p) { const a = aabb(p); return { x: -a.w / 2, y: -a.h / 2, w: a.w, h: a.h }; }
+
+// Flow A: the user draws ONE sample. The program finds the same parts on the board.
+function searchTeach(rect, opts) {
+  let best = null, bi = 0;
+  for (const p of PARTS) { const v = iou(rect, aabb(p)); if (v > bi) { bi = v; best = p; } }
+  const held = PARTS.filter((p) => overlapFrac(rect, aabb(p)) >= 0.5);
+  if (held.length >= 2) return { insts: [], reasons: ['sampleCoversMany'] };
+  if (!best || bi < 0.25) {
+    if (held.length === 1) return { insts: [], reasons: ['sampleTooLarge'] };
+    const cx = rect.x + rect.w / 2, cy = rect.y + rect.h / 2, a = rect.w * rect.h;
+    const on = PARTS.find((p) => { const b = aabb(p); return cx >= b.x && cx <= b.x + b.w && cy >= b.y && cy <= b.y + b.h; });
+    return { insts: [], reasons: [on && a < 0.5 * on.w * on.h ? 'sampleTooSmall' : 'sampleOffPart'] };
+  }
+  const same = PARTS.filter((p) => p.look === best.look && p !== best && !onBoardAlready(p));
+  if (!PARTS.some((p) => p.look === best.look && p !== best)) return { insts: [], reasons: ['onlyOne'] };
+  const d = LOOK[best.look], body = bodyOf(best);
+  const tempType = { id: `tmp${++tmpSeq}`, partNo: '', name: `${T('未命名樣本', 'Unnamed sample')} ${tmpSeq}`, aliases: [], category: d.cat, look: best.look, refRot: best.rot, saved: false, groups: [{ id: 'g1', kind: 'Body', ...body }] };
+  const q = clamp(bi / 0.8, 0.5, 1), mul = opts.lowContrast ? 0.55 : 1;
+  const insts = [{ id: newId(), typeId: tempType.id, cx: best.cx, cy: best.cy, rot: 0, kind: 'samp', score: null, origin: 'auto' }];
+  for (const p of same) {
+    const score = r2(clamp(p.contrast * (0.85 + 0.15 * q) * mul, 0.05, 0.99));
+    if (score >= FLOOR) insts.push({ id: newId(), typeId: tempType.id, cx: p.cx, cy: p.cy, rot: (p.rot - best.rot + 360) % 360, kind: 'cand', score, origin: 'auto' });
+  }
+  if (best.look === 'A' && insts.length >= 4) {
+    const have = new Set(PARTS.filter((p) => p.look === 'A').map((p) => `${p.i},${p.j}`));
+    for (let j = 0; j < GRID.rows; j++) for (let i = 0; i < GRID.cols; i++) {
+      if (have.has(`${i},${j}`)) continue;
+      insts.push({ id: newId(), typeId: tempType.id, cx: GRID.x0 + GRID.px * i + 28, cy: GRID.y0 + GRID.py * j + 14, rot: 0, kind: 'inf', score: null, origin: 'auto' });
+    }
+  }
+  return { insts, reasons: [], tempType, medianContrast: [...same].map((p) => p.contrast).sort((a, b) => a - b)[Math.floor(same.length / 2)] * mul, args: {} };
+}
+
+// Flow B: the user drags ANY region. The program matches it with every library sample.
+// Which library types does a scan compare with? Board copies first; the whole library only when needed (ADR-006, "a big library").
+function scanPlan(rect) {
+  const lib = savedTypes(), scope = $('#scanScope') ? $('#scanScope').value : 'auto';
+  const used = new Set(Object.values(S.types).map((x) => x.libId).filter((id) => id && S.lib[id]));
+  const inRegion = PARTS.filter((p) => p.cx >= rect.x && p.cx <= rect.x + rect.w && p.cy >= rect.y && p.cy <= rect.y + rect.h);
+  const pass1 = scope === 'all' ? lib : lib.filter((ty) => used.has(ty.id));
+  const left = inRegion.filter((p) => !pass1.some((ty) => ty.look === p.look));
+  const pass2 = scope === 'auto' && left.length ? lib.filter((ty) => !pass1.includes(ty)) : [];
+  return { lib, scope, inRegion, pass1, pass2, pool: [...pass1, ...pass2], compared: pass1.length + pass2.length };
+}
+function searchScan(rect, opts) {
+  const plan = scanPlan(rect), lib = plan.pool;
+  if (!plan.lib.length) return { insts: [], reasons: ['libraryEmpty'], compared: 0 };
+  const inRegion = plan.inRegion;
+  if (!inRegion.length) return { insts: [], reasons: ['regionEmpty'], compared: plan.compared };
+  const known = inRegion.filter((p) => lib.some((ty) => ty.look === p.look));
+  const unknown = inRegion.length - known.length;
+  const outOfScope = plan.scope === 'board' ? inRegion.filter((p) => !known.includes(p) && plan.lib.some((ty) => ty.look === p.look)).length : 0;
+  if (!known.length) return outOfScope ? { insts: [], reasons: ['scopeBoard'], args: { count: outOfScope }, compared: plan.compared, unrecognized: unknown - outOfScope } : { insts: [], reasons: ['noLibraryMatch'], args: { count: unknown }, unrecognized: unknown, compared: plan.compared };
+  const fresh = known.filter((p) => !onBoardAlready(p));
+  if (!fresh.length) return { insts: [], reasons: ['alreadyOnBoard'], unrecognized: unknown - outOfScope, compared: plan.compared };
+  const mul = opts.lowContrast ? 0.55 : 1;
+  const insts = fresh.map((p) => {
+    const ty = lib.find((x) => x.look === p.look);
+    const score = r2(clamp(p.contrast * mul * (0.97 + ((hash(p.id) % 5) - 2) * 0.01), 0.05, 0.99));
+    const alts = lib.map((x) => ({ typeId: x.id, score: x === ty ? score : r2(0.12 + (hash(p.id + x.id) % 25) / 100) })).sort((a, c) => c.score - a.score);
+    return { id: newId(), typeId: ty.id, cx: p.cx, cy: p.cy, rot: (p.rot - ty.refRot + 360) % 360, kind: 'cand', score, origin: 'auto', alts };
+  });
+  return { insts, reasons: [], unrecognized: unknown - outOfScope, outOfScope, args: { count: unknown }, compared: plan.compared, medianContrast: [...fresh].map((p) => p.contrast).sort((a, c) => a - c)[Math.floor(fresh.length / 2)] * mul };
+}
+
+const stateOf = (c, thr = S.thr) => (c.fixedState ? c.fixedState : c.kind === 'samp' ? 'sample' : c.kind === 'cand' ? (c.score >= thr ? 'found' : 'rejected') : c.kind === 'inf' ? 'inferred' : 'found');
+const foundCount = (prop, thr = S.thr) => prop.insts.filter((c) => stateOf(c, thr) === 'found').length;
+function propView() {
+  if (!S.prop) return [];
+  const showInf = foundCount(S.prop) >= 2;
+  return S.prop.insts.filter((c) => c.kind !== 'inf' || showInf).map((c) => ({ inst: c, state: stateOf(c) }));
+}
+function visibleComps() {
+  const out = [];
+  const showProp = S.state === 'Preview' || S.state === 'NoMatch' || (S.state === 'DrawingRegion' && S.drawOrigin !== 'Idle');
+  if (showProp && S.prop) for (const v of propView()) out.push({ inst: v.inst, state: v.state, doc: false });
+  for (const c of S.doc.comps) out.push({ inst: c, state: c.fixedState || 'found', doc: true });
+  return out;
+}
+function counts() {
+  const list = S.state === 'Preview' || S.state === 'NoMatch' ? propView().map((v) => v.state) : S.doc.comps.map((c) => c.fixedState || 'found');
+  const comps = S.state === 'Preview' || S.state === 'NoMatch' ? propView().map((v) => v.inst) : S.doc.comps;
+  const boxes = comps.reduce((n, c) => n + instBoxes(c).length, 0);
+  return { found: list.filter((x) => x === 'found').length, inferred: list.filter((x) => x === 'inferred').length, rejected: list.filter((x) => x === 'rejected').length, boxes };
+}
+const editableBoard = () => S.scene === 'board' && (S.state === 'Preview' || S.state === 'Idle');
+const container = () => (S.state === 'Preview' ? S.prop.insts : S.doc.comps);
+const editStack = () => (S.state === 'Preview' ? S.session : S.docStack);
+const nameOf = (c) => c.name || '';
+
+/* ================= view transform ================= */
+const cvw = $('#cvw'), cv = $('#cv');
+const w2s = (x, y) => [x * S.view.s + S.view.tx, y * S.view.s + S.view.ty];
+const s2w = (x, y) => [(x - S.view.tx) / S.view.s, (y - S.view.ty) / S.view.s];
+function fitRect(x, y, w, h) {
+  const W = cvw.clientWidth, H = cvw.clientHeight, m = TOK.interaction.fitMarginPx;
+  const s = Math.max(0.05, Math.min((W - 2 * m) / w, (H - 2 * m) / h));
+  S.view = { s, tx: (W - w * s) / 2 - x * s, ty: (H - h * s) / 2 - y * s, auto: true };
+}
+function fit() {
+  if (S.scene === 'type' && S.edit) { const a = editorExtent(); fitRect(a.x, a.y, a.w, a.h); } else fitRect(0, 0, BW, BH);
+}
+new ResizeObserver(() => { if (S.view.auto) fit(); render(); }).observe(cvw);
+function zoomAt(px, py, factor) {
+  const min = TOK.interaction.zoomMinPercent / 100, max = TOK.interaction.zoomMaxPercent / 100;
+  const s2 = clamp(S.view.s * factor, min, max);
+  const k = s2 / S.view.s;
+  S.view.tx = px - (px - S.view.tx) * k; S.view.ty = py - (py - S.view.ty) * k; S.view.s = s2; S.view.auto = false;
+}
+
+/* ================= rendering ================= */
+function lineAttrs(name, sel, kind) {
+  const st = ST[name];
+  const base = kind === 'Window' ? 1 : kind === 'Pin' ? Math.max(1, st.width - 0.5) : st.width;
+  const w = base + (sel ? ST.selected.widthDelta : 0);
+  const dash = st.dash.length ? ` stroke-dasharray="${st.dash.join(' ')}"` : '';
+  return { w, dash, cap: st.cap };
+}
+function boxSVG(r, name, sel, kind = 'Body') {
+  const [x, y] = w2s(r.x, r.y), w = r.w * S.view.s, h = r.h * S.view.s;
+  const a = lineAttrs(name, sel, kind);
+  const cas = `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="none" stroke="${casingOn(name)}" stroke-width="${a.w + ST.casingExtraWidth}"${a.dash} stroke-linecap="${a.cap}"/>`;
+  const main = `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${colorOn(name)}" fill-opacity="${kind === 'Body' ? (name === 'sample' ? 0.08 : 0.04) : 0}" stroke="${colorOn(name)}" stroke-width="${a.w}"${a.dash} stroke-linecap="${a.cap}"/>`;
+  return cas + main;
+}
+function defBoxSVG(r, kind, sel) {
+  const [x, y] = w2s(r.x, r.y), w = r.w * S.view.s, h = r.h * S.view.s;
+  const D = TOK.overlay.definition, acc = TOK.themes[effTheme()].surface.accent;
+  const sw = (kind === 'Body' ? D.widthBody : kind === 'Pin' ? D.widthPin : 1) + (sel ? 1 : 0);
+  const stroke = sel ? acc : D.stroke;
+  return `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="none" stroke="${D.casing}" stroke-width="${sw + 2}"/><rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${D.stroke}" fill-opacity="${kind === 'Pin' ? D.pinFillOpacity : kind === 'Window' ? 0.08 : 0}" stroke="${stroke}" stroke-width="${sw}"/>`;
+}
+function regionSVG(r) {
+  const [x, y] = w2s(r.x, r.y), w = r.w * S.view.s, h = r.h * S.view.s, R = TOK.overlay.region;
+  return `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${R.stroke}" fill-opacity="${R.fillOpacity}" stroke="${R.casing}" stroke-width="${R.width + 2}"/><rect x="${x}" y="${y}" width="${w}" height="${h}" fill="none" stroke="${R.stroke}" stroke-width="${R.width}"/>`;
+}
+function handlePoints(r) {
+  const [x, y] = w2s(r.x, r.y), w = r.w * S.view.s, h = r.h * S.view.s;
+  const small = Math.min(w, h) < TOK.sizes.handlesMoveOutsideBelow;
+  const o = small ? TOK.sizes.handleHit / 2 : 0;
+  const pts = [['nw', x - o, y - o], ['ne', x + w + o, y - o], ['se', x + w + o, y + h + o], ['sw', x - o, y + h + o]];
+  if (!small) pts.push(['n', x + w / 2, y], ['e', x + w, y + h / 2], ['s', x + w / 2, y + h], ['w', x, y + h / 2]);
+  return pts.map(([k, hx, hy]) => ({ k, x: hx, y: hy }));
+}
+const CURSORS = { n: 'ns-resize', s: 'ns-resize', e: 'ew-resize', w: 'ew-resize', nw: 'nwse-resize', se: 'nwse-resize', ne: 'nesw-resize', sw: 'nesw-resize' };
+function handlesSVG(rect) {
+  const acc = TOK.themes[effTheme()].surface.accent, pan = TOK.themes[effTheme()].surface.panel;
+  let s = '';
+  for (const h of handlePoints(rect)) {
+    if ($('#optHit').checked) s += `<rect x="${h.x - 12}" y="${h.y - 12}" width="24" height="24" fill="none" stroke="${acc}" stroke-dasharray="2 2" opacity=".8"/>`;
+    s += `<rect x="${h.x - 4}" y="${h.y - 4}" width="8" height="8" fill="${pan}" stroke="${acc}" stroke-width="2"/>`;
+  }
+  return s;
+}
+function render() {
+  const W = cvw.clientWidth, H = cvw.clientHeight;
+  cv.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  $('#board').setAttribute('transform', `translate(${S.view.tx} ${S.view.ty}) scale(${S.view.s})`);
+  const ov = S.scene === 'type' && S.edit ? renderEditorOverlay() : renderBoardOverlay();
+  $('#ov').innerHTML = ov;
+  renderChrome();
+}
+function renderBoardOverlay() {
+  const acc = TOK.themes[effTheme()].surface.accent;
+  let ov = '';
+  const vis = visibleComps().filter((v) => v.state === 'sample' || S.filter[v.state]);
+  const order = { rejected: 0, inferred: 1, found: 2, sample: 3 };
+  vis.sort((a, b) => order[a.state] - order[b.state]);
+  if (S.region && (S.state === 'Preview' || S.state === 'NoMatch')) {
+    // A scan keeps its region outline. A teach box is the sample: it stays blue while the search found nothing.
+    const mode = S.prop ? S.prop.mode : S.draftMode;
+    if (mode === 'scan') ov += regionSVG(S.region);
+    else if (S.state === 'NoMatch') ov += boxSVG(S.region, 'sample', false);
+  }
+  for (const v of vis) {
+    const boxes = instBoxes(v.inst), sel = S.sel.has(v.inst.id);
+    const bb = bboxOf(boxes);
+    for (const b of boxes) {
+      const small = Math.min(b.rect.w, b.rect.h) * S.view.s;
+      if (b.kind !== 'Body' && small < 3) continue; // level of detail: skip boxes smaller than 3 px
+      const hl = S.selGroup && S.selGroup.cid === v.inst.id && S.selGroup.gid === b.gid;
+      ov += boxSVG(b.rect, v.state, sel || hl, b.kind);
+    }
+    const [x, y] = w2s(bb.x, bb.y);
+    if (sel) ov += `<rect x="${x - 3}" y="${y - 3}" width="${bb.w * S.view.s + 6}" height="${bb.h * S.view.s + 6}" fill="none" stroke="${acc}" stroke-width="1"/>`;
+    if (bb.w * S.view.s >= 48 && (v.state === 'found' || v.state === 'rejected' || v.state === 'sample')) {
+      const ty = typeOf(v.inst.typeId);
+      const txt = `${nameOf(v.inst) || ''} ${ty ? (ty.partNo || ty.name) : ''}${v.inst.score != null ? ' ' + v.inst.score.toFixed(2) : ''}`.trim();
+      ov += `<text x="${x + 3}" y="${y - 6}" font-size="11" font-family="system-ui" fill="${colorOn(v.state)}" stroke="${casingOn(v.state)}" stroke-width="3" paint-order="stroke">${esc(txt)}</text>`;
+    }
+  }
+  if (S.draftRect && (S.state === 'Searching' || S.state === 'Error')) ov += S.draftMode === 'scan' ? regionSVG(S.draftRect) : boxSVG(S.draftRect, 'sample', false);
+  if (S.drag && S.drag.mode === 'region') {
+    const r = S.drag.rect, [x, y] = w2s(r.x, r.y);
+    ov += S.drag.tool === 'scan' ? regionSVG(r) : boxSVG(r, 'sample', false);
+    ov += `<text x="${x}" y="${y - 6}" font-size="12" font-family="system-ui" fill="${colorOn('sample')}" stroke="${casingOn('sample')}" stroke-width="3" paint-order="stroke">${Math.round(r.w)} × ${Math.round(r.h)} px</text>`;
+  }
+  return ov;
+}
+function swatchSVG(name) {
+  const a = lineAttrs(name, false, 'Body');
+  return `<svg viewBox="0 0 30 10" aria-hidden="true"><line x1="1" y1="5" x2="29" y2="5" stroke="${casingFor(name)}" stroke-width="${a.w + ST.casingExtraWidth}"${a.dash} stroke-linecap="${a.cap}"/><line x1="1" y1="5" x2="29" y2="5" stroke="${colorFor(name)}" stroke-width="${a.w}"${a.dash} stroke-linecap="${a.cap}"/></svg>`;
+}
+function thumbSVG(ty) {
+  const d = LOOK[ty.look], rot = ty.refRot, w = rot % 180 ? d.h : d.w, h = rot % 180 ? d.w : d.h;
+  const pad = ty.look === 'C' ? 18 : 10;
+  const p = { look: ty.look, cx: 0, cy: 0, rot, contrast: 1 };
+  return `<svg class="th" viewBox="${-w / 2 - pad} ${-h / 2 - pad} ${w + 2 * pad} ${h + 2 * pad}" aria-hidden="true">${partSVG(p, '#2c7a52')}</svg>`;
+}
+
+let lastChromeKey = '';
+function renderChrome() {
+  const st = S.state, editing = S.scene === 'type';
+  $('#app').dataset.state = st;
+  $$('#strip .pill').forEach((p) => p.setAttribute('aria-current', p.dataset.st === st));
+  $('#boardDocks').hidden = editing; $('#editorPanel').hidden = !editing;
+  $('#rail').hidden = editing; $('#railEd').hidden = !editing;
+  // toolbar
+  $('#bOpen').textContent = t('action.open'); $('#bSave').textContent = t('action.save'); $('#bExport').textContent = t('action.export');
+  $('#bFit').textContent = '⤢ ' + t('action.fit') + ' (F)';
+  $('#bUndo').textContent = '↶ ' + t('action.undo'); $('#bRedo').textContent = '↷ ' + t('action.redo');
+  const ed = editing ? (S.edit && S.edit.stack) : st === 'Preview' ? S.session : st === 'Idle' ? S.docStack : null;
+  $('#bUndo').disabled = !(ed && ed.canUndo);
+  const canRedo = (ed && ed.canRedo) || (st === 'Preview' && S.docStack.canRedo && S.docStack.list[S.docStack.i].session === S.session);
+  $('#bRedo').disabled = !canRedo;
+  $('#bUndo').title = ed && ed.canUndo ? `${t('action.undo')}: ${ed.undoLabel}  (Ctrl+Z)` : t('action.undo') + ' (Ctrl+Z)';
+  $('#bRedo').title = canRedo ? `${t('action.redo')}: ${(ed && ed.canRedo ? ed.redoLabel : S.docStack.redoLabel)}  (Ctrl+Y)` : t('action.redo') + ' (Ctrl+Y)';
+  $('#bFit').disabled = st === 'Empty'; $('#bExport').disabled = !S.doc.comps.length || editing; $('#bOpen').disabled = editing;
+  $('#backend').value = S.backend; $('#backend').disabled = editing;
+  // tools
+  const toolOk = (st === 'Idle' || st === 'Preview' || st === 'NoMatch' || st === 'DrawingRegion');
+  const titles = { select: `${t('tool.select')} (V)`, sample: `${t('tool.sample')} (S)`, scan: `${t('tool.scan')} (R)`, add: `${t('tool.add')} (A)` };
+  $$('#rail button').forEach((b) => { b.disabled = !toolOk; b.setAttribute('aria-pressed', b.dataset.tool === S.tool); b.title = titles[b.dataset.tool]; });
+  $('#rail [data-tool=add]').disabled = !(st === 'Idle' || st === 'Preview');
+  $$('#railEd button').forEach((b) => { b.setAttribute('aria-pressed', S.edit && b.dataset.edtool === S.edit.tool); b.title = b.dataset.edtool === 'box' ? `${t('tool.add')} (B)` : `${t('tool.select')} (V)`; });
+  cvw.className = 'cvw' + (S.space ? ' pan' : '') + (S.drag && S.drag.mode === 'pan' ? ' panning' : '') + (S.busyShownAt && st === 'Searching' ? ' busy' : '') +
+    ((S.tool === 'sample' || S.tool === 'scan') && toolOk && !editing && !S.space ? ' sampling' : '') + (S.tool === 'add' && !editing && !S.space ? ' adding' : '') +
+    (st === 'Empty' || st === 'Error' ? ' dis' : '') + ($('#optGray').checked ? ' gray' : '');
+  // messages
+  $('#msgEmpty').hidden = st !== 'Empty'; $('#msgNoMatch').hidden = st !== 'NoMatch'; $('#msgError').hidden = st !== 'Error';
+  $('#progress').hidden = !(st === 'Searching' && S.progShown);
+  if (st === 'Empty') $('#msgEmpty').innerHTML = `<h3>${esc(t('ui.empty.title'))}</h3><p>${esc(t('ui.empty.body'))}</p><div class="acts" style="justify-content:center"><button id="mOpen" aria-pressed="true">${esc(t('ui.empty.action.open'))}</button></div><p class="small muted" style="margin:8px 0 0">${esc(t('ui.empty.hint.drop'))}</p>`;
+  if (st === 'NoMatch' && S.prop) {
+    const rs = S.prop.reasons, args = S.prop.args || {};
+    const cands = S.prop.insts.filter((i) => i.kind === 'cand');
+    const best = Math.max(0, ...cands.map((i) => i.score));
+    const adv = rs.map((r) => `<li>${esc(t('ui.noMatch.advice.' + r, args))}</li>`);
+    let acts = '';
+    if (best > 0) { adv.push(`<li>${esc(t('ui.noMatch.advice.lowerThreshold', { best: best.toFixed(2), suggested: best.toFixed(2) }))}</li>`); acts += `<button id="mLower" aria-pressed="true">${esc(t('ui.noMatch.action.lowerThreshold', { suggested: best.toFixed(2) }))}</button>`; }
+    if (rs.includes('scopeBoard')) acts += `<button id="mWiden" aria-pressed="true">${esc(t('ui.noMatch.action.widenScope'))}</button>`;
+    if (rs.includes('noLibraryMatch') || rs.includes('libraryEmpty')) acts += `<button id="mTeachNew" aria-pressed="true">${esc(t('ui.noMatch.action.teachNew'))}</button>`;
+    acts += `<button id="mRedraw">${esc(t('ui.noMatch.action.redraw'))}</button><button id="mDismiss">${esc(t('action.dismiss'))} (Esc)</button>`;
+    $('#msgNoMatch').innerHTML = `<h3>${esc(t('ui.noMatch.title'))}</h3><p>${esc(t('ui.noMatch.body'))}</p><ul>${adv.join('')}</ul><div class="acts">${acts}</div>`;
+  } else if (st === 'NoMatch') $('#msgNoMatch').innerHTML = '';
+  if (st === 'Error' && S.error) {
+    const e = S.error;
+    $('#msgError').innerHTML = `<h3>${esc(t(e.titleKey, e.args))}</h3><p>${esc(t(e.bodyKey, e.args))}</p><div class="acts"><button id="mDismissE" aria-pressed="true">${esc(t('action.dismiss'))}</button>${e.retry ? `<button id="mRetry">${esc(t('action.retry'))}</button>` : ''}${e.fallback ? `<button id="mFallback">${esc(T('改用 ', 'Switch to ') + e.fallback)}</button>` : ''}</div>`;
+  }
+  $('#progCancel').textContent = `${t('action.cancel')} (Esc)`;
+  if (S.job && S.progShown) { $('#progText').textContent = t('ui.search.progress', { percent: Math.round(S.job.pct * 100) }); $('#progBar').style.width = `${S.job.pct * 100}%`; }
+  $('#previewBar').hidden = st !== 'Preview';
+  if (st === 'Preview') {
+    $('#pbAccept').textContent = `${t('action.accept')} (Enter)`; $('#pbDiscard').textContent = `${t('action.discard')} (Esc)`;
+    $('#pbAcceptSave').textContent = t('ui.preview.acceptSave'); $('#pbAcceptSave').hidden = !(S.prop && S.prop.mode === 'teach');
+  }
+  const hint = { Empty: '', Idle: t('ui.idle.hint'), DrawingRegion: S.drag && S.drag.tool === 'scan' ? t('ui.scan.hint') : t('ui.sample.hint'), Searching: '', Preview: t('ui.preview.hint'), NoMatch: '', Error: '', EditingType: t('ui.editor.hint') }[st];
+  $('#hintbar').textContent = hint; $('#hintbar').hidden = !hint;
+  // status bar
+  const c = counts();
+  if (editing && S.edit) $('#sbSummary').textContent = t('ui.status.editing', { partNo: S.edit.draft.partNo || S.edit.draft.name, boxes: expandGroups(S.edit.draft.groups).length });
+  else $('#sbSummary').textContent = S.last ? `${t('ui.status.summary', { backend: S.last.backend, ms: S.last.ms, found: c.found, inferred: c.inferred })} · ${t('ui.status.boxes', { boxes: c.boxes })}${S.last.compared != null ? ` · ${t('ui.status.compared', { n: S.last.compared })}` : ''}` : t('ui.status.none', { backend: S.backend });
+  $('#sbZoom').textContent = t('ui.status.zoom', { percent: Math.round(S.view.s * 100) });
+  $('#sbCursor').textContent = S.cursor ? `x ${Math.round(S.cursor[0])}  y ${Math.round(S.cursor[1])}` : '';
+  $('#sbBusy').hidden = !S.busyShownAt; $('#sbBusyText').textContent = t('ui.search.busy');
+  if (editing) { renderEditorPanel(); return; }
+  // library dock
+  renderLibrary();
+  // objects dock (tree)
+  const vis = visibleComps().filter((v) => v.state === 'sample' || S.filter[v.state]);
+  $('#objTitle').textContent = `${t('ui.objects.title')} (${vis.length})`;
+  const key = JSON.stringify([vis.map((v) => [v.inst.id, v.inst.name, v.inst.typeId, v.state, v.inst.score, S.sel.has(v.inst.id), S.expanded.has(v.inst.id)]), S.selGroup, lang, themePref, effTheme(), JSON.stringify(ST), JSON.stringify(colorOverride), st, [...Object.values(S.types), ...Object.values(S.lib)].map((x) => [x.id, x.partNo, x.name, x.aliases, x.groups, x.libId])]);
+  if (key !== lastChromeKey) { lastChromeKey = key; renderTree(vis); renderSelInfo(vis); }
+  $('#chips').innerHTML = ['found', 'inferred', 'rejected'].map((n) => `<button class="chip" data-chip="${n}" aria-pressed="${S.filter[n]}">${swatchSVG(n)}${esc(t('state.' + n))}</button>`).join('');
+  renderPreviewActions();
+  let low = 0;
+  if (st === 'Preview') low = propView().filter((v) => v.state === 'inferred' || (v.state === 'found' && v.inst.kind === 'cand' && v.inst.score < S.thr + LOWCONF)).length;
+  $('#confHint').textContent = low ? t('ui.preview.lowConfidence', { count: low }) : '';
+  $('#thr').value = S.thr; $('#thrVal').textContent = S.thr.toFixed(2);
+  $('#thr').disabled = st === 'Empty' || st === 'Error';
+  $('#angle').value = S.angle;
+}
+function renderTree(vis) {
+  const sorted = [...vis].sort((a, b) => (a.inst.name || 'zz').localeCompare(b.inst.name || 'zz', undefined, { numeric: true }) || String(a.inst.id).localeCompare(String(b.inst.id), undefined, { numeric: true }));
+  let h = `<div class="trow root"><span>${esc(t('ui.objects.board', { name: S.imageName || '—' }))}</span><span class="sc">${vis.length}</span></div>`;
+  for (const v of sorted) {
+    const c = v.inst, ty = typeOf(c.typeId), open = S.expanded.has(c.id) || S.sel.has(c.id);
+    const label = `${esc(nameOf(c) || T('(待命名)', '(unnamed)'))} · <small>${esc(ty ? (ty.partNo || ty.name) : '?')}</small>`;
+    h += `<div class="trow" role="treeitem" tabindex="0" data-cid="${c.id}" aria-selected="${S.sel.has(c.id)}" aria-expanded="${open}"><button class="tw" data-tw="${c.id}" tabindex="-1" aria-label="expand">${open ? '▾' : '▸'}</button>${swatchSVG(v.state)}<span>${label}</span><span class="sc">${c.score != null ? c.score.toFixed(2) : '—'}</span></div>`;
+    if (open && ty) for (const g of ty.groups) {
+      const n = expandGroups(ty.groups).filter((x) => x.gid === g.id).length;
+      const sel = S.selGroup && S.selGroup.cid === c.id && S.selGroup.gid === g.id;
+      h += `<div class="trow child" role="treeitem" tabindex="0" data-cid="${c.id}" data-gid="${g.id}" aria-selected="${!!sel}"><span>${esc(t('role.' + g.kind.toLowerCase()))}</span><span>${g.kind === 'Window' ? esc(g.algo) + ' ' : ''}${n > 1 ? '×' + n : ''}</span><span class="sc">${g.kind === 'Window' ? '' : Math.round(g.w) + '×' + Math.round(g.h)}</span></div>`;
+    }
+  }
+  $('#tree').innerHTML = h;
+}
+function selectedComp() {
+  if (S.sel.size !== 1) return null;
+  const id = [...S.sel][0];
+  const v = visibleComps().find((x) => x.inst.id === id);
+  return v ? v.inst : null;
+}
+function renderSelInfo() {
+  const c = selectedComp(), el = $('#selInfo');
+  if (!c) { el.innerHTML = `<span class="muted">${esc(t('ui.sel.none'))}</span>`; return; }
+  const ty = typeOf(c.typeId);
+  let h = `<b>${esc(t('ui.sel.component', { name: nameOf(c) || '—', type: ty ? (ty.partNo || ty.name) : '?' }))}</b> <span class="muted">x ${Math.round(c.cx)}, y ${Math.round(c.cy)}, ${c.rot}°</span>`;
+  const lib = ty && ty.libId ? S.lib[ty.libId] : null, mine = !!(ty && S.types[ty.id]);
+  const same = !!(lib && typeSame(ty, lib));
+  let sync = '', btns = '';
+  if (S.state === 'Idle' && mine) {
+    if (!lib) { sync = t('ui.sel.localType'); btns = `<button id="selSave">${esc(t('ui.sel.saveLib'))}</button>`; }
+    else if (same) sync = t('ui.sel.sameAsLib');
+    else { sync = '⚠ ' + t('ui.sel.diffFromLib'); btns = `<button id="selPull">${esc(t('ui.sel.pull'))}</button><button id="selPush">${esc(t('ui.sel.push'))}</button>`; }
+  }
+  h += `<div class="small muted">${esc(sync)}</div><div class="field" style="margin:4px 0">${S.state === 'Idle' ? `<button id="selEdit">${esc(t('ui.sel.edit'))}</button>` : ''}${btns}</div>`;
+  if (S.state === 'Preview' && c.alts && c.alts.length > 1) {
+    h += `<div class="small muted">${esc(t('ui.sel.alts'))}</div>` + c.alts.map((a) => { const x = typeOf(a.typeId); return `<label style="display:block"><input type="radio" name="alt" data-alt="${a.typeId}" ${a.typeId === c.typeId ? 'checked' : ''}> ${esc(x ? (x.partNo + ' ' + x.name) : a.typeId)} <span class="mono muted">${a.score.toFixed(2)}</span></label>`; }).join('');
+  }
+  el.innerHTML = h;
+}
+function renderPreviewActions() {
+  const el = $('#previewActions');
+  if (S.state === 'Preview' && S.prop) {
+    let h = '';
+    if (S.prop.outOfScope) h += `<div class="small" style="margin:4px 0">${esc(t('ui.preview.outOfScope', { count: S.prop.outOfScope }))} <button id="pWiden">${esc(t('ui.noMatch.action.widenScope'))}</button></div>`;
+    if (S.prop.unrecognized) h += `<div class="small" style="margin:4px 0">${esc(t('ui.preview.unrecognized', { count: S.prop.unrecognized }))} <button id="pTeachNew">${esc(t('ui.preview.action.teachNew'))}</button></div>`;
+    el.innerHTML = h;
+  } else el.innerHTML = '';
+}
+let libKey = '';
+function renderLibrary() {
+  $('#libTitle').textContent = `${t('ui.library.title')} (${savedTypes().length})`;
+  const q = S.libFilter.trim().toLowerCase();
+  const list = savedTypes().filter((ty) => !q || [ty.partNo, ty.name, ...(ty.aliases || [])].join(' ').toLowerCase().includes(q) || (q === String(expandGroups(ty.groups).filter((b) => b.kind === 'Pin').length)));
+  const key = JSON.stringify([list.map((ty) => [ty.id, ty.partNo, ty.name, ty.aliases, ty.groups]), S.doc.comps.map((c) => c.typeId), Object.values(S.types).map((x) => [x.id, x.libId]), lang, S.state, q]);
+  $('#libFilter').placeholder = t('ui.library.filter');
+  if (key === libKey) return;
+  libKey = key;
+  $('#libList').innerHTML = list.length ? list.map((ty) => {
+    const n = S.doc.comps.filter((c) => { const p = S.types[c.typeId]; return p && p.libId === ty.id; }).length, boxes = expandGroups(ty.groups).length;
+    return `<div class="lib">${thumbSVG(ty)}<div><b>${esc(ty.partNo)}</b> ${esc(ty.name)}<div class="small muted">${esc(ty.category)} · ${esc(t('ui.library.summary', { boxes, count: n }))}</div>${ty.aliases && ty.aliases.length ? `<div class="small muted">${esc(t('ui.library.aliases', { aliases: ty.aliases.join(', ') }))}</div>` : ''}</div><div class="b2"><button data-libedit="${ty.id}" ${S.state === 'Idle' ? '' : 'disabled'}>${esc(t('ui.library.edit'))}</button><button data-libdel="${ty.id}" ${S.state === 'Idle' ? '' : 'disabled'}>${esc(t('ui.library.delete'))}</button></div></div>`;
+  }).join('') : `<div class="small muted">${esc(t('ui.library.empty'))}</div>`;
+}
+
+/* ================= toast ================= */
+let toastTimer = 0;
+function toast(msg) {
+  const el = $('#toast');
+  el.textContent = msg; el.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.hidden = true; }, TOK.timing.toast);
+}
+
+/* ================= commands (board) ================= */
+function pushCmd(stack, cmd) { stack.push(cmd); log(`command: ${cmd.label()}`, 'cmd'); if (stack === S.session) S.docStack.dropRedo(); }
+function cmdDeleteComps(arr, ids, stack) {
+  const removed = arr.map((it, i) => ({ it, i })).filter((x) => ids.has(x.it.id));
+  if (!removed.length) return;
+  for (const x of [...removed].reverse()) arr.splice(x.i, 1);
+  pushCmd(stack, { label: () => T(`刪除 ${removed.length} 個元件`, `Delete ${removed.length} component(s)`),
+    undo: () => { for (const x of removed) arr.splice(x.i, 0, x.it); }, redo: () => { for (const x of [...removed].reverse()) arr.splice(arr.indexOf(x.it), 1); } });
+  S.sel.clear();
+}
+function cmdAddComp(arr, it, stack) {
+  arr.push(it);
+  pushCmd(stack, { label: () => T('補一個元件', 'Add one component'), undo: () => { arr.splice(arr.indexOf(it), 1); S.sel.delete(it.id); }, redo: () => { arr.push(it); } });
+}
+function cmdMoveComps(changes, stack) {
+  pushCmd(stack, { label: () => T(`移動 ${changes.length} 個元件`, `Move ${changes.length} component(s)`),
+    undo: () => { for (const c of changes) { c.it.cx = c.before.cx; c.it.cy = c.before.cy; } }, redo: () => { for (const c of changes) { c.it.cx = c.after.cx; c.it.cy = c.after.cy; } } });
+}
+function cmdRetype(inst, before, after) {
+  pushCmd(S.session, { label: () => T('改選樣本', 'Choose another sample'), undo: () => { inst.typeId = before; }, redo: () => { inst.typeId = after; } });
+}
+
+/* ================= actions ================= */
+function assignName(prefix) { S.nameSeq[prefix] = (S.nameSeq[prefix] || 0) + 1; return `${prefix}${S.nameSeq[prefix]}`; }
+function resetAll() {
+  cancelJob();
+  if (S.scene === 'type') leaveEditor();
+  Object.assign(S, { state: 'Empty', sample: null, prop: null, region: null, draftRect: null, error: null, last: null, tool: 'select', drag: null, edit: null, selGroup: null, nameSeq: {} });
+  S.doc.comps = []; S.sel.clear(); S.expanded.clear(); S.session.clear(); S.docStack.clear(); S.thr = 0.70; $('#thr').value = '0.70';
+  resetLibrary(); seq = 0; tmpSeq = 0;
+  $('#board').innerHTML = ''; S.view.auto = true; lastChromeKey = ''; libKey = '';
+  render();
+}
+function openBoard() {
+  cancelJob();
+  S.prop = null; S.region = null; S.draftRect = null; S.error = null; S.doc.comps = []; S.sel.clear(); S.selGroup = null; S.session.clear(); S.docStack.clear(); S.last = null; S.drag = null; S.nameSeq = {};
+  S.imageName = 'board_01.png';
+  $('#board').innerHTML = boardSVG($('#boardColor').value);
+  if (!go('ImageOpened', 'Idle')) S.state = 'Idle';
+  fit(); S.tool = 'select'; lastChromeKey = ''; render();
+}
+function openBroken() {
+  cancelJob();
+  S.imageName = 'board_07.png';
+  S.errorOrigin = S.state === 'Empty' ? 'Empty' : 'Idle';
+  S.error = { titleKey: 'ui.error.imageOpen.title', bodyKey: 'ui.error.imageOpen.body', args: { name: 'board_07.png' }, retry: false, source: 'image' };
+  if (!go('ImageFailed', 'Error')) S.state = 'Error';
+  render();
+}
+function dismissError() {
+  const to = S.error && S.error.source === 'image' && S.errorOrigin === 'Empty' ? 'Empty' : 'Idle';
+  if (go('Dismiss', to)) { S.error = null; if (to === 'Idle') { S.prop = null; S.region = null; S.draftRect = null; S.session.clear(); } if (to === 'Empty') $('#board').innerHTML = ''; render(); }
+}
+
+/* ----- search job (latest wins) ----- */
+function cancelJob() { if (S.job) { clearInterval(S.job.tick); clearTimeout(S.job.done); S.job.cancelled = true; } S.job = null; S.progShown = false; }
+function startSearch(rect, mode, opts = {}) {
+  cancelJob();
+  const mult = { 0: 1, 5: 1.5, 180: 3 }[S.angle];
+  const libN = mode === 'scan' ? Math.max(1, scanPlan(rect).compared) : 1;
+  const total = opts.totalMs ?? Math.round(Number($('#simMs').value) * mult * (mode === 'scan' ? 0.6 + 0.2 * libN : 1) * (0.95 + Math.random() * 0.1));
+  const job = { start: performance.now(), total, pct: 0, cancelled: false, rect, mode };
+  S.job = job; S.busyShownAt = 0; S.progShown = false; S.draftRect = rect; S.draftMode = mode; S.lastSearch = { rect, mode };
+  if (S.backend === 'HALCON' && $('#optNoLic').checked) job.done = setTimeout(() => failSearch(job, { titleKey: 'ui.error.backend.title', bodyKey: 'ui.error.backend.body', args: { backend: 'HALCON', fallback: 'OpenCV' }, fallback: 'OpenCV', retry: false }), 30);
+  else if ($('#optFail').checked) job.done = setTimeout(() => failSearch(job, { titleKey: 'ui.error.searchFailed.title', bodyKey: 'ui.error.searchFailed.body', args: { detail: 'E_BACKEND_TIMEOUT (simulated)' }, retry: true }), Math.max(60, total * 0.4));
+  else job.done = setTimeout(() => finishSearch(job), total);
+  job.tick = setInterval(() => {
+    if (S.job !== job) return;
+    const el = performance.now() - job.start;
+    job.pct = Math.min(0.99, el / job.total);
+    if (!S.busyShownAt && el >= TOK.timing.busyAfter) { S.busyShownAt = performance.now(); log(`busy sign shown at ${Math.round(el)} ms (rule: > ${TOK.timing.busyAfter} ms)`, 'ev'); }
+    if (!S.progShown && el >= TOK.timing.progressAfter) { S.progShown = true; log(`progress + cancel shown at ${Math.round(el)} ms (rule: > ${TOK.timing.progressAfter} ms)`, 'ev'); }
+    render();
+  }, 50);
+  render();
+}
+function endBusy() {
+  const left = S.busyShownAt ? Math.max(0, TOK.timing.busyMinShow - (performance.now() - S.busyShownAt)) : 0;
+  S.progShown = false;
+  if (left > 0) setTimeout(() => { S.busyShownAt = 0; render(); }, left); else S.busyShownAt = 0;
+}
+function failSearch(job, err) {
+  if (S.job !== job) return;
+  cancelJob(); endBusy();
+  S.error = { ...err, source: 'search' }; S.errorOrigin = 'Searching';
+  go('Failure', 'Error'); render();
+}
+function finishSearch(job) {
+  if (S.job !== job || job.cancelled) return;
+  cancelJob();
+  const opts = { lowContrast: $('#optLowC').checked };
+  const res = job.mode === 'teach' ? searchTeach(job.rect, opts) : searchScan(job.rect, opts);
+  const prop = { mode: job.mode, region: job.rect, insts: res.insts, reasons: [...res.reasons], args: res.args || {}, tempType: res.tempType || null, unrecognized: res.unrecognized || 0, outOfScope: res.outOfScope || 0, ms: job.total, backend: S.backend };
+  S.prop = prop; S.session.clear(); S.docStack.dropRedo(); S.sel.clear(); S.selGroup = null; S.region = job.rect; S.draftRect = null;
+  S.last = { ms: job.total, backend: S.backend, compared: job.mode === 'scan' ? res.compared : undefined };
+  if (foundCount(prop) >= 1) { go('ResultFound', 'Preview'); S.tool = 'select'; }
+  else {
+    if (!prop.reasons.length && res.medianContrast < 0.7) prop.reasons.push('lowContrast');
+    go('ResultEmpty', 'NoMatch');
+  }
+  endBusy(); render();
+}
+function cancelSearch() {
+  if (S.state !== 'Searching') return;
+  const t1 = performance.now();
+  cancelJob(); endBusy();
+  S.prop = null; S.region = null; S.draftRect = null; S.session.clear();
+  go('Cancel', 'Idle'); render();
+  toast(t('ui.search.cancelled'));
+  log(`cancel → UI idle in ${(performance.now() - t1).toFixed(1)} ms (budget I4: ${TOK.timing.cancelToIdleMax} ms)`, 'ev');
+}
+
+/* ----- accept / discard / undo ----- */
+function snapshot() { return { prop: S.prop, region: S.region, session: S.session, thr: S.thr }; }
+function restoreSnapshot(sn) { S.prop = sn.prop; S.region = sn.region; S.session = sn.session; S.thr = sn.thr; S.sel.clear(); S.selGroup = null; }
+function accept() {
+  if (S.state !== 'Preview') return null;
+  S.session.dropRedo();
+  const sn = snapshot();
+  const tmp = S.prop.tempType;
+  const nameSeqBefore = clone(S.nameSeq);
+  const libSnap = {};
+  const comps = propView().filter((v) => v.state !== 'rejected').map((v) => {
+    const c = { id: v.inst.id, typeId: v.inst.typeId, cx: v.inst.cx, cy: v.inst.cy, rot: v.inst.rot, fixedState: v.state, score: v.inst.score, origin: v.inst.origin, kind: 'doc' };
+    const ty = typeOf(c.typeId);
+    c.name = assignName(LOOK[ty ? ty.look : 'A'].prefix);
+    if (S.lib[c.typeId]) { libSnap[c.typeId] = clone(S.lib[c.typeId]); c.typeId = 'p_' + c.typeId; } // the board keeps its OWN copy of every library type it uses
+    return c;
+  });
+  const created = [];
+  const doRedo = () => {
+    for (const [lid, snap] of Object.entries(libSnap)) { const pid = 'p_' + lid; if (!S.types[pid]) { S.types[pid] = { ...clone(snap), id: pid, libId: lid }; created.push(pid); } }
+    if (tmp) S.types[tmp.id] = tmp;
+    S.doc.comps.push(...comps); S.prop = null; S.region = null; S.sel.clear(); S.selGroup = null; S.lastTypeId = comps.length ? comps[0].typeId : S.lastTypeId;
+  };
+  const doUndo = () => { for (const c of comps) S.doc.comps.splice(S.doc.comps.indexOf(c), 1); for (const pid of created) delete S.types[pid]; created.length = 0; if (tmp) delete S.types[tmp.id]; S.nameSeq = clone(nameSeqBefore); restoreSnapshot(sn); };
+  doRedo();
+  const cmd = { session: sn.session, tmpId: tmp ? tmp.id : null, label: () => T(`接受 ${comps.length} 個元件`, `Accept ${comps.length} component(s)`), undo: doUndo, redo: doRedo, kind: 'accept' };
+  S.docStack.push(cmd); log(`command: ${cmd.label()}`, 'cmd');
+  go('Accept', 'Idle'); render();
+  toast(t('ui.preview.accepted', { count: comps.length }));
+  return cmd;
+}
+function discard() {
+  if (S.state !== 'Preview') return;
+  S.session.dropRedo();
+  const sn = snapshot();
+  const doRedo = () => { S.prop = null; S.region = null; S.sel.clear(); S.selGroup = null; };
+  doRedo();
+  const cmd = { session: sn.session, label: () => T('捨棄提案', 'Discard proposal'), undo: () => restoreSnapshot(sn), redo: doRedo, kind: 'discard' };
+  S.docStack.push(cmd); log(`command: ${cmd.label()}`, 'cmd');
+  go('Discard', 'Idle'); render();
+  toast(t('ui.preview.discarded'));
+}
+function undo() {
+  if (S.scene === 'type' && S.edit) { if (S.edit.stack.canUndo) { const c = S.edit.stack.undo(); log(`undo: ${c.label()}`, 'cmd'); editorChanged(); } return; }
+  if (S.state === 'Preview') { if (S.session.canUndo) { const c = S.session.undo(); log(`undo: ${c.label()}`, 'cmd'); S.sel.clear(); } }
+  else if (S.state === 'Idle' && S.docStack.canUndo) {
+    const c = S.docStack.undo(); log(`undo: ${c.label()}`, 'cmd'); S.sel.clear(); S.selGroup = null;
+    if (c.kind === 'accept' || c.kind === 'discard') { go('UndoToPreview', 'Preview'); S.tool = 'select'; }
+  } else { log(`undo ignored in ${S.state}`, 'ign'); return; }
+  lastChromeKey = ''; render();
+}
+function redo() {
+  if (S.scene === 'type' && S.edit) { if (S.edit.stack.canRedo) { const c = S.edit.stack.redo(); log(`redo: ${c.label()}`, 'cmd'); editorChanged(); } return; }
+  if (S.state === 'Preview') {
+    if (S.session.canRedo) { const c = S.session.redo(); log(`redo: ${c.label()}`, 'cmd'); }
+    else if (S.docStack.canRedo && S.docStack.list[S.docStack.i].session === S.session) {
+      const c = S.docStack.redo(); log(`redo: ${c.label()}`, 'cmd'); go(c.kind === 'accept' ? 'Accept' : 'Discard', 'Idle');
+    }
+  } else if (S.state === 'Idle' && S.docStack.canRedo) { const c = S.docStack.redo(); log(`redo: ${c.label()}`, 'cmd'); }
+  S.sel.clear(); lastChromeKey = ''; render();
+}
+function deleteSelection() {
+  if (!editableBoard() || !S.sel.size) return;
+  cmdDeleteComps(container(), new Set(S.sel), editStack()); lastChromeKey = ''; render();
+}
+function setThreshold(v) {
+  S.thr = clamp(r2(v), 0.30, 0.99);
+  if (S.state === 'Preview') { S.docStack.dropRedo(); log(`ThresholdChanged → re-filter ${S.prop.insts.length} cached candidates (no new search)`, 'ev'); render(); }
+  else if (S.state === 'NoMatch') { if (S.prop && foundCount(S.prop) >= 1) go('ThresholdChanged', 'Preview'); else go('ThresholdChanged', 'NoMatch'); render(); }
+  else render();
+}
+
+/* ================= component type editor ================= */
+function editorExtent() {
+  const ty = S.edit && typeOf(S.edit.typeId);
+  const look = ty ? ty.look : 'A', d = LOOK[look], rot = ty ? ty.refRot : 0;
+  const w = rot % 180 ? d.h : d.w, h = rot % 180 ? d.w : d.h, m = look === 'C' ? 40 : 30;
+  return { x: -w / 2 - m, y: -h / 2 - m, w: w + 2 * m, h: h + 2 * m };
+}
+const editorBoxes = () => (S.edit ? expandGroups(S.edit.draft.groups) : []);
+function openEditor(typeId, mode, preGid) {
+  const storeName = S.types[typeId] ? 'project' : S.lib[typeId] ? 'library' : null;
+  if (S.state !== 'Idle' || !storeName) return false;
+  if (!go('EditType', 'EditingType')) return false;
+  const ty = (storeName === 'project' ? S.types : S.lib)[typeId];
+  S.edit = { typeId, mode, store: storeName, draft: { partNo: ty.partNo, name: ty.name, aliases: (ty.aliases || []).join(', '), category: ty.category, groups: clone(ty.groups) }, sel: preGid ? { gid: preGid, idx: null } : null, tool: 'select', stack: new Stack(), error: '', snap: null };
+  S.viewBoard = { ...S.view }; S.scene = 'type';
+  const [bg, trace] = BOARDS[$('#boardColor').value];
+  $('#board').innerHTML = `<rect x="-400" y="-300" width="800" height="600" fill="${bg}"/>${partSVG({ look: ty.look, cx: 0, cy: 0, rot: ty.refRot, contrast: 1 }, trace)}`;
+  fit(); edLoadIdentity(); render();
+  return true;
+}
+function leaveEditor() {
+  S.scene = 'board'; S.edit = null;
+  if (S.imageName) $('#board').innerHTML = boardSVG($('#boardColor').value);
+  if (S.viewBoard) { S.view = { ...S.viewBoard }; }
+  lastChromeKey = ''; libKey = '';
+}
+function editorChanged() { edSyncForm(); render(); }
+function edDirty() { return !!(S.edit && S.edit.stack.canUndo); }
+function edCommit(label, before) {
+  const after = clone(S.edit.draft.groups);
+  if (JSON.stringify(before) === JSON.stringify(after)) return;
+  const draft = S.edit.draft;
+  S.edit.stack.push({ label: () => label(), undo: () => { draft.groups = clone(before); }, redo: () => { draft.groups = clone(after); } });
+  log(`command: ${label()}`, 'cmd');
+}
+const edGroup = (gid) => S.edit && S.edit.draft.groups.find((g) => g.id === gid);
+function edSelGroup() { return S.edit && S.edit.sel ? edGroup(S.edit.sel.gid) : null; }
+function edNewId() { let n = 1; while (S.edit.draft.groups.some((g) => g.id === `g${n}`)) n++; return `g${n}`; }
+function edFirstCell(g) { const cs = expandGroups(S.edit.draft.groups).filter((b) => b.gid === g.id); return cs.length ? cs[0] : null; }
+function renderEditorOverlay() {
+  let ov = '';
+  const boxes = editorBoxes();
+  const selG = S.edit.sel;
+  for (const b of boxes) {
+    const sel = selG && selG.gid === b.gid && (selG.idx == null || selG.idx === b.idx);
+    ov += defBoxSVG(b.rect, b.kind, sel);
+  }
+  const g = edSelGroup();
+  if (g) {
+    const first = boxes.find((b) => b.gid === g.id);
+    if (first && g.kind === 'Window') {
+      const p = boxes.find((b) => b.gid === g.parent);
+      if (p) { const [x1, y1] = w2s(p.rect.x + p.rect.w / 2, p.rect.y + p.rect.h / 2), [x2, y2] = w2s(first.rect.x + first.rect.w / 2, first.rect.y + first.rect.h / 2); ov += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${TOK.themes[effTheme()].surface.accent}" stroke-width="1.5" stroke-dasharray="1 3" stroke-linecap="round"/>`; }
+    }
+    if (first && S.edit.tool === 'select') ov += handlesSVG(first.rect);
+  }
+  if (S.drag && S.drag.mode === 'newbox') ov += defBoxSVG(S.drag.rect, S.drag.kind, true);
+  return ov;
+}
+function renderEditorPanel() {
+  const e = S.edit; if (!e) return;
+  edSyncForm();
+  const boxes = expandGroups(e.draft.groups);
+  const rowsHtml = e.draft.groups.map((g) => {
+    const n = boxes.filter((b) => b.gid === g.id).length;
+    const sel = e.sel && e.sel.gid === g.id;
+    const par = g.kind === 'Window' ? ` → ${esc((edGroup(g.parent) || {}).kind || '?')}` : '';
+    return `<div class="trow child" style="padding-left:6px" role="treeitem" tabindex="0" data-edgid="${g.id}" aria-selected="${!!sel}"><span>${esc(t('role.' + g.kind.toLowerCase()))}</span><span>${g.kind === 'Window' ? esc(g.algo) : ''}${par} ${n > 1 ? '×' + n : ''}</span><span class="sc">${g.kind === 'Window' ? Math.round(g.rw * 100) + '%×' + Math.round(g.rh * 100) + '%' : Math.round(g.w) + '×' + Math.round(g.h)}</span></div>`;
+  }).join('');
+  if ($('#edGroups').dataset.k !== rowsHtml) { $('#edGroups').innerHTML = rowsHtml; $('#edGroups').dataset.k = rowsHtml; }
+  const isLib = e.store === 'library';
+  const cnt = S.doc.comps.filter((c) => c.typeId === e.typeId).length, copies = Object.values(S.types).filter((x) => x.libId === e.typeId).length;
+  $('#edAffects').textContent = isLib ? t('ui.editor.affectsLib', { count: copies }) : cnt ? t('ui.editor.affects', { count: cnt, partNo: e.draft.partNo || e.draft.name }) : '';
+  $('#edError').textContent = e.error || '';
+  $('#edSave').textContent = isLib ? t('ui.editor.saveLibrary') : e.mode === 'new' ? t('ui.editor.saveBoard') : t('ui.editor.save');
+  $('#edSaveLib').hidden = isLib; $('#edSaveLib').textContent = t('ui.editor.saveBoth');
+  $('#edSave').setAttribute('aria-pressed', String(isLib || e.mode !== 'new')); $('#edSaveLib').setAttribute('aria-pressed', String(!isLib && e.mode === 'new'));
+  $('#edSelHint').textContent = e.sel ? '' : t('ui.editor.selectHint');
+}
+function edLoadIdentity() {
+  const d = S.edit.draft;
+  $('#edPart').value = d.partNo; $('#edName').value = d.name; $('#edAlias').value = d.aliases; $('#edCat').value = d.category;
+  $('#edGroups').dataset.k = ''; edSyncForm();
+}
+function edSyncForm() {
+  const e = S.edit; if (!e) return;
+  const g = edSelGroup();
+  $$('#edForm [data-for]').forEach((f) => { f.hidden = !(g && f.dataset.for.split(' ').includes(g.kind)); });
+  $('#fKind').textContent = g ? t('role.' + g.kind.toLowerCase()) : '—';
+  $('#fParent').textContent = g && g.kind === 'Window' ? ` ${t('ui.editor.parent', { parent: (edGroup(g.parent) ? t('role.' + edGroup(g.parent).kind.toLowerCase()) : '?') })}` : '';
+  $('#fDelete').textContent = t('action.delete') + ' (Del)'; $('#fDelete').disabled = !g;
+  $('#edAddWin').disabled = !(g && g.kind !== 'Window');
+  if (!g) return;
+  const set = (id, v) => { const el = $(id); if (document.activeElement !== el) el.value = v; };
+  if (g.kind === 'Window') { set('#fAlgo', g.algo); set('#fOx', Math.round(g.ox * 100)); set('#fOy', Math.round(g.oy * 100)); set('#fRw', Math.round(g.rw * 100)); set('#fRh', Math.round(g.rh * 100)); }
+  else { set('#fX', Math.round(g.x * 10) / 10); set('#fY', Math.round(g.y * 10) / 10); set('#fW', Math.round(g.w * 10) / 10); set('#fH', Math.round(g.h * 10) / 10); }
+  if (g.kind === 'Pin') { set('#fRows', g.rows); set('#fCols', g.cols); set('#fPx', Math.round(g.px * 10) / 10); set('#fPy', Math.round(g.py * 10) / 10); }
+}
+// Apply a field edit to the selected group and to its scope (this group, or every group of the same kind).
+function edApply(field, value) {
+  const g = edSelGroup(); if (!g) return;
+  const scope = $('#fScope').value;
+  const targets = scope === 'kind' ? S.edit.draft.groups.filter((x) => x.kind === g.kind && (g.kind !== 'Window' || x.algo === g.algo)) : [g];
+  for (const x of targets) {
+    if (field === 'algo') { x.algo = value; continue; }
+    if (x.kind === 'Window') { if (['ox', 'oy', 'rw', 'rh'].includes(field)) x[field] = field.startsWith('r') ? Math.max(0.05, value / 100) : value / 100; continue; }
+    if (field === 'rows' || field === 'cols') {
+      if (x.kind !== 'Pin') continue;
+      x[field] = clamp(Math.round(value) || 1, 1, 60); x.skip = [];
+      if (field === 'cols' && x.cols > 1 && !x.px) x.px = x.w + 4;
+      if (field === 'rows' && x.rows > 1 && !x.py) x.py = x.h + 4;
+      continue;
+    }
+    if (field in x) x[field] = ['w', 'h'].includes(field) ? Math.max(1, value) : value;
+  }
+}
+function edBindForm() {
+  const bind = (id, field, conv = Number) => {
+    const el = $(id);
+    el.addEventListener('focus', () => { if (S.edit) S.edit.snap = clone(S.edit.draft.groups); });
+    el.addEventListener('input', () => { if (!S.edit) return; if (!S.edit.snap) S.edit.snap = clone(S.edit.draft.groups); const v = conv(el.value); if (el.tagName === 'SELECT' || Number.isFinite(v)) { edApply(field, v); render(); } });
+    el.addEventListener('change', () => { if (!S.edit || !S.edit.snap) return; edCommit(() => T(`修改 ${field}`, `Edit ${field}`), S.edit.snap); S.edit.snap = null; editorChanged(); });
+  };
+  [['#fX', 'x'], ['#fY', 'y'], ['#fW', 'w'], ['#fH', 'h'], ['#fRows', 'rows'], ['#fCols', 'cols'], ['#fPx', 'px'], ['#fPy', 'py'], ['#fOx', 'ox'], ['#fOy', 'oy'], ['#fRw', 'rw'], ['#fRh', 'rh']].forEach(([id, f]) => bind(id, f));
+  bind('#fAlgo', 'algo', String);
+}
+function edAddWindow() {
+  const g = edSelGroup();
+  if (!g || g.kind === 'Window') { S.edit.error = t('ui.editor.needParent'); render(); return; }
+  const before = clone(S.edit.draft.groups);
+  const w = { id: edNewId(), kind: 'Window', algo: 'Void', parent: g.id, ox: 0, oy: 0, rw: 0.8, rh: 0.6 };
+  S.edit.draft.groups.push(w); S.edit.sel = { gid: w.id, idx: null }; S.edit.error = '';
+  edCommit(() => T('加一組檢測窗', 'Add a window group'), before); editorChanged();
+}
+function edAddAll() {
+  const before = clone(S.edit.draft.groups), gs = S.edit.draft.groups;
+  let n = 0;
+  for (const p of [...gs]) {
+    if (p.kind === 'Window') continue;
+    const algo = p.kind === 'Body' ? 'Void' : 'Solder';
+    if (gs.some((w) => w.kind === 'Window' && w.parent === p.id && w.algo === algo)) continue;
+    gs.push({ id: edNewId(), kind: 'Window', algo, parent: p.id, ox: 0, oy: 0, rw: p.kind === 'Body' ? 0.67 : 1.3, rh: p.kind === 'Body' ? 0.6 : 1.5 }); n++;
+  }
+  S.edit.error = '';
+  edCommit(() => T('一次產生標準檢測框', 'Add all standard windows'), before);
+  toast(t('ui.editor.addedAll', { count: n })); editorChanged();
+}
+function edDeleteSel() {
+  const e = S.edit, g = edSelGroup(); if (!g) return;
+  const before = clone(e.draft.groups);
+  if (e.sel.idx != null && g.kind === 'Pin') {
+    const total = g.rows * g.cols;
+    if ((g.skip || []).length + 1 >= total) { e.draft.groups = e.draft.groups.filter((x) => x.id !== g.id && x.parent !== g.id); e.sel = null; }
+    else { g.skip = [...(g.skip || []), e.sel.idx]; e.sel = { gid: g.id, idx: null }; }
+  } else if (g.kind === 'Body') { e.error = t('ui.editor.bodyKeep'); render(); return; }
+  else { e.draft.groups = e.draft.groups.filter((x) => x.id !== g.id && x.parent !== g.id); e.sel = null; }
+  e.error = '';
+  edCommit(() => T('刪除框', 'Delete boxes'), before); editorChanged();
+}
+function saveEditor(pushToLib = false) {
+  const e = S.edit; if (!e) return false;
+  const d = e.draft, partNo = $('#edPart').value.trim();
+  const inLib = e.store === 'library', toLib = inLib || pushToLib;
+  const store = inLib ? S.lib : S.types, ty0 = store[e.typeId];
+  if (toLib && !partNo) { e.error = t('ui.editor.needPartNo'); render(); return false; }
+  const ownLib = inLib ? e.typeId : (ty0.libId && S.lib[ty0.libId] ? ty0.libId : null);
+  if (toLib && Object.values(S.lib).some((x) => x.partNo === partNo && x.id !== ownLib)) { e.error = t('ui.editor.partNoTaken', { partNo }); render(); return false; }
+  if (!d.groups.some((g) => g.kind === 'Body')) { e.error = t('ui.editor.noBody'); render(); return false; }
+  const tyBefore = clone(ty0), id = ty0.id;
+  const tyAfter = { ...clone(ty0), partNo, name: $('#edName').value.trim() || partNo || ty0.name, category: $('#edCat').value, groups: clone(d.groups),
+    aliases: $('#edAlias').value.split(/[,，;；]/).map((x) => x.trim()).filter(Boolean) };
+  let libId = ownLib, libBefore = null, libAfter = null;
+  if (!inLib && pushToLib) {
+    libId = ownLib || `t${partNo.replace(/\W/g, '')}`;
+    libBefore = S.lib[libId] ? clone(S.lib[libId]) : null;
+    tyAfter.libId = libId; libAfter = { ...clone(tyAfter), id: libId, saved: true }; delete libAfter.libId;
+  }
+  const redo = () => { store[id] = clone(tyAfter); if (libAfter) S.lib[libId] = clone(libAfter); };
+  const undo = () => { store[id] = clone(tyBefore); if (libAfter) { if (libBefore) S.lib[libId] = clone(libBefore); else delete S.lib[libId]; } };
+  redo();
+  const count = inLib ? 0 : S.doc.comps.filter((c) => c.typeId === id).length, shown = tyAfter.partNo || tyAfter.name;
+  S.docStack.push({ label: () => (inLib ? T(`儲存到樣本庫 ${shown}`, `Save ${shown} to the library`) : T(`儲存元件類型 ${shown}${pushToLib ? '並存入樣本庫' : ''}`, `Save component type ${shown}${pushToLib ? ' and add it to the library' : ''}`)), undo, redo, kind: 'type' });
+  log(`command: Save component type ${shown}`, 'cmd');
+  leaveEditor(); go('Save', 'Idle'); render();
+  toast(inLib ? t('ui.toast.libSaved', { partNo: shown }) : t('ui.toast.typeSaved', { partNo: shown, count }) + (pushToLib ? ` · ${t('ui.toast.libAdded')}` : ''));
+  return true;
+}
+// Board copy <-> library: explicit actions only. The board never changes by itself.
+function pullFromLib(ty) {
+  const lib = ty && ty.libId && S.lib[ty.libId]; if (!lib || S.state !== 'Idle') return false;
+  const id = ty.id, before = clone(ty), after = { ...clone(ty), partNo: lib.partNo, name: lib.name, aliases: clone(lib.aliases), category: lib.category, groups: clone(lib.groups) };
+  const count = S.doc.comps.filter((c) => c.typeId === id).length;
+  S.types[id] = clone(after);
+  S.docStack.push({ label: () => T(`從樣本庫更新 ${after.partNo}`, `Update ${after.partNo} from the library`), undo: () => { S.types[id] = clone(before); }, redo: () => { S.types[id] = clone(after); }, kind: 'type' });
+  log(`command: update ${after.partNo} from the library`, 'cmd'); lastChromeKey = ''; libKey = ''; render();
+  toast(t('ui.toast.pulled', { partNo: after.partNo, count }));
+  return true;
+}
+function pushToLibrary(ty) {
+  if (!ty || S.state !== 'Idle' || !S.types[ty.id]) return false;
+  if (!ty.partNo) { openEditor(ty.id, 'new', null); return true; }
+  const libId = ty.libId && S.lib[ty.libId] ? ty.libId : `t${ty.partNo.replace(/\W/g, '')}`;
+  if (Object.values(S.lib).some((x) => x.partNo === ty.partNo && x.id !== libId)) { toast(t('ui.editor.partNoTaken', { partNo: ty.partNo })); return false; }
+  const id = ty.id, libBefore = S.lib[libId] ? clone(S.lib[libId]) : null, tyBefore = clone(ty);
+  const entry = { id: libId, partNo: ty.partNo, name: ty.name, aliases: clone(ty.aliases), category: ty.category, look: ty.look, refRot: ty.refRot, saved: true, groups: clone(ty.groups) };
+  const redo = () => { S.lib[libId] = clone(entry); S.types[id].libId = libId; };
+  const undo = () => { if (libBefore) S.lib[libId] = clone(libBefore); else delete S.lib[libId]; S.types[id] = clone(tyBefore); };
+  redo();
+  S.docStack.push({ label: () => T(`存入樣本庫 ${entry.partNo}`, `Add ${entry.partNo} to the library`), undo, redo, kind: 'type' });
+  log(`command: add ${entry.partNo} to the library`, 'cmd'); lastChromeKey = ''; libKey = ''; render();
+  toast(t('ui.toast.pushed', { partNo: entry.partNo }));
+  return true;
+}
+function cancelEditor() {
+  if (!S.edit) return;
+  leaveEditor(); go('Cancel', 'Idle'); render();
+}
+
+/* ================= pointer ================= */
+function capture(e) { try { cvw.setPointerCapture(e.pointerId); } catch (_) { /* synthetic pointer */ } }
+function pt(e) { const r = cvw.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; }
+function hitHandle(px, py) {
+  if (S.scene !== 'type' || !S.edit || S.edit.tool !== 'select') return null;
+  const g = edSelGroup(); if (!g) return null;
+  const first = editorBoxes().find((b) => b.gid === g.id); if (!first) return null;
+  const hit = TOK.sizes.handleHit / 2;
+  for (const h of handlePoints(first.rect)) if (Math.abs(px - h.x) <= hit && Math.abs(py - h.y) <= hit) return { k: h.k, g, first };
+  return null;
+}
+function hitComp(px, py) {
+  const [wx, wy] = s2w(px, py), tol = 4 / S.view.s;
+  const order = { sample: 3, found: 2, inferred: 1, rejected: 0 };
+  let best = null, bestA = 1e18;
+  for (const v of visibleComps()) {
+    if (v.state !== 'sample' && !S.filter[v.state]) continue;
+    const boxes = instBoxes(v.inst), bb = bboxOf(boxes);
+    if (wx >= bb.x - tol && wx <= bb.x + bb.w + tol && wy >= bb.y - tol && wy <= bb.y + bb.h + tol) {
+      const a = bb.w * bb.h - (order[v.state] || 0);
+      if (a < bestA) { bestA = a; best = { v, boxes, wx, wy }; }
+    }
+  }
+  return best;
+}
+function boxUnder(hit) { // the smallest box of the component under the cursor
+  let b = null, a = 1e18;
+  for (const x of hit.boxes) if (hit.wx >= x.rect.x && hit.wx <= x.rect.x + x.rect.w && hit.wy >= x.rect.y && hit.wy <= x.rect.y + x.rect.h && x.rect.w * x.rect.h < a) { a = x.rect.w * x.rect.h; b = x; }
+  return b;
+}
+function edHitBox(px, py) {
+  const [wx, wy] = s2w(px, py), tol = 4 / S.view.s;
+  let b = null, a = 1e18;
+  for (const x of editorBoxes()) if (wx >= x.rect.x - tol && wx <= x.rect.x + x.rect.w + tol && wy >= x.rect.y - tol && wy <= x.rect.y + x.rect.h + tol && x.rect.w * x.rect.h < a) { a = x.rect.w * x.rect.h; b = x; }
+  return b;
+}
+cvw.addEventListener('pointerdown', (e) => {
+  if (e.target.closest('.float, #toast')) return;
+  cvw.focus({ preventScroll: true });
+  if (S.state === 'Empty' || S.state === 'Error') return;
+  const [px, py] = pt(e);
+  const t1 = performance.now();
+  if (e.button === 1 || (e.button === 0 && S.space)) { e.preventDefault(); S.drag = { mode: 'pan', px, py, tx: S.view.tx, ty: S.view.ty }; capture(e); render(); return; }
+  if (e.button !== 0) return;
+  if (S.scene === 'type' && S.edit) return editorPointerDown(e, px, py);
+  if (S.state === 'Searching' || S.state === 'DrawingRegion') { log(`pointer ignored in ${S.state}`, 'ign'); return; }
+  if (S.tool === 'sample' || S.tool === 'scan') {
+    S.drawOrigin = S.state;
+    if (!go('PressRegion', 'DrawingRegion')) return;
+    const [wx, wy] = s2w(px, py);
+    S.drag = { mode: 'region', tool: S.tool, x0: wx, y0: wy, rect: { x: wx, y: wy, w: 0, h: 0 } };
+    capture(e); render();
+  } else if (S.tool === 'add' && (S.state === 'Idle' || S.state === 'Preview')) {
+    const ty = S.types[S.lastTypeId] || (S.state === 'Preview' ? (S.lib[S.lastTypeId] || savedTypes()[0]) : Object.values(S.types)[0]);
+    if (!ty) { toast(S.state === 'Idle' ? t('ui.add.needType') : t('ui.library.empty')); return; }
+    const [wx, wy] = s2w(px, py);
+    const inst = { id: newId(), typeId: ty.id, cx: wx, cy: wy, rot: 0, kind: S.state === 'Preview' ? 'man' : 'doc', score: null, origin: 'manual' };
+    if (S.state === 'Idle') { inst.fixedState = 'found'; inst.name = assignName(LOOK[ty.look].prefix); }
+    cmdAddComp(container(), inst, editStack()); S.sel = new Set([inst.id]); S.tool = 'select'; lastChromeKey = ''; render();
+    log(`visual feedback in ${(performance.now() - t1).toFixed(1)} ms (budget I2: ${TOK.timing.visualFeedbackMax} ms)`, 'ev');
+  } else if (S.tool === 'select' && editableBoard()) {
+    const hit = hitComp(px, py);
+    if (hit) {
+      const id = hit.v.inst.id;
+      if (e.shiftKey) { S.sel.has(id) ? S.sel.delete(id) : S.sel.add(id); } else if (!S.sel.has(id)) { S.sel = new Set([id]); }
+      S.selGroup = null; S.lastTypeId = hit.v.inst.typeId;
+      const movers = visibleComps().filter((v) => S.sel.has(v.inst.id) && v.inst.kind !== 'samp').map((v) => ({ it: v.inst, before: { cx: v.inst.cx, cy: v.inst.cy } }));
+      S.drag = { mode: 'move', px, py, items: movers, moved: false, hitBox: boxUnder(hit), dbl: hit };
+      capture(e); lastChromeKey = ''; render();
+      log(`visual feedback in ${(performance.now() - t1).toFixed(1)} ms (budget I2: ${TOK.timing.visualFeedbackMax} ms)`, 'ev');
+    } else { if (!e.shiftKey) { S.sel.clear(); S.selGroup = null; } lastChromeKey = ''; render(); }
+  }
+});
+function editorPointerDown(e, px, py) {
+  const E = S.edit, [wx, wy] = s2w(px, py);
+  if (E.tool === 'box') {
+    const kind = E.draft.groups.some((g) => g.kind === 'Body') ? 'Pin' : 'Body';
+    S.drag = { mode: 'newbox', kind, x0: wx, y0: wy, rect: { x: wx, y: wy, w: 0, h: 0 }, before: clone(E.draft.groups) };
+    capture(e); render(); return;
+  }
+  const h = hitHandle(px, py);
+  if (h) { S.drag = { mode: 'edresize', k: h.k, g: h.g, first: h.first, px, py, before: clone(E.draft.groups), g0: clone(h.g), rect0: { ...h.first.rect } }; capture(e); return; }
+  const b = edHitBox(px, py);
+  if (b) {
+    const grp = edGroup(b.gid), already = E.sel && E.sel.gid === b.gid && E.sel.idx == null;
+    const multi = grp.kind === 'Pin' && grp.rows * grp.cols - (grp.skip || []).length > 1;
+    E.sel = already && multi ? { gid: b.gid, idx: b.idx } : { gid: b.gid, idx: null };
+    S.drag = { mode: 'edmove', px, py, before: clone(E.draft.groups), g: edGroup(b.gid), g0: clone(edGroup(b.gid)), moved: false };
+    capture(e); edSyncForm(); render();
+  } else { E.sel = null; edSyncForm(); render(); }
+}
+cvw.addEventListener('pointermove', (e) => {
+  const [px, py] = pt(e);
+  S.cursor = s2w(px, py);
+  const d = S.drag;
+  if (!d) {
+    const h = hitHandle(px, py);
+    cvw.style.cursor = h ? CURSORS[h.k] : '';
+    $('#sbCursor').textContent = `x ${Math.round(S.cursor[0])}  y ${Math.round(S.cursor[1])}`;
+    return;
+  }
+  if (d.mode === 'pan') { S.view.tx = d.tx + (px - d.px); S.view.ty = d.ty + (py - d.py); S.view.auto = false; }
+  else if (d.mode === 'region') {
+    const [wx, wy] = s2w(px, py);
+    d.rect = { x: Math.min(d.x0, wx), y: Math.min(d.y0, wy), w: Math.abs(wx - d.x0), h: Math.abs(wy - d.y0) };
+  } else if (d.mode === 'move') {
+    const dx = (px - d.px) / S.view.s, dy = (py - d.py) / S.view.s;
+    if (Math.abs(px - d.px) + Math.abs(py - d.py) > 2) d.moved = true;
+    for (const m of d.items) { m.it.cx = m.before.cx + dx; m.it.cy = m.before.cy + dy; }
+  } else if (d.mode === 'newbox') {
+    const [wx, wy] = s2w(px, py);
+    d.rect = { x: Math.min(d.x0, wx), y: Math.min(d.y0, wy), w: Math.abs(wx - d.x0), h: Math.abs(wy - d.y0) };
+  } else if (d.mode === 'edmove') {
+    const dx = (px - d.px) / S.view.s, dy = (py - d.py) / S.view.s;
+    if (Math.abs(px - d.px) + Math.abs(py - d.py) > 2) d.moved = true;
+    const g = d.g;
+    if (g.kind === 'Window') { const p = edFirstCell(edGroup(g.parent)); if (p) { g.ox = d.g0.ox + dx / p.rect.w; g.oy = d.g0.oy + dy / p.rect.h; } }
+    else { g.x = d.g0.x + dx; g.y = d.g0.y + dy; }
+    edSyncForm();
+  } else if (d.mode === 'edresize') {
+    const dx = (px - d.px) / S.view.s, dy = (py - d.py) / S.view.s, b = d.rect0, k = d.k;
+    let x = b.x, y = b.y, w = b.w, h = b.h;
+    if (k.includes('e')) w = Math.max(2, b.w + dx);
+    if (k.includes('s')) h = Math.max(2, b.h + dy);
+    if (k.includes('w')) { w = Math.max(2, b.w - dx); x = b.x + b.w - w; }
+    if (k.includes('n')) { h = Math.max(2, b.h - dy); y = b.y + b.h - h; }
+    const g = d.g;
+    if (g.kind === 'Window') {
+      const p = edFirstCell(edGroup(g.parent));
+      if (p) { g.rw = Math.max(0.05, w / p.rect.w); g.rh = Math.max(0.05, h / p.rect.h); g.ox = (x + w / 2 - (p.rect.x + p.rect.w / 2)) / p.rect.w; g.oy = (y + h / 2 - (p.rect.y + p.rect.h / 2)) / p.rect.h; }
+    } else { g.x = x; g.y = y; g.w = w; g.h = h; }
+    edSyncForm();
+  }
+  render();
+});
+function endDrag(e) {
+  const d = S.drag; if (!d) return;
+  S.drag = null;
+  try { cvw.releasePointerCapture(e.pointerId); } catch (_) { /* not captured */ }
+  if (d.mode === 'region') {
+    const r = d.rect, min = TOK.interaction.minSampleSidePx;
+    if (r.w < min || r.h < min) { go('ReleaseTooSmall', S.drawOrigin); toast(t('ui.sample.tooSmall', { min })); render(); return; }
+    go('Release', 'Searching');
+    startSearch(r, d.tool === 'scan' ? 'scan' : 'teach');
+  } else if (d.mode === 'move' && d.moved) {
+    cmdMoveComps(d.items.map((m) => ({ it: m.it, before: m.before, after: { cx: m.it.cx, cy: m.it.cy } })), editStack()); render();
+  } else if (d.mode === 'newbox') {
+    const r = d.rect;
+    if (r.w >= 3 && r.h >= 3) {
+      const E = S.edit, g = d.kind === 'Body' ? { id: edNewId(), kind: 'Body', x: r.x, y: r.y, w: r.w, h: r.h } : { id: edNewId(), kind: 'Pin', x: r.x, y: r.y, w: r.w, h: r.h, rows: 1, cols: 1, px: 0, py: 0, skip: [] };
+      E.draft.groups.push(g); E.sel = { gid: g.id, idx: null }; E.error = '';
+      edCommit(() => T(d.kind === 'Body' ? '畫主體框' : '畫 Pin 框', d.kind === 'Body' ? 'Draw the body' : 'Draw a pin'), d.before);
+      E.tool = 'select';
+    }
+    editorChanged();
+  } else if (d.mode === 'edmove' || d.mode === 'edresize') {
+    if (d.mode === 'edresize' || d.moved) edCommit(() => (d.mode === 'edresize' ? T('調整框大小', 'Resize') : T('移動框群組', 'Move the group')), d.before);
+    editorChanged();
+  } else render();
+}
+cvw.addEventListener('pointerup', endDrag);
+cvw.addEventListener('pointercancel', endDrag);
+cvw.addEventListener('pointerleave', () => { S.cursor = null; if (!S.drag) $('#sbCursor').textContent = ''; });
+cvw.addEventListener('dblclick', (e) => {
+  if (S.scene !== 'board' || S.state !== 'Idle' || S.tool !== 'select') return;
+  const [px, py] = pt(e);
+  const hit = hitComp(px, py);
+  if (!hit) return;
+  const b = boxUnder(hit);
+  S.sel = new Set([hit.v.inst.id]);
+  openEditor(hit.v.inst.typeId, 'edit', b ? b.gid : null);
+});
+cvw.addEventListener('wheel', (e) => {
+  if (S.state === 'Empty') return;
+  e.preventDefault();
+  const [px, py] = pt(e);
+  const notches = clamp(-e.deltaY / 100, -3, 3);
+  zoomAt(px, py, Math.pow(TOK.interaction.zoomStepPerNotch, notches));
+  render();
+}, { passive: false });
+cvw.addEventListener('contextmenu', (e) => e.preventDefault());
+
+/* ================= keyboard ================= */
+const isForm = (el) => el && /^(INPUT|SELECT|TEXTAREA)$/.test(el.tagName);
+document.addEventListener('keydown', (e) => {
+  if ($('#cadDlg').open) return;
+  if (isForm(e.target) && e.key !== 'Escape') return;
+  const k = e.key.toLowerCase();
+  const ctrl = e.ctrlKey || e.metaKey;
+  if (ctrl && k === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
+  if (ctrl && k === 'y') { e.preventDefault(); redo(); return; }
+  if (ctrl || e.altKey) return;
+  const onBtn = e.target.tagName === 'BUTTON';
+  if (e.key === ' ' && e.target === cvw) { e.preventDefault(); if (!S.space) { S.space = true; render(); } return; }
+  if (onBtn && (e.key === 'Enter' || e.key === ' ')) return;
+  if (e.key === 'Escape') { e.preventDefault(); esc_(); return; }
+  if (S.scene === 'type' && S.edit) {
+    if (e.key === 'Delete' || e.key === 'Backspace') { if (S.edit.sel) { e.preventDefault(); edDeleteSel(); } return; }
+    if (k === 'f') { fit(); render(); } else if (k === 'v') { S.edit.tool = 'select'; render(); } else if (k === 'b') { S.edit.tool = 'box'; render(); }
+    return;
+  }
+  if (e.key === 'Enter') { if (S.state === 'Preview') { e.preventDefault(); accept(); } return; }
+  if (e.key === 'Delete' || e.key === 'Backspace') { if (editableBoard() && S.sel.size) { e.preventDefault(); deleteSelection(); } return; }
+  if (S.state === 'Empty') return;
+  if (k === 'f') { fit(); render(); }
+  else if (k === 'v') setTool('select'); else if (k === 's') setTool('sample'); else if (k === 'r') setTool('scan'); else if (k === 'a') setTool('add');
+  else if (k === 'e') { const c = selectedComp(); if (c && S.state === 'Idle') openEditor(c.typeId, 'edit', null); }
+});
+document.addEventListener('keyup', (e) => { if (e.key === ' ' && S.space) { S.space = false; render(); } });
+window.addEventListener('blur', () => { if (S.space) { S.space = false; render(); } });
+function esc_() { // Esc goes back one level
+  if (S.scene === 'type' && S.edit) {
+    if (S.drag) { S.drag = null; render(); return; }
+    if (S.edit.sel) { S.edit.sel = null; edSyncForm(); render(); return; }
+    if (S.edit.tool === 'box') { S.edit.tool = 'select'; render(); return; }
+    if (!edDirty()) cancelEditor(); else toast(T('有未儲存的修改：按〔取消〕確認放棄，或按〔儲存〕。', 'You have unsaved changes. Press Cancel to discard them, or Save.'));
+    return;
+  }
+  switch (S.state) {
+    case 'DrawingRegion': S.drag = null; go('Esc', S.drawOrigin); render(); break;
+    case 'Searching': cancelSearch(); break;
+    case 'Preview': if (S.sel.size) { S.sel.clear(); S.selGroup = null; lastChromeKey = ''; render(); } else discard(); break;
+    case 'NoMatch': go('Dismiss', 'Idle'); S.prop = null; S.region = null; render(); break;
+    case 'Error': dismissError(); break;
+    case 'Idle': if (S.sel.size) { S.sel.clear(); S.selGroup = null; lastChromeKey = ''; render(); } break;
+    default: break;
+  }
+}
+function setTool(n) {
+  if (!(S.state === 'Idle' || S.state === 'Preview' || S.state === 'NoMatch')) return;
+  if (n === 'add' && S.state === 'NoMatch') return;
+  S.tool = n; render();
+}
+
+/* ================= CAD list (export preview) ================= */
+function cadText() {
+  const rows = [...S.doc.comps].sort((a, b) => String(a.name).localeCompare(String(b.name), undefined, { numeric: true }));
+  const head = ['Name', 'X', 'Y', 'Angle', 'Type', 'Side'].join('\t');
+  return [head, ...rows.map((c) => { const ty = typeOf(c.typeId); return [c.name, c.cx.toFixed(1), c.cy.toFixed(1), c.rot, ty ? (ty.partNo || ty.name) : '?', 'Top'].join('\t'); })].join('\n');
+}
+function showCad() {
+  $('#cadTitle').textContent = t('ui.cad.title'); $('#cadNote').textContent = t('ui.cad.note');
+  $('#cadCopy').textContent = t('ui.cad.copy'); $('#cadClose').textContent = t('ui.cad.close');
+  $('#cadText').value = S.doc.comps.length ? cadText() : t('ui.cad.empty');
+  $('#cadDlg').showModal();
+}
+
+/* ================= wiring ================= */
+$('#bOpen').addEventListener('click', openBoard);
+$('#bUndo').addEventListener('click', undo); $('#bRedo').addEventListener('click', redo);
+$('#bFit').addEventListener('click', () => { fit(); render(); });
+$('#bSave').addEventListener('click', () => toast(T('儲存在 S06 實作（原型不儲存）', 'Save arrives in S06. The prototype does not save.')));
+$('#bExport').addEventListener('click', showCad);
+$('#cadClose').addEventListener('click', () => $('#cadDlg').close());
+$('#cadCopy').addEventListener('click', async () => { try { await navigator.clipboard.writeText($('#cadText').value); toast(t('ui.cad.copied')); } catch (_) { $('#cadText').select(); } });
+$('#backend').addEventListener('change', (e) => { S.backend = e.target.value; log(`back end → ${S.backend}`, 'ev'); render(); });
+$('#progCancel').addEventListener('click', cancelSearch);
+$('#rail').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) { setTool(b.dataset.tool); b.blur(); } });
+$('#railEd').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b && S.edit) { S.edit.tool = b.dataset.edtool; b.blur(); render(); } });
+$('#thr').addEventListener('input', (e) => setThreshold(Number(e.target.value)));
+$('#angle').addEventListener('change', (e) => {
+  S.angle = e.target.value;
+  if ((S.state === 'Preview' || S.state === 'NoMatch' || S.state === 'Searching') && S.lastSearch) { go('ParamsChanged', 'Searching'); startSearch(S.lastSearch.rect, S.lastSearch.mode); }
+  else render();
+});
+function rescan() { if ((S.state === 'Preview' || S.state === 'NoMatch' || S.state === 'Searching') && S.lastSearch && S.lastSearch.mode === 'scan') { go('ParamsChanged', 'Searching'); startSearch(S.lastSearch.rect, 'scan'); } else render(); }
+$('#scanScope').addEventListener('change', rescan);
+$('#simMs').addEventListener('input', (e) => { $('#simMsVal').textContent = `${e.target.value} ms`; });
+['optGray', 'optHit', 'ovPal'].forEach((id) => $('#' + id).addEventListener('change', () => { render(); renderLab(); }));
+$('#boardColor').addEventListener('change', () => { if (S.state !== 'Empty' && S.scene === 'board') $('#board').innerHTML = boardSVG($('#boardColor').value); render(); });
+$('#bResetLib').addEventListener('click', () => { resetAll(); });
+$('#libFilter').addEventListener('input', (e) => { S.libFilter = e.target.value; libKey = ''; render(); });
+$('#app').addEventListener('click', (e) => {
+  const tg = e.target.closest('button'); if (!tg) return;
+  if (tg.id === 'mOpen') openBoard();
+  else if (tg.id === 'mLower') { const best = Math.max(...S.prop.insts.filter((i) => i.kind === 'cand').map((i) => i.score)); $('#thr').value = best; setThreshold(best); }
+  else if (tg.id === 'mRedraw') { setTool('sample'); cvw.focus(); }
+  else if (tg.id === 'mTeachNew' || tg.id === 'pTeachNew') { if (tg.id === 'mTeachNew') esc_(); setTool('sample'); cvw.focus(); toast(t('ui.idle.hint')); }
+  else if (tg.id === 'mWiden' || tg.id === 'pWiden') { $('#scanScope').value = 'all'; rescan(); }
+  else if (tg.id === 'mDismiss') esc_();
+  else if (tg.id === 'mDismissE') dismissError();
+  else if (tg.id === 'mRetry') { if (go('Retry', 'Searching')) { S.error = null; startSearch(S.lastSearch.rect, S.lastSearch.mode); } }
+  else if (tg.id === 'mFallback') { S.backend = 'OpenCV'; if (S.lastSearch) { if (go('Retry', 'Searching')) { S.error = null; startSearch(S.lastSearch.rect, S.lastSearch.mode); } } else dismissError(); }
+  else if (tg.id === 'pbAccept') accept();
+  else if (tg.id === 'pbDiscard') discard();
+  else if (tg.id === 'pbAcceptSave') { const cmd = accept(); if (cmd && cmd.tmpId) openEditor(cmd.tmpId, 'new', null); }
+  else if (tg.id === 'selEdit') { const c = selectedComp(); if (c) openEditor(c.typeId, 'edit', S.selGroup ? S.selGroup.gid : null); }
+  else if (tg.id === 'selSave' || tg.id === 'selPush') { const c = selectedComp(); if (c) pushToLibrary(S.types[c.typeId]); }
+  else if (tg.id === 'selPull') { const c = selectedComp(); if (c) pullFromLib(S.types[c.typeId]); }
+  else if (tg.dataset.libedit) openEditor(tg.dataset.libedit, 'edit', null);
+  else if (tg.dataset.libdel) {
+    const id = tg.dataset.libdel, snap = clone(S.lib[id]);
+    S.docStack.push({ label: () => T(`從樣本庫刪除 ${snap.partNo}`, `Delete ${snap.partNo} from the library`), undo: () => { S.lib[id] = clone(snap); }, redo: () => { delete S.lib[id]; }, kind: 'lib' });
+    delete S.lib[id]; libKey = ''; lastChromeKey = ''; log(`command: delete library type ${snap.partNo} (boards keep their copies)`, 'cmd'); render();
+  }
+  if (tg.matches('.tb button, #msgEmpty button, #msgNoMatch button, #msgError button, #previewActions button, #previewBar button, #selInfo button, #libList button')) { if (e.detail > 0) tg.blur(); }
+});
+$('#tree').addEventListener('click', (e) => {
+  const tw = e.target.closest('[data-tw]');
+  if (tw) { const id = tw.dataset.tw; S.expanded.has(id) ? S.expanded.delete(id) : S.expanded.add(id); lastChromeKey = ''; render(); return; }
+  const row = e.target.closest('.trow[data-cid]'); if (!row) return;
+  const id = row.dataset.cid, v = visibleComps().find((x) => x.inst.id === id);
+  if (!v || !editableBoard()) return;
+  if (row.dataset.gid) { S.sel = new Set([id]); S.selGroup = { cid: id, gid: row.dataset.gid }; }
+  else if (e.shiftKey) { S.sel.has(id) ? S.sel.delete(id) : S.sel.add(id); S.selGroup = null; }
+  else { S.sel = new Set([id]); S.selGroup = null; }
+  S.lastTypeId = v.inst.typeId; lastChromeKey = ''; render();
+});
+$('#selInfo').addEventListener('change', (e) => {
+  const r = e.target.closest('[data-alt]'); if (!r) return;
+  const c = selectedComp(); if (!c || S.state !== 'Preview') return;
+  const before = c.typeId, after = r.dataset.alt;
+  if (before === after) return;
+  c.typeId = after; cmdRetype(c, before, after); lastChromeKey = ''; render();
+  toast(t('ui.toast.retyped', { partNo: typeOf(after).partNo }));
+});
+$('#chips').addEventListener('click', (e) => { const b = e.target.closest('.chip'); if (!b) return; S.filter[b.dataset.chip] = !S.filter[b.dataset.chip]; lastChromeKey = ''; render(); });
+// editor panel
+$('#edGroups').addEventListener('click', (e) => { const row = e.target.closest('[data-edgid]'); if (!row || !S.edit) return; S.edit.sel = { gid: row.dataset.edgid, idx: null }; editorChanged(); });
+$('#edAddWin').addEventListener('click', edAddWindow);
+$('#edAddAll').addEventListener('click', edAddAll);
+$('#fDelete').addEventListener('click', edDeleteSel);
+$('#edSave').addEventListener('click', () => saveEditor(false));
+$('#edSaveLib').addEventListener('click', () => saveEditor(true));
+$('#edCancel').addEventListener('click', cancelEditor);
+['#edPart', '#edName', '#edAlias'].forEach((id) => $(id).addEventListener('input', () => { if (!S.edit) return; S.edit.draft.partNo = $('#edPart').value; S.edit.draft.name = $('#edName').value; S.edit.draft.aliases = $('#edAlias').value; S.edit.error = ''; render(); }));
+edBindForm();
+
+/* header controls */
+$('#lang').addEventListener('click', () => { lang = lang === 'zh_TW' ? 'en' : 'zh_TW'; lastChromeKey = ''; libKey = ''; applyI18n(); });
+$$('[data-theme-set]').forEach((b) => b.addEventListener('click', () => { themePref = b.dataset.themeSet; applyTheme(); lastChromeKey = ''; render(); renderLab(); }));
+$$('[data-fs]').forEach((b) => b.addEventListener('click', () => { document.documentElement.style.setProperty('--fs', b.dataset.fs); $$('[data-fs]').forEach((x) => x.setAttribute('aria-pressed', x === b)); if (S.view.auto) fit(); render(); }));
+$$('[role=tab]').forEach((tb) => tb.addEventListener('click', () => {
+  $$('[role=tab]').forEach((x) => { const on = x === tb; x.setAttribute('aria-selected', on); $('#' + x.getAttribute('aria-controls')).hidden = !on; });
+  if (tb.id === 'tab1') requestAnimationFrame(() => { if (S.view.auto) fit(); render(); });
+  if (tb.id === 'tab2') renderLab();
+}));
+
+/* quick jumps (review helper; each one drives the real flow) */
+const CANNED = { x: 108, y: 148, w: 60, h: 32 };
+const SCAN_ICS = { x: 90, y: 560, w: 700, h: 230 };
+function jump(name) {
+  resetAll();
+  if (name === 'Empty') return;
+  if (name === 'Error') { openBroken(); return; }
+  openBoard();
+  if (name === 'Idle') return;
+  const run = (rect, mode, ms) => { S.drawOrigin = 'Idle'; go('PressRegion', 'DrawingRegion'); go('Release', 'Searching'); startSearch(rect, mode, { totalMs: ms }); };
+  if (name === 'Searching') return run(CANNED, 'teach', 5000);
+  if (name === 'Preview') return run(CANNED, 'teach', 40);
+  if (name === 'Scan') return run(SCAN_ICS, 'scan', 40);
+  if (name === 'NoMatch') return run({ x: 560, y: 90, w: 60, h: 32 }, 'teach', 40);
+  if (name === 'Editor') { run(SCAN_ICS, 'scan', 40); setTimeout(() => { if (S.state === 'Preview') { accept(); openEditor('p_t8371', 'edit', 'g2'); } }, 120); }
+}
+
+/* ================= static texts ================= */
+function applyI18n() {
+  document.documentElement.lang = lang === 'en' ? 'en' : 'zh-Hant';
+  $('#lang').textContent = lang === 'en' ? '繁中' : 'EN';
+  $$('[data-i18n]').forEach((el) => { el.textContent = t(el.dataset.i18n); });
+  $$('[data-zh]').forEach((el) => { el.textContent = T(el.dataset.zh, el.dataset.en); });
+  $$('option[data-zh]').forEach((el) => { el.textContent = T(el.dataset.zh, el.dataset.en); });
+  $('#intro').innerHTML = [['Purpose', 'purpose'], ['Reason', 'reason'], ['Effect', 'effect']].map(([h, k]) => `<div><h3>${h}</h3><p>${esc(DATA.ste[k])}</p><p class="zh-note">${esc(DATA.zh[k])}</p></div>`).join('') +
+    `<div style="grid-column:1/-1"><b>${T('怎麼玩', 'How to play')}</b> — ${esc(lang === 'en' ? DATA.ste.howto : DATA.zh.howto)} ${esc(lang === 'en' ? DATA.ste.howto2 : DATA.zh.howto2)}</div>`;
+  $('#strip').querySelectorAll('.pill').forEach((p) => p.remove());
+  const strip = $('#strip');
+  const stateNames = { Empty: T('空白', 'Empty'), Idle: T('已載入', 'Loaded'), DrawingRegion: T('拖曳區域中', 'Drawing'), Searching: T('搜尋中', 'Searching'), Preview: T('預覽', 'Preview'), NoMatch: T('無匹配', 'No match'), Error: T('錯誤', 'Error'), EditingType: T('編輯元件類型', 'Edit type') };
+  STATES.forEach((s) => { const p = document.createElement('span'); p.className = 'pill'; p.dataset.st = s; p.textContent = stateNames[s]; strip.insertBefore(p, $('#jump')); });
+  const jumps = { Empty: stateNames.Empty, Idle: stateNames.Idle, Searching: stateNames.Searching, Preview: T('預覽（教樣本）', 'Preview (teach)'), Scan: T('預覽（區域掃描）', 'Preview (scan)'), NoMatch: stateNames.NoMatch, Error: stateNames.Error, Editor: stateNames.EditingType };
+  $('#jump').innerHTML = `<span class="small muted">${T('快速跳到', 'Jump to')}</span>` + Object.entries(jumps).map(([k, v]) => `<button data-jump="${k}">${v}</button>`).join('');
+  $('#labIntro').innerHTML = `${esc(DATA.ste.lab)} <span class="zh-note">${esc(DATA.zh.lab)}</span>`;
+  $('#rulesIntro').innerHTML = `${esc(DATA.ste.rulesIntro)} <span class="zh-note">${esc(DATA.zh.rulesIntro)}</span>`;
+  $('#rulesTable').innerHTML = `<tr><th>${T('按鍵 / 操作', 'Key / input')}</th><th>${T('行為', 'Behavior')}</th><th>${T('為什麼', 'Why')}</th></tr>` +
+    DATA.rules.map((r) => `<tr><td><kbd>${esc(r.keys)}</kbd></td><td>${esc(lang === 'en' ? r.action : r.zh_action)}</td><td>${esc(lang === 'en' ? r.ste : r.zh)}</td></tr>`).join('');
+  $('#fsmTable').innerHTML = `<tr><th>${T('狀態', 'State')}</th><th>${T('事件 → 下一個狀態', 'Event → next state')}</th></tr>` +
+    STATES.map((s) => `<tr><td><b>${s}</b></td><td>${Object.entries(FSM[s]).map(([ev, to]) => `<code>${ev}</code> → ${to.join(' | ')}`).join('<br>')}</td></tr>`).join('');
+  buildLab();
+  render(); renderLab();
+}
+$('#jump').addEventListener('click', (e) => { const b = e.target.closest('[data-jump]'); if (b) { jump(b.dataset.jump); b.blur(); } });
+
+/* ================= tab 2: style lab ================= */
+const LINE_KINDS = { solid: [], dashed: [8, 4], dotted: [0, 4] };
+function lumC(h) { const n = parseInt(h.slice(1), 16); const ch = (v) => { const c = v / 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; }; return 0.2126 * ch((n >> 16) & 255) + 0.7152 * ch((n >> 8) & 255) + 0.0722 * ch(n & 255); }
+const ratio = (a, b) => { const [hi, lo] = [lumC(a), lumC(b)].sort((x, y) => y - x); return (hi + 0.05) / (lo + 0.05); };
+function buildLab() {
+  $('#labControls').innerHTML = `<h2>${T('調整四種狀態', 'Edit the four states')}</h2>` + NAMES.map((n) => `
+    <div class="field" data-lab="${n}"><label style="min-width:5em"><b>${esc(t('state.' + n))}</b></label>
+      <input type="color" data-k="color" value="${colorFor(n)}" aria-label="${n} color">
+      <select data-k="kind" aria-label="${n} line style">${Object.keys(LINE_KINDS).map((k) => `<option value="${k}" ${ST[n].lineStyle === k ? 'selected' : ''}>${k}</option>`).join('')}</select>
+      <input type="number" data-k="width" min="1" max="6" step="0.5" value="${ST[n].width}" style="width:4.5em" aria-label="${n} width"></div>`).join('') +
+    `<div class="field"><button id="labReset">${T('還原為 tokens.json', 'Reset to tokens.json')}</button><button id="labCopy">${T('顯示覆寫 JSON', 'Show override JSON')}</button></div>
+     <textarea id="labJson" rows="6" style="width:100%;display:none" readonly></textarea>
+     <p class="small muted">${T('這裡的修改立刻套用到「互動原型」分頁。它們只影響這個頁面，不會寫回 docs/ux/tokens.json。', 'Changes apply to the prototype tab at once. They affect this page only. They do not write to docs/ux/tokens.json.')}</p>`;
+}
+$('#labControls').addEventListener('input', (e) => {
+  const row = e.target.closest('[data-lab]'); if (!row) return;
+  const n = row.dataset.lab, k = e.target.dataset.k;
+  if (k === 'color') colorOverride[n] = e.target.value;
+  if (k === 'kind') { ST[n].lineStyle = e.target.value; ST[n].dash = [...LINE_KINDS[e.target.value]]; ST[n].cap = e.target.value === 'dotted' ? 'round' : 'butt'; }
+  if (k === 'width') ST[n].width = clamp(Number(e.target.value) || 1, 1, 6);
+  applyTheme(); lastChromeKey = ''; render(); renderLab();
+});
+$('#labControls').addEventListener('click', (e) => {
+  if (e.target.id === 'labReset') { for (const n of NAMES) { delete colorOverride[n]; Object.assign(ST[n], clone(TOK.stateStyle[n])); } applyTheme(); buildLab(); lastChromeKey = ''; render(); renderLab(); }
+  if (e.target.id === 'labCopy') { const ta = $('#labJson'); ta.style.display = 'block'; ta.value = JSON.stringify({ colorOverride, stateStyle: Object.fromEntries(NAMES.map((n) => [n, ST[n]])) }, null, 2); }
+});
+function renderLab() {
+  if (!$('#labPrev')) return;
+  const th = TOK.themes[effTheme()];
+  $('#labPrev').style.background = TOK.overlay.board.green;
+  $('#labPrev').innerHTML = NAMES.map((n) => {
+    const a = lineAttrs(n, false, 'Body');
+    return `<div class="sw"><svg viewBox="0 0 120 26"><rect x="4" y="3" width="112" height="20" fill="none" stroke="${casingOn(n)}" stroke-width="${a.w + ST.casingExtraWidth}"${a.dash} stroke-linecap="${a.cap}"/><rect x="4" y="3" width="112" height="20" fill="none" stroke="${colorOn(n)}" stroke-width="${a.w}"${a.dash} stroke-linecap="${a.cap}"/></svg><span style="color:#fff;text-shadow:0 0 3px #000"><b>${esc(t('state.' + n))}</b> · ${ST[n].lineStyle} · ${ST[n].width}px</span></div>`;
+  }).join('');
+  const rows = [];
+  const cell = (r) => `<td class="mono ${r >= 3 ? 'pass' : 'fail'}">${r.toFixed(2)} ${r >= 3 ? '✓' : '✗'}</td>`;
+  for (const n of NAMES) rows.push(`<tr><td>${esc(t('state.' + n))}</td>${cell(ratio(colorFor(n), th.surface.panel))}${cell(ratio(colorOn(n), TOK.overlay.board.green))}${cell(ratio(colorOn(n), TOK.overlay.board.blue))}${cell(ratio(colorOn(n), TOK.overlay.board.black))}${cell(ratio(colorOn(n), casingOn(n)))}</tr>`);
+  $('#labTable').innerHTML = `<tr><th>${T('狀態', 'State')}</th><th>${T('對面板', 'vs panel')}</th><th>${T('對綠板', 'vs green')}</th><th>${T('對藍板', 'vs blue')}</th><th>${T('對黑板', 'vs black')}</th><th>${T('對外框', 'vs casing')}</th></tr>` + rows.join('');
+  const distinct = new Set(NAMES.map((n) => `${ST[n].lineStyle}|${ST[n].dash.join(',')}|${ST[n].width}`)).size === 4;
+  $('#labTable').insertAdjacentHTML('beforeend', `<tr><td colspan="6" class="${distinct ? 'pass' : 'fail'}">${distinct ? T('✓ 四種線型互不相同（不只靠顏色）', '✓ The four line styles differ (not color alone)') : T('✗ 有兩個狀態的線型相同', '✗ Two states share one line style')}</td></tr>`);
+}
+
+/* ================= test hook (used by the S01 verification) ================= */
+window.__proto = { S, FSM, go, jump, accept, discard, undo, redo, setThreshold, fit, render, ratio, TOK, openEditor, saveEditor, cancelEditor, expandGroups, instBoxes, searchScan, searchTeach, cadText, edApply, edAddAll, edAddWindow, edDeleteSel, edCommit, editorBoxes, savedTypes, PARTS, scanPlan, pullFromLib, pushToLibrary, typeOf, typeSame };
+
+/* ================= init ================= */
+applyTheme();
+applyI18n();
+$$('[data-fs]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.fs === '1'));
+render();
+})();
+
+</script>
+</body>
+</html>

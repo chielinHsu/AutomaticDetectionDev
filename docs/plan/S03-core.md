@@ -7,6 +7,8 @@
 | 依賴 | S02（建置系統） |
 | 產出位置 | `src/domain/`、`src/application/`、`src/app/`、`src/infrastructure/perf/`、`tools/check-deps.mjs`、`tests/core/` |
 
+> **S01 修訂（2026-10-05）**：照 ADR-006：新增 domain 型別 `Board`、`ComponentInstance`、`ComponentType`、`BoxGroup`（Body／Pin／Window）、`ObjectOrigin`、`NoMatchReason`；新增 port `ILibraryStore`、`ILibraryMatcher`；use case 要回傳**所有**驗證過的候選與分數（ux-spec §12.1）；座標慣例的單位已由使用者決定：**樣本庫存 µm，影像帶 µm／像素的校正值**（ADR-006 §6）；`ComponentType` 與板子上的複本要分開（`libId`）。
+
 <!--STE-->
 ## Purpose
 This step builds the core of the program without a screen. It defines the ports, the use case and the job runner.

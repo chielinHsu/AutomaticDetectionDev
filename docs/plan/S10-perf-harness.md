@@ -7,6 +7,8 @@
 | 依賴 | S02–S09 |
 | 產出位置 | `tests/perf/`、`tools/perf-compare.mjs`、`perf/baseline/`、`docs/steps/S10-perf-harness/` |
 
+> **S01 修訂（2026-10-05）**：效能矩陣要加「樣本庫大小 N」維度（ADR-006、`docs/steps/S01-ux-spec/perf.md` 新增項目）。
+
 <!--STE-->
 ## Purpose
 This step builds the full performance test. It measures the search time, the screen update time and the interaction time.
