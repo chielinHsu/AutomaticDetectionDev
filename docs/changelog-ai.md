@@ -30,6 +30,7 @@
 - 把前三個 commit 的訊息改寫成使用者的 `[作者]屬性:` 格式（檔案內容、作者、時間不變；新編號 `fd4fd2a`、`13230f8`、`74272a2`）。改寫前的完整歷史留在分支 `backup/before-commit-reformat`。
 - `project-rules.md` 的 Commit 規則由 Conventional Commits 改為該格式，並訂為唯一權威；Step Protocol 第 5 步同步調整。訊息一律寫成檔案再 `git commit -F`，`AI_CONTEXT.md` 的 shell 備註同步修改。
 - ADR-000 補上這次格式變更的說明。
+- 依使用者要求以 `--no-ff` 合併到 `main`，沒有 push。
 
 ### 修改的檔案
 - `.agents/harness/project-rules.md`、`AI_CONTEXT.md`、`docs/adr/000-ai-agent-structure.md`、`docs/changelog-ai.md`、`.ai/handoff.md`、`docs/current-status.md`
@@ -44,7 +45,6 @@
 ### 未完成
 - 12 份 `docs/plan/S*.md` 的「Commit 範本」仍是英文 Conventional 風格，沒有改寫；`project-rules.md` 規定它們只當內容參考，格式以規則為準。
 - 確認改寫後的歷史沒問題後，刪除備份分支 `backup/before-commit-reformat`。
-- 這次變更在分支 `chore/commit-format`，尚未合併到 `main`。
 
 ### 注意事項
 - 結尾的 `[Test]` 與 `Build OK, Test OK` 是使用者的固定規則；專案目前沒有建置，所以它不代表本次有建置。實際驗證只看 `測試 :` 區塊，且必須如實。
