@@ -1,0 +1,690 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AOI 架構導覽</title>
+<style>
+:root{
+  --bg:#f6f7f9; --panel:#ffffff; --ink:#18212b; --muted:#566273; --line:#d3d9e0;
+  --accent:#1d4ed8; --accent-ink:#ffffff; --layer:#eef2f7; --layer-sel:#dbe7ff; --pinfill:#c4ccd6;
+  --sample:#1d4ed8; --found:#15803d; --infer:#b45309; --reject:#b91c1c; --pred:#6b7787;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0f141a; --panel:#18202a; --ink:#e7edf4; --muted:#9aa8b8; --line:#2c3846;
+    --accent:#7aa7ff; --accent-ink:#0b1220; --layer:#1d2733; --layer-sel:#26405f; --pinfill:#3a4757;
+    --sample:#7aa7ff; --found:#4ade80; --infer:#fbbf24; --reject:#f87171; --pred:#8fa0b4;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0f141a; --panel:#18202a; --ink:#e7edf4; --muted:#9aa8b8; --line:#2c3846;
+  --accent:#7aa7ff; --accent-ink:#0b1220; --layer:#1d2733; --layer-sel:#26405f; --pinfill:#3a4757;
+  --sample:#7aa7ff; --found:#4ade80; --infer:#fbbf24; --reject:#f87171; --pred:#8fa0b4;
+}
+*{box-sizing:border-box}
+html{color-scheme:light dark}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 system-ui,"Segoe UI","Microsoft JhengHei",sans-serif}
+.wrap{max-width:1180px;margin:0 auto;padding:16px}
+header{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:12px}
+h1{font-size:22px;margin:0}
+.sub{margin:2px 0 0;color:var(--muted);font-size:13px}
+button,select,input{font:inherit;color:inherit}
+button{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:7px 12px;cursor:pointer;min-height:36px}
+button:hover{border-color:var(--accent)}
+#theme{white-space:nowrap}
+button:focus-visible,select:focus-visible,input:focus-visible,.node:focus-visible,.chip:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+button[aria-selected="true"],button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;min-width:0}
+.cols{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(280px,1fr);gap:14px}
+@media (max-width:860px){.cols{grid-template-columns:1fr}}
+.toolbar{display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+fieldset{border:1px solid var(--line);border-radius:8px;margin:0;padding:4px 10px}
+legend{font-size:12px;color:var(--muted);padding:0 4px}
+fieldset label{margin-right:12px;white-space:nowrap}
+.hint,.note{color:var(--muted);font-size:13px}
+svg{width:100%;height:auto;display:block}
+.node rect,.chip rect{fill:var(--layer);stroke:var(--line);stroke-width:1.2;cursor:pointer}
+.node{cursor:pointer}
+.chip rect{fill:var(--panel)}
+.node.sel > rect,.chip.sel > rect{stroke:var(--accent);stroke-width:3;fill:var(--layer-sel)}
+.t-name{fill:var(--ink);font:600 14px system-ui,sans-serif;pointer-events:none}
+.t-sub{fill:var(--muted);font:12px system-ui,sans-serif;pointer-events:none}
+.t-lbl{fill:var(--muted);font:11px system-ui,sans-serif}
+.arrow{stroke:var(--ink);stroke-width:1.6;fill:none}
+.arrow.dash{stroke-dasharray:6 4}
+.arrow.dot{stroke:var(--muted);stroke-dasharray:2 4}
+#layers[data-be="opencv"] .chip[data-id="halcon"],#layers[data-be="halcon"] .chip[data-id="opencv"]{opacity:.25}
+.legend{font-size:12px;color:var(--muted);margin:6px 0 0}
+#detail h2{font-size:18px;margin:0}
+.zhname{margin:0 0 8px;color:var(--muted)}
+#detail section{margin-top:12px}
+#detail h3{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--accent);margin:0 0 2px}
+#detail p{margin:0 0 3px}
+.zh{color:var(--muted);font-size:13.5px}
+dl{margin:14px 0 0;font-size:13px}
+dt{font-weight:600;margin-top:6px}
+dd{margin:0;color:var(--muted)}
+.solid{display:inline-block;min-width:26px;text-align:center;border:1px solid var(--accent);color:var(--accent);border-radius:6px;font-weight:700;margin-right:6px;padding:0 6px;cursor:help}
+.stagebar{display:flex;gap:6px;flex-wrap:wrap}
+.controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px 18px;margin:12px 0 4px;font-size:13.5px}
+.controls label{display:flex;flex-direction:column;gap:2px}
+.controls .row{display:flex;gap:8px;align-items:center}
+.controls input[type=range]{flex:1;min-width:0}
+.nav{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.legendrow{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12.5px;color:var(--muted);margin-top:8px}
+.legendrow span{display:inline-flex;align-items:center;gap:6px}
+.sw{width:30px;height:16px}
+.b-sample{fill:none;stroke:var(--sample);stroke-width:3}
+.b-found{fill:none;stroke:var(--found);stroke-width:2}
+.b-infer{fill:none;stroke:var(--infer);stroke-width:2;stroke-dasharray:5 3}
+.b-pred{fill:none;stroke:var(--pred);stroke-width:1.3;stroke-dasharray:1.5 3}
+.b-win{fill:none;stroke:var(--pred);stroke-width:1;opacity:.55}
+.pin{fill:var(--pinfill)}
+.stage-bg{fill:var(--bg);stroke:var(--line)}
+.vec{stroke:var(--accent);stroke-width:2.2;fill:none}
+.vlbl{fill:var(--accent);font:700 13px system-ui,sans-serif}
+.bad{fill:var(--reject);font:700 15px system-ui,sans-serif}
+.metrics{margin:10px 0 0;padding:8px 10px;background:var(--bg);border-radius:8px;font-size:13px;font-variant-numeric:tabular-nums}
+.metrics div{display:flex;justify-content:space-between;gap:10px}
+.tablewrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:13.5px}
+th,td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:12px;color:var(--muted);font-weight:600}
+td.id{font-weight:700;white-space:nowrap}
+td.bud{white-space:nowrap;font-variant-numeric:tabular-nums}
+.ladder{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-top:14px}
+.ladder div{border:1px solid var(--line);border-radius:10px;padding:10px}
+.ladder b{display:block;font-size:20px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div>
+    <h1>AOI 架構導覽</h1>
+    <p class="sub">AOI Architecture Explorer · Step S00 · 互動版（本頁可離線開啟）</p>
+  </div>
+  <button id="theme" type="button" aria-label="切換深色或淺色">◐ 主題</button>
+</header>
+
+<div class="tabs" role="tablist" aria-label="頁面">
+  <button role="tab" id="t1" aria-controls="p1" aria-selected="true" type="button">1 · 架構層</button>
+  <button role="tab" id="t2" aria-controls="p2" aria-selected="false" type="button">2 · 框一個 → 全部出現</button>
+  <button role="tab" id="t3" aria-controls="p3" aria-selected="false" type="button">3 · 效能計畫</button>
+</div>
+
+<section id="p1" role="tabpanel" aria-labelledby="t1">
+  <div class="toolbar">
+    <fieldset><legend>Back end</legend>
+      <label><input type="radio" name="be" value="both" checked> 兩者 Both</label>
+      <label><input type="radio" name="be" value="opencv"> OpenCV</label>
+      <label><input type="radio" name="be" value="halcon"> HALCON</label>
+    </fieldset>
+    <span class="hint">點選任一層或 adapter，右側會顯示目的 / 原因 / 效果。</span>
+  </div>
+  <div class="cols">
+    <div class="card">
+      <svg id="layers" viewBox="0 0 640 492" role="group" aria-label="分層圖" data-be="both"></svg>
+      <p class="legend">實線＝可以依賴（由外往內）· 虛線＝實作 port · 點線＝組裝 · 切換 Back end 可看到上層完全不變。</p>
+    </div>
+    <aside class="card" id="detail" aria-live="polite"></aside>
+  </div>
+</section>
+
+<section id="p2" role="tabpanel" aria-labelledby="t2" hidden>
+  <div class="toolbar"><div class="stagebar" id="stagebar" role="group" aria-label="流程階段"></div></div>
+  <div class="cols">
+    <div class="card">
+      <svg id="pipe" viewBox="0 0 640 330" role="img" aria-label="陣列元件與檢測框的示意圖">
+        <defs>
+          <marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--accent)"/></marker>
+          <marker id="ah2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--ink)"/></marker>
+        </defs>
+        <g id="pipeLayer"></g>
+      </svg>
+      <div class="legendrow" aria-label="圖例">
+        <span><svg class="sw" viewBox="0 0 30 16" aria-hidden="true"><rect class="b-sample" x="2" y="2" width="26" height="12"/></svg>Sample 樣本（實線・粗）</span>
+        <span><svg class="sw" viewBox="0 0 30 16" aria-hidden="true"><rect class="b-found" x="2" y="2" width="26" height="12"/></svg>Found 找到（實線）</span>
+        <span><svg class="sw" viewBox="0 0 30 16" aria-hidden="true"><rect class="b-infer" x="2" y="2" width="26" height="12"/></svg>Inferred 推算補上（虛線）</span>
+        <span><svg class="sw" viewBox="0 0 30 16" aria-hidden="true"><rect class="b-pred" x="2" y="2" width="26" height="12"/></svg>Predicted 預測（點線）</span>
+        <span><span class="bad" aria-hidden="true">×</span>實際有件卻漏掉（僅示範頁看得到）</span>
+      </div>
+      <div class="controls">
+        <label>缺件數 Missing parts
+          <span class="row"><input type="range" id="miss" min="0" max="5" step="1" value="2"><output id="missOut">2</output></span></label>
+        <label>位置雜訊 Noise（px）
+          <span class="row"><input type="range" id="noise" min="0" max="6" step="0.5" value="3"><output id="noiseOut">3</output></span></label>
+        <label>陣列傾斜 Tilt（°）
+          <span class="row"><input type="range" id="tilt" min="0" max="8" step="0.5" value="3"><output id="tiltOut">3</output></span></label>
+        <label>影像大小 Image size
+          <select id="mp"><option value="1">1 MP</option><option value="5" selected>5 MP</option><option value="12">12 MP</option><option value="25">25 MP</option></select></label>
+        <label><span class="row"><input type="checkbox" id="prog" checked> 邊驗證邊重新擬合 Refit while verifying</span></label>
+      </div>
+      <div class="nav">
+        <button id="prev" type="button">◀ 上一步</button>
+        <button id="next" type="button">下一步 ▶</button>
+        <button id="play" type="button">▶ 自動播放</button>
+      </div>
+    </div>
+    <aside class="card" id="stagedetail" aria-live="polite"></aside>
+  </div>
+</section>
+
+<section id="p3" role="tabpanel" aria-labelledby="t3" hidden>
+  <div class="toolbar">
+    <div class="stagebar" id="perfFilter" role="group" aria-label="篩選類別">
+      <button type="button" data-f="all" aria-pressed="true">全部</button>
+      <button type="button" data-f="search" aria-pressed="false">搜索比對</button>
+      <button type="button" data-f="ui" aria-pressed="false">介面更新</button>
+      <button type="button" data-f="interaction" aria-pressed="false">介面互動</button>
+    </div>
+    <span class="hint">預算為<strong>提議值</strong>，需在 S02 / S07 用本機實測校準。</span>
+  </div>
+  <div class="card">
+    <div class="tablewrap"><table>
+      <thead><tr><th>ID</th><th>Metric</th><th>How we measure</th><th>Budget (proposed)</th><th>First in</th></tr></thead>
+      <tbody id="perfBody"></tbody>
+    </table></div>
+    <p class="note">方法：熱機 5 次、正式量 30 次、看中位數與 p95；每份結果記錄機器指紋；與基準線相比慢超過 15% 就失敗。詳見 docs/perf-test-plan.md。</p>
+    <div class="ladder" aria-label="回應時間的三個界線">
+      <div><b>≤ 0.1 s</b>感覺是「立刻」。→ 點擊回饋、參數重繪。</div>
+      <div><b>≤ 1 s</b>思緒不中斷。→ 放開滑鼠後出現提案框（目標 ≤ 300 ms）。</div>
+      <div><b>≥ 10 s</b>注意力會離開。→ 一定要有進度條與取消。</div>
+    </div>
+    <p class="note">三個界線是 Nielsen 整理的經驗法則（源自 Miller 1968）。60 fps ＝ 每幀 16.7 ms。</p>
+  </div>
+</section>
+</div>
+
+<script type="application/json" id="aoi-data">
+{
+  "solid": {
+    "S": "Single responsibility: one reason to change",
+    "O": "Open/closed: add features by adding code, not by editing old code",
+    "L": "Liskov substitution: every back end keeps the same contract",
+    "I": "Interface segregation: small, focused interfaces",
+    "D": "Dependency inversion: depend on abstractions (ports)"
+  },
+  "items": {
+    "app": {
+      "kind": "layer", "name": "app — Composition root", "zh_name": "app — 組裝層",
+      "sub": "main.cpp · creates objects · picks the back end", "solid": ["D"],
+      "may": "All layers", "mustNot": "Business rules, drawing code",
+      "ste": {
+        "purpose": "This small layer creates all objects and connects them. The program starts here.",
+        "reason": "One place must know all the concrete classes. No other layer needs this knowledge.",
+        "effect": "One setting selects the back end. Tests connect fake parts in the same way.",
+        "perf": "Load a back end only when the user needs it. Do not load HALCON if the user selects OpenCV."
+      },
+      "zh": {
+        "purpose": "這個薄薄的一層負責建立所有物件並把它們接起來，程式從這裡啟動。",
+        "reason": "總要有一個地方認識所有具體類別，其他層就不必知道。",
+        "effect": "只改一個設定就能換 back end；測試也用同樣方式接上假元件。",
+        "perf": "back end 用到才載入；使用者選 OpenCV 時就不載入 HALCON。"
+      }
+    },
+    "presentation": {
+      "kind": "layer", "name": "presentation — Qt Widgets", "zh_name": "presentation — 介面層",
+      "sub": "QGraphicsView canvas · presenters · docks", "solid": ["S", "I"],
+      "may": "application, domain, Qt Widgets", "mustNot": "OpenCV, HALCON, direct calls to a back end",
+      "ste": {
+        "purpose": "This layer shows the image and the boxes. It sends user actions to the application layer.",
+        "reason": "The screen changes often. The vision rules must not change when the screen changes.",
+        "effect": "A designer can change the screen without a change to the search code.",
+        "perf": "Draw only the visible area. Draw many boxes in one batch. Fill tables with a lazy model."
+      },
+      "zh": {
+        "purpose": "顯示影像與框，並把使用者的操作送進應用層。",
+        "reason": "畫面常常要改，視覺比對的規則不該跟著動。",
+        "effect": "設計師改畫面，不需要碰比對程式碼。",
+        "perf": "只畫看得見的區域；大量框用一個批次繪製；表格用延遲載入的 model。"
+      }
+    },
+    "application": {
+      "kind": "layer", "name": "application — Use cases + ports", "zh_name": "application — 應用層",
+      "sub": "Use cases · undo stack · job runner · cancel token",
+      "sub2": "Ports: ITemplateBuilder · IPatternSearcher · IImageSource · IRecipeStore · IPerfProbe",
+      "solid": ["O", "I", "D"], "may": "domain", "mustNot": "Qt, OpenCV, HALCON",
+      "ste": {
+        "purpose": "This layer holds the use cases and the ports. A use case is one user goal, for example make boxes from one sample.",
+        "reason": "The steps of a goal are the same for each back end. A port hides the back end.",
+        "effect": "We add a new back end without a change to this layer.",
+        "perf": "Run each job on a worker thread. Pass images by view, not by copy. Cancel the old job when a new job starts."
+      },
+      "zh": {
+        "purpose": "放 use case（一個使用者目標，例如「由一個樣本產生所有框」）與 port（介面）。",
+        "reason": "不論哪個 back end，達成目標的步驟都一樣；port 把 back end 藏起來。",
+        "effect": "新增 back end 時，這一層完全不用改。",
+        "perf": "每個工作在 worker 執行緒跑；影像用 view 傳遞不複製；新工作開始時取消舊工作。"
+      }
+    },
+    "domain": {
+      "kind": "layer", "name": "domain — Geometry and lattice", "zh_name": "domain — 領域層",
+      "sub": "Pose · lattice fit · gap fill · non-max suppression · types", "solid": ["S"],
+      "may": "C++ standard library only", "mustNot": "Qt, OpenCV, HALCON, files",
+      "ste": {
+        "purpose": "This layer holds the geometry and the array rules. It finds the pitch and fills the gaps.",
+        "reason": "These rules are the same for OpenCV and HALCON. Plain code is easy to test and fast to run.",
+        "effect": "One tested code serves both back ends.",
+        "perf": "Use plain arrays. Do not allocate memory inside loops. Target: fit 1000 points in less than 2 ms."
+      },
+      "zh": {
+        "purpose": "放幾何與陣列規則：推算間距、補漏。",
+        "reason": "規則對 OpenCV 與 HALCON 都一樣；純 C++ 容易測試、跑得快。",
+        "effect": "一份經過測試的程式碼，兩個 back end 共用。",
+        "perf": "用純陣列；迴圈內不配置記憶體；目標：1000 點擬合 < 2 ms（目標值，尚未量測）。"
+      }
+    },
+    "infrastructure": {
+      "kind": "layer", "name": "infrastructure — Adapters", "zh_name": "infrastructure — 基礎設施層",
+      "sub": "Real tools behind the ports. Click an adapter below.", "solid": ["L", "O", "D"],
+      "may": "application ports, domain, one vendor library per adapter", "mustNot": "Qt Widgets, other adapters",
+      "ste": {
+        "purpose": "This layer connects the ports to real tools: OpenCV, HALCON, files and the timer.",
+        "reason": "Each tool has its own data types and rules. An adapter keeps these rules in one place.",
+        "effect": "Both back ends give the same result format. The user can switch between them.",
+        "perf": "Use image pyramids. Search only inside windows. Set the thread count of each library to avoid overload."
+      },
+      "zh": {
+        "purpose": "把 port 接到真正的工具：OpenCV、HALCON、檔案、計時器。",
+        "reason": "每個工具有自己的資料型別與規則；adapter 把這些規則關在一個地方。",
+        "effect": "兩個 back end 輸出相同格式，使用者可以切換。",
+        "perf": "用影像金字塔；只在視窗內搜尋；設定各函式庫的執行緒數，避免搶 CPU。"
+      }
+    },
+    "opencv": {
+      "kind": "chip", "name": "OpenCV adapter", "zh_name": "OpenCV 轉接器",
+      "sub": "matchTemplate · pyramid · angle sweep", "chip": "NCC · pyramid · angles", "solid": ["L", "O"],
+      "may": "application ports, domain, OpenCV", "mustNot": "HALCON, Qt Widgets",
+      "ste": {
+        "purpose": "This adapter finds parts with normalized cross correlation. It searches a small image first, then a larger image.",
+        "reason": "OpenCV is free and quick for plain templates. Rotation needs extra work, so the adapter tries a set of angles.",
+        "effect": "We get a back end with no license cost. Speed and accuracy depend on the angle step.",
+        "perf": "Limit the angle range. Reuse the image pyramid. Share the CPU with the screen thread."
+      },
+      "zh": {
+        "purpose": "用正規化互相關（NCC）找元件，先在小圖找、再到大圖精修。",
+        "reason": "OpenCV 免費，對一般範本很快；旋轉要額外處理，所以 adapter 會試一組角度。",
+        "effect": "沒有授權費；速度與準確度取決於角度步進。",
+        "perf": "限制角度範圍；重用影像金字塔；把 CPU 分一些給介面執行緒。"
+      }
+    },
+    "halcon": {
+      "kind": "chip", "name": "HALCON adapter", "zh_name": "HALCON 轉接器",
+      "sub": "shape model · sub-pixel pose", "chip": "shape model · sub-pixel", "solid": ["L", "O"],
+      "may": "application ports, domain, HALCON", "mustNot": "OpenCV, Qt Widgets",
+      "ste": {
+        "purpose": "This adapter uses the HALCON shape model. The model uses edges, so it handles rotation and small changes of scale.",
+        "reason": "HALCON is an industry tool. It gives sub-pixel poses on hard images.",
+        "effect": "We expect higher accuracy on hard images. Each computer needs a license.",
+        "perf": "Use a search region. Set the number of HALCON threads. Check the license when the program starts."
+      },
+      "zh": {
+        "purpose": "使用 HALCON shape model。它以邊緣為基礎，能處理旋轉與小幅縮放。",
+        "reason": "HALCON 是業界工具，在困難影像上能給出次像素位姿。",
+        "effect": "預期在困難影像上更準（待 S08/S09 實測驗證）；每台電腦都需要授權。",
+        "perf": "使用搜尋區域；設定 HALCON 執行緒數；程式啟動時檢查授權。"
+      }
+    },
+    "storage": {
+      "kind": "chip", "name": "JSON store", "zh_name": "JSON 儲存",
+      "sub": "recipe save and load", "chip": "recipe save / load", "solid": ["S", "D"],
+      "may": "application ports, domain, Qt Core", "mustNot": "Qt Widgets",
+      "ste": {
+        "purpose": "This adapter saves and loads the recipe. A recipe holds the sample, the settings and the boxes.",
+        "reason": "A user must keep the work between sessions. A schema version lets new releases open old files.",
+        "effect": "Old recipes keep working after an upgrade.",
+        "perf": "Write the file on a worker thread. The screen never waits for the disk."
+      },
+      "zh": {
+        "purpose": "儲存與載入 recipe（樣本、設定、框）。",
+        "reason": "使用者的工作要能跨次使用；schema 版本號讓新版能開舊檔。",
+        "effect": "升級後舊 recipe 仍可使用。",
+        "perf": "在 worker 執行緒寫檔，畫面不等磁碟。"
+      }
+    },
+    "perf": {
+      "kind": "chip", "name": "PerfProbe", "zh_name": "效能探針",
+      "sub": "stage timers · JSON output", "chip": "stage timers", "solid": ["S", "I"],
+      "may": "application ports, domain", "mustNot": "Qt Widgets",
+      "ste": {
+        "purpose": "This adapter records the time of each stage. It writes the data as JSON.",
+        "reason": "We cannot improve what we do not measure. All steps use the same probe.",
+        "effect": "Tests compare each run with the budget. A slow change fails the test.",
+        "perf": "When the probe is off, it must cost almost nothing. We measure this in step S03."
+      },
+      "zh": {
+        "purpose": "記錄每個階段的耗時並輸出 JSON。",
+        "reason": "沒量測就無法改善；所有步驟共用同一個探針。",
+        "effect": "測試會把每次結果與預算比對，變慢就失敗。",
+        "perf": "關閉時成本要接近零；在 S03 量測驗證。"
+      }
+    }
+  },
+  "stages": [
+    { "name": "Sample", "zh_name": "框樣本",
+      "ste": { "text": "The user draws one box around one part. The program keeps this image area as the template." },
+      "zh": "使用者框住一個元件，程式把這塊影像存成範本。" },
+    { "name": "Seed", "zh_name": "找種子",
+      "ste": { "text": "The program searches near the sample. It keeps the best matches. Four matches are enough to start." },
+      "zh": "先在樣本附近搜尋，保留最好的幾個匹配；四個就足夠開始。" },
+    { "name": "Fit", "zh_name": "擬合晶格",
+      "ste": { "text": "The program measures the distance between the matches. It computes two vectors, u and v. They describe the pitch and the angle of the array." },
+      "zh": "由匹配位置算出兩個向量 u、v，描述陣列的間距與角度。" },
+    { "name": "Predict", "zh_name": "預測位置",
+      "ste": { "text": "The program uses u and v to calculate where each part must be. It does not search the image in this stage." },
+      "zh": "用 u、v 算出每個元件「應該」在哪，這一步不碰影像。" },
+    { "name": "Verify", "zh_name": "視窗驗證",
+      "ste": { "text": "The program searches a small window at each predicted position. The program marks a part in the window as Found. It marks an empty window as Inferred. It refits u and v after each Found part." },
+      "zh": "每個預測位置只搜尋小視窗：找到＝Found，沒找到＝Inferred（補上）。每找到一個就重新擬合 u、v，誤差才不會往遠處累積。" },
+    { "name": "Emit", "zh_name": "產生檢測框",
+      "ste": { "text": "The program makes one inspection rectangle for each position. The user can accept, move or delete each rectangle." },
+      "zh": "每個位置產生一個檢測框；使用者可以接受、移動或刪除。" }
+  ],
+  "perf": [
+    { "id": "T1", "cat": "search", "metric": "Template build, 64×32 sample", "how": "QBENCHMARK around ITemplateBuilder::build", "budget": "≤ 30 ms", "first": "S07" },
+    { "id": "T2", "cat": "search", "metric": "Seed search, 5 MP image", "how": "Around IPatternSearcher::find (seed region)", "budget": "≤ 150 ms OpenCV · ≤ 80 ms HALCON", "first": "S07 / S08" },
+    { "id": "T3", "cat": "search", "metric": "Lattice fit, 1 000 points", "how": "Domain micro-benchmark, no vision library", "budget": "≤ 2 ms", "first": "S05" },
+    { "id": "T4", "cat": "search", "metric": "Windowed verify, 200 predicted parts", "how": "Around the verify loop", "budget": "≤ 60 ms", "first": "S07" },
+    { "id": "T5", "cat": "search", "metric": "End to end: release → proposals, 5 MP, 200 parts", "how": "Use case entry to exit, stage slices from PerfProbe", "budget": "≤ 300 ms", "first": "S10" },
+    { "id": "T6", "cat": "search", "metric": "Accuracy on the synthetic set", "how": "Compare with ground truth", "budget": "recall ≥ 99 % · error ≤ 0.5 px", "first": "S07" },
+    { "id": "U1", "cat": "ui", "metric": "Result ready → first painted frame (200 / 5 000 boxes)", "how": "Start at result signal, stop at canvas paint end", "budget": "≤ 33 ms / ≤ 50 ms", "first": "S02" },
+    { "id": "U2", "cat": "ui", "metric": "Fill object table, 5 000 rows", "how": "Model reset → first layout", "budget": "≤ 50 ms", "first": "S04" },
+    { "id": "U3", "cat": "ui", "metric": "Slider change → repaint", "how": "Injected event → paint end", "budget": "≤ 16 ms", "first": "S04" },
+    { "id": "U4", "cat": "ui", "metric": "Open a 5 MP image → first paint", "how": "File open → paint end", "budget": "≤ 200 ms", "first": "S02" },
+    { "id": "I1", "cat": "interaction", "metric": "Pan and zoom frame time p95, 5 000 boxes", "how": "QTest wheel and drag events, per-frame timer", "budget": "≤ 16.7 ms", "first": "S02" },
+    { "id": "I2", "cat": "interaction", "metric": "Mouse press → visible feedback", "how": "Injected event → next paint", "budget": "≤ 50 ms", "first": "S02" },
+    { "id": "I3", "cat": "interaction", "metric": "Longest event-loop block during a search", "how": "10 ms watchdog timer", "budget": "≤ 50 ms", "first": "S04" },
+    { "id": "I4", "cat": "interaction", "metric": "Cancel click → UI idle", "how": "CancelToken fired → state machine Idle", "budget": "≤ 100 ms", "first": "S04" },
+    { "id": "I5", "cat": "interaction", "metric": "Sample box drag frame time p95", "how": "Same as I1", "budget": "≤ 16.7 ms", "first": "S02" },
+    { "id": "I6", "cat": "interaction", "metric": "Undo a 1 000-box commit", "how": "UndoStack::undo() timer", "budget": "≤ 50 ms", "first": "S04" }
+  ]
+}
+</script>
+
+<script>
+(() => {
+  'use strict';
+  const DATA = JSON.parse(document.getElementById('aoi-data').textContent);
+  const $ = (s, r = document) => r.querySelector(s);
+  const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+  /* ---------- theme ---------- */
+  $('#theme').addEventListener('click', () => {
+    const root = document.documentElement;
+    const dark = root.dataset.theme ? root.dataset.theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+    root.dataset.theme = dark ? 'light' : 'dark';
+  });
+
+  /* ---------- tabs ---------- */
+  const tabs = $$('[role=tab]');
+  function showTab(id) {
+    tabs.forEach((t) => {
+      const on = t.id === id;
+      t.setAttribute('aria-selected', on);
+      $('#' + t.getAttribute('aria-controls')).hidden = !on;
+    });
+    if (id !== 't2') stopPlay();
+  }
+  tabs.forEach((t) => t.addEventListener('click', () => showTab(t.id)));
+
+  /* ---------- tab 1: layers ---------- */
+  const LAYOUT = {
+    app: { x: 34, y: 12, w: 586, h: 54 },
+    presentation: { x: 34, y: 92, w: 586, h: 60 },
+    application: { x: 34, y: 178, w: 586, h: 76 },
+    domain: { x: 160, y: 280, w: 330, h: 60 },
+    infrastructure: { x: 34, y: 368, w: 586, h: 112 }
+  };
+  const CHIPS = { opencv: { x: 50, w: 136 }, halcon: { x: 196, w: 136 }, storage: { x: 342, w: 126 }, perf: { x: 478, w: 126 } };
+  const svg = $('#layers');
+  let selected = 'application';
+
+  function drawLayers() {
+    let h = `<defs><marker id="m" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="var(--ink)"/></marker>
+      <marker id="md" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="var(--muted)"/></marker></defs>`;
+    h += `<path class="arrow dot" d="M34 39 H22 V424 H32" marker-end="url(#md)"/>
+      <path class="arrow dot" d="M22 122 H32" marker-end="url(#md)"/>
+      <path class="arrow dot" d="M22 216 H32" marker-end="url(#md)"/>
+      <text class="t-lbl" transform="translate(12,230) rotate(-90)" text-anchor="middle">creates &amp; wires</text>
+      <line class="arrow" x1="325" y1="152" x2="325" y2="176" marker-end="url(#m)"/>
+      <line class="arrow" x1="325" y1="254" x2="325" y2="278" marker-end="url(#m)"/>
+      <line class="arrow dash" x1="520" y1="368" x2="520" y2="256" marker-end="url(#m)"/>
+      <text class="t-lbl" x="528" y="318">implements ports</text>
+      <line class="arrow" x1="325" y1="368" x2="325" y2="342" marker-end="url(#m)"/>
+      <text class="t-lbl" x="333" y="360">uses types</text>`;
+    for (const [id, r] of Object.entries(LAYOUT)) {
+      const it = DATA.items[id];
+      h += `<g class="node" data-id="${id}" role="button" tabindex="0" aria-label="${esc(it.name)}">
+        <rect x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" rx="10"/>
+        <text class="t-name" x="${r.x + 14}" y="${r.y + 22}">${esc(it.name)}</text>
+        <text class="t-sub" x="${r.x + 14}" y="${r.y + 42}">${esc(it.sub)}</text>
+        ${it.sub2 ? `<text class="t-sub" x="${r.x + 14}" y="${r.y + 60}">${esc(it.sub2)}</text>` : ''}
+      </g>`;
+    }
+    for (const [id, c] of Object.entries(CHIPS)) {
+      const it = DATA.items[id];
+      h += `<g class="chip" data-id="${id}" role="button" tabindex="0" aria-label="${esc(it.name)}">
+        <rect x="${c.x}" y="420" width="${c.w}" height="48" rx="8"/>
+        <text class="t-name" x="${c.x + 10}" y="440" style="font-size:13px">${esc(it.name)}</text>
+        <text class="t-sub" x="${c.x + 10}" y="457" style="font-size:11px">${esc(it.chip || it.sub)}</text>
+      </g>`;
+    }
+    svg.innerHTML = h;
+    $$('.node,.chip', svg).forEach((g) => {
+      const pick = () => select(g.dataset.id);
+      g.addEventListener('click', pick);
+      g.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(); } });
+    });
+  }
+  const LABEL = { purpose: 'Purpose · 目的', reason: 'Reason · 原因', effect: 'Effect · 效果', perf: 'Performance rules · 效能做法' };
+  function select(id) {
+    selected = id;
+    $$('.node,.chip', svg).forEach((g) => g.classList.toggle('sel', g.dataset.id === id));
+    const it = DATA.items[id];
+    $('#detail').innerHTML =
+      `<h2>${esc(it.name)}</h2><p class="zhname">${esc(it.zh_name)}</p>
+       <div>${it.solid.map((s) => `<span class="solid" tabindex="0" title="${esc(DATA.solid[s])}">${s}</span>`).join('')}</div>
+       ${['purpose', 'reason', 'effect', 'perf'].map((k) =>
+         `<section><h3>${LABEL[k]}</h3><p lang="en">${esc(it.ste[k])}</p><p class="zh" lang="zh-Hant">${esc(it.zh[k])}</p></section>`).join('')}
+       <dl><dt>May depend on</dt><dd>${esc(it.may)}</dd><dt>Must not depend on</dt><dd>${esc(it.mustNot)}</dd></dl>
+       <p class="note" style="margin-top:12px">SOLID 標籤可把滑鼠移上去（或用 Tab 聚焦）看說明。</p>`;
+  }
+  $$('input[name=be]').forEach((r) => r.addEventListener('change', () => {
+    svg.dataset.be = r.value;
+    if ((r.value === 'opencv' && selected === 'halcon') || (r.value === 'halcon' && selected === 'opencv')) select('infrastructure');
+  }));
+  drawLayers();
+  select('application');
+
+  /* ---------- tab 2: pipeline demo ---------- */
+  const COLS = 10, ROWS = 3, P = 54, Q = 64, O = { x: 62, y: 64 }, BW = 30, BH = 18;
+  const SEEDS = [[0, 0], [1, 0], [0, 1], [2, 0], [1, 1]];
+  const REAL_PITCH = 24; // assumed real pixels per pitch step (model only)
+  const els = { miss: $('#miss'), noise: $('#noise'), tilt: $('#tilt'), prog: $('#prog'), mp: $('#mp') };
+  let stage = 1, timer = null;
+
+  function rng(seed) {
+    return () => { seed = (seed + 0x6D2B79F5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  }
+  function solve3(A, b) {
+    const M = A.map((r, i) => [...r, b[i]]);
+    for (let c = 0; c < 3; c++) {
+      let p = c;
+      for (let r = c + 1; r < 3; r++) if (Math.abs(M[r][c]) > Math.abs(M[p][c])) p = r;
+      if (Math.abs(M[p][c]) < 1e-9) return null;
+      [M[c], M[p]] = [M[p], M[c]];
+      for (let r = 0; r < 3; r++) {
+        if (r === c) continue;
+        const f = M[r][c] / M[c][c];
+        for (let k = c; k < 4; k++) M[r][k] -= f * M[c][k];
+      }
+    }
+    return M.map((r, i) => r[3] / r[i]);
+  }
+  // Least squares: x = ox + i*ux + j*vx (same for y).
+  function fit(pts) {
+    const A = [[0, 0, 0], [0, 0, 0], [0, 0, 0]], bx = [0, 0, 0], by = [0, 0, 0];
+    for (const p of pts) {
+      const r = [1, p.i, p.j];
+      for (let a = 0; a < 3; a++) {
+        for (let c = 0; c < 3; c++) A[a][c] += r[a] * r[c];
+        bx[a] += r[a] * p.x; by[a] += r[a] * p.y;
+      }
+    }
+    const sx = solve3(A, bx), sy = solve3(A, by);
+    return sx && sy ? { o: { x: sx[0], y: sy[0] }, u: { x: sx[1], y: sy[1] }, v: { x: sx[2], y: sy[2] } } : null;
+  }
+  const pred = (m, i, j) => ({ x: m.o.x + i * m.u.x + j * m.v.x, y: m.o.y + i * m.u.y + j * m.v.y });
+
+  function compute() {
+    const miss = +els.miss.value, noise = +els.noise.value, tilt = +els.tilt.value * Math.PI / 180, prog = els.prog.checked;
+    const truth = { ux: P * Math.cos(tilt), uy: P * Math.sin(tilt), vx: -Q * Math.sin(tilt), vy: Q * Math.cos(tilt) };
+    const rn = rng(7), pins = [];
+    for (let j = 0; j < ROWS; j++) for (let i = 0; i < COLS; i++) {
+      const tx = O.x + i * truth.ux + j * truth.vx, ty = O.y + i * truth.uy + j * truth.vy;
+      pins.push({ i, j, tx, ty, x: tx + (rn() * 2 - 1) * noise, y: ty + (rn() * 2 - 1) * noise, present: true });
+    }
+    const isSeed = (i, j) => SEEDS.some((s) => s[0] === i && s[1] === j);
+    const cand = pins.filter((p) => !isSeed(p.i, p.j));
+    const rm = rng(11);
+    for (let k = cand.length - 1; k > 0; k--) { const m = Math.floor(rm() * (k + 1)); [cand[k], cand[m]] = [cand[m], cand[k]]; }
+    cand.slice(0, miss).forEach((p) => { p.present = false; });
+    const at = (i, j) => pins[j * COLS + i];
+    const seedPts = SEEDS.map(([i, j]) => ({ i, j, x: at(i, j).x, y: at(i, j).y }));
+    const seedModel = fit(seedPts);
+    const WX = 0.3 * P, WY = 0.3 * Q;
+    let model = seedModel;
+    const pts = seedPts.slice();
+    const order = pins.filter((p) => !isSeed(p.i, p.j)).sort((a, b) => (a.i + a.j) - (b.i + b.j) || a.i - b.i);
+    const results = [];
+    for (const p of order) {
+      const pr = pred(model, p.i, p.j);
+      const hit = p.present && Math.abs(p.x - pr.x) <= WX && Math.abs(p.y - pr.y) <= WY;
+      if (hit) {
+        results.push({ i: p.i, j: p.j, state: 'found', x: p.x, y: p.y, wx: pr.x, wy: pr.y });
+        pts.push({ i: p.i, j: p.j, x: p.x, y: p.y });
+        if (prog) { const m = fit(pts); if (m) model = m; }
+      } else {
+        results.push({ i: p.i, j: p.j, state: 'inferred', x: pr.x, y: pr.y, wx: pr.x, wy: pr.y, missedPresent: p.present });
+      }
+    }
+    for (const r of results) if (r.state === 'inferred') { const q = pred(model, r.i, r.j); r.x = q.x; r.y = q.y; }
+    return { pins, seedPts, seedModel, model, results, truth, WX, WY, deg: +els.tilt.value };
+  }
+
+  const box = (x, y, deg, w, h, cls) => `<rect class="${cls}" x="${-w / 2}" y="${-h / 2}" width="${w}" height="${h}" rx="2" transform="translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${deg})"/>`;
+  const f1 = (n) => n.toFixed(1);
+
+  function drawPipe(S, st) {
+    let g = `<rect class="stage-bg" x="2" y="2" width="636" height="326" rx="10"/>`;
+    for (const p of S.pins) if (p.present) g += box(p.x, p.y, S.deg, BW, BH, 'pin');
+    const at = (i, j) => S.pins[j * COLS + i];
+    const s00 = at(0, 0);
+    if (st === 2) {
+      const xs = S.seedPts.map((p) => p.x), ys = S.seedPts.map((p) => p.y);
+      const x0 = Math.min(...xs) - 34, y0 = Math.min(...ys) - 30, x1 = Math.max(...xs) + 34, y1 = Math.max(...ys) + 30;
+      g += `<rect class="b-pred" x="${f1(x0)}" y="${f1(y0)}" width="${f1(x1 - x0)}" height="${f1(y1 - y0)}"/><text class="t-lbl" x="${f1(x0)}" y="${f1(y0 - 5)}">seed region</text>`;
+    }
+    if (st >= 2 && st <= 3) for (const p of S.seedPts.slice(1)) g += box(p.x, p.y, S.deg, BW + 6, BH + 6, 'b-found');
+    if (st === 3) {
+      const m = S.seedModel;
+      g += `<line class="vec" x1="${f1(s00.x)}" y1="${f1(s00.y)}" x2="${f1(m.o.x + m.u.x)}" y2="${f1(m.o.y + m.u.y)}" marker-end="url(#ah)"/>
+            <line class="vec" x1="${f1(s00.x)}" y1="${f1(s00.y)}" x2="${f1(m.o.x + m.v.x)}" y2="${f1(m.o.y + m.v.y)}" marker-end="url(#ah)"/>
+            <text class="vlbl" x="${f1(m.o.x + m.u.x / 2)}" y="${f1(m.o.y + m.u.y / 2 - 10)}">u</text>
+            <text class="vlbl" x="${f1(m.o.x + m.v.x / 2 - 16)}" y="${f1(m.o.y + m.v.y / 2)}">v</text>`;
+    }
+    if (st === 4) for (let j = 0; j < ROWS; j++) for (let i = 0; i < COLS; i++) { const q = pred(S.seedModel, i, j); g += box(q.x, q.y, S.deg, BW + 6, BH + 6, 'b-pred'); }
+    if (st === 5) {
+      for (const r of S.results) g += `<rect class="b-win" x="${f1(r.wx - S.WX)}" y="${f1(r.wy - S.WY)}" width="${f1(2 * S.WX)}" height="${f1(2 * S.WY)}"/>`;
+      for (const p of S.seedPts.slice(1)) g += box(p.x, p.y, S.deg, BW + 6, BH + 6, 'b-found');
+    }
+    if (st >= 5) for (const r of S.results) {
+      g += box(r.x, r.y, S.deg, BW + 6, BH + 6, r.state === 'found' ? 'b-found' : 'b-infer');
+      if (r.missedPresent) g += `<text class="bad" x="${f1(r.x - 5)}" y="${f1(r.y + 5)}">×</text>`;
+    }
+    if (st >= 6) for (const p of S.seedPts.slice(1)) g += box(p.x, p.y, S.deg, BW + 6, BH + 6, 'b-found');
+    if (st >= 1) g += box(s00.x, s00.y, S.deg, BW + 8, BH + 8, 'b-sample') + `<text class="t-lbl" x="${f1(s00.x - 14)}" y="${f1(s00.y - 18)}">Sample</text>`;
+    $('#pipeLayer').innerHTML = g;
+  }
+
+  function metrics(S, st) {
+    const rows = [];
+    const total = COLS * ROWS;
+    const found = S.results.filter((r) => r.state === 'found').length + SEEDS.length;
+    const inf = S.results.filter((r) => r.state === 'inferred').length;
+    const falseInf = S.results.filter((r) => r.missedPresent).length;
+    const pitchErr = (m) => Math.hypot(m.u.x - S.truth.ux, m.u.y - S.truth.uy);
+    if (st === 1) rows.push(['Parts in the image', total], ['Parts missing (demo)', els.miss.value]);
+    if (st === 2) rows.push(['Seed matches', SEEDS.length + ' (with sample)']);
+    if (st === 3) {
+      const m = S.seedModel;
+      rows.push(['|u| (pitch along row)', f1(Math.hypot(m.u.x, m.u.y)) + ' px'], ['|v| (pitch along column)', f1(Math.hypot(m.v.x, m.v.y)) + ' px'],
+        ['Pitch error vs truth (u)', f1(pitchErr(m)) + ' px'], ['Error at the far end (9 steps)', f1(pitchErr(m) * 9) + ' px']);
+    }
+    if (st === 4) rows.push(['Predicted positions', total], ['Image searched in this stage', '0 px']);
+    if (st === 5) rows.push(['Found', found], ['Inferred', inf], ['Present but missed (demo only)', falseInf],
+      ['Refit while verifying', els.prog.checked ? 'on' : 'off'], ['Pitch error after verify (u)', f1(pitchErr(S.model)) + ' px']);
+    if (st === 6) {
+      const full = +els.mp.value * 1e6;
+      const win = (0.6 * REAL_PITCH) * (0.6 * REAL_PITCH * Q / P);
+      const seedArea = (3 + 2) * REAL_PITCH * (2 + 2) * REAL_PITCH * Q / P;
+      const lat = seedArea + total * win;
+      rows.push(['Boxes made', found + inf + ' (' + found + ' Found · ' + inf + ' Inferred)'],
+        ['Full-image search area (model)', f1(full / 1e6) + ' MP'], ['Lattice-guided search area (model)', (lat / 1e6).toFixed(3) + ' MP'],
+        ['Ratio', (100 * lat / full).toFixed(2) + ' %']);
+    }
+    const note = st === 6
+      ? `<p class="note">模型只數「被搜尋的像素」，假設 pitch = ${REAL_PITCH} px，且忽略影像金字塔與角度掃描。元件越密、佔影像比例越大，優勢越小。<strong>真正的時間要等 S10 量測。</strong></p>` : '';
+    return `<div class="metrics">${rows.map(([k, v]) => `<div><span>${esc(k)}</span><b>${esc(v)}</b></div>`).join('')}</div>${note}`;
+  }
+
+  function renderStage() {
+    const S = compute();
+    drawPipe(S, stage);
+    $$('#stagebar button').forEach((b, i) => b.setAttribute('aria-pressed', i + 1 === stage));
+    const d = DATA.stages[stage - 1];
+    $('#stagedetail').innerHTML =
+      `<h2>${stage}. ${esc(d.name)} · ${esc(d.zh_name)}</h2>
+       <section><h3>Purpose · 目的</h3><p lang="en">${esc(d.ste.text)}</p><p class="zh" lang="zh-Hant">${esc(d.zh)}</p></section>
+       ${metrics(S, stage)}
+       ${stage === 5 ? '<p class="note">試試：把「位置雜訊」拉到 6、取消「邊驗證邊重新擬合」。遠端的視窗會偏離，出現紅色 ×（實際有件卻被當成缺件）。重新打開就改善。</p>' : ''}`;
+    $('#prev').disabled = stage === 1;
+    $('#next').disabled = stage === 6;
+  }
+  function setStage(n) { stage = Math.max(1, Math.min(6, n)); renderStage(); }
+  function stopPlay() { if (timer) { clearInterval(timer); timer = null; $('#play').textContent = '▶ 自動播放'; } }
+
+  $('#stagebar').innerHTML = DATA.stages.map((s, i) => `<button type="button" data-n="${i + 1}" aria-pressed="false" title="${esc(s.zh_name)}">${i + 1} ${esc(s.name)}</button>`).join('');
+  $$('#stagebar button').forEach((b) => b.addEventListener('click', () => { stopPlay(); setStage(+b.dataset.n); }));
+  $('#prev').addEventListener('click', () => { stopPlay(); setStage(stage - 1); });
+  $('#next').addEventListener('click', () => { stopPlay(); setStage(stage + 1); });
+  $('#play').addEventListener('click', () => {
+    if (timer) { stopPlay(); return; }
+    if (stage >= 6) setStage(1);
+    $('#play').textContent = '❚❚ 暫停';
+    timer = setInterval(() => { if (stage >= 6) stopPlay(); else setStage(stage + 1); }, 1500);
+  });
+  [['miss', 'missOut'], ['noise', 'noiseOut'], ['tilt', 'tiltOut']].forEach(([a, o]) => {
+    els[a].addEventListener('input', () => { $('#' + o).textContent = els[a].value; renderStage(); });
+  });
+  els.prog.addEventListener('change', renderStage);
+  els.mp.addEventListener('change', renderStage);
+  setStage(1);
+
+  /* ---------- tab 3: perf table ---------- */
+  function renderPerf(filter) {
+    $('#perfBody').innerHTML = DATA.perf.filter((r) => filter === 'all' || r.cat === filter)
+      .map((r) => `<tr><td class="id">${esc(r.id)}</td><td>${esc(r.metric)}</td><td>${esc(r.how)}</td><td class="bud">${esc(r.budget)}</td><td>${esc(r.first)}</td></tr>`).join('');
+    $$('#perfFilter button').forEach((b) => b.setAttribute('aria-pressed', b.dataset.f === filter));
+  }
+  $$('#perfFilter button').forEach((b) => b.addEventListener('click', () => renderPerf(b.dataset.f)));
+  renderPerf('all');
+})();
+</script>
+</body>
+</html>

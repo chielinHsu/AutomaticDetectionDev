@@ -1,0 +1,27 @@
+{
+  "schema": 1,
+  "status": "proposed",
+  "note": "Starting values, NOT measured facts. Calibrate on the target PC with the S02 (UI) and S07 (OpenCV) baselines, then change status to 'calibrated'. Numbers are only comparable on the same machine: every run records a machine fingerprint.",
+  "method": { "warmupRuns": 5, "measuredRuns": 30, "statistic": "median and p95", "regressionLimitPercent": 15 },
+  "budgets": [
+    { "id": "T1", "category": "search", "metric": "Template build, 64x32 sample", "unit": "ms", "limit": 30, "firstMeasuredIn": "S07" },
+    { "id": "T2a", "category": "search", "metric": "Seed search, 5 MP image, OpenCV", "unit": "ms", "limit": 150, "firstMeasuredIn": "S07" },
+    { "id": "T2b", "category": "search", "metric": "Seed search, 5 MP image, HALCON", "unit": "ms", "limit": 80, "firstMeasuredIn": "S08" },
+    { "id": "T3", "category": "search", "metric": "Lattice fit, 1000 points", "unit": "ms", "limit": 2, "firstMeasuredIn": "S05" },
+    { "id": "T4", "category": "search", "metric": "Windowed verify, 200 predicted parts", "unit": "ms", "limit": 60, "firstMeasuredIn": "S07" },
+    { "id": "T5", "category": "search", "metric": "End to end: mouse release to proposals ready, 5 MP, 200 parts", "unit": "ms", "limit": 300, "firstMeasuredIn": "S10" },
+    { "id": "T6a", "category": "accuracy", "metric": "Recall on synthetic set", "unit": "percent", "limit": 99, "direction": "min", "firstMeasuredIn": "S07" },
+    { "id": "T6b", "category": "accuracy", "metric": "Position error on synthetic set", "unit": "px", "limit": 0.5, "firstMeasuredIn": "S07" },
+    { "id": "U1a", "category": "ui", "metric": "Result ready to first painted frame, 200 boxes", "unit": "ms", "limit": 33, "firstMeasuredIn": "S02" },
+    { "id": "U1b", "category": "ui", "metric": "Result ready to first painted frame, 5000 boxes", "unit": "ms", "limit": 50, "firstMeasuredIn": "S02" },
+    { "id": "U2", "category": "ui", "metric": "Fill object table, 5000 rows", "unit": "ms", "limit": 50, "firstMeasuredIn": "S04" },
+    { "id": "U3", "category": "ui", "metric": "Parameter slider change to repaint", "unit": "ms", "limit": 16, "firstMeasuredIn": "S04" },
+    { "id": "U4", "category": "ui", "metric": "Open 5 MP image to first paint", "unit": "ms", "limit": 200, "firstMeasuredIn": "S02" },
+    { "id": "I1", "category": "interaction", "metric": "Pan and zoom frame time p95, 5000 boxes", "unit": "ms", "limit": 16.7, "firstMeasuredIn": "S02" },
+    { "id": "I2", "category": "interaction", "metric": "Mouse press to visible feedback", "unit": "ms", "limit": 50, "firstMeasuredIn": "S02" },
+    { "id": "I3", "category": "interaction", "metric": "Longest event loop block during a search", "unit": "ms", "limit": 50, "firstMeasuredIn": "S04" },
+    { "id": "I4", "category": "interaction", "metric": "Cancel click to UI idle", "unit": "ms", "limit": 100, "firstMeasuredIn": "S04" },
+    { "id": "I5", "category": "interaction", "metric": "Sample box drag frame time p95", "unit": "ms", "limit": 16.7, "firstMeasuredIn": "S02" },
+    { "id": "I6", "category": "interaction", "metric": "Undo of a 1000 box commit", "unit": "ms", "limit": 50, "firstMeasuredIn": "S04" }
+  ]
+}
