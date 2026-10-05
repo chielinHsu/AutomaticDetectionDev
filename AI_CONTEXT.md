@@ -50,7 +50,7 @@ AOI 教學工具：使用者在影像上框一個樣本 ROI → 程式找出相�
 | `docs/adr/` | 設計決策，一檔一決策（`NNN-slug.md`） |
 | `perf/` | 效能預算；實測結果在 `perf/results/`（不入版控） |
 | `tools/` | Node 工具：`ste-lint.mjs`；`check-deps.mjs` 在 S03 建立 |
-| `ai-project-template/` | 與本產品無關的 AI 結構範本，保持未追蹤。不要修改、不要 stage，除非使用者要求 |
+| `ai-project-template/` | 與本產品無關的 AI 結構範本（Codex 與 Claude Code 共用）：`New-AiProject.ps1` 把結構套到新資料夾，設計說明見其 `README.md`。已納入版控；除非使用者要求，不要修改 |
 | `.agents/`、`.claude/`、`.ai/`、`scripts/ai/` | AI agent 的規範、skill、交接單與檢查腳本，各檔職責見 `.agents/harness/engineering-workflow.md` 第 0 節 |
 
 ## 建置與測試
