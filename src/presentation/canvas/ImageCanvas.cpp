@@ -92,6 +92,28 @@ void ImageCanvas::setInteraction(ToolId tool) {
     activeTool_ = tool;
     next->activate(*this);
     updateCursor();
+    emit activeToolChanged(tool);
+}
+
+void ImageCanvas::setToolsEnabled(bool enabled) {
+    if (enabled == toolsEnabled_) return;
+    toolsEnabled_ = enabled;
+    if (!enabled) {
+        // 暫停時放棄進行中的操作（例如拖到一半的框），免得放開時才發現已經不能搜尋。
+        if (ITool* tool = tools_.find(activeTool_)) tool->deactivate(*this);
+        if (toolDragging_) {
+            toolDragging_ = false;
+            emit pointerDragChanged(false, activeTool_);
+        }
+    } else if (ITool* tool = tools_.find(activeTool_)) {
+        tool->activate(*this);
+    }
+    updateCursor();
+}
+
+void ImageCanvas::setBusyCursor(bool busy) {
+    busyCursor_ = busy;
+    updateCursor();
 }
 
 // ---- 縮放、平移、適配 --------------------------------------------------------------------------------------
@@ -187,7 +209,9 @@ void ImageCanvas::endPan() {
 }
 
 void ImageCanvas::updateCursor() {
-    if (panning_) {
+    if (busyCursor_ && !panning_) {
+        viewport()->setCursor(Qt::BusyCursor);
+    } else if (panning_) {
         viewport()->setCursor(Qt::ClosedHandCursor);
     } else if (spaceDown_) {
         viewport()->setCursor(Qt::OpenHandCursor);
@@ -214,7 +238,7 @@ void ImageCanvas::mousePressEvent(QMouseEvent* event) {
         event->accept();
         return;
     }
-    if (!hasImage()) {
+    if (!hasImage() || !toolsEnabled_) {
         event->ignore();
         return;
     }
@@ -266,7 +290,7 @@ void ImageCanvas::mouseReleaseEvent(QMouseEvent* event) {
 }
 
 void ImageCanvas::mouseDoubleClickEvent(QMouseEvent* event) {
-    if (!hasImage()) {
+    if (!hasImage() || !toolsEnabled_) {
         event->ignore();
         return;
     }
@@ -284,6 +308,15 @@ void ImageCanvas::keyPressEvent(QKeyEvent* event) {
         event->accept();
         return;
     }
+    if (!toolsEnabled_) {
+        // 畫布暫停：只有 Esc 還是有意義（取消搜尋、關閉訊息），交給 Presenter。
+        if (keyboard_ && keyboard_->onKeyPressed(event->key(), event->modifiers())) {
+            event->accept();
+            return;
+        }
+        QGraphicsView::keyPressEvent(event);
+        return;
+    }
     ToolEvent te;
     te.type = ToolEvent::Type::KeyPress;
     te.key = event->key();
@@ -294,13 +327,18 @@ void ImageCanvas::keyPressEvent(QKeyEvent* event) {
         event->accept();
         return;
     }
-    // 工具沒用到的鍵：Esc 清除選取，Del／Backspace 刪除所選。
-    if (event->key() == Qt::Key_Escape && !selected_.empty() && selectionController_) {
+    // 工具沒用到的鍵：先問 Presenter（Enter 接受、Esc 退回一層、Del 刪除、方向鍵微調）。
+    if (keyboard_ && keyboard_->onKeyPressed(event->key(), event->modifiers())) {
+        event->accept();
+        return;
+    }
+    // 沒有 Presenter（S02 的獨立畫布）：Esc 清除選取，Del／Backspace 刪除所選。
+    if (!keyboard_ && event->key() == Qt::Key_Escape && !selected_.empty() && selectionController_) {
         selectionController_->select({});
         event->accept();
         return;
     }
-    if ((event->key() == Qt::Key_Delete || event->key() == Qt::Key_Backspace) && !selected_.empty() &&
+    if (!keyboard_ && (event->key() == Qt::Key_Delete || event->key() == Qt::Key_Backspace) && !selected_.empty() &&
         selectionController_) {
         selectionController_->deleteSelected();
         event->accept();

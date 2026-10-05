@@ -1,0 +1,1553 @@
+{
+ "schema": 1,
+ "step": "S04",
+ "date": "2026-10-06",
+ "note": "Three consecutive runs of perf_ui_s04 (Release, offscreen platform, same build, same session). Only comparable on this machine. Times in ms. Each run: warm-up 5, measured 30 (I3: 3 warm-up, 20 searches); time = the user action until the dirty region is painted. The three runs differ by up to 30 percent: use the range, not one run.",
+ "machine": {
+  "buildType": "Release",
+  "commit": "3a76c07+uncommitted",
+  "compiler": "MSVC 194435228",
+  "cpu": "13th Gen Intel(R) Core(TM) i7-1360P",
+  "hygiene": "process priority HIGH; power throttling off; thread pinned to logical CPU 0 (efficiency class 1 of 2 classes)",
+  "logicalCores": 16,
+  "machineName": "CasparHsu1",
+  "os": "Windows 11 Version 23H2 (kernel 10.0.22631)",
+  "qpaPlatform": "offscreen",
+  "qt": "6.8.0",
+  "ramGB": 63.6
+ },
+ "method": "warm-up 5, measured 30 (I3: 3 warm-up, 20 searches); median and p95; time = the user action until the dirty region is painted",
+ "runs": [
+  {
+   "run": 1,
+   "metrics": [
+    {
+     "budget": 50,
+     "id": "U2",
+     "label": "fill object table, 5000 rows (model + layout + first paint)",
+     "max": 8.131,
+     "median": 6.309,
+     "min": 4.923,
+     "n": 30,
+     "note": "5 001 rows = 5 000 candidates + the sample",
+     "p95": 7.975,
+     "pass": true,
+     "unit": "ms"
+    },
+    {
+     "id": "U2-model",
+     "label": "setRows only (no layout, no paint)",
+     "max": 0.193,
+     "median": 0.042,
+     "min": 0.036,
+     "n": 30,
+     "note": "diagnostic",
+     "p95": 0.048,
+     "unit": "ms"
+    },
+    {
+     "budget": 16,
+     "id": "U3",
+     "label": "threshold slider change to repaint, 5832 components",
+     "max": 61.415,
+     "median": 44.3,
+     "min": 33.837,
+     "n": 30,
+     "note": "whole pipeline: classify, scene build, canvas, tree (dataChanged), card, status; then the dirty window region is painted",
+     "p95": 58.015,
+     "pass": false,
+     "unit": "ms"
+    },
+    {
+     "id": "U3-scene",
+     "label": "diagnostic: buildScene alone (classify + edits + boxes + rows)",
+     "max": 14.93,
+     "median": 12.287,
+     "min": 9.237,
+     "n": 30,
+     "note": "diagnostic",
+     "p95": 14.743,
+     "unit": "ms"
+    },
+    {
+     "id": "U3-bg",
+     "label": "diagnostic: same, with 4883 accepted components in the background",
+     "max": 103.027,
+     "median": 71.197,
+     "min": 51.43,
+     "n": 30,
+     "note": "diagnostic: the document part of the scene is rebuilt on every change",
+     "p95": 94.293,
+     "unit": "ms"
+    },
+    {
+     "id": "U3-canvas@5832",
+     "label": "diagnostic: canvas showComponents (rebuild the layer buckets)",
+     "max": 2.326,
+     "median": 1.158,
+     "min": 0.939,
+     "n": 30,
+     "note": "diagnostic",
+     "p95": 2.139,
+     "unit": "ms"
+    },
+    {
+     "id": "U3-canvas-paint@5832",
+     "label": "diagnostic: paint after the canvas update",
+     "max": 34.987,
+     "median": 20.257,
+     "min": 15.003,
+     "n": 30,
+     "note": "diagnostic",
+     "p95": 28.937,
+     "unit": "ms"
+    },
+    {
+     "id": "U3-tree@5832",
+     "label": "diagnostic: object tree setRows (dataChanged path)",
+     "max": 2.752,
+     "median": 1.784,
+     "min": 1.5,
+     "n": 30,
+     "note": "diagnostic",
+     "p95": 2.571,
+     "unit": "ms"
+    },
+    {
+     "id": "U3-tree-paint@5832",
+     "label": "diagnostic: paint after the tree update",
+     "max": 5.448,
+     "median": 3.201,
+     "min": 2.619,
+     "n": 30,
+     "note": "diagnostic",
+     "p95": 4.785,
+     "unit": "ms"
+    },
+    {
+     "id": "U3-card@5832",
+     "label": "diagnostic: message card + status text",
+     "max": 0.257,
+     "median": 0.073,
+     "min": 0.059,
+     "n": 30,
+     "note": "diagnostic",
+     "p95": 0.147,
+     "unit": "ms"
+    },
+    {
+     "id": "U3-card-paint@5832",
+     "label": "diagnostic: paint after the card update",
+     "max": 0.714,
+     "median": 0.396,
+     "min": 0.299,
+     "n": 30,
+     "note": "diagnostic",
+     "p95": 0.6,
+     "unit": "ms"
+    },
+    {
+     "id": "U3-canvas@504",
+     "label": "diagnostic: canvas showComponents (rebuild the layer buckets)",
+     "max": 0.182,
+     "median": 0.116,
+     "min": 0.101,
+     "n": 30,
+     "note": "diagnostic",
+     "p95": 0.174,
+     "unit": "ms"
+    },
+    {
+     "id": "U3-canvas-paint@504",
+     "label": "diagnostic: paint after the canvas update",
+     "max": 19.518,
+     "median": 7.522,
+     "min": 4.733,
+     "n": 30,
+     "note": "diagnostic",
+     "p95": 13.946,
+     "unit": "ms"
+    },
+    {
+     "id": "U3-tree@504",
+     "label": "diagnostic: object tree setRows (dataChanged path)",
+     "max": 0.722,
+     "median": 0.362,
+     "min": 0.3,
+     "n": 30,
+     "note": "diagnostic",
+     "p95": 0.615,
+     "unit": "ms"
+    },
+    {
+     "id": "U3-tree-paint@504",
+     "label": "diagnostic: paint after the tree update",
+     "max": 6.527,
+     "median": 3.726,
+     "min": 3.094,
+     "n": 30,
+     "note": "diagnostic",
+     "p95": 6.104,
+     "unit": "ms"
+    },
+    {
+     "id": "U3-card@504",
+     "label": "diagnostic: message card + status text",
+     "max": 0.471,
+     "median": 0.084,
+     "min": 0.064,
+     "n": 30,
+     "note": "diagnostic",
+     "p95": 0.208,
+     "unit": "ms"
+    },
+    {
+     "id": "U3-card-paint@504",
+     "label": "diagnostic: paint after the card update",
+     "max": 1.128,
+     "median": 0.424,
+     "min": 0.322,
+     "n": 30,
+     "note": "diagnostic",
+     "p95": 0.714,
+     "unit": "ms"
+    },
+    {
+     "budget": 50,
+     "id": "I3",
+     "label": "longest event loop block during a search, 5832 candidates (max per search)",
+     "max": 42.583,
+     "median": 33.842,
+     "min": 24.872,
+     "n": 20,
+     "note": "1 ms precise heartbeat on the UI thread from before the release until 120 ms after the result is applied; also counts the release handler itself",
+     "p95": 41.274,
+     "pass": true,
+     "unit": "ms"
+    },
+    {
+     "id": "I3-release",
+     "label": "diagnostic: the mouse release handler alone (start the search, publish)",
+     "max": 1.337,
+     "median": 0.481,
+     "min": 0.195,
+     "n": 20,
+     "note": "diagnostic",
+     "p95": 1.222,
+     "unit": "ms"
+    },
+    {
+     "budget": 100,
+     "id": "I4",
+     "label": "cancel (click) to UI idle and repainted, search still running on the worker",
+     "max": 4.246,
+     "median": 2.667,
+     "min": 1.954,
+     "n": 30,
+     "note": "does not wait for the worker to stop (budget definition); the late result is dropped by generation",
+     "p95": 3.533,
+     "pass": true,
+     "unit": "ms"
+    },
+    {
+     "id": "I4-esc",
+     "label": "cancel (esc) to UI idle and repainted, search still running on the worker",
+     "max": 6.598,
+     "median": 2.992,
+     "min": 2.024,
+     "n": 30,
+     "note": "does not wait for the worker to stop (budget definition); the late result is dropped by generation",
+     "p95": 4.522,
+     "unit": "ms"
+    },
+    {
+     "budget": 50,
+     "id": "I6",
+     "label": "undo of a 1054 box commit (accept) to repainted",
+     "max": 15.56,
+     "median": 10.061,
+     "min": 7.911,
+     "n": 30,
+     "note": "whole pipeline: document undo, scene rebuild (back to the proposal), canvas, tree, card, then paint",
+     "p95": 13.59,
+     "pass": true,
+     "unit": "ms"
+    },
+    {
+     "id": "I6-redo",
+     "label": "diagnostic: redo of the same commit",
+     "max": 15.145,
+     "median": 10.604,
+     "min": 7.098,
+     "n": 30,
+     "note": "diagnostic",
+     "p95": 14.63,
+     "unit": "ms"
+    },
+    {
+     "id": "I6-doc1000",
+     "label": "diagnostic: document undo of a 1000 component accept (no UI)",
+     "max": 0.124,
+     "median": 0.012,
+     "min": 0.009,
+     "n": 30,
+     "note": "diagnostic",
+     "p95": 0.031,
+     "unit": "ms"
+    },
+    {
+     "id": "I6-doc1000-do",
+     "label": "diagnostic: document accept/redo of 1000 components (no UI)",
+     "max": 0.342,
+     "median": 0.042,
+     "min": 0.035,
+     "n": 30,
+     "note": "diagnostic",
+     "p95": 0.049,
+     "unit": "ms"
+    },
+    {
+     "id": "I6-doc5000",
+     "label": "diagnostic: document undo of a 5000 component accept (no UI)",
+     "max": 0.243,
+     "median": 0.074,
+     "min": 0.044,
+     "n": 30,
+     "note": "diagnostic",
+     "p95": 0.087,
+     "unit": "ms"
+    },
+    {
+     "id": "I6-doc5000-do",
+     "label": "diagnostic: document accept/redo of 5000 components (no UI)",
+     "max": 0.482,
+     "median": 0.222,
+     "min": 0.172,
+     "n": 30,
+     "note": "diagnostic",
+     "p95": 0.295,
+     "unit": "ms"
+    }
+   ],
+   "repaintByRejectedFraction": [
+    {
+     "frameMsMedian": 18.959,
+     "inferredPercent": 5.1,
+     "rejectedPercent": 0,
+     "threshold": 0.3
+    },
+    {
+     "frameMsMedian": 22.997,
+     "inferredPercent": 5.1,
+     "rejectedPercent": 8.2,
+     "threshold": 0.5
+    },
+    {
+     "frameMsMedian": 20.761,
+     "inferredPercent": 5.1,
+     "rejectedPercent": 16.3,
+     "threshold": 0.6
+    },
+    {
+     "frameMsMedian": 21.942,
+     "inferredPercent": 5.1,
+     "rejectedPercent": 20,
+     "threshold": 0.65
+    },
+    {
+     "frameMsMedian": 20.397,
+     "inferredPercent": 5.1,
+     "rejectedPercent": 20,
+     "threshold": 0.7
+    },
+    {
+     "frameMsMedian": 19.178,
+     "inferredPercent": 5.1,
+     "rejectedPercent": 20,
+     "threshold": 0.75
+    },
+    {
+     "frameMsMedian": 18.001,
+     "inferredPercent": 5.1,
+     "rejectedPercent": 20,
+     "threshold": 0.8
+    },
+    {
+     "frameMsMedian": 20.742,
+     "inferredPercent": 5.1,
+     "rejectedPercent": 20,
+     "threshold": 0.85
+    },
+    {
+     "frameMsMedian": 19.227,
+     "inferredPercent": 5.1,
+     "rejectedPercent": 20,
+     "threshold": 0.9
+    },
+    {
+     "frameMsMedian": 21.971,
+     "inferredPercent": 5.1,
+     "rejectedPercent": 61,
+     "threshold": 0.95
+    },
+    {
+     "frameMsMedian": 31.489,
+     "inferredPercent": 5.1,
+     "rejectedPercent": 94.8,
+     "threshold": 0.99
+    }
+   ],
+   "scalingWithObjectCount": [
+    {
+     "i3MaxBlock": 14.638,
+     "objects": 504,
+     "u3Median": 15.877,
+     "u3P95": 21.463
+    },
+    {
+     "i3MaxBlock": 18.416,
+     "objects": 1020,
+     "u3Median": 15.261,
+     "u3P95": 20.594
+    },
+    {
+     "i3MaxBlock": 26.037,
+     "objects": 2016,
+     "u3Median": 19.815,
+     "u3P95": 26.148
+    },
+    {
+     "i3MaxBlock": 32.434,
+     "objects": 5832,
+     "u3Median": 53.584,
+     "u3P95": 72.151
+    }
+   ],
+   "u3PhasesAt5832": [
+    {
+     "count": 40,
+     "maxMs": 0.3706,
+     "medianMs": 0.0654,
+     "minMs": 0.0577,
+     "name": "ui.chrome",
+     "p95Ms": 0.1258,
+     "totalMs": 3.2243
+    },
+    {
+     "count": 40,
+     "maxMs": 0.0422,
+     "medianMs": 0.0219,
+     "minMs": 0.0186,
+     "name": "ui.draft",
+     "p95Ms": 0.0266,
+     "totalMs": 0.9151
+    },
+    {
+     "count": 40,
+     "maxMs": 17.2304,
+     "medianMs": 12.1547,
+     "minMs": 9.7764,
+     "name": "ui.publishAll",
+     "p95Ms": 15.2249,
+     "totalMs": 498.84
+    },
+    {
+     "count": 40,
+     "maxMs": 17.1059,
+     "medianMs": 12.0602,
+     "minMs": 9.6874,
+     "name": "ui.publishScene",
+     "p95Ms": 14.9796,
+     "totalMs": 494.141
+    },
+    {
+     "count": 40,
+     "maxMs": 12.1373,
+     "medianMs": 8.2972,
+     "minMs": 6.1384,
+     "name": "ui.scene.build",
+     "p95Ms": 11.034,
+     "totalMs": 341.253
+    },
+    {
+     "count": 40,
+     "maxMs": 2.2982,
+     "medianMs": 1.5023,
+     "minMs": 1.1171,
+     "name": "ui.scene.canvas",
+     "p95Ms": 2.0842,
+     "totalMs": 62.6084
+    },
+    {
+     "count": 40,
+     "maxMs": 2.9932,
+     "medianMs": 2.1413,
+     "minMs": 1.6776,
+     "name": "ui.scene.tree",
+     "p95Ms": 2.8995,
+     "totalMs": 88.7051
+    },
+    {
+     "count": 40,
+     "maxMs": 0.0724,
+     "medianMs": 0.0089,
+     "minMs": 0.0075,
+     "name": "ui.selection",
+     "p95Ms": 0.0213,
+     "totalMs": 0.4516
+    },
+    {
+     "count": 40,
+     "maxMs": 18.2888,
+     "medianMs": 13.2022,
+     "minMs": 10.1018,
+     "name": "ui.threshold",
+     "p95Ms": 16.3231,
+     "totalMs": 539.027
+    },
+    {
+     "count": 40,
+     "maxMs": 0.1342,
+     "medianMs": 0.013,
+     "minMs": 0.0096,
+     "name": "ui.threshold.params",
+     "p95Ms": 0.0213,
+     "totalMs": 0.7021
+    },
+    {
+     "count": 40,
+     "maxMs": 1.4477,
+     "medianMs": 0.9742,
+     "minMs": 0.3109,
+     "name": "ui.threshold.refilter",
+     "p95Ms": 1.2616,
+     "totalMs": 39.2719
+    }
+   ]
+  },
+  {
+   "run": 2,
+   "metrics": [
+    {
+     "budget": 50,
+     "id": "U2",
+     "label": "fill object table, 5000 rows (model + layout + first paint)",
+     "max": 14.387,
+     "median": 6.273,
+     "min": 4.822,
+     "n": 30,
+     "note": "5 001 rows = 5 000 candidates + the sample",
+     "p95": 9.254,
+     "pass": true,
+     "unit": "ms"
+    },
+    {
+     "id": "U2-model",
+     "label": "setRows only (no layout, no paint)",
+     "max": 0.043,
+     "median": 0.024,
+     "min": 0.023,
+     "n": 30,
+     "note": "diagnostic",
+     "p95": 0.042,
+     "unit": "ms"
+    },
+    {
+     "budget": 16,
+     "id": "U3",
+     "label": "threshold slider change to repaint, 5832 components",
+     "max": 65.569,
+     "median": 46.412,
+     "min": 40.539,
+     "n": 30,
+     "note": "whole pipeline: classify, scene build, canvas, tree (dataChanged), card, status; then the dirty window region is painted",
+     "p95": 60.714,
+     "pass": false,
+     "unit": "ms"
+    },
+    {
+     "id": "U3-scene",
+     "label": "diagnostic: buildScene alone (classify + edits + boxes + rows)",
+     "max": 13.609,
+     "median": 9.202,
+     "min": 7.382,
+     "n": 30,
+     "note": "diagnostic",
+     "p95": 11.51,
+     "unit": "ms"
+    },
+    {
+     "id": "U3-bg",
+     "label": "diagnostic: same, with 4883 accepted components in the background",
+     "max": 86.232,
+     "median": 73.914,
+     "min": 57.111,
+     "n": 30,
+     "note": "diagnostic: the document part of the scene is rebuilt on every change",
+     "p95": 81.855,
+     "unit": "ms"
+    },
+    {
+     "id": "U3-canvas@5832",
+     "label": "diagnostic: canvas showComponents (rebuild the layer buckets)",
+     "max": 2.511,
+     "median": 1.813,
+     "min": 1.204,
+     "n": 30,
+     "note": "diagnostic",
+     "p95": 2.334,
+     "unit": "ms"
+    },
+    {
+     "id": "U3-canvas-paint@5832",
+     "label": "diagnostic: paint after the canvas update",
+     "max": 41.845,
+     "median": 29.939,
+     "min": 21.639,
+     "n": 30,
+     "note": "diagnostic",
+     "p95": 41.462,
+     "unit": "ms"
+    },
+    {
+     "id": "U3-tree@5832",
+     "label": "diagnostic: object tree setRows (dataChanged path)",
+     "max": 3.976,
+     "median": 2.952,
+     "min": 1.983,
+     "n": 30,
+     "note": "diagnostic",
+     "p95": 3.94,
+     "unit": "ms"
+    },
+    {
+     "id": "U3-tree-paint@5832",
+     "label": "diagnostic: paint after the tree update",
+     "max": 7.778,
+     "median": 5.886,
+     "min": 3.943,
+     "n": 30,
+     "note": "diagnostic",
+     "p95": 6.978,
+     "unit": "ms"
+    },
+    {
+     "id": "U3-card@5832",
+     "label": "diagnostic: message card + status text",
+     "max": 0.229,
+     "median": 0.114,
+     "min": 0.084,
+     "n": 30,
+     "note": "diagnostic",
+     "p95": 0.154,
+     "unit": "ms"
+    },
+    {
+     "id": "U3-card-paint@5832",
+     "label": "diagnostic: paint after the card update",
+     "max": 1.117,
+     "median": 0.62,
+     "min": 0.379,
+     "n": 30,
+     "note": "diagnostic",
+     "p95": 1.056,
+     "unit": "ms"
+    },
+    {
+     "id": "U3-canvas@504",
+     "label": "diagnostic: canvas showComponents (rebuild the layer buckets)",
+     "max": 0.314,
+     "median": 0.187,
+     "min": 0.166,
+     "n": 30,
+     "note": "diagnostic",
+     "p95": 0.266,
+     "unit": "ms"
+    },
+    {
+     "id": "U3-canvas-paint@504",
+     "label": "diagnostic: paint after the canvas update",
+     "max": 16.265,
+     "median": 9.773,
+     "min": 7.569,
+     "n": 30,
+     "note": "diagnostic",
+     "p95": 15.013,
+     "unit": "ms"
+    },
+    {
+     "id": "U3-tree@504",
+     "label": "diagnostic: object tree setRows (dataChanged path)",
+     "max": 0.84,
+     "median": 0.523,
+     "min": 0.487,
+     "n": 30,
+     "note": "diagnostic",
+     "p95": 0.772,
+     "unit": "ms"
+    },
+    {
+     "id": "U3-tree-paint@504",
+     "label": "diagnostic: paint after the tree update",
+     "max": 7.682,
+     "median": 6.097,
+     "min": 5.746,
+     "n": 30,
+     "note": "diagnostic",
+     "p95": 7.356,
+     "unit": "ms"
+    },
+    {
+     "id": "U3-card@504",
+     "label": "diagnostic: message card + status text",
+     "max": 0.418,
+     "median": 0.117,
+     "min": 0.1,
+     "n": 30,
+     "note": "diagnostic",
+     "p95": 0.228,
+     "unit": "ms"
+    },
+    {
+     "id": "U3-card-paint@504",
+     "label": "diagnostic: paint after the card update",
+     "max": 1.2,
+     "median": 0.692,
+     "min": 0.557,
+     "n": 30,
+     "note": "diagnostic",
+     "p95": 1.03,
+     "unit": "ms"
+    },
+    {
+     "budget": 50,
+     "id": "I3",
+     "label": "longest event loop block during a search, 5832 candidates (max per search)",
+     "max": 44.943,
+     "median": 36.889,
+     "min": 28.797,
+     "n": 20,
+     "note": "1 ms precise heartbeat on the UI thread from before the release until 120 ms after the result is applied; also counts the release handler itself",
+     "p95": 41.939,
+     "pass": true,
+     "unit": "ms"
+    },
+    {
+     "id": "I3-release",
+     "label": "diagnostic: the mouse release handler alone (start the search, publish)",
+     "max": 2.279,
+     "median": 0.456,
+     "min": 0.251,
+     "n": 20,
+     "note": "diagnostic",
+     "p95": 0.978,
+     "unit": "ms"
+    },
+    {
+     "budget": 100,
+     "id": "I4",
+     "label": "cancel (click) to UI idle and repainted, search still running on the worker",
+     "max": 4.995,
+     "median": 3.074,
+     "min": 2.497,
+     "n": 30,
+     "note": "does not wait for the worker to stop (budget definition); the late result is dropped by generation",
+     "p95": 4.85,
+     "pass": true,
+     "unit": "ms"
+    },
+    {
+     "id": "I4-esc",
+     "label": "cancel (esc) to UI idle and repainted, search still running on the worker",
+     "max": 4.496,
+     "median": 3.371,
+     "min": 2.201,
+     "n": 30,
+     "note": "does not wait for the worker to stop (budget definition); the late result is dropped by generation",
+     "p95": 4.295,
+     "unit": "ms"
+    },
+    {
+     "budget": 50,
+     "id": "I6",
+     "label": "undo of a 1054 box commit (accept) to repainted",
+     "max": 23.159,
+     "median": 12.879,
+     "min": 10.956,
+     "n": 30,
+     "note": "whole pipeline: document undo, scene rebuild (back to the proposal), canvas, tree, card, then paint",
+     "p95": 15.823,
+     "pass": true,
+     "unit": "ms"
+    },
+    {
+     "id": "I6-redo",
+     "label": "diagnostic: redo of the same commit",
+     "max": 19.061,
+     "median": 14.504,
+     "min": 12.393,
+     "n": 30,
+     "note": "diagnostic",
+     "p95": 17.484,
+     "unit": "ms"
+    },
+    {
+     "id": "I6-doc1000",
+     "label": "diagnostic: document undo of a 1000 component accept (no UI)",
+     "max": 0.015,
+     "median": 0.013,
+     "min": 0.011,
+     "n": 30,
+     "note": "diagnostic",
+     "p95": 0.014,
+     "unit": "ms"
+    },
+    {
+     "id": "I6-doc1000-do",
+     "label": "diagnostic: document accept/redo of 1000 components (no UI)",
+     "max": 0.089,
+     "median": 0.047,
+     "min": 0.044,
+     "n": 30,
+     "note": "diagnostic",
+     "p95": 0.05,
+     "unit": "ms"
+    },
+    {
+     "id": "I6-doc5000",
+     "label": "diagnostic: document undo of a 5000 component accept (no UI)",
+     "max": 0.161,
+     "median": 0.09,
+     "min": 0.076,
+     "n": 30,
+     "note": "diagnostic",
+     "p95": 0.107,
+     "unit": "ms"
+    },
+    {
+     "id": "I6-doc5000-do",
+     "label": "diagnostic: document accept/redo of 5000 components (no UI)",
+     "max": 0.469,
+     "median": 0.258,
+     "min": 0.243,
+     "n": 30,
+     "note": "diagnostic",
+     "p95": 0.371,
+     "unit": "ms"
+    }
+   ],
+   "repaintByRejectedFraction": [
+    {
+     "frameMsMedian": 28.219,
+     "inferredPercent": 5.1,
+     "rejectedPercent": 0,
+     "threshold": 0.3
+    },
+    {
+     "frameMsMedian": 25.077,
+     "inferredPercent": 5.1,
+     "rejectedPercent": 8.2,
+     "threshold": 0.5
+    },
+    {
+     "frameMsMedian": 28.079,
+     "inferredPercent": 5.1,
+     "rejectedPercent": 16.3,
+     "threshold": 0.6
+    },
+    {
+     "frameMsMedian": 25.522,
+     "inferredPercent": 5.1,
+     "rejectedPercent": 20,
+     "threshold": 0.65
+    },
+    {
+     "frameMsMedian": 25.701,
+     "inferredPercent": 5.1,
+     "rejectedPercent": 20,
+     "threshold": 0.7
+    },
+    {
+     "frameMsMedian": 25.068,
+     "inferredPercent": 5.1,
+     "rejectedPercent": 20,
+     "threshold": 0.75
+    },
+    {
+     "frameMsMedian": 24.205,
+     "inferredPercent": 5.1,
+     "rejectedPercent": 20,
+     "threshold": 0.8
+    },
+    {
+     "frameMsMedian": 26.629,
+     "inferredPercent": 5.1,
+     "rejectedPercent": 20,
+     "threshold": 0.85
+    },
+    {
+     "frameMsMedian": 25.109,
+     "inferredPercent": 5.1,
+     "rejectedPercent": 20,
+     "threshold": 0.9
+    },
+    {
+     "frameMsMedian": 33.608,
+     "inferredPercent": 5.1,
+     "rejectedPercent": 61,
+     "threshold": 0.95
+    },
+    {
+     "frameMsMedian": 42.17,
+     "inferredPercent": 5.1,
+     "rejectedPercent": 94.8,
+     "threshold": 0.99
+    }
+   ],
+   "scalingWithObjectCount": [
+    {
+     "i3MaxBlock": 17.708,
+     "objects": 504,
+     "u3Median": 16.037,
+     "u3P95": 23.847
+    },
+    {
+     "i3MaxBlock": 23.355,
+     "objects": 1020,
+     "u3Median": 20.275,
+     "u3P95": 26.102
+    },
+    {
+     "i3MaxBlock": 29.565,
+     "objects": 2016,
+     "u3Median": 28.322,
+     "u3P95": 35.292
+    },
+    {
+     "i3MaxBlock": 36.237,
+     "objects": 5832,
+     "u3Median": 59.987,
+     "u3P95": 67.33
+    }
+   ],
+   "u3PhasesAt5832": [
+    {
+     "count": 40,
+     "maxMs": 0.4321,
+     "medianMs": 0.0844,
+     "minMs": 0.0634,
+     "name": "ui.chrome",
+     "p95Ms": 0.1413,
+     "totalMs": 3.7847
+    },
+    {
+     "count": 40,
+     "maxMs": 0.039,
+     "medianMs": 0.0257,
+     "minMs": 0.0195,
+     "name": "ui.draft",
+     "p95Ms": 0.0316,
+     "totalMs": 1.0585
+    },
+    {
+     "count": 40,
+     "maxMs": 18.9319,
+     "medianMs": 14.8302,
+     "minMs": 10.7282,
+     "name": "ui.publishAll",
+     "p95Ms": 18.6215,
+     "totalMs": 595.493
+    },
+    {
+     "count": 40,
+     "maxMs": 18.7972,
+     "medianMs": 14.7069,
+     "minMs": 10.6295,
+     "name": "ui.publishScene",
+     "p95Ms": 18.4821,
+     "totalMs": 590.087
+    },
+    {
+     "count": 40,
+     "maxMs": 13.3653,
+     "medianMs": 9.8894,
+     "minMs": 6.8784,
+     "name": "ui.scene.build",
+     "p95Ms": 12.999,
+     "totalMs": 403.618
+    },
+    {
+     "count": 40,
+     "maxMs": 3.0724,
+     "medianMs": 1.9061,
+     "minMs": 1.2697,
+     "name": "ui.scene.canvas",
+     "p95Ms": 2.487,
+     "totalMs": 76.1978
+    },
+    {
+     "count": 40,
+     "maxMs": 3.8783,
+     "medianMs": 2.6183,
+     "minMs": 1.9731,
+     "name": "ui.scene.tree",
+     "p95Ms": 3.6196,
+     "totalMs": 108.237
+    },
+    {
+     "count": 40,
+     "maxMs": 0.0139,
+     "medianMs": 0.0107,
+     "minMs": 0.0079,
+     "name": "ui.selection",
+     "p95Ms": 0.0128,
+     "totalMs": 0.4287
+    },
+    {
+     "count": 40,
+     "maxMs": 20.0048,
+     "medianMs": 15.5249,
+     "minMs": 11.0676,
+     "name": "ui.threshold",
+     "p95Ms": 19.4118,
+     "totalMs": 624.145
+    },
+    {
+     "count": 40,
+     "maxMs": 0.0238,
+     "medianMs": 0.0148,
+     "minMs": 0.0099,
+     "name": "ui.threshold.params",
+     "p95Ms": 0.0196,
+     "totalMs": 0.6173
+    },
+    {
+     "count": 40,
+     "maxMs": 1.8025,
+     "medianMs": 0.448,
+     "minMs": 0.3232,
+     "name": "ui.threshold.refilter",
+     "p95Ms": 1.3313,
+     "totalMs": 27.7559
+    }
+   ]
+  },
+  {
+   "run": 3,
+   "metrics": [
+    {
+     "budget": 50,
+     "id": "U2",
+     "label": "fill object table, 5000 rows (model + layout + first paint)",
+     "max": 8.625,
+     "median": 5.761,
+     "min": 4.937,
+     "n": 30,
+     "note": "5 001 rows = 5 000 candidates + the sample",
+     "p95": 8.282,
+     "pass": true,
+     "unit": "ms"
+    },
+    {
+     "id": "U2-model",
+     "label": "setRows only (no layout, no paint)",
+     "max": 0.05,
+     "median": 0.039,
+     "min": 0.032,
+     "n": 30,
+     "note": "diagnostic",
+     "p95": 0.047,
+     "unit": "ms"
+    },
+    {
+     "budget": 16,
+     "id": "U3",
+     "label": "threshold slider change to repaint, 5832 components",
+     "max": 50.334,
+     "median": 37.003,
+     "min": 31.202,
+     "n": 30,
+     "note": "whole pipeline: classify, scene build, canvas, tree (dataChanged), card, status; then the dirty window region is painted",
+     "p95": 46.409,
+     "pass": false,
+     "unit": "ms"
+    },
+    {
+     "id": "U3-scene",
+     "label": "diagnostic: buildScene alone (classify + edits + boxes + rows)",
+     "max": 8.43,
+     "median": 5.125,
+     "min": 4.57,
+     "n": 30,
+     "note": "diagnostic",
+     "p95": 7.151,
+     "unit": "ms"
+    },
+    {
+     "id": "U3-bg",
+     "label": "diagnostic: same, with 4883 accepted components in the background",
+     "max": 67.864,
+     "median": 53.497,
+     "min": 46.956,
+     "n": 30,
+     "note": "diagnostic: the document part of the scene is rebuilt on every change",
+     "p95": 65.908,
+     "unit": "ms"
+    },
+    {
+     "id": "U3-canvas@5832",
+     "label": "diagnostic: canvas showComponents (rebuild the layer buckets)",
+     "max": 1.586,
+     "median": 1.012,
+     "min": 0.924,
+     "n": 30,
+     "note": "diagnostic",
+     "p95": 1.411,
+     "unit": "ms"
+    },
+    {
+     "id": "U3-canvas-paint@5832",
+     "label": "diagnostic: paint after the canvas update",
+     "max": 31.681,
+     "median": 18.913,
+     "min": 15.13,
+     "n": 30,
+     "note": "diagnostic",
+     "p95": 26.783,
+     "unit": "ms"
+    },
+    {
+     "id": "U3-tree@5832",
+     "label": "diagnostic: object tree setRows (dataChanged path)",
+     "max": 2.975,
+     "median": 1.673,
+     "min": 1.41,
+     "n": 30,
+     "note": "diagnostic",
+     "p95": 2.313,
+     "unit": "ms"
+    },
+    {
+     "id": "U3-tree-paint@5832",
+     "label": "diagnostic: paint after the tree update",
+     "max": 4.159,
+     "median": 2.913,
+     "min": 2.501,
+     "n": 30,
+     "note": "diagnostic",
+     "p95": 4.02,
+     "unit": "ms"
+    },
+    {
+     "id": "U3-card@5832",
+     "label": "diagnostic: message card + status text",
+     "max": 0.093,
+     "median": 0.062,
+     "min": 0.052,
+     "n": 30,
+     "note": "diagnostic",
+     "p95": 0.089,
+     "unit": "ms"
+    },
+    {
+     "id": "U3-card-paint@5832",
+     "label": "diagnostic: paint after the card update",
+     "max": 0.523,
+     "median": 0.311,
+     "min": 0.275,
+     "n": 30,
+     "note": "diagnostic",
+     "p95": 0.449,
+     "unit": "ms"
+    },
+    {
+     "id": "U3-canvas@504",
+     "label": "diagnostic: canvas showComponents (rebuild the layer buckets)",
+     "max": 0.145,
+     "median": 0.095,
+     "min": 0.083,
+     "n": 30,
+     "note": "diagnostic",
+     "p95": 0.13,
+     "unit": "ms"
+    },
+    {
+     "id": "U3-canvas-paint@504",
+     "label": "diagnostic: paint after the canvas update",
+     "max": 9.445,
+     "median": 5.66,
+     "min": 3.898,
+     "n": 30,
+     "note": "diagnostic",
+     "p95": 8.813,
+     "unit": "ms"
+    },
+    {
+     "id": "U3-tree@504",
+     "label": "diagnostic: object tree setRows (dataChanged path)",
+     "max": 0.419,
+     "median": 0.292,
+     "min": 0.248,
+     "n": 30,
+     "note": "diagnostic",
+     "p95": 0.409,
+     "unit": "ms"
+    },
+    {
+     "id": "U3-tree-paint@504",
+     "label": "diagnostic: paint after the tree update",
+     "max": 4.28,
+     "median": 2.917,
+     "min": 2.259,
+     "n": 30,
+     "note": "diagnostic",
+     "p95": 3.794,
+     "unit": "ms"
+    },
+    {
+     "id": "U3-card@504",
+     "label": "diagnostic: message card + status text",
+     "max": 0.091,
+     "median": 0.06,
+     "min": 0.045,
+     "n": 30,
+     "note": "diagnostic",
+     "p95": 0.085,
+     "unit": "ms"
+    },
+    {
+     "id": "U3-card-paint@504",
+     "label": "diagnostic: paint after the card update",
+     "max": 0.476,
+     "median": 0.308,
+     "min": 0.248,
+     "n": 30,
+     "note": "diagnostic",
+     "p95": 0.431,
+     "unit": "ms"
+    },
+    {
+     "budget": 50,
+     "id": "I3",
+     "label": "longest event loop block during a search, 5832 candidates (max per search)",
+     "max": 34.477,
+     "median": 25.758,
+     "min": 22.312,
+     "n": 20,
+     "note": "1 ms precise heartbeat on the UI thread from before the release until 120 ms after the result is applied; also counts the release handler itself",
+     "p95": 30.941,
+     "pass": true,
+     "unit": "ms"
+    },
+    {
+     "id": "I3-release",
+     "label": "diagnostic: the mouse release handler alone (start the search, publish)",
+     "max": 1.172,
+     "median": 0.401,
+     "min": 0.201,
+     "n": 20,
+     "note": "diagnostic",
+     "p95": 0.724,
+     "unit": "ms"
+    },
+    {
+     "budget": 100,
+     "id": "I4",
+     "label": "cancel (click) to UI idle and repainted, search still running on the worker",
+     "max": 3.552,
+     "median": 2.505,
+     "min": 2.064,
+     "n": 30,
+     "note": "does not wait for the worker to stop (budget definition); the late result is dropped by generation",
+     "p95": 3.49,
+     "pass": true,
+     "unit": "ms"
+    },
+    {
+     "id": "I4-esc",
+     "label": "cancel (esc) to UI idle and repainted, search still running on the worker",
+     "max": 5.266,
+     "median": 3.628,
+     "min": 2.425,
+     "n": 30,
+     "note": "does not wait for the worker to stop (budget definition); the late result is dropped by generation",
+     "p95": 4.91,
+     "unit": "ms"
+    },
+    {
+     "budget": 50,
+     "id": "I6",
+     "label": "undo of a 1054 box commit (accept) to repainted",
+     "max": 14.546,
+     "median": 11.182,
+     "min": 9.079,
+     "n": 30,
+     "note": "whole pipeline: document undo, scene rebuild (back to the proposal), canvas, tree, card, then paint",
+     "p95": 14.006,
+     "pass": true,
+     "unit": "ms"
+    },
+    {
+     "id": "I6-redo",
+     "label": "diagnostic: redo of the same commit",
+     "max": 16.105,
+     "median": 12.157,
+     "min": 9.061,
+     "n": 30,
+     "note": "diagnostic",
+     "p95": 15.552,
+     "unit": "ms"
+    },
+    {
+     "id": "I6-doc1000",
+     "label": "diagnostic: document undo of a 1000 component accept (no UI)",
+     "max": 0.129,
+     "median": 0.014,
+     "min": 0.011,
+     "n": 30,
+     "note": "diagnostic",
+     "p95": 0.017,
+     "unit": "ms"
+    },
+    {
+     "id": "I6-doc1000-do",
+     "label": "diagnostic: document accept/redo of 1000 components (no UI)",
+     "max": 0.109,
+     "median": 0.051,
+     "min": 0.044,
+     "n": 30,
+     "note": "diagnostic",
+     "p95": 0.075,
+     "unit": "ms"
+    },
+    {
+     "id": "I6-doc5000",
+     "label": "diagnostic: document undo of a 5000 component accept (no UI)",
+     "max": 0.236,
+     "median": 0.064,
+     "min": 0.053,
+     "n": 30,
+     "note": "diagnostic",
+     "p95": 0.129,
+     "unit": "ms"
+    },
+    {
+     "id": "I6-doc5000-do",
+     "label": "diagnostic: document accept/redo of 5000 components (no UI)",
+     "max": 0.528,
+     "median": 0.247,
+     "min": 0.229,
+     "n": 30,
+     "note": "diagnostic",
+     "p95": 0.37,
+     "unit": "ms"
+    }
+   ],
+   "repaintByRejectedFraction": [
+    {
+     "frameMsMedian": 14.488,
+     "inferredPercent": 5.1,
+     "rejectedPercent": 0,
+     "threshold": 0.3
+    },
+    {
+     "frameMsMedian": 15.076,
+     "inferredPercent": 5.1,
+     "rejectedPercent": 8.2,
+     "threshold": 0.5
+    },
+    {
+     "frameMsMedian": 15.176,
+     "inferredPercent": 5.1,
+     "rejectedPercent": 16.3,
+     "threshold": 0.6
+    },
+    {
+     "frameMsMedian": 16.498,
+     "inferredPercent": 5.1,
+     "rejectedPercent": 20,
+     "threshold": 0.65
+    },
+    {
+     "frameMsMedian": 16.769,
+     "inferredPercent": 5.1,
+     "rejectedPercent": 20,
+     "threshold": 0.7
+    },
+    {
+     "frameMsMedian": 16.906,
+     "inferredPercent": 5.1,
+     "rejectedPercent": 20,
+     "threshold": 0.75
+    },
+    {
+     "frameMsMedian": 15.552,
+     "inferredPercent": 5.1,
+     "rejectedPercent": 20,
+     "threshold": 0.8
+    },
+    {
+     "frameMsMedian": 16.016,
+     "inferredPercent": 5.1,
+     "rejectedPercent": 20,
+     "threshold": 0.85
+    },
+    {
+     "frameMsMedian": 15.747,
+     "inferredPercent": 5.1,
+     "rejectedPercent": 20,
+     "threshold": 0.9
+    },
+    {
+     "frameMsMedian": 22.785,
+     "inferredPercent": 5.1,
+     "rejectedPercent": 61,
+     "threshold": 0.95
+    },
+    {
+     "frameMsMedian": 25.959,
+     "inferredPercent": 5.1,
+     "rejectedPercent": 94.8,
+     "threshold": 0.99
+    }
+   ],
+   "scalingWithObjectCount": [
+    {
+     "i3MaxBlock": 17.552,
+     "objects": 504,
+     "u3Median": 10.969,
+     "u3P95": 14.2
+    },
+    {
+     "i3MaxBlock": 17.217,
+     "objects": 1020,
+     "u3Median": 13.717,
+     "u3P95": 16.307
+    },
+    {
+     "i3MaxBlock": 15.451,
+     "objects": 2016,
+     "u3Median": 20.096,
+     "u3P95": 23.654
+    },
+    {
+     "i3MaxBlock": 22.796,
+     "objects": 5832,
+     "u3Median": 33.052,
+     "u3P95": 39.696
+    }
+   ],
+   "u3PhasesAt5832": [
+    {
+     "count": 40,
+     "maxMs": 0.0932,
+     "medianMs": 0.0549,
+     "minMs": 0.0422,
+     "name": "ui.chrome",
+     "p95Ms": 0.0776,
+     "totalMs": 2.2568
+    },
+    {
+     "count": 40,
+     "maxMs": 0.0254,
+     "medianMs": 0.0183,
+     "minMs": 0.0135,
+     "name": "ui.draft",
+     "p95Ms": 0.024,
+     "totalMs": 0.7426
+    },
+    {
+     "count": 40,
+     "maxMs": 12.8668,
+     "medianMs": 9.1395,
+     "minMs": 7.1412,
+     "name": "ui.publishAll",
+     "p95Ms": 12.0624,
+     "totalMs": 367.746
+    },
+    {
+     "count": 40,
+     "maxMs": 12.7581,
+     "medianMs": 9.0595,
+     "minMs": 7.075,
+     "name": "ui.publishScene",
+     "p95Ms": 11.9413,
+     "totalMs": 364.368
+    },
+    {
+     "count": 40,
+     "maxMs": 9.5167,
+     "medianMs": 5.8682,
+     "minMs": 4.549,
+     "name": "ui.scene.build",
+     "p95Ms": 8.4339,
+     "totalMs": 245.184
+    },
+    {
+     "count": 40,
+     "maxMs": 1.7657,
+     "medianMs": 1.0881,
+     "minMs": 0.8488,
+     "name": "ui.scene.canvas",
+     "p95Ms": 1.5629,
+     "totalMs": 45.4348
+    },
+    {
+     "count": 40,
+     "maxMs": 3.0957,
+     "medianMs": 1.6938,
+     "minMs": 1.2569,
+     "name": "ui.scene.tree",
+     "p95Ms": 2.6206,
+     "totalMs": 72.47
+    },
+    {
+     "count": 40,
+     "maxMs": 0.0104,
+     "medianMs": 0.0071,
+     "minMs": 0.0052,
+     "name": "ui.selection",
+     "p95Ms": 0.0096,
+     "totalMs": 0.2934
+    },
+    {
+     "count": 40,
+     "maxMs": 14.1957,
+     "medianMs": 9.5172,
+     "minMs": 7.3884,
+     "name": "ui.threshold",
+     "p95Ms": 12.617,
+     "totalMs": 389.807
+    },
+    {
+     "count": 40,
+     "maxMs": 0.0164,
+     "medianMs": 0.0096,
+     "minMs": 0.0067,
+     "name": "ui.threshold.params",
+     "p95Ms": 0.0135,
+     "totalMs": 0.4021
+    },
+    {
+     "count": 40,
+     "maxMs": 1.3257,
+     "medianMs": 0.3457,
+     "minMs": 0.2372,
+     "name": "ui.threshold.refilter",
+     "p95Ms": 0.9676,
+     "totalMs": 21.4831
+    }
+   ]
+  }
+ ],
+ "dashedFramesMicroBenchmark": {
+  "source": "perf_paint_micro dashedAndDottedFrames, 5832 boxes of 8 x 5 px, 870 x 600 target, median of 15, one run",
+  "cosmeticDottedPensRoundCap_ms": 424.843,
+  "cosmeticDashedPensFlatCap_ms": 79.608,
+  "integerPixelFilledRects_ms": 27.549,
+  "rectsPerBox": {
+   "stroke": 6,
+   "casing": 6
+  }
+ }
+}

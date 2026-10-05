@@ -707,29 +707,57 @@
       "zh_TW": "影像檔",
       "en": "Image files"
     },
-    "ui.shell.backendNone": {
-      "zh_TW": "尚未連接",
-      "en": "Not connected"
-    },
     "ui.status.cursor": {
       "zh_TW": "x {x}  y {y}",
       "en": "x {x}  y {y}"
     },
-    "ui.shell.regionDrawn": {
-      "zh_TW": "已框出區域 {w} × {h} px（搜尋尚未接上）",
-      "en": "Region {w} × {h} px drawn (the search is not connected yet)"
+    "ui.history.accept": {
+      "zh_TW": "接受 {count} 個元件",
+      "en": "Accept {count} components"
     },
-    "ui.shell.addRequested": {
-      "zh_TW": "要在 ({x}, {y}) 補一個元件（尚未接上）",
-      "en": "Add a component at ({x}, {y}) (not connected yet)"
+    "ui.history.discard": {
+      "zh_TW": "捨棄提案",
+      "en": "Discard the proposal"
     },
-    "ui.shell.openEditor": {
-      "zh_TW": "要開啟元件 {id} 的類型編輯器（尚未接上）",
-      "en": "Open the type editor of component {id} (not connected yet)"
+    "ui.history.delete": {
+      "zh_TW": "刪除 {count} 個元件",
+      "en": "Delete {count} components"
     },
-    "ui.shell.deleteRequested": {
-      "zh_TW": "要刪除所選的元件（尚未接上）",
-      "en": "Delete the selected components (not connected yet)"
+    "ui.history.add": {
+      "zh_TW": "補一個元件",
+      "en": "Add one component"
+    },
+    "ui.history.move": {
+      "zh_TW": "移動 {count} 個元件",
+      "en": "Move {count} components"
+    },
+    "ui.history.undo": {
+      "zh_TW": "復原：{label}",
+      "en": "Undo: {label}"
+    },
+    "ui.history.redo": {
+      "zh_TW": "重做：{label}",
+      "en": "Redo: {label}"
+    },
+    "ui.preview.nothingToAccept": {
+      "zh_TW": "沒有可接受的物件。",
+      "en": "There is nothing to accept."
+    },
+    "ui.editor.unavailable": {
+      "zh_TW": "類型編輯器尚未提供。",
+      "en": "The type editor is not available yet."
+    },
+    "ui.objects.col.name": {
+      "zh_TW": "名稱",
+      "en": "Name"
+    },
+    "ui.objects.col.state": {
+      "zh_TW": "狀態",
+      "en": "State"
+    },
+    "ui.objects.col.score": {
+      "zh_TW": "分數",
+      "en": "Score"
     }
   }
 }

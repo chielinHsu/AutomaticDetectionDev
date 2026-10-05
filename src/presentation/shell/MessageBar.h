@@ -7,6 +7,7 @@
 #include "presentation/theme/ThemeTokens.h"
 
 class QLabel;
+class QProgressBar;
 class QPushButton;
 class QScrollArea;
 class QTimer;
@@ -33,12 +34,20 @@ public:
     void showCard(const QString& title, const QString& body, const QStringList& advice, const QStringList& actions);
     void clearCard();
 
+    // 進度：搜尋超過 1 s 時顯示進度條與〔取消〕。fraction 是 0..1；按下〔取消〕發出 cancelRequested。
+    // 進度顯示時會蓋過提示與卡片；showCard 或 clearProgress 會收起它。
+    void showProgress(const QString& text, double fraction, const QString& cancelLabel);
+    void clearProgress();
+    bool progressVisible() const;
+    int progressValue() const;  // 0..100
+
     bool cardVisible() const;
     QString hintText() const;   // 目前提示列顯示的文字（含吐司）
     QString cardTitle() const;
 
 signals:
     void actionTriggered(int index);
+    void cancelRequested();
 
 private:
     void showHintLabel(const QString& text);
@@ -51,6 +60,10 @@ private:
     QLabel* cardBody_;
     QLabel* cardAdvice_;
     QHBoxLayout* actions_;
+    QWidget* progress_;
+    QLabel* progressText_;
+    QProgressBar* progressBar_;
+    QPushButton* cancelButton_;
     QTimer* toastTimer_;
     QString baseHint_;
 };

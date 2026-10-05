@@ -3,10 +3,12 @@
 > 本專案一檔一決策：每個決策是 `docs/adr/NNN-slug.md`，本檔只是索引，新的放最上方。內容只寫在 ADR 檔，不要在這裡複製。
 > 已記錄的決定，沒有新證據不推翻；要推翻就新增一筆，並在新舊兩筆都標明取代關係。
 
-預定的 ADR（004、005）列在各步驟的 plan 檔（`docs/plan/Sxx-*.md`），寫成後再加進下表。S02 新增 007、008、009；S03 寫成預定的 003，並新增 010（座標與角度慣例）。編號 004（S09）、005 仍預留。
+預定的 ADR（004、005）列在各步驟的 plan 檔（`docs/plan/Sxx-*.md`），寫成後再加進下表。S02 新增 007、008、009；S03 寫成預定的 003，並新增 010（座標與角度慣例）；S04 新增 011、012。編號 004（S09）、005 仍預留。
 
 | 編號 | 標題 | 狀態 | 日期 |
 |---|---|---|---|
+| [ADR-012](adr/012-dashed-frames-as-fill-rects.md) | 虛線與點線的框也畫成整數像素的填色矩形（取代 S02「虛線狀態仍用描邊」的做法；理由是 S04 量測推翻了「這兩種狀態的框很少」） | 採用 | 2026-10-06 |
+| [ADR-011](adr/011-interaction-logic-in-application-layer.md) | 互動規則放在 application 層（沒有 Qt 的 `InspectionSession`），Presenter 只做 Qt 這一側 | 採用 | 2026-10-06 |
 | [ADR-010](adr/010-coordinate-and-angle-convention.md) | 座標與角度慣例：影像像素、y 向下、角度為度、螢幕上逆時針為正（解決 ADR-006 未決 #5） | 採用（OpenCV／HALCON 端的轉換是文件上的假設，S07、S08 實測，S09 鎖住） | 2026-10-05 |
 | [ADR-003](adr/003-test-framework.md) | 測試框架：統一用 Qt Test（涵蓋 domain 到 UI），效能量測自己用 `steady_clock`，不用 `QBENCHMARK` | 採用 | 2026-10-05 |
 | [ADR-009](adr/009-ui-toolkit-review-after-s02.md) | S02 實測後重審 UI 工具集：I1 在預算邊緣、真實視窗超標；選項 A 維持、B OpenGL 視埠、C QML、D 調預算 | **提案（待使用者決定）**；決定前 ADR-001 照舊有效 | 2026-10-05 |

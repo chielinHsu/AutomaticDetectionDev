@@ -4,8 +4,10 @@
 # 開啟、建置與執行；它會自動納入 ../src 底下的檔案，之後在 ../src/presentation 新增檔案不必改這裡。
 # 正式的建置與測試走 CMake（../CMakeLists.txt、../scripts/dev/test.ps1），單元測試也只在 CMake 那邊。
 #
-# 注意：S03 起 ../src 有 application、infrastructure、組裝根，這個檔已經調整；S06 起還會有 storage、S07／S08 有 OpenCV／HALCON，
-#       到時候要跟著調整，不要只依賴它確認「全部都能建置」（正式的建置與測試走 CMake）。
+# 注意：S03 起 ../src 有 application、infrastructure、組裝根，這個檔已經調整；S04 新增的 application/document、interaction，
+#       infrastructure/threading/QtThreadPoolExecutor 與 presentation/presenters、objects、params 都在已納入的資料夾底下（萬用字元遞迴納入），
+#       不必改。S06 起還會有 storage、S07／S08 有 OpenCV／HALCON，到時候要跟著調整，不要只依賴它確認「全部都能建置」
+#       （正式的建置與測試走 CMake）。
 #
 # 精靈原本產生的 main.cpp、mainwindow.h、mainwindow.cpp、mainwindow.ui 現在沒有被使用（入口是 ../src/app/main.cpp）。
 

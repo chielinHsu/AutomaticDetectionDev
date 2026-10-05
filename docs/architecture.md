@@ -6,6 +6,7 @@
 
 | 日期 | 修改者 | 說明 |
 |---|---|---|
+| 2026-10-06 | Claude Code (Claude Sonnet 5.5) | S04：`presentation` 第一次連到 `application`（依賴表沒有變，只是 `aoi_presentation` 多連 `aoi_application`）。模組表新增 `application/document/`、`application/interaction/`、`domain/box_expander.h`、`aoi_threading_qt`（`QtThreadPoolExecutor`）、`presentation/presenters/`、`objects/`、`params/`，移除 `ShellController`；`composeCore` 多一個 `ExecutorKind`。互動規則放在 application 層（[ADR-011](adr/011-interaction-logic-in-application-layer.md)）；虛線與點線改用填色矩形畫（[ADR-012](adr/012-dashed-frames-as-fill-rects.md)） |
 | 2026-10-05 | Claude Code (Claude Sonnet 5.5) | S03：`application` 與 `infrastructure` 有程式了。依賴表新增 `infrastructure/backend_fake`、`infrastructure/threading` 兩列，`app` 的禁止欄加上「直接使用視覺函式庫」，規則表的機器可讀版在 `tools/check-deps.mjs`（改一邊要改另一邊）；模組表補上 `aoi_application`、`aoi_backend_fake`、`aoi_perf`、`aoi_threading`、`aoi_app_core`；新增「檔案命名」 |
 | 2026-10-05 | Claude Code (Claude Sonnet 5.5) | S02：補上「模組」表（`src/` 已建立）：domain 只有 `image_view.h`，presentation 有畫布、工具、shell、theme、i18n；說明 CMake target 如何表達依賴方向 |
 | 2026-10-05 | Claude Code (Claude Sonnet 5.5) | 把分層與依賴規則表從 `CLAUDE.md` 搬到這裡，內容未改 |
@@ -38,23 +39,24 @@ app ──► presentation ──► application ──► domain
 
 ## 模組
 
-目前（S03）`src/` 有五層的程式碼，但 `presentation` 還沒有接上 `application`（S04）。依賴方向由 CMake 的 `target_link_libraries` 表達，違規的 `#include` 由 `tools/check-deps.mjs` 擋下。
+目前（S04）`src/` 有五層的程式碼，`presentation` 透過 Presenter 接上 `application`；它依然不 include `infrastructure`（具體的 back end 與執行緒池由 `app/` 組裝後以 use case 與 `JobRunner` 的參考交給 Presenter）。依賴方向由 CMake 的 `target_link_libraries` 表達，違規的 `#include` 由 `tools/check-deps.mjs` 擋下。
 
 | CMake target | 目錄 | 層 | 內容 | 依賴 |
 |---|---|---|---|---|
-| `aoi_domain`（INTERFACE） | `src/domain/` | domain | 全是標頭：`geometry.h`（座標與角度慣例、`Rect`、`Pose2D`、`RectObj`）、`image_view.h`（`ImageView`＋校正值 `umPerPixel`；所有權規則 S06 定案）、`match.h`（`Match`、`Candidate`、`InspectionObject`）、`object_state.h`（`ObjectState`、`NoMatchReason`）、`search_params.h`（`SearchParams`、`SearchRegion`）、`component.h`（Board › Component › Box 的型別）、`recipe.h` | 標準庫 |
-| `aoi_application`（STATIC） | `src/application/` | application | `Error.h`、`Result.h`、`CancelToken.h`；`ports/`（九個窄介面）；`jobs/JobRunner`（latest-wins）；`usecases/GenerateObjectsFromSample`、`ProposalView`（`classify`）、`SimpleGrid`（S05 取代的暫代品）；`backend/BackendRegistry` | `aoi_domain` |
+| `aoi_domain`（INTERFACE） | `src/domain/` | domain | 全是標頭：`geometry.h`（座標與角度慣例、`Rect`、`Pose2D`、`RectObj`）、`image_view.h`（`ImageView`＋校正值 `umPerPixel`；所有權規則 S06 定案）、`match.h`（`Match`、`Candidate`、`InspectionObject`）、`object_state.h`（`ObjectState`、`NoMatchReason`）、`search_params.h`（`SearchParams`、`SearchRegion`）、`component.h`（Board › Component › Box 的型別）、`recipe.h`、`box_expander.h`（`BoxGroup` ＋ 位姿 → 具體的框；`effectiveUmPerPixel`） | 標準庫 |
+| `aoi_application`（STATIC） | `src/application/` | application | `Error.h`、`Result.h`、`CancelToken.h`；`ports/`（九個窄介面）；`jobs/JobRunner`（latest-wins）；`usecases/GenerateObjectsFromSample`、`ProposalView`（`classify`）、`SimpleGrid`（S05 取代的暫代品）；`backend/BackendRegistry`；`document/`：`UndoStack`（樣板）、`ProposalSession`、`InspectionDocument`；`interaction/`：`InteractionStateMachine`、`InspectionSession`（互動的所有規則，沒有 Qt） | `aoi_domain` |
 | `aoi_backend_fake`（STATIC） | `src/infrastructure/backend_fake/` | infrastructure | 假 back end：`FakeGrid`（可重現的合成網格）、`FakeBackend`（範本建立器、搜尋器、工廠）；不看影像、只用標準庫 | `aoi_application` |
 | `aoi_perf`（STATIC） | `src/infrastructure/perf/` | infrastructure | `PerfProbe`：`IPerfProbe` 的實作（環狀緩衝、JSON 輸出） | `aoi_application` |
-| `aoi_threading`（STATIC） | `src/infrastructure/threading/` | infrastructure | `ThreadPoolExecutor`、`InlineExecutor`：`IExecutor` 的實作 | `aoi_application` |
-| `aoi_presentation`（STATIC） | `src/presentation/` | presentation | `canvas/`：`ImageCanvas`（`QGraphicsView`）、`ImageItem`、`RoiLayerItem`（批次繪製）、`RoiGraphicsItem`、`BoxFrames`、`OverlayStyle`、View／Controller 介面；`tools/`：`ITool`、`ToolRegistry`、四個工具；`shell/`：`MainWindow`、`MessageBar`、`EmptyCard`、`ShellController`（S04 前的暫代）、`ImageLoader`（S06 前的暫代）；`theme/`：`ThemeTokens`、`ThemeManager`；`i18n/`：`JsonTranslator`、`Translations` | `aoi_domain`、Qt Widgets |
+| `aoi_threading`（STATIC） | `src/infrastructure/threading/` | infrastructure | `ThreadPoolExecutor`、`InlineExecutor`：`IExecutor` 的實作（標準庫） | `aoi_application` |
+| `aoi_threading_qt`（STATIC） | `src/infrastructure/threading/` | infrastructure | `QtThreadPoolExecutor`：`IExecutor` 的 `QThreadPool` 版（S04）；只用 Qt Core | `aoi_application`、Qt Core |
+| `aoi_presentation`（STATIC） | `src/presentation/` | presentation | `canvas/`：`ImageCanvas`（`QGraphicsView`）、`ImageItem`、`RoiLayerItem`（批次繪製）、`RoiGraphicsItem`、`BoxFrames`、`OverlayStyle`、View／Controller 介面；`tools/`：`ITool`、`ToolRegistry`、四個工具（`SelectTool` 含拖曳移動）；`shell/`：`MainWindow`（Presenter 的 View：`IStatusView`、`IMessageView`、`IHistoryView`）、`MessageBar`（提示、吐司、卡片、進度列）、`EmptyCard`、`ImageLoader`（S06 前的暫代）、`ImageViewAdapter`（`QImage` → `ImageView`，S06 前的暫代）；`presenters/`：`AutoRoiPresenter`、`ParamsPresenter`、`AppPresenters`（接線）、`SceneBuilder`、`MessageTexts`、`UiPoster`、`ViewInterfaces.h`、`ControllerInterfaces.h`；`objects/`：`ObjectsModel`、`ObjectsPanel`、`ObjectRows.h`；`params/`：`ParamsPanel`；`theme/`：`ThemeTokens`、`ThemeManager`；`i18n/`：`JsonTranslator`、`Translations` | `aoi_domain`、`aoi_application`、Qt Widgets |
 | `aoi_presentation_dev`（STATIC） | `src/presentation/dev/` | （開發用） | `FakeScene`：合成板子與框，供測試、效能量測與 `--demo` 使用；不是產品功能 | `aoi_presentation` |
-| `aoi_app_core`（STATIC） | `src/app/CompositionRoot.*` | app | `makeBackendRegistry`（註冊 fake，以及 opencv、halcon 的「不可用」）、`composeCore`（back end ＋ 執行緒池 ＋ use case ＋ `JobRunner` ＋ probe）；獨立成 library 讓測試能驗證組裝 | `aoi_application`、`aoi_backend_fake`、`aoi_perf`、`aoi_threading` |
-| `aoi`（EXECUTABLE） | `src/app/main.cpp` | app | 組裝（主題、語言、視窗、核心、命令列 `--backend`） | `aoi_presentation`、`aoi_app_core`（`AOI_DEMO_SCENE` 開啟時加 `aoi_presentation_dev`） |
-| `tst_*`、`perf_*` | `tests/ui/` | （測試） | Qt Test；UI 的單元測試與效能基準線 | `aoi_presentation`、`aoi_presentation_dev` |
-| `tst_*`、`perf_core`、`check_deps*` | `tests/core/` | （測試） | 核心的 Qt Test（[ADR-003](adr/003-test-framework.md)）、命令列測試 `tst_cli`、效能量測 `perf_core`；依賴檢查的 CTest 項目與 13 個 fixture | `aoi_application`、`aoi_backend_fake`、`aoi_perf`、`aoi_threading`、`aoi_app_core` |
+| `aoi_app_core`（STATIC） | `src/app/CompositionRoot.*` | app | `makeBackendRegistry`（註冊 fake，以及 opencv、halcon 的「不可用」）、`composeCore`（back end ＋ 執行緒池〔`ExecutorKind`：`QtThreadPool` 或 `StdThreads`〕＋ use case ＋ `JobRunner` ＋ probe）；獨立成 library 讓測試能驗證組裝 | `aoi_application`、`aoi_backend_fake`、`aoi_perf`、`aoi_threading`、`aoi_threading_qt` |
+| `aoi`（EXECUTABLE） | `src/app/main.cpp` | app | 組裝（主題、語言、視窗、核心、`AppPresenters`、命令列 `--backend`） | `aoi_presentation`、`aoi_app_core`（`AOI_DEMO_SCENE` 開啟時加 `aoi_presentation_dev`） |
+| `tst_*`、`perf_*` | `tests/ui/` | （測試） | Qt Test；UI 的單元測試、Presenter 的整合測試（`tst_presenter`，走產品的接線）與效能量測（`perf_ui_baseline`、`perf_ui_s04`） | `aoi_presentation`、`aoi_presentation_dev`、`aoi_app_core` |
+| `tst_*`、`perf_core`、`check_deps*` | `tests/core/` | （測試） | 核心的 Qt Test（[ADR-003](adr/003-test-framework.md)）、命令列測試 `tst_cli`、效能量測 `perf_core`；S04 加了互動規則的測試（`tst_undo_stack`、`tst_state_machine`、`tst_box_expander`、`tst_proposal_session`、`tst_document`、`tst_session`）與 `tst_qt_executor`；依賴檢查的 CTest 項目與 13 個 fixture | `aoi_application`、`aoi_backend_fake`、`aoi_perf`、`aoi_threading`、`aoi_threading_qt`、`aoi_app_core` |
 
-畫布的設計細節（為什麼分 Item／Layer／Tool、為什麼用整數像素的填色矩形畫框）見 [`docs/steps/S02-ui-shell/spec.md`](steps/S02-ui-shell/spec.md) 與 [`diagram.md`](steps/S02-ui-shell/diagram.md)。
+畫布的設計細節（為什麼分 Item／Layer／Tool、為什麼用整數像素的填色矩形畫框）見 [`docs/steps/S02-ui-shell/spec.md`](steps/S02-ui-shell/spec.md) 與 [`diagram.md`](steps/S02-ui-shell/diagram.md)。互動的設計（狀態機、Command 與復原、worker ↔ UI 執行緒、忙碌與取消）見 [`docs/steps/S04-presenter/spec.md`](steps/S04-presenter/spec.md) 與 [`diagram.md`](steps/S04-presenter/diagram.md)。
 
 ## 檔案命名
 

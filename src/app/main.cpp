@@ -6,6 +6,7 @@
 #include "app/CompositionRoot.h"
 #include "presentation/canvas/ImageCanvas.h"
 #include "presentation/i18n/Translations.h"
+#include "presentation/presenters/AppPresenters.h"
 #include "presentation/shell/MainWindow.h"
 #include "presentation/theme/ThemeManager.h"
 #include "presentation/theme/ThemeTokens.h"
@@ -74,7 +75,7 @@ int main(int argc, char* argv[]) {
         theme.setMode(mode);
     }
 
-    // 核心（back end、執行緒、use case）。S03 只組裝並驗證 --backend；S04 的 Presenter 才會使用它。
+    // 核心（back end、執行緒、use case）。S04 起交給 Presenter；組裝在這裡，Presenter 只認識 use case 與 JobRunner。
     // back end 不存在或不可用時明確失敗，不退回別的 back end（使用者要的是哪一個，就是哪一個）。
     const aoi::BackendRegistry registry = aoi::app::makeBackendRegistry();
     aoi::Result<aoi::app::CoreServices> core =
@@ -85,7 +86,25 @@ int main(int argc, char* argv[]) {
         return 2;
     }
 
+    // 視窗、Presenter 的建立順序＝解構順序的反面：核心活得最久，然後是視窗，最後才是 Presenter（它解構時先解除視窗的 Controller）。
     aoi::ui::MainWindow window(theme);
+    QStringList backendNames;
+    int currentBackend = 0;
+    QString fallbackBackend = QStringLiteral("OpenCV");
+    for (const aoi::BackendInfo& info : registry.list()) {
+        if (info.id == core.value().backend.id) currentBackend = static_cast<int>(backendNames.size());
+        else if (info.available && fallbackBackend == QLatin1String("OpenCV")) fallbackBackend = QString::fromStdString(info.displayName);
+        backendNames << QString::fromStdString(info.displayName) + (info.available ? QString() : QStringLiteral(" ✕"));
+    }
+    window.setBackends(backendNames, currentBackend);
+
+    aoi::app::CoreServices& services = core.value();
+    aoi::ui::PresenterServices presenterServices{*services.generateObjects,
+                                                 *services.runner,
+                                                 services.probe.get(),
+                                                 QString::fromStdString(services.backend.displayName),
+                                                 fallbackBackend};
+    aoi::ui::AppPresenters presenters(window, presenterServices, tokens);
     window.show();
 
     const QStringList args = parser.positionalArguments();

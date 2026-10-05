@@ -5,6 +5,7 @@
 #include <QPen>
 #include <array>
 
+#include "presentation/canvas/BoxFrames.h"
 #include "presentation/canvas/OverlayTypes.h"
 #include "presentation/theme/ThemeTokens.h"
 
@@ -30,8 +31,12 @@ public:
     const PenPair& box(OverlayState state, BoxKind kind, bool selected) const {
         return boxPens_[index(state, kind, selected)];
     }
-    // 實線狀態用 BoxFrames 的整數像素填色畫法（快）；虛線與點線狀態沒辦法，仍用描邊。
+    // 實線狀態：連續的線。
     bool solid(OverlayState state) const { return tokens_.line[static_cast<size_t>(stateIndex(state))].dashPx.isEmpty(); }
+    // 能用 BoxFrames 的整數像素填色畫法（快）：實線，或「畫、空」一組的虛線與點線。其他花樣（目前沒有）仍用描邊。
+    bool frameable(OverlayState state) const;
+    // 虛線與點線的整數像素描述；實線或花樣不是一組「畫、空」時回傳無效的 DashSpec（valid() ＝ false）。
+    BoxFrames::DashSpec dashSpec(OverlayState state, BoxKind kind, bool selected) const;
     int frameThickness(OverlayState state, BoxKind kind, bool selected) const;
     const StrokeColors& colors(OverlayState state) const { return tokens_.overlay.state[static_cast<size_t>(stateIndex(state))]; }
 

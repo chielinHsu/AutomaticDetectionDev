@@ -11,6 +11,8 @@
 
 > **S03 完成後的提醒（2026-10-05）**：S03 的暫代 `SimpleGrid`（`src/application/usecases/SimpleGrid.*`：`fitGrid`、`gridHoles`）就是這一步要取代的對象；use case 只透過這兩個函式用它。`tests/core/tst_grid.cpp` 是現成的規格，其中「間距差 20 倍會被當成一排」記錄的是暫代版的已知限制，S05 取代後應改成預期找得到第二個方向。實測：暫代版在約 4 900 點要 97–134 ms（`docs/steps/S03-core/perf.md`），T3 的目標是 1 000 點 ≤ 2 ms。座標與角度慣例見 ADR-010。
 
+> **S04 完成後的提醒（2026-10-06）**：Presenter 不直接碰晶格：它只透過 use case `GenerateObjectsFromSample` 用到 `fitGrid`／`gridHoles`，所以 S05 取代它們時不必改 `presentation/`。框層級的矩陣（Pin 的列、欄、間距，Window 的比例）已經在 `src/domain/box_expander.h`（`expandBoxes`），晶格估計只處理元件層級，不要重做一份。提案的編輯與復原（`ProposalSession`）、門檻分級（`classify`）是 S04 的；S05 只要讓 `Candidate` 的位姿與分數正確。
+
 <!--STE-->
 ## Purpose
 This step builds the array rules in pure C++. It finds the pitch, assigns grid indexes and fills the gaps.

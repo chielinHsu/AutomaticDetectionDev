@@ -10,6 +10,7 @@
 #include <QFileInfo>
 #include <QFormLayout>
 #include <QImage>
+#include <QKeyEvent>
 #include <QLabel>
 #include <QLineEdit>
 #include <QMenu>
@@ -18,6 +19,7 @@
 #include <QSlider>
 #include <QStatusBar>
 #include <QToolBar>
+#include <QTreeView>
 #include <QUrl>
 #include <QVBoxLayout>
 
@@ -25,8 +27,9 @@
 #include "presentation/i18n/Translations.h"
 #include "presentation/shell/EmptyCard.h"
 #include "presentation/shell/ImageLoader.h"
+#include "presentation/objects/ObjectsPanel.h"
+#include "presentation/params/ParamsPanel.h"
 #include "presentation/shell/MessageBar.h"
-#include "presentation/shell/ShellController.h"
 #include "presentation/theme/ThemeManager.h"
 
 namespace aoi::ui {
@@ -58,10 +61,6 @@ MainWindow::MainWindow(ThemeManager& theme, QWidget* parent) : QMainWindow(paren
     column->addWidget(messageBar_, 0);
     setCentralWidget(central);
 
-    controller_ = std::make_unique<ShellController>(*canvas_, *messageBar_, tokens);
-    canvas_->setController(controller_.get());
-    canvas_->setSelectionController(controller_.get());
-
     emptyCard_ = new EmptyCard(canvas_->viewport());
     canvas_->viewport()->installEventFilter(this);
     connect(emptyCard_, &EmptyCard::openRequested, this, &MainWindow::promptOpen);
@@ -85,12 +84,32 @@ MainWindow::MainWindow(ThemeManager& theme, QWidget* parent) : QMainWindow(paren
     });
     connect(canvas_, &ImageCanvas::cursorLeft, this, [this] { cursorLabel_->clear(); });
     connect(canvas_, &ImageCanvas::imageChanged, this, [this](bool) { refreshState(); });
-    connect(canvas_, &ImageCanvas::pointerDragChanged, this, [this](bool active, ToolId tool) {
-        dragging_ = active;
-        dragTool_ = tool;
-        refreshHint();
+    connect(canvas_, &ImageCanvas::activeToolChanged, this, [this](ToolId id) {
+        if (QAction* a = toolAction(id)) a->setChecked(true);  // 程式換工具（〔重畫樣本〕）時，按鈕跟著換
     });
-    connect(messageBar_, &MessageBar::actionTriggered, this, [this](int) { messageBar_->clearCard(); });
+    // View 的操作 → Controller。Controller 是 setControllers 交進來的介面；還沒設定時沒有人聽（獨立的視窗測試）。
+    // 按過訊息卡上的按鈕之後，鍵盤焦點還給畫布：Del、方向鍵、Esc 不必再點一下畫布才有用。
+    connect(messageBar_, &MessageBar::actionTriggered, this, [this](int i) {
+        if (controllers_.message) controllers_.message->applyAdvice(i);
+        canvas_->setFocus(Qt::OtherFocusReason);
+    });
+    connect(messageBar_, &MessageBar::cancelRequested, this, [this] {
+        if (controllers_.proposal) controllers_.proposal->cancelSearch();
+        canvas_->setFocus(Qt::OtherFocusReason);
+    });
+    objectsPanel_->view()->installEventFilter(this);  // 焦點在物件樹上時，Enter、Esc、Del 也要到得了 Presenter
+    connect(objectsPanel_, &ObjectsPanel::selectionChangedByUser, this, [this](const std::vector<int>& ids) {
+        if (controllers_.selection) controllers_.selection->select(ids);
+    });
+    connect(paramsPanel_, &ParamsPanel::thresholdChanged, this, [this](double v) {
+        if (controllers_.params) controllers_.params->setScoreThreshold(v);
+    });
+    connect(paramsPanel_, &ParamsPanel::angleRangeChanged, this, [this](double lo, double hi) {
+        if (controllers_.params) controllers_.params->setAngleRange(lo, hi);
+    });
+    connect(paramsPanel_, &ParamsPanel::scopeChanged, this, [this](int i) {
+        if (controllers_.params) controllers_.params->setScanScope(i);
+    });
 
     retranslateUi();
     refreshState();
@@ -98,11 +117,19 @@ MainWindow::MainWindow(ThemeManager& theme, QWidget* parent) : QMainWindow(paren
 }
 
 MainWindow::~MainWindow() {
-    // controller_ 被畫布以原始指標持有；視窗解構時畫布還在，先解除以免解構過程中的事件走到已釋放的物件。
+    // Controller 不歸視窗所有，畫布以原始指標持有它們；視窗解構時畫布還在，先解除以免解構過程中的事件走到已釋放的物件。
     if (canvas_) {
         canvas_->setController(nullptr);
         canvas_->setSelectionController(nullptr);
+        canvas_->setKeyboardController(nullptr);
     }
+}
+
+void MainWindow::setControllers(const Controllers& controllers) {
+    controllers_ = controllers;
+    canvas_->setController(controllers.canvas);
+    canvas_->setSelectionController(controllers.selection);
+    canvas_->setKeyboardController(controllers.keyboard);
 }
 
 QAction* MainWindow::toolAction(ToolId id) const {
@@ -132,10 +159,16 @@ void MainWindow::buildActions() {
 
     undoAction_ = new QAction(this);
     undoAction_->setShortcut(QKeySequence::Undo);
-    undoAction_->setEnabled(false);  // 復原堆疊在 S04
+    undoAction_->setEnabled(false);  // Presenter 依歷史堆疊的狀態啟用（IHistoryView）
+    connect(undoAction_, &QAction::triggered, this, [this] {
+        if (controllers_.history) controllers_.history->undo();
+    });
     redoAction_ = new QAction(this);
     redoAction_->setShortcuts({QKeySequence(Qt::CTRL | Qt::Key_Y), QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_Z)});
     redoAction_->setEnabled(false);
+    connect(redoAction_, &QAction::triggered, this, [this] {
+        if (controllers_.history) controllers_.history->redo();
+    });
 
     fitAction_ = new QAction(this);
     fitAction_->setShortcut(Qt::Key_F);
@@ -156,10 +189,7 @@ void MainWindow::buildActions() {
         a->setCheckable(true);
         toolGroup_->addAction(a);
         const ToolId id = t.id;
-        connect(a, &QAction::triggered, this, [this, id] {
-            canvas_->setInteraction(id);
-            refreshHint();
-        });
+        connect(a, &QAction::triggered, this, [this, id] { canvas_->setInteraction(id); });
         *t.action = a;
     }
     toolSelect_->setShortcut(Qt::Key_V);
@@ -240,8 +270,7 @@ void MainWindow::buildToolbars() {
     topBar_->addSeparator();
     backendLabel_ = new QLabel(topBar_);
     backendCombo_ = new QComboBox(topBar_);
-    backendCombo_->setEnabled(false);  // back end 清單在 S03 的 BackendRegistry
-    backendCombo_->addItem(QString());
+    backendCombo_->setEnabled(false);  // 執行中切換 back end 要等 S07（現在只有一個可用的）；清單由 setBackends 填
     topBar_->addWidget(backendLabel_);
     topBar_->addWidget(backendCombo_);
     auto* spacer = new QWidget(topBar_);
@@ -292,30 +321,13 @@ void MainWindow::buildDocks() {
     libraryColumn->addWidget(libraryEmpty_, 1);
     libraryDock_ = makeDock("libraryDock", libraryBody);
 
-    // 物件樹（空殼）。Board › Component › 框群組在 S04。
-    auto* objectsBody = new QWidget(this);
-    auto* objectsColumn = new QVBoxLayout(objectsBody);
-    objectsColumn->setContentsMargins(8, 8, 8, 8);
-    placeholder(objectsEmpty_, objectsBody);
-    objectsColumn->addWidget(objectsEmpty_, 1);
-    objectsDock_ = makeDock("objectsDock", objectsBody);
+    // 物件樹：Board › Component › 框群組，可依狀態篩選，與畫布雙向選取同步（S04）。
+    objectsPanel_ = new ObjectsPanel(this);
+    objectsDock_ = makeDock("objectsDock", objectsPanel_);
 
-    // 比對參數（空殼：控制項在，但停用）。
-    auto* paramsBody = new QWidget(this);
-    auto* form = new QFormLayout(paramsBody);
-    form->setContentsMargins(12, 8, 12, 8);
-    scoreLabel_ = new QLabel(paramsBody);
-    scoreSlider_ = new QSlider(Qt::Horizontal, paramsBody);
-    scoreSlider_->setRange(30, 100);
-    scoreSlider_->setValue(80);
-    scoreSlider_->setEnabled(false);
-    scopeLabel_ = new QLabel(paramsBody);
-    scopeCombo_ = new QComboBox(paramsBody);
-    scopeCombo_->setEnabled(false);
-    for (int i = 0; i < 3; ++i) scopeCombo_->addItem(QString());
-    form->addRow(scoreLabel_, scoreSlider_);
-    form->addRow(scopeLabel_, scopeCombo_);
-    paramsDock_ = makeDock("paramsDock", paramsBody);
+    // 比對參數：分數門檻（拖動即時重新過濾）、進階的角度範圍（防抖後重新搜尋）、比對範圍。
+    paramsPanel_ = new ParamsPanel(this);
+    paramsDock_ = makeDock("paramsDock", paramsPanel_);
 }
 
 void MainWindow::buildStatusBar() {
@@ -362,26 +374,20 @@ void MainWindow::retranslateUi() {
     themeSystem_->setText(qtTrId("ui.settings.theme.system"));
 
     backendLabel_->setText(qtTrId("ui.backend.label") + QStringLiteral(" "));
-    backendCombo_->setItemText(0, qtTrId("ui.shell.backendNone"));
 
     libraryDock_->setWindowTitle(qtTrId("ui.library.title"));
     objectsDock_->setWindowTitle(qtTrId("ui.objects.title"));
     paramsDock_->setWindowTitle(qtTrId("ui.params.title"));
     libraryFilter_->setPlaceholderText(qtTrId("ui.library.filter"));
     libraryEmpty_->setText(qtTrId("ui.library.empty"));
-    objectsEmpty_->setText(qtTrId("ui.objects.empty"));
-    scoreLabel_->setText(qtTrId("ui.params.score"));
-    scopeLabel_->setText(qtTrId("ui.params.scanScope"));
-    scopeCombo_->setItemText(0, qtTrId("ui.params.scope.auto"));
-    scopeCombo_->setItemText(1, qtTrId("ui.params.scope.board"));
-    scopeCombo_->setItemText(2, qtTrId("ui.params.scope.all"));
-
-    summaryLabel_->setText(uiText("ui.status.none", {{"backend", qtTrId("ui.shell.backendNone")}}));
+    objectsPanel_->retranslate();
+    paramsPanel_->retranslate();
+    updateHistoryTips();
+    updateSummaryLabel();
     zoomLabel_->setText(uiText("ui.status.zoom", {{"percent", QString::number(qRound(canvas_->zoomPercent()))}}));
     emptyCard_->retranslate();
     emptyCard_->adjustSize();
     centerEmptyCard();
-    refreshHint();
     langZh_->setChecked(Translations::current() == QLatin1String("zh_TW"));
     langEn_->setChecked(Translations::current() == QLatin1String("en"));
 }
@@ -392,17 +398,6 @@ void MainWindow::refreshState() {
     fitAction_->setEnabled(has);
     emptyCard_->setVisible(!has);
     centerEmptyCard();
-    refreshHint();
-}
-
-void MainWindow::refreshHint() {
-    if (!canvas_->hasImage()) {
-        messageBar_->setHint(QString());
-        return;
-    }
-    if (dragging_ && dragTool_ == ToolId::Sample) messageBar_->setHint(qtTrId("ui.sample.hint"));
-    else if (dragging_ && dragTool_ == ToolId::Region) messageBar_->setHint(qtTrId("ui.scan.hint"));
-    else messageBar_->setHint(qtTrId("ui.idle.hint"));
 }
 
 void MainWindow::centerEmptyCard() {
@@ -425,8 +420,8 @@ bool MainWindow::openImage(const QString& path) {
     const LoadedImage loaded = loadImageFile(path);
     const QString name = QFileInfo(path).fileName();
     if (!loaded.ok()) {
-        messageBar_->showCard(qtTrId("ui.error.imageOpen.title"),
-                              uiText("ui.error.imageOpen.body", {{"name", name}}), {}, {qtTrId("action.dismiss")});
+        // 舊影像保留。錯誤卡片是 Presenter 的事（它知道目前的狀態，Dismiss 要回到 Idle 還是 Empty）。
+        emit imageOpenFailed(name, loaded.error);
         return false;
     }
     setImage(loaded.image, name);
@@ -434,11 +429,89 @@ bool MainWindow::openImage(const QString& path) {
 }
 
 void MainWindow::setImage(const QImage& image, const QString& name) {
-    messageBar_->clearCard();
     imageName_ = name;
     canvas_->setImage(image);
     setWindowTitle(QStringLiteral("%1 — %2").arg(name, qtTrId("app.title")));
     canvas_->setFocus(Qt::OtherFocusReason);
+    emit imageOpened(image, name);
+}
+
+void MainWindow::selectTool(ToolId id) {
+    if (QAction* a = toolAction(id)) {
+        if (a->isEnabled()) a->trigger();
+    }
+}
+
+void MainWindow::setBackends(const QStringList& names, int current) {
+    backendCombo_->clear();
+    backendCombo_->addItems(names);
+    backendCombo_->setCurrentIndex(current);
+    backendCombo_->setEnabled(false);
+}
+
+// ---- IStatusView ---------------------------------------------------------------------------------------
+
+void MainWindow::updateSummaryLabel() {
+    switch (busyLevel_) {
+        case BusyLevel::None: summaryLabel_->setText(summaryText_); break;
+        case BusyLevel::Busy: summaryLabel_->setText(uiText("ui.search.busy")); break;
+        case BusyLevel::Progress:
+            summaryLabel_->setText(uiText("ui.search.progress", {{"percent", QString::number(qRound(progress_ * 100.0))}}));
+            break;
+    }
+}
+
+void MainWindow::showSummary(const QString& text) {
+    summaryText_ = text;
+    updateSummaryLabel();
+}
+
+void MainWindow::showBusy(BusyLevel level) {
+    busyLevel_ = level;
+    if (level == BusyLevel::Progress) showProgress(progress_);
+    else messageBar_->clearProgress();
+    updateSummaryLabel();
+}
+
+void MainWindow::showProgress(double fraction) {
+    progress_ = fraction;
+    updateSummaryLabel();
+    if (busyLevel_ != BusyLevel::Progress) return;
+    messageBar_->showProgress(uiText("ui.search.progress", {{"percent", QString::number(qRound(fraction * 100.0))}}), fraction,
+                              uiText("action.cancel") + QStringLiteral(" (Esc)"));
+}
+
+void MainWindow::showToast(const QString& text) { messageBar_->showToast(text); }
+
+void MainWindow::setHint(const QString& text) { messageBar_->setHint(text); }
+
+// ---- IMessageView --------------------------------------------------------------------------------------
+
+void MainWindow::showCard(const MessageCard& card) {
+    messageBar_->showCard(card.title, card.body, card.advice, card.actions);
+}
+
+void MainWindow::hideCard() { messageBar_->clearCard(); }
+
+// ---- IHistoryView --------------------------------------------------------------------------------------
+
+void MainWindow::updateHistoryTips() {
+    undoAction_->setToolTip(undoLabel_.isEmpty() ? withShortcut(qtTrId("action.undo"), QStringLiteral("Ctrl+Z"))
+                                                 : uiText("ui.history.undo", {{"label", undoLabel_}}));
+    redoAction_->setToolTip(redoLabel_.isEmpty() ? withShortcut(qtTrId("action.redo"), QStringLiteral("Ctrl+Y"))
+                                                 : uiText("ui.history.redo", {{"label", redoLabel_}}));
+}
+
+void MainWindow::setUndo(bool enabled, const QString& label) {
+    undoAction_->setEnabled(enabled);
+    undoLabel_ = enabled ? label : QString();
+    updateHistoryTips();
+}
+
+void MainWindow::setRedo(bool enabled, const QString& label) {
+    redoAction_->setEnabled(enabled);
+    redoLabel_ = enabled ? label : QString();
+    updateHistoryTips();
 }
 
 // ---- 事件 ----------------------------------------------------------------------------------------------
@@ -469,6 +542,20 @@ void MainWindow::dropEvent(QDropEvent* event) {
 
 bool MainWindow::eventFilter(QObject* watched, QEvent* event) {
     if (watched == canvas_->viewport() && event->type() == QEvent::Resize) centerEmptyCard();
+    if (watched == objectsPanel_->view() && event->type() == QEvent::KeyPress && controllers_.keyboard) {
+        // 樹自己用方向鍵、Home、End 導覽；Enter、Esc、Del、Backspace 的意義和畫布上一樣，交給 Presenter（它不處理就還給樹）。
+        const auto* key = static_cast<QKeyEvent*>(event);
+        switch (key->key()) {
+            case Qt::Key_Return:
+            case Qt::Key_Enter:
+            case Qt::Key_Escape:
+            case Qt::Key_Delete:
+            case Qt::Key_Backspace:
+                if (controllers_.keyboard->onKeyPressed(key->key(), key->modifiers())) return true;
+                break;
+            default: break;
+        }
+    }
     return QMainWindow::eventFilter(watched, event);
 }
 

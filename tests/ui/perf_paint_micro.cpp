@@ -122,6 +122,70 @@ private slots:
                }));
         QVERIFY(true);
     }
+
+    // ADR-012 的證據：5 832 個框適配視窗時的大小（8 × 5 px），畫成點線或虛線。
+    // cosmetic 的圓端點點線筆要走筆畫轉路徑；用填色矩形切成小段只要掃描線填充。
+    void dashedAndDottedFrames() {
+        QImage target(870, 600, QImage::Format_RGB32);
+        const int n = 5832;
+        std::vector<QRectF> boxes;
+        for (int i = 0; i < n; ++i) boxes.emplace_back(10 + (i % 72) * 11.0, 10 + (i / 72) * 7.0, 8.0, 5.0);
+
+        QPen dotted = cosmetic(QColor(255, 120, 110), 2);
+        dotted.setCapStyle(Qt::RoundCap);
+        dotted.setDashPattern({0.001, 2.0});  // 零長度的線段 Qt 不畫，所以用極小的正值（OverlayStyle 同）
+        QPen dottedCasing = cosmetic(Qt::black, 4);
+        dottedCasing.setCapStyle(Qt::RoundCap);
+        dottedCasing.setDashPattern({0.001, 1.0});
+        QPen dashed = cosmetic(QColor(210, 153, 34), 2);
+        dashed.setDashPattern({4.0, 2.0});
+
+        const double dottedPen = timeMedianMs([&] {
+            QPainter p(&target);
+            p.setBrush(Qt::NoBrush);
+            p.setPen(dottedCasing);
+            p.drawRects(boxes.data(), n);
+            p.setPen(dotted);
+            p.drawRects(boxes.data(), n);
+        }, 15, 3);
+        report("E  cosmetic dotted pens (round cap), casing + stroke", dottedPen);
+        const double dashedPen = timeMedianMs([&] {
+            QPainter p(&target);
+            p.setBrush(Qt::NoBrush);
+            p.setPen(dashed);
+            p.drawRects(boxes.data(), n);
+            p.drawRects(boxes.data(), n);
+        }, 15, 3);
+        report("F  cosmetic dashed pens (flat cap), casing + stroke", dashedPen);
+
+        // 填色矩形：每個框的四條邊依「點 2 px、週期 4 px」切成小方塊（BoxFrames::appendDashed 的做法）。
+        std::vector<QRect> dots, dotCasing;
+        auto edge = [](std::vector<QRect>& stroke, std::vector<QRect>& casing, int x, int y, int len, bool horizontal) {
+            for (int o = 0; o < len; o += 4) {
+                const int l = std::min(2, len - o);
+                const QRect r = horizontal ? QRect(x + o, y, l, 2) : QRect(x, y + o, 2, l);
+                stroke.push_back(r);
+                casing.push_back(r.adjusted(-1, -1, 1, 1));
+            }
+        };
+        for (const QRectF& b : boxes) {
+            const int x = qRound(b.left()), y = qRound(b.top()), w = qRound(b.width()), h = qRound(b.height());
+            edge(dots, dotCasing, x, y, w, true);
+            edge(dots, dotCasing, x, y + h - 2, w, true);
+            edge(dots, dotCasing, x, y + 2, h - 4, false);
+            edge(dots, dotCasing, x + w - 2, y + 2, h - 4, false);
+        }
+        report("G  integer-pixel filled rects for the same dots", timeMedianMs([&] {
+                   QPainter p(&target);
+                   p.setPen(Qt::NoPen);
+                   p.setBrush(Qt::black);
+                   p.drawRects(dotCasing.data(), static_cast<int>(dotCasing.size()));
+                   p.setBrush(QColor(255, 120, 110));
+                   p.drawRects(dots.data(), static_cast<int>(dots.size()));
+               }, 15, 3));
+        qInfo().noquote() << QStringLiteral("rects per box: %1 stroke + %2 casing").arg(double(dots.size()) / n, 0, 'f', 1).arg(double(dotCasing.size()) / n, 0, 'f', 1);
+        QVERIFY(true);
+    }
 };
 
 QTEST_MAIN(PerfPaintMicro)

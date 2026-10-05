@@ -55,6 +55,25 @@ int OverlayStyle::frameThickness(OverlayState state, BoxKind kind, bool selected
     return BoxFrames::thickness(strokeWidth(tokens_, state, kind, selected));
 }
 
+bool OverlayStyle::frameable(OverlayState state) const {
+    const LineSpec& spec = tokens_.line[static_cast<size_t>(stateIndex(state))];
+    return spec.dashPx.isEmpty() || spec.dashPx.size() == 2;
+}
+
+BoxFrames::DashSpec OverlayStyle::dashSpec(OverlayState state, BoxKind kind, bool selected) const {
+    const LineSpec& spec = tokens_.line[static_cast<size_t>(stateIndex(state))];
+    if (spec.dashPx.size() != 2) return {};
+    // tokens 的 dash 單位是像素。圓端點與方端點會讓每一段在兩端各多出半個線寬（Qt 的 cap 規則），
+    // 零長度的「點」因此是一個線寬大的圓點：visible ＝ dash ＋ 線寬。
+    const int t = frameThickness(state, kind, selected);
+    const int dash = static_cast<int>(std::lround(spec.dashPx.at(0)));
+    const int gap = static_cast<int>(std::lround(spec.dashPx.at(1)));
+    BoxFrames::DashSpec d;
+    d.visible = std::max(1, dash + (spec.cap == Qt::FlatCap ? 0 : t));
+    d.period = std::max(d.visible + 1, dash + gap);
+    return d;
+}
+
 QPen OverlayStyle::makeBoxPen(const ThemeTokens& t, OverlayState state, BoxKind kind, bool selected, bool casing,
                               qreal dpr) {
     const LineSpec& spec = t.line[static_cast<size_t>(stateIndex(state))];

@@ -11,6 +11,8 @@
 
 > **S03 完成後的提醒（2026-10-05）**：新增 back end ＝ adapter ＋ 在 `src/app/CompositionRoot.cpp` 把 `registerUnavailable("opencv", …)` 換成 `registerBackend`；不要改 `application/`、`domain/`（`check-deps` 會擋）。`ITemplateBuilder`、`IPatternSearcher` 的契約（排序、視窗限制、取消、可重入、不丟例外）寫在標頭；`tests/core/tst_fake_backend.cpp` 是假 back end 版本的契約測試，`tst_backend_registry` 的 `ScriptedBackend` 示範怎麼放進新的 back end。OpenCV 只能出現在 `infrastructure/backend_opencv`（`check-deps` 的規則表已有這一列）；`AiInspTool.pro` 目前不納入它。ADR-010 的座標與角度轉換（像素中心偏移 0.5、`matchTemplate` 回傳左上角整數座標）只是文件上的假設，要實測。
 
+> **S04 完成後的提醒（2026-10-06）**：（1）流程 B 的接口：`AutoRoiPresenter::finishRegionScan()` 現在直接回「樣本庫是空的」（庫與比對器都還沒有實作）。S07 做好 `ILibraryMatcher` 後，把它換成真的呼叫（走 `JobRunner`，和流程 A 同一條路）；狀態機、取消、忙碌提示、結果卡都已經就位，不必改。（2）`Stage::Match` 的進度已經對應到進度列（`ProgressBridge`，整段 0..1）。（3）執行中切換 back end 的下拉選單仍是停用的（`MainWindow::setBackends` 只填清單）；`--backend` 命令列是唯一的切換方式。（4）Presenter 的測試用 `tests/ui/PresenterRig.h` 的假 back end（可設成失敗、可卡住視窗驗證階段）；新的 back end 不需要動它。
+
 <!--STE-->
 ## Purpose
 This step builds the OpenCV back end. It builds the template and searches the image for similar parts.

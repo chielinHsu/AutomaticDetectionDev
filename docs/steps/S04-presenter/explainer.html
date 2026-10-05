@@ -1,0 +1,333 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S04 Presenter、狀態機、復原</title>
+<style>
+:root{--bg:#f6f7f9;--panel:#fff;--ink:#18212b;--muted:#566273;--line:#d3d9e0;--accent:#1d4ed8;--accent-ink:#fff;
+  --sample:#1d4ed8;--found:#15803d;--infer:#b45309;--reject:#b91c1c;--ok:#15803d;--bad:#b91c1c;--term:#0f1720;--term-ink:#d7e2ee;--node:#eef2f7;--nodeLive:#dbe7ff}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#0f141a;--panel:#18202a;--ink:#e7edf4;--muted:#9aa8b8;--line:#2c3846;
+  --accent:#7aa7ff;--accent-ink:#0b1220;--sample:#7aa7ff;--found:#4ade80;--infer:#fbbf24;--reject:#f87171;--ok:#4ade80;--bad:#f87171;--term:#0a0f14;--node:#202a36;--nodeLive:#243a63}}
+:root[data-theme="dark"]{--bg:#0f141a;--panel:#18202a;--ink:#e7edf4;--muted:#9aa8b8;--line:#2c3846;
+  --accent:#7aa7ff;--accent-ink:#0b1220;--sample:#7aa7ff;--found:#4ade80;--infer:#fbbf24;--reject:#f87171;--ok:#4ade80;--bad:#f87171;--term:#0a0f14;--node:#202a36;--nodeLive:#243a63}
+*{box-sizing:border-box} html{color-scheme:light dark}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 system-ui,"Segoe UI","Microsoft JhengHei",sans-serif}
+.wrap{max-width:1100px;margin:0 auto;padding:16px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;margin-top:14px}
+h1{font-size:22px;margin:0 0 4px} h2{font-size:16px;margin:0 0 8px} h3{font-size:14px;margin:10px 0 4px}
+.zh{color:var(--muted);font-size:13.5px} .muted{color:var(--muted)} .small{font-size:12.5px}
+.row{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center}
+.btn{border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:5px 10px;border-radius:8px;font:inherit;cursor:pointer}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn:disabled{opacity:.38;cursor:not-allowed}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+input[type=range]{width:min(320px,100%);accent-color:var(--accent)}
+label{display:inline-flex;gap:6px;align-items:center}
+.grid{display:grid;grid-template-columns:1.15fr 1fr;gap:14px} @media (max-width:820px){.grid{grid-template-columns:1fr}}
+.note{border-left:4px solid var(--accent);padding:4px 10px;margin:10px 0;background:color-mix(in srgb,var(--accent) 8%,transparent)}
+.warn{border-left-color:var(--bad);background:color-mix(in srgb,var(--bad) 8%,transparent)}
+svg text{fill:var(--ink);font:12px system-ui,"Microsoft JhengHei",sans-serif}
+.node rect{fill:var(--node);stroke:var(--line);stroke-width:1.5}
+.node.cur rect{fill:var(--accent);stroke:var(--accent)} .node.cur text{fill:var(--accent-ink);font-weight:700}
+.node.next rect{fill:var(--nodeLive);stroke:var(--accent);stroke-dasharray:4 3}
+.edge{stroke:var(--accent);stroke-width:1.6;fill:none;marker-end:url(#arr)}
+.edgeLabel{font-size:11px}
+.events{display:flex;flex-wrap:wrap;gap:6px}
+.events .btn{font-size:12.5px;padding:4px 8px}
+.events .btn.legal{border-color:var(--accent)}
+pre.term{background:var(--term);color:var(--term-ink);border-radius:8px;padding:10px;overflow-x:auto;font:12.5px/1.5 Consolas,"Cascadia Mono",monospace;white-space:pre-wrap;word-break:break-word;margin:8px 0 0;max-height:220px;overflow-y:auto}
+pre.term .red{color:#ff8a80} pre.term .grn{color:#7ee787} pre.term .dim{color:#8b9bb0}
+.screen{border:1px solid var(--line);border-radius:10px;overflow:hidden;font-size:13px}
+.screen .bar{padding:6px 10px;border-top:1px solid var(--line);min-height:44px}
+.screen .board{height:70px;background:#1a5c3a;position:relative}
+.screen .board i{position:absolute;width:26px;height:14px;border:2px solid #3fb950}
+.screen .board i.s{border-color:#58a6ff;border-width:3px} .screen .board i.i{border-style:dashed;border-color:#d29922} .screen .board i.r{border-style:dotted;border-color:#ff7b72}
+.tl{position:relative;height:84px;margin:10px 0 24px}
+.tl .axis{position:absolute;left:0;right:0;top:34px;height:4px;background:var(--line);border-radius:2px}
+.tl .seg{position:absolute;top:30px;height:12px;border-radius:3px}
+.tl .mark{position:absolute;top:0;width:0;border-left:2px dashed var(--muted);height:70px}
+.tl .mark span{position:absolute;top:70px;left:-40px;width:80px;text-align:center;font-size:11px;color:var(--muted)}
+.tl .play{position:absolute;top:22px;width:3px;height:28px;background:var(--bad)}
+.stacks{display:grid;grid-template-columns:1fr 1fr;gap:10px} @media (max-width:560px){.stacks{grid-template-columns:1fr}}
+.stack{border:2px solid var(--line);border-radius:10px;padding:8px;min-height:120px}
+.stack.hit{border-color:var(--accent)} .stack h3{margin:0 0 4px}
+.stack ol{margin:0;padding-left:20px;font-size:13px}
+table{border-collapse:collapse;width:100%;font-size:13.5px;font-variant-numeric:tabular-nums}
+th,td{border-bottom:1px solid var(--line);padding:5px 8px;text-align:right}
+th:first-child,td:first-child,th:nth-child(2),td:nth-child(2){text-align:left}
+th{color:var(--muted);font-weight:500}
+.bar2{height:12px;border-radius:4px;background:var(--line);position:relative;min-width:110px}
+.bar2 i{position:absolute;left:0;top:0;bottom:0;border-radius:4px;background:var(--ok)}
+.bar2 i.over{background:var(--bad)} .bar2 b{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--ink)}
+.ok{color:var(--ok)} .bad{color:var(--bad)}
+@media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>S04 — Presenter、互動狀態機、復原／重做</h1>
+  <div class="zh">畫面接上核心了。這一頁讓你<strong>動手</strong>看三件事：狀態機怎麼轉（40 個合法轉移，其餘一律被拒絕）；搜尋很慢的時候，忙碌標示、進度、取消什麼時候出現；兩個復原堆疊，Ctrl+Z 作用在哪一個。標「示意」的是 JavaScript 重寫的規則動畫；第四張卡片的數字是 <code>perf_ui_s04</code> 在這台機器上<strong>真的量到的</strong>（含沒達標的）。</div>
+
+  <!-- 1. state machine -->
+  <div class="card" id="fsmCard">
+    <h2>1　互動狀態機（示意，規則照 ux-spec 第 6 節）</h2>
+    <div class="row">
+      <label><input type="checkbox" id="hasImage" checked> 有影像（Error 的〔關閉〕回 Idle，否則回 Empty）</label>
+      <label><input type="checkbox" id="foundAny"> 門檻下找到至少一個（NoMatch 拖門檻）</label>
+      <button type="button" class="btn" id="fsmReset">重設為 Empty</button>
+    </div>
+    <div class="grid" style="margin-top:8px">
+      <div>
+        <svg id="fsmSvg" viewBox="0 0 560 330" role="img" aria-label="狀態機：目前的狀態與可以走的轉移"></svg>
+        <h3>事件（亮邊框＝現在合法）</h3>
+        <div class="events" id="events"></div>
+      </div>
+      <div>
+        <div class="screen" aria-live="polite">
+          <div class="board" id="board"></div>
+          <div class="bar" id="bar"></div>
+        </div>
+        <div class="small muted" id="gate" style="margin-top:6px"></div>
+        <pre class="term" id="log" aria-live="polite"></pre>
+      </div>
+    </div>
+    <p class="small muted" id="fsmCount"></p>
+  </div>
+
+  <!-- 2. slow search -->
+  <div class="card" id="slowCard">
+    <h2>2　搜尋很慢的時候（示意）</h2>
+    <div class="row">
+      <label>搜尋要花 <input type="range" id="dur" min="50" max="3000" step="50" value="1800" aria-label="搜尋花的時間"> <b id="durLabel"></b></label>
+      <label><input type="checkbox" id="doCancel" checked> 使用者在 <input type="range" id="cancelAt" min="0" max="3000" step="50" value="1300" aria-label="按下取消的時間"> <b id="cancelLabel"></b> 按 Esc</label>
+      <button type="button" class="btn primary" id="play">播放</button>
+    </div>
+    <div class="tl" id="tl" aria-hidden="true"></div>
+    <ul class="small" id="tlText" style="margin:4px 0 0 18px"></ul>
+    <div class="note small">門檻來自 <code>docs/ux/tokens.json</code> 的 <code>timing</code>：忙碌 200 ms、進度 1000 ms、忙碌標示至少停留 400 ms、取消到 Idle ≤ 100 ms。取消是使用者的決定，標示馬上收起來；結果回來時才套用「至少停留」。</div>
+  </div>
+
+  <!-- 3. undo -->
+  <div class="card" id="undoCard">
+    <h2>3　兩個復原堆疊：Ctrl+Z 作用在哪一個（示意）</h2>
+    <div class="row events" id="undoButtons"></div>
+    <div class="stacks" style="margin-top:8px">
+      <div class="stack" id="stProposal"><h3>提案堆疊（預覽中的修改）</h3><ol></ol></div>
+      <div class="stack" id="stDoc"><h3>文件堆疊（已接受的板子）</h3><ol></ol></div>
+    </div>
+    <div class="small" id="undoState" style="margin-top:6px"></div>
+    <p class="small muted">真正的規則由 <code>tst_session</code>（含 ADR-002 規則 4：接受時先清掉提案堆疊殘留的「重做」）與 <code>tst_document</code> 驗證；這裡只是同一組規則的示意。提案堆疊的深度與文件堆疊都上限 200。</p>
+  </div>
+
+  <!-- 4. numbers -->
+  <div class="card" id="perfCard">
+    <h2>4　量到的數字（這台機器、Release、offscreen、假 back end）</h2>
+    <div class="small muted" id="machine"></div>
+    <div style="overflow-x:auto"><table id="perfTable"><thead><tr><th>ID</th><th>量什麼</th><th>中位數（3 次）</th><th>p95（3 次）</th><th>預算</th><th></th></tr></thead><tbody></tbody></table></div>
+    <div class="note warn small" id="perfNote"></div>
+    <h3>重繪成本隨「被拒絕（點線）的框的比例」：改畫法之前與之後（5 832 個元件，ms／畫格）</h3>
+    <div style="overflow-x:auto"><table id="dashTable"><thead><tr><th>門檻</th><th>拒絕 %</th><th>之前（1 次）</th><th>之後（3 次中位數）</th></tr></thead><tbody></tbody></table></div>
+    <p class="small muted">「之前」是 cosmetic 點線筆（圓端點，每個框約 73 µs，微基準 E）；「之後」是整數像素的填色矩形（每個框約 4.7 µs，微基準 G；ADR-012）。兩欄是同一台機器、同一份程式的不同時間點量的，只差畫法（機器本身會有約 30% 的飄移，所以只看量級）。</p>
+  </div>
+
+  <div class="card" id="text"></div>
+</div>
+
+<script type="application/json" id="fsm-data">{"states":["Empty","Idle","DrawingRegion","Searching","Preview","NoMatch","Error","EditingType"],"events":["ImageOpened","ImageFailed","PressRegion","Release","ReleaseTooSmall","Esc","ResultFound","ResultEmpty","Failure","Cancel","ParamsChanged","ThresholdChanged","Accept","Discard","Dismiss","Retry","EditType","UndoToPreview","Save"],"rows":[["Empty","ImageOpened","Idle"],["Empty","ImageFailed","Error"],["Idle","PressRegion","DrawingRegion"],["Idle","EditType","EditingType"],["Idle","UndoToPreview","Preview"],["Idle","ImageOpened","Idle"],["Idle","ImageFailed","Error"],["DrawingRegion","Release","Searching"],["DrawingRegion","ReleaseTooSmall","@before"],["DrawingRegion","Esc","@before"],["Searching","ResultFound","Preview"],["Searching","ResultEmpty","NoMatch"],["Searching","Failure","Error"],["Searching","Cancel","Idle"],["Searching","ParamsChanged","Searching"],["Searching","ImageOpened","Idle"],["Preview","ThresholdChanged","Preview"],["Preview","ParamsChanged","Searching"],["Preview","Accept","Idle"],["Preview","Discard","Idle"],["Preview","PressRegion","DrawingRegion"],["Preview","ImageOpened","Idle"],["Preview","ImageFailed","Error"],["NoMatch","ThresholdChanged","@found"],["NoMatch","ParamsChanged","Searching"],["NoMatch","Dismiss","Idle"],["NoMatch","PressRegion","DrawingRegion"],["NoMatch","ImageOpened","Idle"],["NoMatch","ImageFailed","Error"],["Error","Dismiss","@image"],["Error","Retry","Searching"],["Error","ImageOpened","Idle"],["EditingType","Save","Idle"],["EditingType","Cancel","Idle"]]}</script>
+<script type="application/json" id="perf-data">{"machine":{"buildType":"Release","commit":"3a76c07+uncommitted","compiler":"MSVC 194435228","cpu":"13th Gen Intel(R) Core(TM) i7-1360P","hygiene":"process priority HIGH; power throttling off; thread pinned to logical CPU 0 (efficiency class 1 of 2 classes)","logicalCores":16,"machineName":"CasparHsu1","os":"Windows 11 Version 23H2 (kernel 10.0.22631)","qpaPlatform":"offscreen","qt":"6.8.0","ramGB":63.6},"metrics":[{"id":"U2","label":"fill object table, 5000 rows (model + layout + first paint)","budget":50,"medianRange":[5.761,6.309],"p95Range":[7.975,9.254]},{"id":"U3","label":"threshold slider change to repaint, 5832 components","budget":16,"medianRange":[37.003,46.412],"p95Range":[46.409,60.714]},{"id":"I3","label":"longest event loop block during a search, 5832 candidates (max per search)","budget":50,"medianRange":[25.758,36.889],"p95Range":[30.941,41.939]},{"id":"I4","label":"cancel (click) to UI idle and repainted, search still running on the worker","budget":100,"medianRange":[2.505,3.074],"p95Range":[3.49,4.85]},{"id":"I6","label":"undo of a 1054 box commit (accept) to repainted","budget":50,"medianRange":[10.061,12.879],"p95Range":[13.59,15.823]}],"note":"<b>U3（分數門檻拖動到重繪）超出預算<\/b>：5 832 個元件時 p95 約 46–61 ms，預算 16 ms。大部分時間是整個畫布重繪（中位數約 19–30 ms），不是重新過濾（約 0.3–1 ms）。預算數字沒有改；原因與選項寫在 perf.md。三次執行之間差到 30%，所以顯示範圍。","dashTable":[{"threshold":0.3,"rejected":0,"before":24.22,"after":18.959},{"threshold":0.5,"rejected":8.2,"before":60.14,"after":22.997},{"threshold":0.6,"rejected":16.3,"before":91.2,"after":20.761},{"threshold":0.65,"rejected":20,"before":113.26,"after":21.942},{"threshold":0.7,"rejected":20,"before":106.16,"after":20.397},{"threshold":0.75,"rejected":20,"before":97.39,"after":19.178},{"threshold":0.8,"rejected":20,"before":90.42,"after":18.001},{"threshold":0.85,"rejected":20,"before":91.72,"after":20.742},{"threshold":0.9,"rejected":20,"before":91.92,"after":19.227},{"threshold":0.95,"rejected":61,"before":220.18,"after":22.785},{"threshold":0.99,"rejected":94.8,"before":289.4,"after":31.489}]}</script>
+
+<!-- Text for the page. Strings under the key "ste" are checked by tools/ste-lint.mjs. -->
+<script type="application/json" id="aoi-data">
+{
+  "sections": [
+    { "title": "Purpose",
+      "ste": { "text": "This page shows how the screen connects to the core. You can step the state machine, slow a search and press undo." },
+      "zh": "這一頁說明畫面怎麼接上核心：走狀態機、讓搜尋變慢、按復原。" },
+    { "title": "Reason",
+      "ste": { "text": "The user must see what the program does at each step. A search takes time and a result can be wrong." },
+      "zh": "使用者要看得到程式每一步做了什麼；搜尋要花時間，結果也可能是錯的。" },
+    { "title": "Effect",
+      "ste": { "text": "The screen stays alive during a search. The cancel key works at once. One key press undoes an accept." },
+      "zh": "搜尋時畫面是活的；取消馬上生效；一個鍵就能復原接受。" },
+    { "title": "How to use the page",
+      "ste": { "text": "Click an event in card one. Move the sliders in card two. Press the buttons in card three. Read the numbers in card four." },
+      "zh": "在第一張卡片點事件，第二張拖滑桿，第三張按按鈕，第四張讀數字。" },
+    { "title": "What is real",
+      "ste": { "text": "The numbers in card four come from the real program. The three animations are sketches of the same rules." },
+      "zh": "第四張的數字是程式真的量到的；前三張是同一組規則的示意動畫。" }
+  ]
+}
+</script>
+<script>
+(() => {
+  const $ = (s) => document.querySelector(s);
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const fsm = JSON.parse($('#fsm-data').textContent);
+  const perf = JSON.parse($('#perf-data').textContent);
+  const data = JSON.parse($('#aoi-data').textContent);
+
+  /* ---------- 1. state machine ---------- */
+  const POS = { Empty: [60, 40], Idle: [200, 40], DrawingRegion: [340, 40], Searching: [480, 40], Preview: [480, 150], NoMatch: [340, 150], Error: [200, 150], EditingType: [60, 150] };
+  let state = 'Empty', before = 'Idle', log = [];
+  const ctx = () => ({ image: $('#hasImage').checked, found: $('#foundAny').checked });
+  function target(from, ev) {
+    const row = fsm.rows.find((r) => r[0] === from && r[1] === ev);
+    if (!row) return null;
+    const t = row[2];
+    if (t === '@before') return before;
+    if (t === '@found') return ctx().found ? 'Preview' : 'NoMatch';
+    if (t === '@image') return ctx().image ? 'Idle' : 'Empty';
+    return t;
+  }
+  function fire(ev) {
+    const t = target(state, ev);
+    if (!t) { log.push('<span class="red">✕ ' + state + ' + ' + ev + '：不在轉移表，被拒絕，狀態不變</span>'); render(); return; }
+    if (ev === 'PressRegion') before = state;
+    log.push('<span class="grn">✓</span> ' + state + ' + ' + ev + ' → <b>' + t + '</b>');
+    state = t; render();
+  }
+  const SCREEN = {
+    Empty: { hint: '', card: '', gate: '工具停用；畫布中央是「尚未開啟影像」的卡片', boxes: [] },
+    Idle: { hint: 'S 教一個新樣本 · R 框選區域，用樣本庫找出元件', card: '', gate: '畫布收工具與鍵盤', boxes: ['s'] },
+    DrawingRegion: { hint: '放開滑鼠開始搜尋 · Esc 取消', card: '', gate: '工具正在拖出框', boxes: ['s'] },
+    Searching: { hint: '', card: '（0.2 秒後狀態列出現「搜尋中…」；1 秒後出現進度與〔取消〕）', gate: '畫布暫停：工具不收滑鼠與按鍵（縮放、平移照常）', boxes: [] },
+    Preview: { hint: '', card: '<b>找到 79 個 · 推算 12 個 · 拒絕 26 個</b><br>Enter 接受 · Esc 捨棄 · Del 刪除所選<br>[接受 (Enter)] [捨棄 (Esc)]', gate: '畫布收工具與鍵盤；框以「提案」的樣式顯示', boxes: ['s', 'f', 'f', 'i', 'r', 'f', 'r'] },
+    NoMatch: { hint: '', card: '<b>沒有找到相似的元件</b><br>• 原因與下一步建議<br>[降低門檻到 …] [關閉]', gate: '畫布收工具；訊息不蓋在影像上', boxes: ['s', 'r', 'r'] },
+    Error: { hint: '', card: '<b>搜尋失敗／無法開啟影像</b><br>[關閉] [再試一次]', gate: '畫布暫停', boxes: [] },
+    EditingType: { hint: 'B 畫框 · Del 刪除 · Esc 取消', card: '', gate: '右側換成編輯器面板（S04 還沒有編輯器）', boxes: [] }
+  };
+  function render() {
+    const svg = $('#fsmSvg');
+    const legal = fsm.events.map((e) => [e, target(state, e)]).filter((x) => x[1]);
+    let s = '<defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="var(--accent)"/></marker></defs>';
+    legal.forEach(([e, t], i) => {
+      if (t === state) {
+        const [x, y] = POS[state];
+        s += '<path class="edge" d="M' + (x + 20) + ' ' + (y - 18) + ' c 10 -34 70 -34 60 0" /><text class="edgeLabel" x="' + (x + 20) + '" y="' + (y - 40 - (i % 2) * 11) + '">' + e + '</text>';
+        return;
+      }
+      const [x1, y1] = POS[state], [x2, y2] = POS[t];
+      const dx = x2 - x1, dy = y2 - y1, len = Math.hypot(dx, dy) || 1;
+      const ax = x1 + (dx / len) * 52, ay = y1 + (dy / len) * 20, bx = x2 - (dx / len) * 56, by = y2 - (dy / len) * 22;
+      s += '<line class="edge" x1="' + ax + '" y1="' + ay + '" x2="' + bx + '" y2="' + by + '"/><text class="edgeLabel" x="' + ((ax + bx) / 2 + 3) + '" y="' + ((ay + by) / 2 - 4 - (i % 3) * 10) + '">' + e + '</text>';
+    });
+    fsm.states.forEach((n) => {
+      const [x, y] = POS[n];
+      const cls = n === state ? 'cur' : legal.some((l) => l[1] === n) ? 'next' : '';
+      s += '<g class="node ' + cls + '"><rect x="' + (x - 54) + '" y="' + (y - 20) + '" width="108" height="40" rx="9"/><text x="' + x + '" y="' + (y + 4) + '" text-anchor="middle">' + n + '</text></g>';
+    });
+    svg.innerHTML = s;
+    $('#events').innerHTML = fsm.events.map((e) => '<button type="button" class="btn ' + (target(state, e) ? 'legal' : '') + '" data-e="' + e + '">' + e + '</button>').join('');
+    document.querySelectorAll('#events button').forEach((b) => b.addEventListener('click', () => fire(b.dataset.e)));
+    const sc = SCREEN[state];
+    $('#board').innerHTML = sc.boxes.map((c, i) => '<i class="' + c + '" style="left:' + (10 + (i % 5) * 34) + 'px;top:' + (10 + Math.floor(i / 5) * 26) + 'px"></i>').join('');
+    $('#bar').innerHTML = (sc.hint ? '<span class="muted">' + esc(sc.hint) + '</span>' : '') + (sc.card || (sc.hint ? '' : '<span class="muted">（沒有提示）</span>'));
+    $('#gate').textContent = '畫布：' + sc.gate;
+    $('#log').innerHTML = log.slice(-8).join('\n') || '<span class="dim">點上面的事件。亮邊框的是現在合法的轉移。</span>';
+    $('#fsmCount').textContent = '轉移表共 ' + fsm.rows.length + ' 格（DrawingRegion 的 ReleaseTooSmall 與 Esc 依來源展開成 3 列、NoMatch 的 ThresholdChanged 與 Error 的 Dismiss 依條件展開成 2 列，共 40 列測試）；8 × 19 ＝ 152 組 (狀態, 事件) 中，其餘 ' + (152 - fsm.rows.length) + ' 組一律被拒絕。';
+  }
+  $('#fsmReset').addEventListener('click', () => { state = 'Empty'; log = []; render(); });
+  $('#hasImage').addEventListener('change', render); $('#foundAny').addEventListener('change', render);
+  render();
+
+  /* ---------- 2. slow search timeline ---------- */
+  const T = { busy: 200, progress: 1000, minShow: 400 };
+  function plan() {
+    const dur = Number($('#dur').value), cancelOn = $('#doCancel').checked, cancelAt = Number($('#cancelAt').value);
+    const cancelled = cancelOn && cancelAt < dur;
+    const end = cancelled ? cancelAt : dur;
+    const ev = [{ t: 0, text: '放開滑鼠：進入 Searching，worker 開始搜尋；畫面回到事件迴圈（沒有被擋住）' }];
+    let busyAt = end > T.busy ? T.busy : null, progAt = end > T.progress ? T.progress : null;
+    if (busyAt !== null) ev.push({ t: busyAt, text: '狀態列「搜尋中…」，游標變忙碌' });
+    if (progAt !== null) ev.push({ t: progAt, text: '訊息列出現進度條與〔取消 (Esc)〕' });
+    let busyOff = null;
+    if (cancelled) {
+      ev.push({ t: cancelAt, text: 'Esc：UI 立刻回到 Idle（約 3 ms，預算 100 ms）；取消旗標升起；吐司「已取消搜尋」' });
+      if (busyAt !== null) { busyOff = cancelAt; ev.push({ t: cancelAt, text: '忙碌標示與進度條馬上收起來（取消是使用者的決定）' }); }
+      ev.push({ t: Math.min(dur, cancelAt + 8), text: 'worker 在下一個取消檢查點停下；就算它送回結果，也因為世代不符被丟掉', muted: true });
+    } else {
+      ev.push({ t: dur, text: '結果回到 UI 執行緒：套用提案（Preview 或 NoMatch），框、物件表、訊息卡一起更新' });
+      if (busyAt !== null) {
+        busyOff = Math.max(dur, busyAt + T.minShow);
+        ev.push({ t: busyOff, text: busyOff > dur ? '忙碌標示補足至少 ' + T.minShow + ' ms 才收起來（避免一閃而過）' : '忙碌標示收起來' });
+      }
+    }
+    return { dur, end, cancelled, busyAt, progAt, busyOff, ev: ev.sort((a, b) => a.t - b.t) };
+  }
+  let playT = null, playTimer = null;
+  function drawTimeline() {
+    const p = plan();
+    $('#durLabel').textContent = p.dur + ' ms'; $('#cancelLabel').textContent = $('#cancelAt').value + ' ms';
+    const max = Math.max(3000, p.dur, p.busyOff || 0), pc = (t) => (t / max) * 100 + '%';
+    let h = '<div class="axis"></div>';
+    h += '<div class="seg" style="left:0;width:' + pc(p.end) + ';background:var(--accent)" title="worker 在搜尋"></div>';
+    if (p.busyAt !== null) h += '<div class="seg" style="left:' + pc(p.busyAt) + ';width:' + pc((p.busyOff ?? p.end) - p.busyAt) + ';top:46px;height:8px;background:var(--infer)" title="忙碌標示"></div>';
+    if (p.progAt !== null) h += '<div class="seg" style="left:' + pc(p.progAt) + ';width:' + pc((p.cancelled ? p.cancelled && p.end : p.dur) - p.progAt) + ';top:58px;height:8px;background:var(--found)" title="進度條"></div>';
+    [[0, '放開'], [T.busy, '0.2 s'], [T.progress, '1 s'], [p.end, p.cancelled ? 'Esc' : '結果']].forEach(([t, l]) => { h += '<div class="mark" style="left:' + pc(t) + '"><span>' + l + '</span></div>'; });
+    if (playT !== null) h += '<div class="play" style="left:' + pc(playT) + '"></div>';
+    $('#tl').innerHTML = h;
+    $('#tlText').innerHTML = p.ev.map((e) => '<li' + (e.muted ? ' class="muted"' : '') + '><b>' + e.t + ' ms</b>　' + esc(e.text) + '</li>').join('');
+    return p;
+  }
+  ['dur', 'cancelAt', 'doCancel'].forEach((id) => $('#' + id).addEventListener('input', () => { playT = null; drawTimeline(); }));
+  $('#play').addEventListener('click', () => {
+    const p = drawTimeline();
+    clearInterval(playTimer);
+    const t0 = performance.now(), total = Math.max(p.end, p.busyOff || 0) + 200;
+    playTimer = setInterval(() => { playT = Math.min(total, (performance.now() - t0) * 3); drawTimeline(); if (playT >= total) { clearInterval(playTimer); playT = null; drawTimeline(); } }, 50);
+  });
+  drawTimeline();
+
+  /* ---------- 3. undo stacks ---------- */
+  const U = { st: 'Idle', prop: null, propStack: [], propRedo: [], doc: [], docRedo: [], comps: 0, nextPropId: 0, note: '' };
+  function newProposal() { U.nextPropId++; U.prop = { id: U.nextPropId, objects: 8, deleted: 0 }; U.propStack = []; U.propRedo = []; U.st = 'Preview'; }
+  function snapshotProp() { return { id: U.prop.id, objects: U.prop.objects, deleted: U.prop.deleted, stack: U.propStack.slice() }; }
+  const actions = {
+    search: { label: '搜尋（得到提案）', on: () => U.st === 'Idle' || U.st === 'Preview', run() { U.docRedo = U.docRedo.filter(() => false); newProposal(); } },
+    del: { label: '刪除 1 個提案物件', on: () => U.st === 'Preview' && U.prop.objects - U.prop.deleted > 0, run() { U.propRedo = []; U.prop.deleted++; U.propStack.push('刪除 1 個元件'); } },
+    thr: { label: '拉動分數門檻', on: () => U.st === 'Preview', run() { U.docRedo = []; U.note = '門檻不進任何堆疊；之前復原出來的「接受」不能再重做了（它帶的是舊門檻的提案）'; } },
+    accept: { label: '接受 (Enter)', on: () => U.st === 'Preview' && U.prop.objects - U.prop.deleted > 0, run() { U.propRedo = []; const n = U.prop.objects - U.prop.deleted; U.doc.push({ kind: 'accept', label: '接受 ' + n + ' 個元件', prop: snapshotProp(), n }); U.docRedo = []; U.comps += n; U.prop = null; U.st = 'Idle'; } },
+    discard: { label: '捨棄 (Esc)', on: () => U.st === 'Preview', run() { U.propRedo = []; U.doc.push({ kind: 'discard', label: '捨棄提案', prop: snapshotProp(), n: 0 }); U.docRedo = []; U.prop = null; U.st = 'Idle'; } },
+    undo: { label: 'Ctrl+Z', on: () => (U.st === 'Preview' && U.propStack.length) || (U.st === 'Idle' && U.doc.length), run() {
+      if (U.st === 'Preview') { U.propRedo.push(U.propStack.pop()); U.prop.deleted--; return; }
+      const c = U.doc.pop(); U.docRedo.push(c); U.comps -= c.n;
+      U.prop = { id: c.prop.id, objects: c.prop.objects, deleted: c.prop.deleted }; U.propStack = c.prop.stack.slice(); U.propRedo = []; U.st = 'Preview'; U.note = 'UndoToPreview：提案連同它的修改堆疊一起回來';
+    } },
+    redo: { label: 'Ctrl+Y', on: () => (U.st === 'Preview' && (U.propRedo.length || (U.docRedo.length && U.docRedo[U.docRedo.length - 1].prop.id === U.prop.id))) || (U.st === 'Idle' && U.docRedo.length), run() {
+      if (U.st === 'Preview' && U.propRedo.length) { U.propStack.push(U.propRedo.pop()); U.prop.deleted++; return; }
+      const c = U.docRedo.pop(); U.doc.push(c); U.comps += c.n; U.prop = null; U.st = 'Idle';
+    } }
+  };
+  function renderUndo() {
+    $('#undoButtons').innerHTML = Object.entries(actions).map(([k, a]) => '<button type="button" class="btn ' + (a.on() ? 'legal' : '') + '" data-a="' + k + '"' + (a.on() ? '' : ' disabled') + '>' + a.label + '</button>').join('');
+    document.querySelectorAll('#undoButtons button').forEach((b) => b.addEventListener('click', () => { U.note = ''; actions[b.dataset.a].run(); renderUndo(); }));
+    $('#stProposal ol').innerHTML = U.propStack.map((x) => '<li>' + esc(x) + '</li>').join('') + (U.propRedo.length ? '<li class="muted">（可重做：' + U.propRedo.length + '）</li>' : '') || '';
+    $('#stDoc ol').innerHTML = U.doc.map((c) => '<li>' + esc(c.label) + '</li>').join('') + (U.docRedo.length ? '<li class="muted">（可重做：' + U.docRedo.length + '）</li>' : '');
+    $('#stProposal').classList.toggle('hit', U.st === 'Preview'); $('#stDoc').classList.toggle('hit', U.st === 'Idle');
+    $('#undoState').innerHTML = '狀態：<b>' + U.st + '</b>　板上元件：' + U.comps + (U.prop ? '　提案物件：' + (U.prop.objects - U.prop.deleted) + '／' + U.prop.objects : '') + '　Ctrl+Z 現在作用在：<b>' + (U.st === 'Preview' ? '提案堆疊' : U.st === 'Idle' ? '文件堆疊' : '（忽略）') + '</b>' + (U.note ? '<div class="note small">' + esc(U.note) + '</div>' : '');
+  }
+  renderUndo();
+
+  /* ---------- 4. numbers ---------- */
+  if (perf.metrics) {
+    const num = (v) => (v >= 10 ? v.toFixed(1) : v >= 1 ? v.toFixed(2) : v.toFixed(3));
+    const fmtR = (r) => num(r[0]) + '–' + num(r[1]) + ' ms';
+    const SHOW = ['U2', 'U3', 'I3', 'I4', 'I6'];
+    $('#perfTable tbody').innerHTML = SHOW.map((id) => perf.metrics.find((m) => m.id === id)).filter(Boolean).map((m) => {
+      const worst = m.p95Range[1];
+      const w = Math.min(100, (worst / (m.budget * 1.5)) * 100), bw = (m.budget / (m.budget * 1.5)) * 100, over = worst > m.budget;
+      return '<tr><td>' + m.id + '</td><td>' + esc(m.label) + '</td><td>' + fmtR(m.medianRange) + '</td><td class="' + (over ? 'bad' : 'ok') + '">' + fmtR(m.p95Range) + '</td><td>' + m.budget + ' ms</td><td><div class="bar2"><i class="' + (over ? 'over' : '') + '" style="width:' + w + '%"></i><b style="left:' + bw + '%"></b></div></td></tr>';
+    }).join('');
+    const mc = perf.machine || {};
+    $('#machine').textContent = [mc.cpu, mc.logicalCores && mc.logicalCores + ' 個執行緒', mc.os, mc.compiler, mc.buildType, mc.qpaPlatform, mc.hygiene].filter(Boolean).join('；');
+    $('#perfNote').innerHTML = perf.note || '';
+    $('#dashTable tbody').innerHTML = (perf.dashTable || []).map((r) => '<tr><td>' + r.threshold.toFixed(2) + '</td><td>' + r.rejected.toFixed(0) + '</td><td class="bad">' + r.before.toFixed(0) + '</td><td class="ok">' + r.after.toFixed(0) + '</td></tr>').join('');
+  }
+
+  /* ---------- text (STE) ---------- */
+  $('#text').innerHTML = '<h2>文字（STE 風格，繁中摘要）</h2>' + data.sections.map((s) => '<h3>' + esc(s.title) + '</h3><div>' + esc(s.ste.text) + '</div><div class="zh">' + esc(s.zh) + '</div>').join('');
+})();
+</script>
+</body>
+</html>

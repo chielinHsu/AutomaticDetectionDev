@@ -79,6 +79,18 @@ int RoiLayerItem::componentAt(const QPointF& scenePos) const {
     return best;
 }
 
+QRectF RoiLayerItem::outlineOf(const std::vector<int>& componentIds) const {
+    QRectF united;
+    if (!snapshot_) return united;
+    for (int id : componentIds) {
+        const auto it = idToIndex_.constFind(id);
+        if (it == idToIndex_.constEnd()) continue;
+        const QRectF& r = snapshot_->components[static_cast<size_t>(it.value())].outline;
+        united = united.isNull() ? r : united.united(r);
+    }
+    return united;
+}
+
 void RoiLayerItem::paint(QPainter* painter, const QStyleOptionGraphicsItem* option, QWidget*) {
     stats_ = {};
     if (!snapshot_ || snapshot_->components.empty()) return;
@@ -100,8 +112,9 @@ void RoiLayerItem::paint(QPainter* painter, const QStyleOptionGraphicsItem* opti
     const double sx = world.m11(), sy = world.m22(), tx = world.dx(), ty = world.dy();
 
     for (OverlayState state : kStateOrder) {
-        // 實線狀態：整數像素的填色細矩形（BoxFrames，快約 5 倍）；虛線與點線狀態：cosmetic 描邊（這兩種狀態的框很少）。
-        const bool solid = style_.solid(state);
+        // 整數像素的填色細矩形（BoxFrames）：實線快約 5 倍，點線快約 17 倍（cosmetic 的圓端點點線每個框要 68 µs）。
+        // 只有花樣不是「畫、空」一組的狀態才退回 cosmetic 描邊（目前沒有）。
+        const bool solid = style_.frameable(state);
         std::array<bool, kBoxKindCount> hasFrames{};
         for (BoxKind kind : kKindOrder) {
             const auto& bucket = buckets_[static_cast<size_t>(bucketIndex(state, kind))];
@@ -126,8 +139,12 @@ void RoiLayerItem::paint(QPainter* painter, const QStyleOptionGraphicsItem* opti
                 BoxFrames::Batch& batch = frames_[static_cast<size_t>(kindIndex(kind))];
                 batch.clear();
                 const int t = style_.frameThickness(state, kind, false);
-                for (const QRectF& r : visible_)
-                    BoxFrames::append(batch, QRectF(r.x() * sx + tx, r.y() * sy + ty, r.width() * sx, r.height() * sy), t);
+                const BoxFrames::DashSpec dash = style_.dashSpec(state, kind, false);
+                for (const QRectF& r : visible_) {
+                    const QRectF screen(r.x() * sx + tx, r.y() * sy + ty, r.width() * sx, r.height() * sy);
+                    if (dash.valid()) BoxFrames::appendDashed(batch, screen, t, dash);
+                    else BoxFrames::append(batch, screen, t);
+                }
                 hasFrames[static_cast<size_t>(kindIndex(kind))] = true;
             } else {
                 const PenPair& pens = style_.box(state, kind, false);

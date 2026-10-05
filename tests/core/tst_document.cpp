@@ -1,0 +1,443 @@
+// InspectionDocument：已接受的文件、每個修改一個 Command、一次變更通知、復原後等於原狀（ADR-002）。
+#include <QtTest>
+#include <algorithm>
+#include <cmath>
+#include <vector>
+
+#include "ProposalTestSupport.h"
+#include "application/document/InspectionDocument.h"
+
+using namespace aoi;
+using namespace aoi::test;
+
+namespace {
+
+ProposalSession session(const std::vector<double>& scores, std::size_t predicted = 0, double threshold = 0.70) {
+    return ProposalSession(makeProposal(scores, predicted), Rect{10, 10, 400, 300}, RegionMode::Sample, threshold);
+}
+
+bool samePose(const Pose2D& a, const Pose2D& b) { return a.x == b.x && a.y == b.y && a.angleDeg == b.angleDeg; }
+
+bool sameComponents(const std::vector<ComponentInstance>& a, const std::vector<ComponentInstance>& b) {
+    if (a.size() != b.size()) return false;
+    for (std::size_t i = 0; i < a.size(); ++i) {
+        if (a[i].id != b[i].id || a[i].name != b[i].name || a[i].typeId != b[i].typeId || a[i].state != b[i].state ||
+            a[i].origin != b[i].origin || a[i].score != b[i].score || !samePose(a[i].pose, b[i].pose))
+            return false;
+    }
+    return true;
+}
+
+std::vector<int> ids(const InspectionDocument& d) {
+    std::vector<int> out;
+    for (const ComponentInstance& c : d.components()) out.push_back(c.id);
+    return out;
+}
+
+// 計算變更通知。
+struct Counting {
+    int total = 0;
+    int edits = 0, undos = 0, redos = 0, resets = 0;
+    DocumentChange last;
+    void attach(InspectionDocument& d) {
+        d.setObserver([this](const DocumentChange& c) {
+            ++total;
+            last = c;
+            switch (c.cause) {
+                case DocumentChange::Cause::Edit: ++edits; break;
+                case DocumentChange::Cause::Undo: ++undos; break;
+                case DocumentChange::Cause::Redo: ++redos; break;
+                case DocumentChange::Cause::Reset: ++resets; break;
+            }
+        });
+    }
+};
+
+InspectionDocument freshDocument() {
+    InspectionDocument d;
+    d.reset("board.png", 1000, 800, 0.0);
+    return d;
+}
+
+}  // namespace
+
+class TstDocument : public QObject {
+    Q_OBJECT
+
+private slots:
+    // ---- 接受 ----
+    void acceptTurnsSampleFoundAndInferredIntoComponentsAndDropsRejected() {
+        InspectionDocument d = freshDocument();
+        const ProposalSession s = session({0.95, 0.75, 0.50}, 1);  // Sample、Found、Found、Rejected、Inferred
+        QCOMPARE(d.accept(s), std::size_t{4});
+        QCOMPARE(d.components().size(), std::size_t{4});
+        QVERIFY(d.components()[0].state == ObjectState::Sample);
+        QVERIFY(d.components()[1].state == ObjectState::Found);
+        QVERIFY(d.components()[3].state == ObjectState::Inferred);
+        for (const ComponentInstance& c : d.components()) QVERIFY(c.state != ObjectState::Rejected);
+    }
+
+    void acceptAssignsIncreasingIdsAndNamesAndKeepsScoresAndPoses() {
+        InspectionDocument d = freshDocument();
+        d.accept(session({0.95, 0.75}));
+        QCOMPARE(ids(d), (std::vector<int>{1, 2, 3}));
+        QCOMPARE(d.components()[0].name, std::string("X1"));
+        QCOMPARE(d.components()[2].name, std::string("X3"));
+        QCOMPARE(*d.components()[1].score, 0.95);
+        QVERIFY(samePose(d.components()[1].pose, Pose2D{150, 100, 0}));
+        QVERIFY(d.components()[0].origin == ObjectOrigin::Auto);
+    }
+
+    void acceptCreatesOneTemporaryTypeWithABodySizedFromThePart() {
+        InspectionDocument d = freshDocument();
+        d.accept(session({0.95}));
+        QCOMPARE(d.board().types.size(), std::size_t{1});
+        const ComponentType& t = d.board().types[0];
+        QCOMPARE(t.libId, std::string());  // 只在這塊板子上
+        QCOMPARE(t.groups.size(), std::size_t{1});
+        QVERIFY(t.groups[0].kind == BoxGroupKind::Body);
+        QCOMPARE(t.groups[0].widthUm, 40.0);   // 未校正：暫定 1 µm ＝ 1 像素
+        QCOMPARE(t.groups[0].heightUm, 20.0);
+        for (const ComponentInstance& c : d.components()) QCOMPARE(c.typeId, t.id);
+        QCOMPARE(d.lastTypeId(), t.id);
+    }
+
+    void theBodySizeUsesTheImageCalibration() {
+        InspectionDocument d;
+        d.reset("calibrated.png", 1000, 800, 2.5);  // 2.5 µm／像素
+        d.accept(session({0.95}));
+        QCOMPARE(d.board().types[0].groups[0].widthUm, 100.0);  // 40 px × 2.5
+        QCOMPARE(d.board().types[0].groups[0].heightUm, 50.0);
+    }
+
+    void acceptingNothingAcceptableDoesNotTouchTheHistory() {
+        InspectionDocument d = freshDocument();
+        ProposalSession s = session({0.50, 0.40});  // 只有 Sample 以外都 Rejected；先刪掉 Sample
+        s.deleteObjects({1});
+        QCOMPARE(d.accept(s), std::size_t{0});
+        QVERIFY(!d.canUndo());
+        QVERIFY(d.components().empty());
+        QVERIFY(d.board().types.empty());
+    }
+
+    void undoOfAcceptLeavesTheDocumentExactlyAsItWas() {
+        InspectionDocument d = freshDocument();
+        d.accept(session({0.95, 0.75}));
+        const Board before = d.board();
+        const std::string lastBefore = d.lastTypeId();
+        d.accept(session({0.90}, 0, 0.70));
+        QCOMPARE(d.components().size(), std::size_t{5});
+        const UndoOutcome out = d.undo();
+        QVERIFY(out.performed);
+        QVERIFY(sameComponents(d.components(), before.components));
+        QCOMPARE(d.board().types.size(), before.types.size());
+        QCOMPARE(d.lastTypeId(), lastBefore);
+    }
+
+    void acceptUndoAcceptGivesTheSameIdsAndNamesAgain() {
+        InspectionDocument d = freshDocument();
+        d.accept(session({0.95}));
+        const std::vector<ComponentInstance> first = d.components();
+        d.undo();
+        QVERIFY(d.components().empty());
+        d.accept(session({0.95}));  // 計數隨復原還原，所以編號與名稱從頭開始
+        QVERIFY(sameComponents(d.components(), first));
+    }
+
+    void redoOfAcceptRestoresTheSameComponentsAndType() {
+        InspectionDocument d = freshDocument();
+        d.accept(session({0.95, 0.75}));
+        const std::vector<ComponentInstance> after = d.components();
+        const std::string typeId = d.board().types[0].id;
+        d.undo();
+        const UndoOutcome out = d.redo();
+        QVERIFY(out.performed);
+        QVERIFY(out.consumedProposal);
+        QVERIFY(sameComponents(d.components(), after));
+        QCOMPARE(d.board().types.size(), std::size_t{1});
+        QCOMPARE(d.board().types[0].id, typeId);
+    }
+
+    void idsAreNeverReusedAfterADeleteSoAnOldSelectionCannotPointAtANewComponent() {
+        InspectionDocument d = freshDocument();
+        d.accept(session({0.95, 0.75}));  // 1 2 3
+        d.removeComponents({3});
+        d.accept(session({0.90}));
+        QCOMPARE(ids(d), (std::vector<int>{1, 2, 4, 5}));  // 3 沒有被重用
+    }
+
+    // ---- 捨棄 ----
+    void discardLeavesTheBoardAloneButCarriesTheProposal() {
+        InspectionDocument d = freshDocument();
+        ProposalSession s = session({0.95, 0.75, 0.50});
+        s.deleteObjects({2});
+        d.discard(s);
+        QVERIFY(d.components().empty());
+        QVERIFY(d.canUndo());
+        QVERIFY(d.undoInfo()->kind == CommandKind::Discard);
+
+        UndoOutcome out = d.undo();
+        QVERIFY(out.performed);
+        QVERIFY(out.restoredProposal.has_value());
+        QVERIFY(out.restoredProposal->proposalPtr() == s.proposalPtr());
+        QVERIFY(!out.restoredProposal->contains(2));            // 預覽中刪掉的，還給預覽時還是刪掉的
+        QVERIFY(out.restoredProposal->undo());                  // 連提案的堆疊一起還原
+        QVERIFY(out.restoredProposal->contains(2));
+    }
+
+    void undoOfAcceptReturnsTheProposalWithItsEditStackAndThreshold() {
+        InspectionDocument d = freshDocument();
+        ProposalSession s = session({0.95, 0.75, 0.50}, 0, 0.60);
+        s.deleteObjects({3});
+        s.addManual({400, 100, 0});
+        d.accept(s);
+        UndoOutcome out = d.undo();
+        QVERIFY(out.restoredProposal.has_value());
+        QCOMPARE(out.restoredProposal->threshold(), 0.60);
+        QCOMPARE(out.restoredProposal->editCount(), std::size_t{2});
+        QVERIFY(out.restoredProposal->canUndo());
+        QVERIFY(!out.restoredProposal->contains(3));
+        QVERIFY(d.components().empty());
+    }
+
+    void redoOfDiscardConsumesTheProposalAgain() {
+        InspectionDocument d = freshDocument();
+        d.discard(session({0.95}));
+        d.undo();
+        const UndoOutcome out = d.redo();
+        QVERIFY(out.performed);
+        QVERIFY(out.consumedProposal);
+        QVERIFY(out.kind == CommandKind::Discard);
+    }
+
+    void nextRedoProposalIsOnlySetForAcceptAndDiscard() {
+        InspectionDocument d = freshDocument();
+        const ProposalSession s = session({0.95});
+        d.accept(s);
+        d.removeComponents({1});
+        d.undo();  // 刪除被復原；下一個重做是刪除
+        QVERIFY(d.nextRedoProposal() == nullptr);
+        d.undo();  // 接受被復原；下一個重做是接受
+        QVERIFY(d.nextRedoProposal() != nullptr);
+        QVERIFY(d.nextRedoProposal()->proposalPtr() == s.proposalPtr());
+    }
+
+    // ---- 刪除 ----
+    void removeAndUndoRestoreTheSamePositionsIdsAndNames() {
+        InspectionDocument d = freshDocument();
+        d.accept(session({0.95, 0.90, 0.85, 0.80, 0.75, 0.72}));  // 1..7
+        const std::vector<ComponentInstance> before = d.components();
+        QCOMPARE(d.removeComponents({2, 5, 7}), std::size_t{3});
+        QCOMPARE(ids(d), (std::vector<int>{1, 3, 4, 6}));
+        QVERIFY(d.undo().performed);
+        QVERIFY(sameComponents(d.components(), before));  // 位置、編號、名稱、分數、位姿全部相同
+        QVERIFY(d.redo().performed);
+        QCOMPARE(ids(d), (std::vector<int>{1, 3, 4, 6}));
+    }
+
+    void removeIgnoresUnknownAndDuplicateIds() {
+        InspectionDocument d = freshDocument();
+        d.accept(session({0.95}));
+        QCOMPARE(d.removeComponents({99, 1, 1}), std::size_t{1});
+        QCOMPARE(d.removeComponents({1}), std::size_t{0});  // 已經刪了
+        QCOMPARE(d.historyDepth(), std::size_t{2});         // 接受＋一次有效的刪除
+    }
+
+    void findUsesTheIdNotThePosition() {
+        InspectionDocument d = freshDocument();
+        d.accept(session({0.95, 0.90, 0.85}));
+        d.removeComponents({1, 2});
+        QVERIFY(d.find(1) == nullptr);
+        QVERIFY(d.find(3) != nullptr);
+        QCOMPARE(d.find(4)->id, 4);
+        QVERIFY(d.find(99) == nullptr);
+    }
+
+    // ---- 補一個 ----
+    void addManualUsesTheGivenTypeAndHasNoScore() {
+        InspectionDocument d = freshDocument();
+        d.accept(session({0.95}));
+        const std::string type = d.board().types[0].id;
+        const int id = d.addManualComponent({500, 400, 0}, type);
+        QCOMPARE(id, 3);
+        const ComponentInstance* c = d.find(id);
+        QVERIFY(c != nullptr);
+        QCOMPARE(c->name, std::string("X3"));
+        QVERIFY(c->origin == ObjectOrigin::Manual);
+        QVERIFY(c->state == ObjectState::Found);
+        QVERIFY(!c->score.has_value());
+        QCOMPARE(c->typeId, type);
+    }
+
+    void addManualWithAnUnknownTypeDoesNothing() {
+        InspectionDocument d = freshDocument();
+        QCOMPARE(d.addManualComponent({1, 1, 0}, "nope"), 0);
+        QVERIFY(!d.canUndo());
+    }
+
+    void undoOfAddManualRemovesItAndFreesTheNameAndId() {
+        InspectionDocument d = freshDocument();
+        d.accept(session({0.95}));
+        const std::string type = d.board().types[0].id;
+        const int id = d.addManualComponent({500, 400, 0}, type);
+        d.undo();
+        QVERIFY(d.find(id) == nullptr);
+        const int again = d.addManualComponent({10, 10, 0}, type);
+        QCOMPARE(again, id);
+        QCOMPARE(d.find(again)->name, std::string("X3"));
+    }
+
+    // ---- 移動 ----
+    void moveAndUndoRestoreTheExactPose() {
+        InspectionDocument d = freshDocument();
+        d.accept(session({0.95}));
+        const Pose2D before = d.find(2)->pose;
+        QCOMPARE(d.moveComponents({2}, {3.7, -1.3}), std::size_t{1});
+        QVERIFY(!samePose(d.find(2)->pose, before));
+        d.undo();
+        QVERIFY(samePose(d.find(2)->pose, before));  // 精確相等
+        d.redo();
+        QVERIFY(std::abs(d.find(2)->pose.x - (before.x + 3.7)) < 1e-12);
+    }
+
+    void aDragIsOneCommandAndTwoDragsAreTwo() {
+        InspectionDocument d = freshDocument();
+        d.accept(session({0.95}));
+        d.moveComponents({2}, {5, 0});
+        d.moveComponents({2}, {5, 0});
+        QCOMPARE(d.historyDepth(), std::size_t{3});  // 接受＋兩次拖曳
+    }
+
+    void nudgesOfTheSameComponentsMergeWhenAllowed() {
+        InspectionDocument d = freshDocument();
+        d.accept(session({0.95, 0.90}));
+        const Pose2D start = d.find(2)->pose;
+        for (int i = 0; i < 5; ++i) d.moveComponents({2, 3}, {1, 0}, true);
+        QCOMPARE(d.historyDepth(), std::size_t{2});  // 接受＋一步微調
+        QCOMPARE(d.find(2)->pose.x, start.x + 5);
+        d.undo();
+        QVERIFY(samePose(d.find(2)->pose, start));
+    }
+
+    void movingNothingKnownDoesNothing() {
+        InspectionDocument d = freshDocument();
+        QCOMPARE(d.moveComponents({1, 2}, {1, 1}), std::size_t{0});
+        QVERIFY(!d.canUndo());
+    }
+
+    // ---- 通知：每個 Command 一次（ADR-002 規則 11）----
+    void everyCommandNotifiesExactlyOnce() {
+        InspectionDocument d = freshDocument();
+        Counting n;
+        n.attach(d);
+        d.accept(session({0.95, 0.90, 0.85}));
+        QCOMPARE(n.total, 1);
+        QVERIFY(n.last.kind == CommandKind::Accept);
+        QCOMPARE(n.last.count, std::size_t{4});
+        d.removeComponents({1, 2, 3});
+        QCOMPARE(n.total, 2);
+        d.moveComponents({4}, {1, 1});
+        QCOMPARE(n.total, 3);
+        d.addManualComponent({1, 1, 0}, d.board().types[0].id);
+        QCOMPARE(n.total, 4);
+        d.discard(session({0.95}));
+        QCOMPARE(n.total, 5);
+        d.undo();
+        QCOMPARE(n.total, 6);
+        QCOMPARE(n.undos, 1);
+        d.redo();
+        QCOMPARE(n.total, 7);
+        QCOMPARE(n.redos, 1);
+        QCOMPARE(n.edits, 5);
+    }
+
+    void aThousandComponentCommitNotifiesOncePerCommandNotOncePerComponent() {
+        InspectionDocument d = freshDocument();
+        Counting n;
+        n.attach(d);
+        std::vector<double> scores(1000, 0.9);
+        const ProposalSession big = ProposalSession(makeProposal(scores), Rect{0, 0, 10, 10}, RegionMode::Sample, 0.7);
+        QCOMPARE(d.accept(big), std::size_t{1001});
+        QCOMPARE(n.total, 1);
+        d.undo();
+        QCOMPARE(n.total, 2);
+        QVERIFY(d.components().empty());
+        d.redo();
+        QCOMPARE(n.total, 3);
+        QCOMPARE(d.components().size(), std::size_t{1001});
+    }
+
+    void anUndoThatChangesNothingDoesNotNotify() {
+        InspectionDocument d = freshDocument();
+        Counting n;
+        n.attach(d);
+        QVERIFY(!d.undo().performed);
+        QVERIFY(!d.redo().performed);
+        QCOMPARE(n.total, 0);
+    }
+
+    // ---- 歷史資訊、重設、儲存狀態 ----
+    void undoInfoNamesTheCommandAndItsCount() {
+        InspectionDocument d = freshDocument();
+        QVERIFY(!d.undoInfo().has_value());
+        d.accept(session({0.95, 0.90}));
+        QVERIFY(d.undoInfo()->kind == CommandKind::Accept);
+        QCOMPARE(d.undoInfo()->count, std::size_t{3});
+        d.removeComponents({1, 2});
+        QVERIFY(d.undoInfo()->kind == CommandKind::DeleteComponents);
+        QCOMPARE(d.undoInfo()->count, std::size_t{2});
+        d.undo();
+        QVERIFY(d.redoInfo()->kind == CommandKind::DeleteComponents);
+    }
+
+    void resetClearsTheBoardTheHistoryAndTheCounters() {
+        InspectionDocument d = freshDocument();
+        Counting n;
+        n.attach(d);
+        d.accept(session({0.95}));
+        d.reset("other.png", 640, 480, 1.5);
+        QCOMPARE(n.resets, 1);
+        QVERIFY(d.components().empty());
+        QVERIFY(d.board().types.empty());
+        QVERIFY(!d.canUndo());
+        QVERIFY(!d.canRedo());
+        QCOMPARE(d.board().name, std::string("other.png"));
+        QCOMPARE(d.board().imageWidth, 640);
+        QCOMPARE(d.board().umPerPixel, 1.5);
+        QCOMPARE(d.lastTypeId(), std::string());
+        d.accept(session({0.95}));
+        QCOMPARE(d.components()[0].id, 1);   // 編號從頭開始
+        QCOMPARE(d.components()[0].name, std::string("X1"));
+    }
+
+    void dirtyFollowsTheHistoryPosition() {
+        InspectionDocument d = freshDocument();
+        QVERIFY(!d.isDirty());
+        d.accept(session({0.95}));
+        QVERIFY(d.isDirty());
+        d.markSaved();
+        QVERIFY(!d.isDirty());
+        d.removeComponents({1});
+        QVERIFY(d.isDirty());
+        d.undo();
+        QVERIFY(!d.isDirty());
+    }
+
+    void aLargeDocumentKeepsItsIdsSortedThroughDeleteAndUndo() {
+        InspectionDocument d = freshDocument();
+        const ProposalSession big = ProposalSession(makeBigProposal(5000), Rect{0, 0, 10, 10}, RegionMode::Sample, 0.0);
+        d.accept(big);
+        const std::vector<ComponentInstance> before = d.components();
+        QVERIFY(before.size() > 4000);
+        std::vector<int> some;
+        for (std::size_t i = 3; i < before.size(); i += 5) some.push_back(before[i].id);
+        QCOMPARE(d.removeComponents(some), some.size());
+        QVERIFY(std::is_sorted(d.components().begin(), d.components().end(),
+                               [](const ComponentInstance& a, const ComponentInstance& b) { return a.id < b.id; }));
+        d.undo();
+        QVERIFY(sameComponents(d.components(), before));
+    }
+};
+
+QTEST_APPLESS_MAIN(TstDocument)
+#include "tst_document.moc"
