@@ -6,7 +6,8 @@
 #include <limits>
 #include <utility>
 
-#include "application/usecases/SimpleGrid.h"
+#include "domain/lattice/lattice_accumulator.h"
+#include "domain/lattice/lattice_predictor.h"
 
 namespace aoi {
 
@@ -71,6 +72,13 @@ void report(IProgressSink* progress, Stage stage, double fraction) {
 
 Error cancelledError() { return makeError(ErrorCode::Cancelled, "The job was cancelled."); }
 
+// 一個預測的缺格：哪一組晶格的哪一格、在哪裡。
+struct Hole {
+    Point2D position;
+    std::size_t lattice = 0;
+    LatticeIndex cell;
+};
+
 }  // namespace
 
 GenerateObjectsFromSample::GenerateObjectsFromSample(ITemplateBuilder& builder, IPatternSearcher& searcher,
@@ -132,9 +140,20 @@ Result<SampleProposal> GenerateObjectsFromSample::run(const SampleRequest& reque
     report(progress, Stage::Seed, 1.0);
     if (cancel.cancelled()) return cancelledError();
 
+    // 同一個元件被找到好幾次（位置差幾個像素）時，只留分數最高的（NMS，主體框大小）。搜尋器的契約沒有保證匹配不重疊，
+    // 真的 back end 也常這樣。留下的順序（分數由高到低、再依 y、x）與搜尋器的排序規則相同。
+    std::vector<Match> seedMatches;
+    {
+        std::vector<ScoredBox> boxes;
+        boxes.reserve(seeds.value().size());
+        for (const Match& m : seeds.value()) boxes.push_back({RectObj{m.pose, proposal.partSize.w, proposal.partSize.h}, m.score});
+        const std::vector<std::size_t> kept = NonMaxSuppression(options.nms).keep(boxes);
+        seedMatches.reserve(kept.size());
+        for (const std::size_t k : kept) seedMatches.push_back(seeds.value()[k]);
+    }
+
     // 樣本本身：落在樣本框內、分數最高的那個匹配（自我匹配）。它的位姿代表「使用者框的那個元件」。
     // 搜尋器沒有回報自我匹配時，樣本位置就是框的中心、分數 1.0（範本就是從它建的，依定義完全相符）。
-    const std::vector<Match>& seedMatches = seeds.value();
     const Match* selfMatch = nullptr;
     for (const Match& m : seedMatches) {
         if (sample.contains(m.pose.position()) && (selfMatch == nullptr || m.score > selfMatch->score)) selfMatch = &m;
@@ -151,23 +170,73 @@ Result<SampleProposal> GenerateObjectsFromSample::run(const SampleRequest& reque
         proposal.candidates.push_back({m.pose, m.score, CandidateSource::Seed});
     }
 
-    // ---- 4. 擬合晶格（S03 暫代版）與預測缺格。至少要有 2 個點才有晶格。 ----
+    // ---- 4. 擬合晶格（domain/lattice，可能多組）與預測缺格。沒有晶格（點太少、不成陣列、信心不足）就不補漏。 ----
     const Clock::time_point fitStart = Clock::now();
-    std::vector<Point2D> holes;
+    const double sampleAngle = proposal.candidates.front().pose.angleDeg;
+    const auto partBox = [&](Point2D center) {
+        return RectObj{Pose2D{center.x, center.y, sampleAngle}, proposal.partSize.w, proposal.partSize.h};
+    };
+    std::vector<LatticeModel> lattices;
+    std::vector<Hole> holes;
     {
         ScopedTimer timer(probe_, "uc.sample.fit");
         std::vector<Point2D> centers;
         centers.reserve(proposal.candidates.size());
         for (const Candidate& c : proposal.candidates) centers.push_back(c.pose.position());
-        if (const std::optional<GridModel> grid = fitGrid(centers)) {
-            holes = gridHoles(*grid, imageRect, options.maxPredictions);
-            proposal.grid.found = true;
-            proposal.grid.hasV = grid->hasV;
-            proposal.grid.u = grid->u;
-            proposal.grid.v = grid->v;
-            proposal.grid.rmsPx = grid->rmsPx;
-            proposal.grid.holes = holes.size();
+        LatticeFit fit = LatticeEstimator(options.lattice).fitAll(centers);
+        lattices = std::move(fit.models);
+        proposal.grid.noLattice = fit.reason;
+
+        // 缺格：每組晶格索引範圍內、影像內的空格。與已有的候選（或前面那組晶格的缺格）重疊的不算：
+        // 那裡已經有元件（例如一個殘差稍大、沒被算成內點的種子），或是兩組晶格預測到同一個位置。
+        const double cellSize = std::sqrt(proposal.partSize.w * proposal.partSize.w + proposal.partSize.h * proposal.partSize.h);
+        OverlapIndex taken(cellSize, options.nms.maxOverlap, options.nms.measure);
+        for (const Candidate& c : proposal.candidates) taken.add(RectObj{c.pose, proposal.partSize.w, proposal.partSize.h});
+        for (std::size_t l = 0; l < lattices.size(); ++l) {
+            for (const PredictedCell& p : LatticePredictor(lattices[l], imageRect).holes()) {
+                const RectObj box = partBox(p.position);
+                if (taken.overlapsAny(box)) continue;
+                taken.add(box);
+                holes.push_back({p.position, l, p.cell});
+            }
         }
+        // 由近到遠（離樣本）：先驗證、先顯示離已知點近的；超過上限時留近的。同距離依晶格、再依格子，結果與走訪順序無關。
+        const Point2D anchor = proposal.candidates.front().pose.position();
+        std::vector<double> d2(holes.size());
+        for (std::size_t k = 0; k < holes.size(); ++k) {
+            const double dx = holes[k].position.x - anchor.x;
+            const double dy = holes[k].position.y - anchor.y;
+            d2[k] = dx * dx + dy * dy;
+        }
+        std::vector<std::size_t> order(holes.size());
+        for (std::size_t k = 0; k < order.size(); ++k) order[k] = k;
+        std::sort(order.begin(), order.end(), [&](std::size_t a, std::size_t b) {
+            if (d2[a] != d2[b]) return d2[a] < d2[b];
+            if (holes[a].lattice != holes[b].lattice) return holes[a].lattice < holes[b].lattice;
+            if (holes[a].cell.i != holes[b].cell.i) return holes[a].cell.i < holes[b].cell.i;
+            return holes[a].cell.j < holes[b].cell.j;
+        });
+        std::vector<Hole> sorted;
+        sorted.reserve(std::min(order.size(), options.maxPredictions));
+        for (const std::size_t k : order) {
+            if (sorted.size() >= options.maxPredictions) break;
+            sorted.push_back(holes[k]);
+        }
+        holes = std::move(sorted);
+
+        if (!lattices.empty()) {
+            const LatticeModel& main = lattices.front();
+            proposal.grid.found = true;
+            proposal.grid.hasV = main.hasV();
+            proposal.grid.u = main.basis.u;
+            proposal.grid.v = main.basis.v;
+            proposal.grid.rmsPx = main.rmsPx;
+            proposal.grid.coverage = main.coverage;
+            proposal.grid.confidence = main.confidence;
+            proposal.grid.suggestCheck = main.suggestCheck;
+            proposal.grid.lattices = lattices.size();
+        }
+        proposal.grid.holes = holes.size();
     }
     proposal.timings.fitMs = millisecondsSince(fitStart);
     report(progress, Stage::Fit, 1.0);
@@ -178,8 +247,8 @@ Result<SampleProposal> GenerateObjectsFromSample::run(const SampleRequest& reque
     if (!holes.empty()) {
         std::vector<Rect> windows;
         windows.reserve(holes.size());
-        for (const Point2D& hole : holes) {
-            const Rect w = rectFromCenter(hole, {proposal.partSize.w * options.windowScale, proposal.partSize.h * options.windowScale});
+        for (const Hole& hole : holes) {
+            const Rect w = rectFromCenter(hole.position, {proposal.partSize.w * options.windowScale, proposal.partSize.h * options.windowScale});
             windows.push_back(intersection(w, imageRect));
         }
         SearchParams windowParams = request.search;
@@ -197,7 +266,7 @@ Result<SampleProposal> GenerateObjectsFromSample::run(const SampleRequest& reque
             double nearestDistance = std::numeric_limits<double>::max();
             for (std::size_t k = 0; k < holes.size(); ++k) {
                 if (!windows[k].contains(m.pose.position())) continue;
-                const double d = distance(m.pose.position(), holes[k]);
+                const double d = distance(m.pose.position(), holes[k].position);
                 if (d < nearestDistance) {
                     nearestDistance = d;
                     nearest = k;
@@ -206,13 +275,34 @@ Result<SampleProposal> GenerateObjectsFromSample::run(const SampleRequest& reque
             if (nearest == holes.size()) continue;
             if (best[nearest] == nullptr || m.score > best[nearest]->score) best[nearest] = &m;
         }
+
+        // 驗證找到的元件加進各自的晶格重新擬合（正規方程累加器：每個 O(1)，S00 示範頁的 Refit while verifying），
+        // 沒找到的缺格放在修正後的位置。離預測位置超過晶格容差的匹配不加（可能是視窗裡的另一個東西）。
+        std::vector<std::optional<LatticeBasis>> refined(lattices.size());
+        {
+            std::vector<LatticeAccumulator> equations;
+            equations.reserve(lattices.size());
+            for (const LatticeModel& m : lattices) equations.push_back(m.equations);
+            std::vector<bool> changed(lattices.size(), false);
+            for (std::size_t k = 0; k < holes.size(); ++k) {
+                if (best[k] == nullptr) continue;
+                const LatticeModel& m = lattices[holes[k].lattice];
+                if (distance(best[k]->pose.position(), holes[k].position) > m.tolerancePx) continue;
+                equations[holes[k].lattice].add(holes[k].cell, best[k]->pose.position());
+                changed[holes[k].lattice] = true;
+            }
+            for (std::size_t l = 0; l < lattices.size(); ++l) {
+                if (changed[l]) refined[l] = equations[l].solve();
+            }
+        }
         for (std::size_t k = 0; k < holes.size(); ++k) {
             if (best[k] != nullptr) {
                 proposal.candidates.push_back({best[k]->pose, best[k]->score, CandidateSource::Verified});
             } else {
                 // 影像上沒有找到：只有預測的位置，沒有分數（Inferred）。角度沿用樣本的角度（同一個陣列的元件方向一致）。
-                proposal.candidates.push_back(
-                    {Pose2D{holes[k].x, holes[k].y, proposal.candidates.front().pose.angleDeg}, 0.0, CandidateSource::Predicted});
+                const std::optional<LatticeBasis>& basis = refined[holes[k].lattice];
+                const Point2D at = basis ? basis->at(holes[k].cell) : holes[k].position;
+                proposal.candidates.push_back({Pose2D{at.x, at.y, sampleAngle}, 0.0, CandidateSource::Predicted});
             }
         }
     }

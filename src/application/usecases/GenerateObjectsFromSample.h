@@ -12,16 +12,19 @@
 #include "application/ports/ITemplateBuilder.h"
 #include "domain/geometry.h"
 #include "domain/image_view.h"
+#include "domain/lattice/lattice_estimator.h"
+#include "domain/lattice/non_max_suppression.h"
 #include "domain/match.h"
 #include "domain/object_state.h"
 #include "domain/search_params.h"
 
 // application 層。流程 A「教樣本」的 use case：使用者框一個元件 → 找出板上所有相似的元件 → 補漏。
 //
-// 流程（docs/steps/S03-core/diagram.md）：
-//   檢查樣本 → 建範本 → 種子搜尋（整張影像）→ 擬合晶格 → 預測缺格 → 視窗驗證 → 候選清單
+// 流程（docs/steps/S03-core/diagram.md；S05 的晶格部分在 docs/steps/S05-lattice/diagram.md）：
+//   檢查樣本 → 建範本 → 種子搜尋（整張影像）→ 合併重複的匹配（NMS）→ 擬合晶格（可能多組）→ 預測缺格
+//   → 視窗驗證 → 把驗證找到的加進晶格重新擬合（O(1)／個）→ 候選清單
 //
-// use case 只依賴 port（ITemplateBuilder、IPatternSearcher）；換 back end 不必改這個類別。
+// use case 只依賴 port（ITemplateBuilder、IPatternSearcher）；換 back end 不必改這個類別。晶格與 NMS 是 domain 的純 C++。
 namespace aoi {
 
 // 策略參數：use case 自己的門檻與限制。預設值是起點，不是量測出來的事實。
@@ -32,7 +35,9 @@ struct GenerateOptions {
     double maxSampleAreaFraction = 0.25;  // 樣本面積超過影像的這個比例，判定比元件大很多
     double minContrast = 3.0;     // 樣本亮度標準差（0..255）低於這個值，判定對比太低
     double windowScale = 1.5;     // 驗證視窗的大小 ＝ 範本大小 × 這個倍數
-    std::size_t maxPredictions = 20000;  // 最多預測幾個缺格
+    std::size_t maxPredictions = 20000;  // 最多預測幾個缺格（超過時留離樣本最近的）
+    LatticeOptions lattice;       // 晶格估計（S05，domain/lattice）
+    NmsOptions nms;               // 重疊多少算「同一個元件」：種子搜尋的重複匹配、與已有候選重疊的缺格（主體框大小）
 };
 
 struct SampleRequest {
@@ -51,18 +56,24 @@ struct StageTimings {
     double totalMs = 0.0;
 };
 
+// 晶格的摘要。有多組晶格時，u、v、rmsPx、coverage、confidence、suggestCheck 是主晶格（內點最多）的。
 struct GridSummary {
-    bool found = false;   // 有沒有擬合出晶格（少於 2 個種子就沒有）
+    bool found = false;   // 有沒有晶格（點太少、不成陣列、或信心不足時沒有：只回傳找到的，不補漏）
     bool hasV = false;    // 二維；false ＝ 一維（一排）
     Point2D u;
     Point2D v;
     double rmsPx = 0.0;
-    std::size_t holes = 0;  // 預測的缺格數
+    std::size_t holes = 0;     // 預測的缺格數（所有晶格合計，扣掉與已有候選重疊的）
+    std::size_t lattices = 0;  // 幾組晶格（例如上下兩排方向不同時是 2）
+    double coverage = 0.0;     // 主晶格：找到的格子 ÷ 索引範圍內的格子
+    double confidence = 0.0;   // 主晶格的信心（0..1；domain/lattice/lattice_confidence.h）
+    bool suggestCheck = false; // 主晶格的信心偏低：結果要人看（UI 的「建議檢查」；S05 只提供，畫面還沒顯示）
+    NoLatticeReason noLattice = NoLatticeReason::None;  // found ＝ false 時的原因（2 個點以上才有意義）
 };
 
 // use case 的輸出：不可變的快照（執行緒之間只傳這個，不共享可變狀態）。
 struct SampleProposal {
-    // 所有候選，順序：Sample、Seed（搜尋器的順序）、Verified 與 Predicted（依晶格索引的順序）。
+    // 所有候選，順序：Sample、Seed（搜尋器的順序，合併重複之後）、Verified 與 Predicted（離樣本由近到遠）。
     // 分數 ≥ 搜尋下限的都在裡面；門檻由 Presenter 套（見 ProposalView.h 的 classify）。
     std::vector<Candidate> candidates;
     Size2D partSize;  // 範本大小（影像像素）：每個候選的主體框用這個大小

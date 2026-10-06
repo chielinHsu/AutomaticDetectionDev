@@ -7,7 +7,6 @@ add_library(aoi_application STATIC
   interaction/InteractionStateMachine.cpp
   jobs/JobRunner.cpp
   usecases/GenerateObjectsFromSample.cpp
-  usecases/ProposalView.cpp
-  usecases/SimpleGrid.cpp)
+  usecases/ProposalView.cpp)
 target_link_libraries(aoi_application PUBLIC aoi_domain)
 aoi_set_warnings(aoi_application)

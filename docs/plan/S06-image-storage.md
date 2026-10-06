@@ -11,6 +11,8 @@
 
 > **S03 完成後的提醒（2026-10-05）**：S03 在標頭裡寫了 `IImageSource`、`IRecipeStore`、`ILibraryStore` 的契約（不存在回 `NotFound`；損壞的檔案回 `FormatInvalid`，不當機也不丟例外），以及 domain 型別 `Board`、`ComponentType`、`BoxGroup`、`Recipe`。`ImageView` 新增 `umPerPixel`（0 ＝ 未校正，既有欄位的意義沒變）。座標慣例（像素原點在左上角像素的左上角）見 ADR-010。
 
+> **S05 完成後的提醒（2026-10-06）**：domain 第一次有 .cpp（`src/domain/lattice/`），`aoi_domain` 由 INTERFACE 改成 STATIC；`AiInspTool.pro` 已加入 `domain/*.cpp`，加 storage 時照同樣的方式加。晶格不需要存檔：存的是接受之後的元件；`GridSummary`（含信心、`suggestCheck`）只在提案裡。
+
 > **S04 完成後的提醒（2026-10-06）**：（1）`presentation/shell/ImageLoader` 與 `ImageViewAdapter` 是暫代；換成 `IImageSource` 時，`MainWindow` 的 `imageOpened`／`imageOpenFailed` 訊號與 `InspectionSession::imageOpened`／`imageFailed` 這兩條路不變。（2）影像沒有校正值時，`effectiveUmPerPixel`（`src/domain/box_expander.h`）暫以 1 µm ＝ 1 像素展開框：這是「暫定」，不是事實；`ImageView::umPerPixel` 有值就用校正值。（3）`InspectionDocument` 只在記憶體裡：`isDirty()` 與 `markSaved()` 已經就位（`UndoStack` 追蹤乾淨位置），存檔時呼叫 `markSaved()`；Presenter 還沒有「存檔」與「關閉前問是否儲存」。（4）接受提案時產生的元件類型是暫時的，沒有料號，名稱是 `X1…`；樣本庫 UI 與類型編輯器沒有做。
 
 <!--STE-->

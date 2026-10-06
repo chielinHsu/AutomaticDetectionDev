@@ -4,7 +4,7 @@ set(AOI_CORE_TEST_LIBS aoi_application aoi_backend_fake aoi_perf aoi_threading a
 
 aoi_add_qt_test(tst_domain SOURCES tst_domain.cpp LIBS ${AOI_CORE_TEST_LIBS})
 aoi_add_qt_test(tst_core_types SOURCES tst_core_types.cpp LIBS ${AOI_CORE_TEST_LIBS})
-aoi_add_qt_test(tst_grid SOURCES tst_grid.cpp LIBS ${AOI_CORE_TEST_LIBS})
+# tst_grid（S03 暫代 SimpleGrid 的規格）在 S05 搬到 tests/domain/tst_lattice.cpp。
 aoi_add_qt_test(tst_job_runner SOURCES tst_job_runner.cpp LIBS ${AOI_CORE_TEST_LIBS})
 aoi_add_qt_test(tst_generate_objects SOURCES tst_generate_objects.cpp LIBS ${AOI_CORE_TEST_LIBS})
 aoi_add_qt_test(tst_fake_backend SOURCES tst_fake_backend.cpp LIBS ${AOI_CORE_TEST_LIBS})

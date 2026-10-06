@@ -6,11 +6,13 @@
 #include <algorithm>
 #include <atomic>
 #include <chrono>
+#include <cmath>
 #include <thread>
 
 #include "CoreTestSupport.h"
 #include "application/usecases/GenerateObjectsFromSample.h"
 #include "application/usecases/ProposalView.h"
+#include "domain/lattice/lattice_accumulator.h"
 #include "infrastructure/perf/PerfProbe.h"
 
 using namespace aoi;
@@ -83,6 +85,60 @@ struct ProgressLog final : IProgressSink {
     void report(const ProgressEvent& e) noexcept override { events.push_back(e); }
     std::vector<ProgressEvent> events;
 };
+
+// S05：腳本化的 back end。種子搜尋回傳 seeds；視窗搜尋回傳 world 裡中心落在任一視窗內的。
+// 用來造假 back end 排不出來的情境：重複的匹配、兩個陣列、散佈的點、位置有雜訊的種子。
+struct ScriptedTemplate final : ITemplate {
+    explicit ScriptedTemplate(Size2D s) : size_(s) {}
+    Size2D size() const noexcept override { return size_; }
+    std::string_view backendId() const noexcept override { return "scripted"; }
+    Size2D size_;
+};
+
+struct ScriptedBuilder final : ITemplateBuilder {
+    explicit ScriptedBuilder(Size2D s) : size(s) {}
+    std::string_view backendId() const noexcept override { return "scripted"; }
+    Result<TemplatePtr> build(const ImageView&, const Rect&, const SearchParams&, const CancelToken&) override {
+        return TemplatePtr(std::make_shared<const ScriptedTemplate>(size));
+    }
+    Size2D size;
+};
+
+struct ScriptedSearcher final : IPatternSearcher {
+    std::string_view backendId() const noexcept override { return "scripted"; }
+    Result<std::vector<Match>> find(const ImageView&, const ITemplate&, const SearchRegion& region, const SearchParams& params,
+                                    const CancelToken&) override {
+        std::vector<Match> out;
+        if (region.kind == SearchRegion::Kind::WholeImage) {
+            for (const Match& m : seeds) {
+                if (m.score >= params.minScore) out.push_back(m);
+            }
+        } else {
+            ++windowCalls;
+            for (const Match& m : world) {
+                if (m.score < params.minScore) continue;
+                for (const Rect& w : region.windows) {
+                    if (w.contains(m.pose.position())) {
+                        out.push_back(m);
+                        break;
+                    }
+                }
+            }
+        }
+        std::sort(out.begin(), out.end(), [](const Match& a, const Match& b) {
+            if (a.score != b.score) return a.score > b.score;
+            return a.pose.y != b.pose.y ? a.pose.y < b.pose.y : a.pose.x < b.pose.x;
+        });
+        return out;
+    }
+    std::vector<Match> seeds;
+    std::vector<Match> world;
+    int windowCalls = 0;
+};
+
+Point2D at(Point2D origin, double pitchX, double pitchY, int col, int row) { return {origin.x + col * pitchX, origin.y + row * pitchY}; }
+
+Rect sampleAround(Point2D center) { return rectFromCenter(center, {40.0, 30.0}); }
 
 }  // namespace
 
@@ -493,6 +549,185 @@ private slots:
         QVERIFY(t.totalMs > 0.0);
         QVERIFY(t.templateMs >= 0.0 && t.seedMs >= 0.0 && t.fitMs >= 0.0 && t.verifyMs >= 0.0);
         QVERIFY(t.totalMs + 1e-6 >= t.templateMs + t.seedMs + t.fitMs + t.verifyMs);
+    }
+
+    // ---- S05：晶格（domain/lattice）接進 use case ----
+
+    // 同一個元件被找到兩次（差 2 像素、分數低一點）：NMS 只留分數高的，候選數量和沒有重複時一樣。
+    void duplicateSeedMatchesAreMergedIntoOne() {
+        ScriptedBuilder builder({40.0, 30.0});
+        ScriptedSearcher searcher;
+        const Point2D origin{100.0, 100.0};
+        for (int c = 0; c < 6; ++c) {
+            for (int r = 0; r < 4; ++r) {
+                const Point2D p = at(origin, 60.0, 45.0, c, r);
+                searcher.seeds.push_back({{p.x, p.y, 0.0}, 0.92});
+                searcher.seeds.push_back({{p.x + 2.0, p.y - 1.0, 0.0}, 0.86});  // 重複
+            }
+        }
+        GenerateObjectsFromSample useCase(builder, searcher);
+        const SampleProposal p = useCase.run(makeRequest(image800x600(), sampleAround(origin)), CancelToken()).value();
+        QCOMPARE(p.candidates.size(), std::size_t{24});
+        QCOMPARE(countSource(p.candidates, CandidateSource::Seed), std::size_t{23});
+        for (const Candidate& c : p.candidates) QVERIFY2(c.source == CandidateSource::Sample || c.score == 0.92, "the better of each pair survives");
+        QVERIFY(p.grid.found && p.grid.hasV);
+        QCOMPARE(p.grid.holes, std::size_t{0});
+        QCOMPARE(p.grid.lattices, std::size_t{1});
+        QCOMPARE(p.grid.coverage, 1.0);
+        QVERIFY(p.grid.confidence > 0.9 && !p.grid.suggestCheck);
+    }
+
+    // 兩個間距不同的陣列：兩組晶格，各自的缺件都補上，位置是精確的。
+    void twoArraysWithDifferentPitchesAreBothFilled() {
+        ScriptedBuilder builder({40.0, 30.0});
+        ScriptedSearcher searcher;
+        const Point2D a{100.0, 100.0};
+        const Point2D b{130.0, 380.0};
+        for (int c = 0; c < 8; ++c) {
+            for (int r = 0; r < 3; ++r) {
+                if (c == 3 && r == 1) continue;  // 陣列 A 缺一個
+                const Point2D p = at(a, 60.0, 45.0, c, r);
+                searcher.seeds.push_back({{p.x, p.y, 0.0}, 0.9});
+            }
+        }
+        for (int c = 0; c < 6; ++c) {
+            for (int r = 0; r < 3; ++r) {
+                if (c == 2 && r == 1) continue;  // 陣列 B 缺一個
+                const Point2D p = at(b, 52.0, 40.0, c, r);
+                searcher.seeds.push_back({{p.x, p.y, 0.0}, 0.9});
+            }
+        }
+        GenerateObjectsFromSample useCase(builder, searcher);
+        const SampleProposal p = useCase.run(makeRequest(image800x600(), sampleAround(a)), CancelToken()).value();
+        QCOMPARE(p.grid.lattices, std::size_t{2});
+        QCOMPARE(countSource(p.candidates, CandidateSource::Predicted), std::size_t{2});
+        QVERIFY(hasCandidateAt(p.candidates, Pose2D{at(a, 60.0, 45.0, 3, 1).x, at(a, 60.0, 45.0, 3, 1).y, 0.0}, CandidateSource::Predicted));
+        QVERIFY(hasCandidateAt(p.candidates, Pose2D{at(b, 52.0, 40.0, 2, 1).x, at(b, 52.0, 40.0, 2, 1).y, 0.0}, CandidateSource::Predicted));
+        QCOMPARE(searcher.windowCalls, 1);  // 兩組晶格的缺格一起驗證：一次批次
+    }
+
+    // 散佈的元件（不成陣列）：沒有晶格，不補漏，也不做視窗驗證；結果就是找到的（NMS 之後）。
+    void scatteredMatchesAreNotALattice() {
+        ScriptedBuilder builder({40.0, 30.0});
+        ScriptedSearcher searcher;
+        // 固定的散佈位置（黃金角螺線：沒有任何三點等距共線）。
+        const Point2D center{400.0, 300.0};
+        for (int k = 0; k < 30; ++k) {
+            const double r = 22.0 * std::sqrt(static_cast<double>(k) + 1.0);
+            const double t = k * 2.399963229728653;
+            searcher.seeds.push_back({{center.x + r * std::cos(t), center.y + r * std::sin(t), 0.0}, 0.9});
+        }
+        GenerateObjectsFromSample useCase(builder, searcher);
+        const SampleProposal p = useCase.run(makeRequest(image800x600(), sampleAround(searcher.seeds.front().pose.position())), CancelToken()).value();
+        QVERIFY2(!p.grid.found, qPrintable(QStringLiteral("lattice u=(%1,%2) v=(%3,%4) hasV=%5 holes=%6 confidence=%7")
+                                               .arg(p.grid.u.x).arg(p.grid.u.y).arg(p.grid.v.x).arg(p.grid.v.y)
+                                               .arg(p.grid.hasV).arg(p.grid.holes).arg(p.grid.confidence)));
+        QVERIFY(p.grid.noLattice != NoLatticeReason::None);
+        QCOMPARE(p.grid.holes, std::size_t{0});
+        QCOMPARE(searcher.windowCalls, 0);
+        QCOMPARE(p.candidates.size(), std::size_t{30});
+        QCOMPARE(countSource(p.candidates, CandidateSource::Predicted), std::size_t{0});
+    }
+
+    // 驗證找到的元件加進晶格重新擬合（O(1)／個），沒找到的缺格放在修正後的位置：
+    // 預期值 ＝ 「種子 ＋ 驗證找到的」一起做最小平方法；和只用種子的預測不同（種子有雜訊）。
+    void verifiedPartsCorrectThePredictedPositions() {
+        ScriptedBuilder builder({40.0, 30.0});
+        ScriptedSearcher searcher;
+        const Point2D origin{100.0, 100.0};
+        const std::vector<std::pair<int, int>> weak{{2, 1}, {4, 0}, {5, 2}};
+        const std::pair<int, int> missing{6, 1};
+        // 視窗裡找到的東西離預測位置 15 px（超過晶格的容差 11.25 px）：仍是 Verified 候選，但不拿來修正晶格。
+        const std::pair<int, int> farWeak{1, 2};
+        aoi::LatticeAccumulator seedsOnly(origin, {0, 0});
+        aoi::LatticeAccumulator all(origin, {0, 0});
+        quint32 state = 4242;  // 固定的雜訊（各平台一致）
+        auto noise = [&] {
+            state = state * 1664525u + 1013904223u;
+            return (static_cast<double>(state >> 8) / 16777216.0 - 0.5) * 3.0;  // ±1.5 px
+        };
+        for (int c = 0; c < 7; ++c) {
+            for (int r = 0; r < 3; ++r) {
+                const Point2D p = at(origin, 60.0, 45.0, c, r);
+                if (std::make_pair(c, r) == missing) continue;
+                if (std::make_pair(c, r) == farWeak) {
+                    searcher.world.push_back({{p.x + 15.0, p.y, 0.0}, 0.5});
+                    continue;
+                }
+                if (std::find(weak.begin(), weak.end(), std::make_pair(c, r)) != weak.end()) {
+                    searcher.world.push_back({{p.x, p.y, 0.0}, 0.5});  // 只有視窗搜尋找得到，位置精確
+                    all.add({c, r}, p);
+                    continue;
+                }
+                const Point2D q = (c == 0 && r == 0) ? p : Point2D{p.x + noise(), p.y + noise()};
+                searcher.seeds.push_back({{q.x, q.y, 0.0}, 0.9});
+                seedsOnly.add({c, r}, q);
+                all.add({c, r}, q);
+            }
+        }
+        GenerateObjectsFromSample useCase(builder, searcher);
+        const SampleProposal p = useCase.run(makeRequest(image800x600(), sampleAround(origin)), CancelToken()).value();
+        QCOMPARE(countSource(p.candidates, CandidateSource::Verified), weak.size() + 1);
+        QCOMPARE(countSource(p.candidates, CandidateSource::Predicted), std::size_t{1});
+        const Point2D expected = all.solve()->at(missing.first, missing.second);
+        const Point2D seedOnly = seedsOnly.solve()->at(missing.first, missing.second);
+        QVERIFY2(distance(expected, seedOnly) > 1e-3, "the fixture must make the refit visible");
+        for (const Candidate& c : p.candidates) {
+            if (c.source != CandidateSource::Predicted) continue;
+            QVERIFY2(distance(c.pose.position(), expected) < 1e-9, "the predicted part sits where seeds and verified parts agree");
+        }
+    }
+
+    // 一個種子離它的格點 12.5 px（超過容差 11.25 px，所以不是內點），那一格因此是「缺格」；但那裡已經有這個種子
+    // （主體框重疊 IoU 0.52 > 0.5）：不補，否則同一個元件會多一個推算的框。
+    void aHoleUnderAnOffLatticeSeedIsNotPredicted() {
+        ScriptedBuilder builder({40.0, 30.0});
+        ScriptedSearcher searcher;
+        const Point2D origin{100.0, 100.0};
+        for (int c = 0; c < 6; ++c) {
+            for (int r = 0; r < 4; ++r) {
+                Point2D p = at(origin, 60.0, 45.0, c, r);
+                if (c == 3 && r == 2) p.x += 12.5;
+                searcher.seeds.push_back({{p.x, p.y, 0.0}, 0.9});
+            }
+        }
+        GenerateObjectsFromSample useCase(builder, searcher);
+        const SampleProposal p = useCase.run(makeRequest(image800x600(), sampleAround(origin)), CancelToken()).value();
+        QVERIFY(p.grid.found);
+        QCOMPARE(p.grid.holes, std::size_t{0});
+        QCOMPARE(p.candidates.size(), std::size_t{24});
+        QCOMPARE(countSource(p.candidates, CandidateSource::Predicted), std::size_t{0});
+        QCOMPARE(searcher.windowCalls, 0);
+    }
+
+    // 驗證與推算的候選由近到遠（離樣本）；超過 maxPredictions 時留最近的。
+    void holesAreOrderedNearToFarAndTheCapKeepsTheNearest() {
+        fake::FakeSpec spec;
+        spec.halfCols = 4;
+        spec.halfRows = 2;
+        spec.missingFraction = 0.25;
+        spec.seed = 3;
+        Fixture f(spec);
+        const SampleProposal all = f.run().value();
+        const Point2D anchor = all.candidates.front().pose.position();
+        std::vector<double> distances;
+        for (const Candidate& c : all.candidates) {
+            if (c.source == CandidateSource::Predicted || c.source == CandidateSource::Verified) distances.push_back(distance(c.pose.position(), anchor));
+        }
+        QVERIFY2(distances.size() >= 3, "the fixture itself must contain holes");
+        QVERIFY(std::is_sorted(distances.begin(), distances.end()));
+
+        Fixture capped(spec);
+        SampleRequest request = makeRequest(image800x600(), kSample);
+        request.options.maxPredictions = 2;
+        const SampleProposal two = capped.useCase.run(request, CancelToken()).value();
+        QCOMPARE(two.grid.holes, std::size_t{2});
+        std::vector<double> kept;
+        for (const Candidate& c : two.candidates) {
+            if (c.source == CandidateSource::Predicted || c.source == CandidateSource::Verified) kept.push_back(distance(c.pose.position(), anchor));
+        }
+        QCOMPARE(kept.size(), std::size_t{2});
+        QVERIFY(std::abs(kept[0] - distances[0]) < 1e-9 && std::abs(kept[1] - distances[1]) < 1e-9);
     }
 
     // 規模：5 000 個零件的端到端，驗證數量正確（這個 use case 自己的成本在 perf_core 量）。

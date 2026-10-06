@@ -6,7 +6,8 @@
 #
 # 注意：S03 起 ../src 有 application、infrastructure、組裝根，這個檔已經調整；S04 新增的 application/document、interaction，
 #       infrastructure/threading/QtThreadPoolExecutor 與 presentation/presenters、objects、params 都在已納入的資料夾底下（萬用字元遞迴納入），
-#       不必改。S06 起還會有 storage、S07／S08 有 OpenCV／HALCON，到時候要跟著調整，不要只依賴它確認「全部都能建置」
+#       不必改。S05 起 domain 有 .cpp（domain/lattice：晶格估計、NMS），已加入 SOURCES。
+#       S06 起還會有 storage、S07／S08 有 OpenCV／HALCON，到時候要跟著調整，不要只依賴它確認「全部都能建置」
 #       （正式的建置與測試走 CMake）。
 #
 # 精靈原本產生的 main.cpp、mainwindow.h、mainwindow.cpp、mainwindow.ui 現在沒有被使用（入口是 ../src/app/main.cpp）。
@@ -23,6 +24,7 @@ INCLUDEPATH += $$PWD/../src
 # backend_opencv、backend_halcon（S07、S08）需要各自的函式庫，這個 qmake 專案不建置它們；到時候要用的話再加。
 SOURCES += $$PWD/../src/app/main.cpp
 SOURCES += $$PWD/../src/app/CompositionRoot.cpp
+SOURCES += $$files($$PWD/../src/domain/*.cpp, true)
 SOURCES += $$files($$PWD/../src/application/*.cpp, true)
 SOURCES += $$files($$PWD/../src/infrastructure/backend_fake/*.cpp, true)
 SOURCES += $$files($$PWD/../src/infrastructure/perf/*.cpp, true)

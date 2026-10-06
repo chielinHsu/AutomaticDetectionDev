@@ -297,7 +297,7 @@ private slots:
                 add(QString::fromLatin1(s.id) + tag, QString::fromLatin1(s.label) + suffix, "ms", total, note);
                 if (!probeOn) {
                     add(QString::fromLatin1(s.id) + "-seed", QString::fromLatin1(s.label) + ": seed stage", "ms", seed);
-                    add(QString::fromLatin1(s.id) + "-fit", QString::fromLatin1(s.label) + ": fit stage (simple stand-in)", "ms", fit);
+                    add(QString::fromLatin1(s.id) + "-fit", QString::fromLatin1(s.label) + ": fit stage (lattice estimator, S05)", "ms", fit);
                     add(QString::fromLatin1(s.id) + "-verify", QString::fromLatin1(s.label) + ": verify stage", "ms", verify);
                 }
             }
