@@ -173,6 +173,9 @@ void MainWindow::buildActions() {
     fitAction_ = new QAction(this);
     fitAction_->setShortcut(Qt::Key_F);
     connect(fitAction_, &QAction::triggered, this, [this] { canvas_->fit(); });
+    fitWidthAction_ = new QAction(this);
+    fitWidthAction_->setShortcut(Qt::Key_W);
+    connect(fitWidthAction_, &QAction::triggered, this, [this] { canvas_->fitWidth(); });
 
     toolGroup_ = new QActionGroup(this);
     toolGroup_->setExclusive(true);
@@ -213,6 +216,7 @@ void MainWindow::buildMenus() {
 
     viewMenu_ = menuBar()->addMenu(QString());
     viewMenu_->addAction(fitAction_);
+    viewMenu_->addAction(fitWidthAction_);
     viewMenu_->addSeparator();
 
     themeMenu_ = viewMenu_->addMenu(QString());
@@ -279,6 +283,7 @@ void MainWindow::buildToolbars() {
     topBar_->addAction(undoAction_);
     topBar_->addAction(redoAction_);
     topBar_->addAction(fitAction_);
+    topBar_->addAction(fitWidthAction_);
     topBar_->addAction(exportAction_);
 
     toolRail_ = new QToolBar(this);
@@ -357,6 +362,8 @@ void MainWindow::retranslateUi() {
     redoAction_->setText(QStringLiteral("↷ ") + qtTrId("action.redo"));
     fitAction_->setText(QStringLiteral("⤢ ") + qtTrId("action.fit"));
     fitAction_->setToolTip(withShortcut(qtTrId("action.fit"), QStringLiteral("F")));
+    fitWidthAction_->setText(QStringLiteral("↔ ") + qtTrId("action.fitWidth"));
+    fitWidthAction_->setToolTip(withShortcut(qtTrId("action.fitWidth"), QStringLiteral("W")));
     toolSelect_->setToolTip(withShortcut(qtTrId("tool.select"), QStringLiteral("V")));
     toolSample_->setToolTip(withShortcut(qtTrId("tool.sample"), QStringLiteral("S")));
     toolRegion_->setToolTip(withShortcut(qtTrId("tool.scan"), QStringLiteral("R")));
@@ -396,6 +403,7 @@ void MainWindow::refreshState() {
     const bool has = canvas_->hasImage();
     for (QAction* a : {toolSelect_, toolSample_, toolRegion_, toolAdd_}) a->setEnabled(has);
     fitAction_->setEnabled(has);
+    fitWidthAction_->setEnabled(has);
     emptyCard_->setVisible(!has);
     centerEmptyCard();
 }

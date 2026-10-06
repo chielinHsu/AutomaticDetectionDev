@@ -121,7 +121,7 @@ void ImageCanvas::setBusyCursor(bool busy) {
 void ImageCanvas::zoomAt(const QPointF& viewPos, double factor) {
     if (!(factor > 0)) return;
     applyScale(viewScale() * factor, viewPos);
-    fitted_ = false;
+    fitMode_ = FitMode::None;
 }
 
 void ImageCanvas::applyScale(double newScale, const QPointF& anchorViewPos) {
@@ -144,7 +144,7 @@ void ImageCanvas::applyScale(double newScale, const QPointF& anchorViewPos) {
 }
 
 void ImageCanvas::fit() {
-    fitted_ = true;
+    fitMode_ = FitMode::Window;
     if (!hasImage()) return;
     const QRectF rect = imageRect();
     const double margin = tokens_.interaction.fitMarginPx;
@@ -157,10 +157,36 @@ void ImageCanvas::fit() {
     notifyScale();
 }
 
+void ImageCanvas::fitWidth() {
+    // 改縮放之前，先記下視窗中央對到影像的哪一列（從「適配視窗」切過來時就是影像的中線）。
+    // 之後視窗大小改變時沿用這一列、不重新讀：resize 的錨點是 NoAnchor，重新讀的話每次都會偏一點。
+    fitWidthRow_ = viewportTransform().inverted().map(QPointF(viewport()->width() / 2.0, viewport()->height() / 2.0)).y();
+    applyFitWidth();
+}
+
+void ImageCanvas::applyFitWidth() {
+    fitMode_ = FitMode::Width;
+    if (!hasImage()) return;
+    const QRectF rect = imageRect();
+    const double margin = tokens_.interaction.fitMarginPx;
+    const double vw = viewport()->width(), vh = viewport()->height();
+    double s = std::max(1.0, vw - 2 * margin) / rect.width();
+    s = std::clamp(s, tokens_.interaction.zoomMinPercent / 100.0, tokens_.interaction.zoomMaxPercent / 100.0);
+    // 中心的範圍：最高到「影像上緣剛好在上邊界」，最低到「影像下緣剛好在下邊界」，所以不會露出影像外的空白；
+    // 影像比視窗矮（範圍是空的）就垂直置中，和「適配視窗」一樣。
+    const double halfH = vh / (2.0 * s);
+    const double highest = rect.top() - margin / s + halfH;
+    const double lowest = rect.bottom() + margin / s - halfH;
+    const double centerY = highest <= lowest ? std::clamp(fitWidthRow_, highest, lowest) : rect.center().y();
+    setTransform(QTransform::fromScale(s, s));
+    centerOn(QPointF(rect.center().x(), centerY));
+    notifyScale();
+}
+
 void ImageCanvas::panBy(const QPoint& delta) {
     horizontalScrollBar()->setValue(horizontalScrollBar()->value() - delta.x());
     verticalScrollBar()->setValue(verticalScrollBar()->value() - delta.y());
-    fitted_ = false;
+    fitMode_ = FitMode::None;
 }
 
 void ImageCanvas::notifyScale() {
@@ -372,7 +398,9 @@ void ImageCanvas::leaveEvent(QEvent* event) {
 
 void ImageCanvas::resizeEvent(QResizeEvent* event) {
     QGraphicsView::resizeEvent(event);
-    if (fitted_ && hasImage()) fit();
+    if (!hasImage()) return;
+    if (fitMode_ == FitMode::Window) fit();
+    else if (fitMode_ == FitMode::Width) applyFitWidth();
 }
 
 void ImageCanvas::paintEvent(QPaintEvent* event) {

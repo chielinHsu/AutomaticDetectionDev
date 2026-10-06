@@ -9,6 +9,7 @@
 
 | 日期 | 修改者 | 說明 |
 |---|---|---|
+| 2026-10-06 | Claude Code (Claude Opus 5.5) | 使用者要求：新增〔適配寬度〕（`W`，「檢視」選單與上方工具列），規則見第 8 節；`copy.json` 新增 `action.fitWidth`。載入影像的預設仍是適配視窗 |
 | 2026-10-06 | Claude Code (Claude Sonnet 5.5) | S04 實作回饋：`copy.json` 新增 12 個 key（`ui.history.*`、`ui.preview.nothingToAccept`、`ui.editor.unavailable`、`ui.objects.col.*`），移除 5 個 S02 的暫代 key（`ui.shell.regionDrawn`、`addRequested`、`openEditor`、`deleteRequested`、`backendNone`）。第 12.2、12.3 節的介面名單與實作不同之處：卡片統一成 `IMessageView::showCard／hideCard`（預覽的動作列、無匹配、錯誤是同一種卡片，沒有 `showEmpty`）；多了 `ICanvasInputGate`（搜尋中畫布暫停）與 `IKeyboardController`；沒有 `IBackendController`（S04 只有一個可用的 back end，執行中不能切換）；第 12.4 節的六個 Presenter 在 S04 只做 `AutoRoiPresenter` 與 `ParamsPresenter`（[ADR-011](../adr/011-interaction-logic-in-application-layer.md)）。第 9 節「忙碌標示一旦出現至少停留 400 ms」只適用於**結果回來**；使用者自己取消時標示馬上收起（否則 Idle 的畫面上會留著「搜尋中…」）。第 7 節的虛線與點線改用整數像素的填色矩形畫（[ADR-012](../adr/012-dashed-frames-as-fill-rects.md)，外觀不變，快約 17 倍）。第 8 節「拖曳元件」與方向鍵微調（S02 沒做的兩項）在 S04 做了 |
 | 2026-10-05 | Claude Code (Claude Sonnet 5.5) | S02 實作回饋：訊息列改為**固定高度**（`tokens.json` 新增 `sizes.messageBarHeight` ＝ 96 px，放不下在列內捲動），否則「畫布大小不變」在桌面程式做不到（第 5 節；[ADR-008](../adr/008-message-bar-fixed-height.md)）。`copy.json` 新增殼層用的 key（`menu.*`、`action.quit`、`ui.shell.*`、`ui.status.cursor`；[ADR-007](../adr/007-copy-json-as-translation-source.md)）。框的粗細在整數像素下取整：Pin 的「狀態寬度 − 0.5」在畫面上是狀態寬度向下取整（Found：主體 2、Pin 1、窗 1），第 7 節的寬度是設計值（`docs/steps/S02-ui-shell/spec.md`） |
 | 2026-10-05 | Claude Code (Claude Sonnet 5.5) | 建立（S01）。同日依使用者回饋與 TRI 參考文件大幅修訂：新增概念模型（Board › Component › Box）、流程 B（區域掃描）、元件類型編輯器、樣本庫；狀態機由 7 個改為 8 個 |
@@ -182,6 +183,7 @@ S04 的狀態機照這張表實作。原型使用的就是這張表（原型的�
 | 滾輪 | 以游標為中心縮放（每格 ×1.1，5%–3200%） | 游標下的元件不會移位，不會跟丟。原型已驗證：游標下的世界座標縮放前後不變 |
 | Space＋拖曳、中鍵拖曳 | 平移 | 左鍵留給畫框與移動，不需要另一個「平移模式」 |
 | `F` | 適配視窗（邊界 24 px）；在類型編輯器是適配該類型 | 放大後一個鍵回到已知視圖 |
+| `W` | 適配寬度：影像寬度撐滿畫布（左右邊界 24 px），上下超出的部分靠平移看；保留畫布中央那一列，但上緣、下緣不離開邊界；影像比畫布扁時垂直置中。視窗大小改變時照樣適配寬度，縮放或平移後就不再跟著 | 正方形或直式影像在橫長的畫布上，適配視窗會在左右留下大片空白；載入影像仍是適配視窗 |
 | `S` | 教樣本：框**一個**元件 | 流程 A；框到多個元件會提示改用 `R` |
 | `R` | 區域掃描：框任意區域 | 流程 B；用庫辨識，一次得到全部元件與它們的全部框 |
 | `Enter`，或畫布下方的〔接受 (Enter)〕 | 接受提案。預覽時訊息列另有〔接受並存入樣本庫…〕（只有教樣本的提案才有）和〔捨棄 (Esc)〕 | 流程的目的，路徑最短；**不能只靠鍵盤**，只用滑鼠也要走得完（使用者實測時找不到存入樣本庫的按鈕後補上） |

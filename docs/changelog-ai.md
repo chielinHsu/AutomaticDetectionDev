@@ -24,6 +24,28 @@
 - 下一位 agent 需要知道的限制、否決的做法、不要還原的修改
 ```
 
+## 2026-10-06 — Claude Code (Claude Opus 5.5)（S04 之後：〔適配寬度〕）
+
+### 完成
+- 使用者看到正方形影像載入後左右有大片空白，要求加「適配寬度」。新增 `ImageCanvas::fitWidth()` 與 `FitMode`（`None`／`Window`／`Width`）：寬度撐滿畫布（左右留 `fitMarginPx`），保留畫布中央那一列但上緣、下緣不離開邊界，影像比畫布扁時垂直置中；視窗大小改變時沿用同一列；縮放或平移後不再跟著。`isFitted()` 的意義不變（只代表適配視窗）。
+- `MainWindow`：〔↔ 適配寬度〕放在「檢視」選單與上方工具列，快捷鍵 `W`，沒有影像時停用。`copy.json` 新增 `action.fitWidth`；`ux-spec.md` 第 8 節加一列。載入影像的預設仍是適配視窗（規格沒改）。
+- 分支 `feat/fit-width`（從 `main` 開出）；使用者看過結果後同意 commit，並以 `--no-ff` 合併到 `main`（只在本機，沒有 push，沒有 tag）。
+
+### 修改的檔案
+- `src/presentation/canvas/ImageCanvas.{h,cpp}`、`src/presentation/shell/MainWindow.{h,cpp}`、`docs/ux/copy.json`、`docs/ux/ux-spec.md`、`tests/ui/tst_canvas.cpp`、`tests/ui/tst_shell.cpp`、`.ai/handoff.md`
+
+### 驗證
+- Release 與 Debug 各 29 個 CTest 項目全過；`tst_canvas` 新增 7 個測試、`tst_shell` 新增 1 個並擴充 3 個。
+- 變異測試 8 個全被抓到（resize 重新讀中央列會偏移、沒有夾住上下緣、扁影像沒有置中、平移後還在適配、resize 不跟著適配、少了 `W`、沒有影像也能按、按鈕接到適配視窗）；還原後雜湊相同。
+- `check-deps` 0 違規、`ste-lint --strict` 0 錯誤、`check-contrast` 0 失敗。
+- 沒有跑 qmake ＋ jom（沒有新增檔案，`.pro` 用萬用字元）；沒有效能量測（只改適配時的轉換，繪製路徑沒動）；沒有在真實視窗裡手動操作過。
+
+### 未完成
+- 無。載入影像要不要記住上次的適配方式，沒有做（規格是載入時適配視窗）。
+
+### 注意事項
+- 適配寬度在 resize 時**不能**重新讀視窗中央的影像列：畫布的 resize 錨點是 `NoAnchor`，捲動值不變而視窗變大變小，重新讀的話每次 resize 都會偏一點（變異 F01 證明測試抓得到）。
+
 ## 2026-10-06 — Claude Code (Claude Sonnet 5.5)（S04：Presenter、互動狀態機、復原／重做）
 
 ### 完成

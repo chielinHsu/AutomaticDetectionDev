@@ -35,6 +35,10 @@
       "zh_TW": "適配視窗",
       "en": "Fit to window"
     },
+    "action.fitWidth": {
+      "zh_TW": "適配寬度",
+      "en": "Fit width"
+    },
     "action.accept": {
       "zh_TW": "接受",
       "en": "Accept"

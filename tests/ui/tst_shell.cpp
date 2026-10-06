@@ -104,6 +104,7 @@ private slots:
         for (ToolId id : {ToolId::Select, ToolId::Sample, ToolId::Region, ToolId::Add})
             QVERIFY(!f.window.toolAction(id)->isEnabled());
         QVERIFY(!f.window.fitAction()->isEnabled());
+        QVERIFY(!f.window.fitWidthAction()->isEnabled());
     }
 
     void loadingAnImageEnablesTools() {
@@ -113,7 +114,28 @@ private slots:
         for (ToolId id : {ToolId::Select, ToolId::Sample, ToolId::Region, ToolId::Add})
             QVERIFY(f.window.toolAction(id)->isEnabled());
         QVERIFY(f.window.fitAction()->isEnabled());
+        QVERIFY(f.window.fitWidthAction()->isEnabled());
         QVERIFY(f.window.windowTitle().startsWith(QStringLiteral("board.png")));
+    }
+
+    // 〔適配寬度〕（W）與〔適配視窗〕（F）切換畫布的適配方式；兩個都在「檢視」選單與上方工具列。
+    void fitWidthAndFitWindowSwitchTheCanvasFitMode() {
+        Fixture f(true);
+        QVERIFY(f.canvas()->fitMode() == ImageCanvas::FitMode::Window);  // 載入影像時是適配視窗
+        f.window.fitWidthAction()->trigger();
+        QVERIFY(f.canvas()->fitMode() == ImageCanvas::FitMode::Width);
+        const double margin = tokens().interaction.fitMarginPx;
+        QVERIFY(std::abs(f.canvas()->viewScale() - (f.vp()->width() - 2 * margin) / 1200.0) < 1e-9);
+        f.window.fitAction()->trigger();
+        QVERIFY(f.canvas()->fitMode() == ImageCanvas::FitMode::Window);
+        QVERIFY(f.window.findChild<QToolBar*>(QStringLiteral("topBar"))->actions().contains(f.window.fitWidthAction()));
+        QVERIFY(f.window.fitWidthAction()->text().contains(QStringLiteral("適配寬度")));
+        QVERIFY(f.window.fitWidthAction()->toolTip().contains(QStringLiteral("W")));
+        QVERIFY(Translations::install(QStringLiteral("en")));
+        QCoreApplication::processEvents();
+        QVERIFY(f.window.fitWidthAction()->text().contains(QStringLiteral("Fit width")));
+        QVERIFY(Translations::install(QStringLiteral("zh_TW")));
+        QCoreApplication::processEvents();
     }
 
     // ---- 訊息列：不蓋影像、不改變畫布大小 ----
@@ -270,6 +292,7 @@ private slots:
         const auto addKeys = f.window.toolAction(ToolId::Add)->shortcuts();
         QVERIFY(addKeys.contains(QKeySequence(Qt::Key_A)) && addKeys.contains(QKeySequence(Qt::Key_Plus)));
         QCOMPARE(f.window.fitAction()->shortcut(), QKeySequence(Qt::Key_F));
+        QCOMPARE(f.window.fitWidthAction()->shortcut(), QKeySequence(Qt::Key_W));
         QCOMPARE(f.window.openAction()->shortcut(), QKeySequence(QKeySequence::Open));
         QCOMPARE(f.window.undoAction()->shortcut(), QKeySequence(QKeySequence::Undo));
         QVERIFY(!f.window.undoAction()->isEnabled());  // 復原堆疊在 S04
