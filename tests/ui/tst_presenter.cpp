@@ -98,8 +98,10 @@ private slots:
         QVERIFY(r.componentCount() > 5);
         QCOMPARE(r.componentCount(), static_cast<int>(r.scene().snapshot->components.size()));
         QCOMPARE(r.treeRows(), r.componentCount());
-        QVERIFY(r.summary().contains(QStringLiteral("Fake (test)")));
-        QVERIFY(r.summary().contains(QStringLiteral("找到")));
+        // 狀態列的摘要要等「搜尋中…」收起來：搜尋超過忙碌門檻（測試台 40 ms；Debug 常接近）時，標示至少停留
+        // busyMinShowMs 才換成摘要（theBusyLabelStaysForItsMinimumTimeAfterAQuickResult）。所以等最終的狀態，不讀當下。
+        QTRY_VERIFY2(r.summary().contains(QStringLiteral("Fake (test)")), qPrintable(r.summary()));
+        QVERIFY2(r.summary().contains(QStringLiteral("找到")), qPrintable(r.summary()));
         QVERIFY(r.canvas()->draftItem()->isVisible());  // 預覽時留著掃過的區域
         QVERIFY(r.window.objectsPanel()->model()->rows()->proposal);
     }
@@ -837,7 +839,7 @@ private slots:
         QVERIFY2(r.window.messageBar()->cardTitle().startsWith(QStringLiteral("Found")),
                  qPrintable(r.window.messageBar()->cardTitle()));
         QVERIFY(r.cardButtons().at(0)->text().startsWith(QStringLiteral("Accept")));
-        QVERIFY(r.summary().contains(QStringLiteral("Found")));
+        QTRY_VERIFY2(r.summary().contains(QStringLiteral("Found")), qPrintable(r.summary()));  // 「搜尋中…」可能還在（見上）
         QVERIFY(Translations::install(QStringLiteral("zh_TW")));
         QCoreApplication::processEvents();
         QCoreApplication::processEvents();

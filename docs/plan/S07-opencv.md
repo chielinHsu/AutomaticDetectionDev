@@ -11,6 +11,8 @@
 
 > **S03 完成後的提醒（2026-10-05）**：新增 back end ＝ adapter ＋ 在 `src/app/CompositionRoot.cpp` 把 `registerUnavailable("opencv", …)` 換成 `registerBackend`；不要改 `application/`、`domain/`（`check-deps` 會擋）。`ITemplateBuilder`、`IPatternSearcher` 的契約（排序、視窗限制、取消、可重入、不丟例外）寫在標頭；`tests/core/tst_fake_backend.cpp` 是假 back end 版本的契約測試，`tst_backend_registry` 的 `ScriptedBackend` 示範怎麼放進新的 back end。OpenCV 只能出現在 `infrastructure/backend_opencv`（`check-deps` 的規則表已有這一列）；`AiInspTool.pro` 目前不納入它。ADR-010 的座標與角度轉換（像素中心偏移 0.5、`matchTemplate` 回傳左上角整數座標）只是文件上的假設，要實測。
 
+> **S05 完成後的提醒（2026-10-06）**：（1）use case 現在先對種子做 NMS（主體框大小、IoU > 0.5 算同一個元件），所以 adapter 回傳重疊的匹配不會造成重複候選；但不要依賴它取代 adapter 自己的峰值抑制。（2）晶格的門檻（`LatticeOptions`：容差 0.25 格距、信心 0.15／0.6、補缺格的證據、二維的列一致性 0.6）都是合成資料定出來的起點，要用真實影像校準；改門檻後跑 `tst_lattice_scenarios`（1 029 種組合）確認沒有退化，理由見 ADR-013。（3）**沒測過的情況**：非矩形的陣列（L 形、環形）可能在空的部分補缺格（`docs/steps/S05-lattice/spec.md` 已知失敗 #11），請用真實板子確認。板上散佈、不成陣列的同型零件「沒有晶格、只顯示找到的」是正確行為。（4）視窗驗證仍是一次批次；domain 已有由近到遠的順序（`LatticePredictor::orderNearToFar`）與 O(1) 的重新擬合（`LatticeAccumulator`）。要不要改成多回合的漸進驗證，看 T4 與每次呼叫搜尋器的成本再決定。（5）晶格的精度取決於種子位置的雜訊：每軸均勻雜訊 ≤ 0.1 格距時完全正確，0.14 格距時 71–100%（`perf.md` 的總表）；T6b（位置誤差）因此很重要。
+
 > **S04 完成後的提醒（2026-10-06）**：（1）流程 B 的接口：`AutoRoiPresenter::finishRegionScan()` 現在直接回「樣本庫是空的」（庫與比對器都還沒有實作）。S07 做好 `ILibraryMatcher` 後，把它換成真的呼叫（走 `JobRunner`，和流程 A 同一條路）；狀態機、取消、忙碌提示、結果卡都已經就位，不必改。（2）`Stage::Match` 的進度已經對應到進度列（`ProgressBridge`，整段 0..1）。（3）執行中切換 back end 的下拉選單仍是停用的（`MainWindow::setBackends` 只填清單）；`--backend` 命令列是唯一的切換方式。（4）Presenter 的測試用 `tests/ui/PresenterRig.h` 的假 back end（可設成失敗、可卡住視窗驗證階段）；新的 back end 不需要動它。
 
 <!--STE-->

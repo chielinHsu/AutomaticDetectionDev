@@ -24,6 +24,45 @@
 - 下一位 agent 需要知道的限制、否決的做法、不要還原的修改
 ```
 
+## 2026-10-06 — Claude Code (Claude Opus 5.5)（S05：晶格估計與補漏）
+
+### 完成
+- 依 Step Protocol 做 S05，在 worktree 的分支 `step/05-lattice`（從 `main` 的 `4097b02` 開出；使用者的提示寫 `5c8923f`，但 `main` 之後已多了〔適配寬度〕的合併）。
+- `src/domain/lattice/`（domain 第一次有 .cpp，只用標準庫；`aoi_domain` 由 INTERFACE 改 STATIC）：`LatticeEstimator`（kNN 位移分群找 u、v，RANSAC 挑原點，範圍逐次加倍的逐步精修，連通，Lagrange 約化；`fitAll` 依序找多組）、`LatticePredictor`、`LatticeAccumulator`（O(1) 正規方程）、`NonMaxSuppression`（旋轉矩形的精確重疊＋空間雜湊）、`SpatialGrid`、`IVectorClustering`。
+- 接受規則（ADR-013，寧可沒有晶格也不要錯的晶格）每一條都對應一個測試重現過的失敗：散佈的點湊成晶格、三排間距不同湊成假的二維、4 px 雜訊下「每隔一格」的粗晶格沒被標出、斜著穿過第二列的一排（說明頁的情境抓到）、一排加一個離群點、兩個同間距的陣列被接成一個。
+- use case：`SimpleGrid` 刪除；種子先 NMS；缺格與已有候選重疊不補；由近到遠、上限內留近的；驗證找到的元件用 O(1) 重新擬合，推算的位置用修正後的。`presentation/` 沒改。
+- T3 第一版 p95 3.3–3.6 ms 超標；分段計時後兩輪改寫熱迴圈（平方距離、先算好反矩陣的指派器、`fastRound`、密集的格子表、逐列掃描的連通、v 先從鄰居方向取）降到 0.48 ms；最終 3 次 p95 0.65–1.19 ms。
+- 正確性：情境掃描 1 029 組；與 S00 示範頁的 JavaScript 交叉驗證 36 組（`tools/s00-demo-fixture.mjs` 產生 fixture，CTest 檢查是否過期）；說明頁的晶格資料由 C++ 匯出，CTest 檢查是否過期。
+- 變異測試 32 個，最終全被抓到：第一輪 17 個抓到、6 個存活（規則彼此備援）、9 個無法編譯；補了 `tst_lattice_rules`、`tst_lattice` 的斷言、use case 的兩處測試，第二輪 15 個全抓到。
+- 修了 S04 的 `tests/ui/tst_presenter.cpp` 兩個時間相依的斷言（見注意事項）。
+- 文件：`docs/steps/S05-lattice/`（四種輸出＋`perf.md`）、ADR-013、`perf/baseline/casparhsu1-lattice.json`、`perf/budgets.json`（T3 `calibrated`、`searchCalibrationS05`，limit 沒改）、`docs/plan/S06`、`S07`、`S10`、`S11` 開頭的「S05 完成後的提醒」。
+
+### 修改的檔案
+- 新增：`src/domain/lattice/`（23 個檔案）、`tests/domain/`（`CMakeLists.txt`、`LatticeTestSupport.h`、`tst_lattice_scenarios`、`tst_lattice_parts`、`tst_lattice_rules`、`tst_nms`、`tst_lattice_crosscheck`、`tst_lattice_explainer`、`perf_lattice`、`fixtures/s00-demo-lattice.json`）、`tools/s00-demo-fixture.mjs`、`docs/steps/S05-lattice/`、`docs/adr/013-lattice-acceptance-rules.md`、`perf/baseline/casparhsu1-lattice.json`
+- 修改：`src/application/usecases/GenerateObjectsFromSample.{h,cpp}`、`src/application/CMakeLists.txt`、`src/domain/CMakeLists.txt`、`tests/CMakeLists.txt`、`tests/core/CMakeLists.txt`、`tests/core/tst_generate_objects.cpp`、`tests/core/perf_core.cpp`（標籤）、`tests/ui/tst_presenter.cpp`、`AiInspTool/AiInspTool.pro`、`perf/budgets.json`、`AI_CONTEXT.md`、`docs/architecture.md`、`docs/decisions.md`、`docs/current-status.md`（S02、S03 段落濃縮，行數回到上限內）、`docs/plan/S06`、`S07`、`S10`、`S11`、`.ai/handoff.md`
+- 搬移：`tests/core/tst_grid.cpp` → `tests/domain/tst_lattice.cpp`（S03 的規格保留並擴充）
+- 刪除：`src/application/usecases/SimpleGrid.{h,cpp}`
+
+### 驗證
+- `scripts/dev/test.ps1`：Release 與 Debug 各 36 個 CTest 項目全過。Debug 第一次全套有 1 個失敗（`tst_presenter`，見注意事項），修正後重跑全過。
+- 情境掃描：主張的範圍內 420 組全部完全正確，範圍外 609 組的失敗都安全；交叉驗證 36 組一致；變異 32 個全抓到（兩輪後用 SHA-256 確認 24 個原始檔與變異前相同）。
+- `node tools/check-deps.mjs`：133 個檔案 0 違規；`--self-test` 13 個 fixture 全過。`ste-lint --strict`：615 句 0 錯誤。`check-contrast`：0 失敗。`s00-demo-fixture.mjs --check`：一致。`diagram.md` 6 張 Mermaid 用 mermaid 11.17.2（jsdom）解析全過，只驗語法；先確認一張故意寫壞的圖會失敗。`check-ai-structure.ps1`：OK（0 警告）。
+- 效能：`perf_lattice` 與 `perf_core` 各連跑 3 次（Release，`perf.md`）：T3 p95 0.65–1.19 ms（預算 2 ms）。
+- `AiInspTool.pro`：qmake ＋ jom（Release）建置成功；offscreen 下 `--backend opencv` 結束碼 2、`--demo 500` 啟動 4 秒仍在執行。**沒有在 Qt Creator 裡載入過。**
+- `explainer.html` 在瀏覽器窗格（本機 HTTP）操作過：各個特殊情況、速度表；375 px 寬沒有水平捲動（窄寬度的表格欄寬有調整）。窗格這次是深色外觀；淺色這次沒有再看。
+
+### 未完成
+- T3 的預算沒有說是哪一種 1 000 點：散佈的點 p95 3.1–4.2 ms、缺件加離群點 p95 1.6–2.1 ms 不在預算裡；要不要算進 T3，由使用者決定。
+- 晶格的門檻要用真實影像校準（S07）；非矩形陣列（L 形、環形）沒有測；信心與「建議檢查」沒有顯示在畫面上（沒有任何 plan 檔寫到）；多回合的漸進驗證等 S07 的數字。
+
+### 注意事項
+- 規則彼此備援：只看估計器的結果，拿掉一條規則常看不出差別（變異測試第一輪 6 個存活就是這樣）。改規則時跑 `tst_lattice_rules`，它直接呼叫內部的規則函式。
+- `tests/domain/fixtures/s00-demo-lattice.json` 與 `explainer.html` 的 `lattice-data` 是產生出來的，不要手改（各自的 CTest 會說怎麼重新產生）。
+- `tst_presenter` 的時間假設：測試台的忙碌門檻 40 ms、最短顯示 120 ms；搜尋超過 40 ms 時，「進入預覽的瞬間」狀態列還是「搜尋中…」（依設計）。S04 的兩個斷言在那一瞬間讀狀態列；S05 讓 Debug 從放開滑鼠到預覽變成 49–72 ms（含輪詢誤差；Release 26–44 ms），全套跑出一次失敗。60 ms 的固定延遲可以穩定重現（3／3 失敗），改成 `QTRY_VERIFY2` 後 Release、Debug 各 3／3 通過。沒有量 S04 版程式在 Debug 的時間。
+- 量測完之後拿掉了 `perf_lattice.cpp` 裡一個無效的檢查（拿兩個用同樣步驟建的累加器互比）；被量的程式沒變，事後跑一次 T3 p95 0.73 ms。
+- 這台機器同一份程式會飄 1.4–2 倍（這次 `perf_core` 第 3 次比第 1 次慢約 2 倍）。
+- Mermaid 的檢查腳本與變異測試腳本都在 session 的暫存目錄，不在 repo。
+
 ## 2026-10-06 — Claude Code (Claude Opus 5.5)（S04 之後：〔適配寬度〕）
 
 ### 完成
