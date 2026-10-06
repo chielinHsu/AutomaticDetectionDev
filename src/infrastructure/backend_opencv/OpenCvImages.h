@@ -29,4 +29,17 @@ struct MatView {
 };
 MatView borrowAsMat(const ImageView& view);
 
+// ImageView 的一塊（roi：影像像素的整數矩形，要整個在影像內）→ 8 bit 灰階的 cv::Mat，給 matchTemplate 用（S07）。
+//  - Gray8：零複製（mat 指到 view 的像素，owner 跟著；不可以寫）。
+//  - Gray16：v × 255 ／（2^位元數 − 1），四捨五入、超過 255 的飽和。位元數是 effectiveBits(view)：
+//    看最大值的推測，或配方／使用者的覆寫（view.significantBits，S07）。一次複製，計數（countImageCopy）。
+//  - 彩色（Bgrx32、Bgr24、Rgb24）：轉灰階（0.299 R ＋ 0.587 G ＋ 0.114 B）；Bgrx32 的第 4 個 byte 不讀。一次複製，計數。
+// view 無效、roi 是空的或超出影像時回傳空的 mat。
+struct GrayRoi {
+    cv::Mat mat;
+    std::shared_ptr<const void> owner;  // 零複製時讓像素活著；複製時是空的（mat 自己擁有像素）
+    bool copied = false;
+};
+GrayRoi toGray8(const ImageView& view, const cv::Rect& roi);
+
 }  // namespace aoi::infra

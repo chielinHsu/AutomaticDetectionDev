@@ -133,17 +133,34 @@ private slots:
 
     // ---- 組裝根 ----
 
-    void theProgramRegistersFakeAndTwoUnavailableBackends() {
+    // OpenCV 從 S07 起有實作：AOI_WITH_OPENCV=ON 的建置是可用的，否則登記成不可用（附怎麼編進來）。HALCON 等 S08。
+    void theProgramRegistersFakeOpenCvAndHalcon() {
         const BackendRegistry registry = app::makeBackendRegistry();
         const std::vector<BackendInfo> list = registry.list();
         QCOMPARE(list.size(), std::size_t{3});
         QCOMPARE(list[0].id, std::string("fake"));
         QVERIFY(list[0].available);
         QCOMPARE(list[1].id, std::string("opencv"));
+#ifdef AOI_WITH_OPENCV
+        QVERIFY(list[1].available);
+#else
         QVERIFY(!list[1].available);
+        QVERIFY(list[1].unavailable.message.find("AOI_WITH_OPENCV=ON") != std::string::npos);
+#endif
         QCOMPARE(list[2].id, std::string("halcon"));
         QVERIFY(!list[2].available);
     }
+
+#ifdef AOI_WITH_OPENCV
+    void composingTheOpenCvBackendWorks() {
+        const BackendRegistry registry = app::makeBackendRegistry();
+        Result<app::CoreServices> core = app::composeCore(registry, "opencv");
+        QVERIFY2(core.ok(), core.ok() ? "" : core.error().message.c_str());
+        QCOMPARE(core.value().backend.id, std::string("opencv"));
+        QVERIFY(core.value().backend.templateBuilder->backendId() == "opencv");
+        QVERIFY(core.value().backend.searcher->backendId() == "opencv");
+    }
+#endif
 
     void composingTheFakeBackendWorks() {
         const BackendRegistry registry = app::makeBackendRegistry();
@@ -158,7 +175,11 @@ private slots:
     // 對應 --backend=opencv、--backend=halcon：沒有編進程式的 back end 要明確失敗，而且訊息要說有哪些可用。
     void composingAnUnavailableBackendFailsWithAClearMessage() {
         const BackendRegistry registry = app::makeBackendRegistry();
+#ifdef AOI_WITH_OPENCV
+        for (const char* id : {"halcon"}) {
+#else
         for (const char* id : {"opencv", "halcon"}) {
+#endif
             const Result<app::CoreServices> core = app::composeCore(registry, id);
             QVERIFY(!core.ok());
             QVERIFY(core.error().code == ErrorCode::BackendUnavailable);

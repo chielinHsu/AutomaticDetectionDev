@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <cmath>
 
+#include "domain/image_depth.h"
 #include "presentation/i18n/Translations.h"
 
 namespace aoi::ui {
@@ -62,6 +63,13 @@ ParamsPanel::ParamsPanel(QWidget* parent) : QWidget(parent) {
     for (int i = 0; i < 3; ++i) scope_->addItem(QString());
     form->addRow(scopeLabel_, scope_);
 
+    bitsLabel_ = new QLabel(this);
+    bits_ = new QComboBox(this);
+    bits_->addItem(QString(), 0);
+    for (const int b : aoi::kSignificantBitsChoices) bits_->addItem(QString(), b);
+    bits_->setEnabled(false);
+    form->addRow(bitsLabel_, bits_);
+
     connect(scoreSlider_, &QSlider::valueChanged, this, [this](int v) {
         updateScoreLabel();
         if (!syncing_) emit thresholdChanged(v / 100.0);
@@ -84,6 +92,7 @@ ParamsPanel::ParamsPanel(QWidget* parent) : QWidget(parent) {
     connect(angleMin_, &QDoubleSpinBox::valueChanged, this, emitAngles);
     connect(angleMax_, &QDoubleSpinBox::valueChanged, this, emitAngles);
     connect(scope_, &QComboBox::activated, this, [this](int i) { emit scopeChanged(i); });
+    connect(bits_, &QComboBox::activated, this, [this](int i) { emit significantBitsChanged(bits_->itemData(i).toInt()); });
 
     retranslate();
 }
@@ -103,6 +112,11 @@ void ParamsPanel::setParams(const ParamsState& params) {
     if (std::abs(angleMin_->value() - params.angleMinDeg) > 1e-9) angleMin_->setValue(params.angleMinDeg);
     if (std::abs(angleMax_->value() - params.angleMaxDeg) > 1e-9) angleMax_->setValue(params.angleMaxDeg);
     if (scope_->currentIndex() != params.scopeIndex) scope_->setCurrentIndex(params.scopeIndex);
+    detectedBits_ = params.detectedBits;
+    updateBitsTexts();
+    const int bitsIndex = bits_->findData(params.significantBits);
+    bits_->setCurrentIndex(bitsIndex < 0 ? 0 : bitsIndex);
+    bits_->setEnabled(params.bitsApplicable);
     syncing_ = false;
 }
 
@@ -121,7 +135,15 @@ void ParamsPanel::retranslate() {
     scope_->setItemText(0, uiText("ui.params.scope.auto"));
     scope_->setItemText(1, uiText("ui.params.scope.board"));
     scope_->setItemText(2, uiText("ui.params.scope.all"));
+    bitsLabel_->setText(uiText("ui.params.bits"));
+    updateBitsTexts();
     updateScoreLabel();
+}
+
+void ParamsPanel::updateBitsTexts() {
+    bits_->setItemText(0, detectedBits_ > 0 ? uiText("ui.params.bits.auto", {{"bits", QString::number(detectedBits_)}})
+                                            : uiText("ui.params.bits.autoNone"));
+    for (int i = 1; i < bits_->count(); ++i) bits_->setItemText(i, uiText("ui.params.bits.value", {{"bits", QString::number(bits_->itemData(i).toInt())}}));
 }
 
 }  // namespace aoi::ui

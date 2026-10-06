@@ -72,3 +72,10 @@ S03 定了 port：`IRecipeStore`（save／load 一份 `Recipe` ＝ 板子＋搜�
 - 分層的庫還沒有組裝進程式（沒有 UI 用它）：專案層的檔案放哪裡（建議：配方所在的資料夾）、使用者層（建議：`QStandardPaths::AppDataLocation`）、要不要有系統層，接 UI 的那一步決定（**使用者 2026-10-06 確認**：等接樣本庫 UI 的那一步，和存檔／開啟配方的 UI 一起定；分層的規則本身照 TRI，已經定了）。
 - 樣本庫第一次呼叫時讀檔、之後用記憶體的內容：另一個程式同時改同一個檔案，這裡不會知道（v0.1 的限制）。
 - S07 的 `ILibraryMatcher`：候選清單由呼叫端挑（ADR-006 §7）；用 `LayeredLibraryStore::loadAll()` 就是 TRI 順序、上層遮住下層之後的清單。
+
+## 後續（S07，2026-10-06）：配方 schema v2
+
+- `board` 新增 `significantBits`（影像的有效位元數：0 ＝ 自動，8..16 ＝ 使用者指定；使用者決定存在板子裡，ADR-014 的 S07 後續）。`JsonRecipeStore::kSchemaVersion` 由 1 升到 2；內建遷移 v1 → v2 補 `significantBits: 0`（v1 的時候只有自動）。讀的時候嚴格：不是 0、也不在 8..16 → `FormatInvalid`（訊息帶 JSON 路徑）。
+- 範例檔：`tests/infra/fixtures/recipe-v1.json` **沒有改**（照樣讀得進來，位元數是 0）；新增 `recipe-v2.json`（v1 的內容加上 `significantBits: 12`），同樣**不要改**。
+- 樣本庫的格式沒有變（`aoi-library` 仍是 v1：參考影像本來就存自己的 `significantBits`）。
+- 證據：`tst_recipe_store`（v2 往返逐欄位、v1 範例遷移後位元數 0、v2 範例除了位元數和 v1 相同、7 與 17 是格式錯誤、遷移機制用「內建 v1 → v2 ＋ 兩個假的」測逐版升級、比 v2 新的檔案拒讀）。

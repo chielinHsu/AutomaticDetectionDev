@@ -106,6 +106,9 @@ MainWindow::MainWindow(ThemeManager& theme, QWidget* parent) : QMainWindow(paren
     connect(paramsPanel_, &ParamsPanel::scopeChanged, this, [this](int i) {
         if (controllers_.params) controllers_.params->setScanScope(i);
     });
+    connect(paramsPanel_, &ParamsPanel::significantBitsChanged, this, [this](int bits) {
+        if (controllers_.params) controllers_.params->setSignificantBits(bits);
+    });
 
     retranslateUi();
     refreshState();

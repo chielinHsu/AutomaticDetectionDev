@@ -11,6 +11,8 @@
 
 > **S06 完成後的提醒（2026-10-06）**：（1）配方的 schema 是 v1（`docs/adr/015-recipe-and-library-storage.md`；範例檔 `tests/infra/fixtures/recipe-v1.json` 要永遠讀得進來）。v1 **沒有影像的路徑**（`Board::name` 只是檔名）：要能〔開啟配方〕，升成 v2、加影像路徑、在 `JsonRecipeStore::builtInMigrations()` 加 v1 → v2 的遷移。（2）**存檔與開啟配方的 UI 還沒有任何一步涵蓋**（使用者在 S06 決定先不接，記在 `docs/current-status.md`）；背景存檔用 `application/document/RecipeSaver`，存完才 `markSaved`，而且要標在取快照時的位置。（3）參考影像不壓縮（Qt 6.8.0 的 `qUncompress` 對截斷的資料是未定義行為，ADR-015）。（4）S06 起用 Qt 6.12.0，打包時要帶 6.12.0 的 DLL；OpenCV 版要帶 `opencv_world490.dll`。
 
+> **S07 完成後的提醒（2026-10-06）**：配方的 schema 升到 **v2**（`board.significantBits`：影像的有效位元數，0 ＝ 自動；ADR-015 的 S07 後續）。範例檔 `tests/infra/fixtures/recipe-v1.json`、`recipe-v2.json` 都要永遠讀得進來（不要改）。打包要帶 OpenCV 的 DLL（`opencv_world490.dll`，`aoi.exe` 建置後已複製到旁邊；只在 `*-opencv` 的 preset）。
+
 <!--STE-->
 ## Purpose
 This step finishes the first release. It adds export, builds an installer and completes the user manual.

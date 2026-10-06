@@ -21,6 +21,8 @@ void ParamsPresenter::setAngleRange(double minDeg, double maxDeg) {
 
 void ParamsPresenter::setScanScope(int scopeIndex) { sink_.applyScanScope(scopeIndex); }
 
+void ParamsPresenter::setSignificantBits(int bits) { sink_.applySignificantBits(bits); }
+
 void ParamsPresenter::flush() {
     if (!timer_.isActive()) return;
     timer_.stop();

@@ -13,6 +13,7 @@
 #include "application/ports/IPerfProbe.h"
 #include "application/usecases/GenerateObjectsFromSample.h"
 #include "presentation/canvas/ImageViewMetaType.h"
+#include "domain/image_depth.h"
 #include "domain/search_params.h"
 #include "presentation/canvas/ICanvasController.h"
 #include "presentation/canvas/ICanvasView.h"
@@ -121,6 +122,10 @@ public:
     void applyThreshold(double threshold) override;
     void applySearchParams(const SearchParams& params) override;
     void applyScanScope(int scopeIndex) override;
+    void applySignificantBits(int bits) override;
+
+    // 目前用的影像（套過有效位元數的設定）。測試用。
+    const aoi::ImageView& image() const { return image_; }
 
     // Esc：退回一層（ux-spec 第 8 節）。搜尋中 → 取消；有選取 → 清除選取；預覽 → 捨棄；無匹配、錯誤 → 關閉。
     // 回傳有沒有處理（畫框中的 Esc 歸工具）。
@@ -177,6 +182,8 @@ private:
     void hideBusyLabelNow();
     void rebuildLabels();
     ParamsState currentParams() const;
+    // 依文件的設定（Board::significantBits）重新決定 image_ 的有效位元數；有變就重畫影像。回傳決定。
+    SignificantBitsDecision applyBitsSetting(int requested);
 
     // 小工具
     std::vector<int> toSessionIds(const std::vector<int>& sceneIds) const;
@@ -191,7 +198,8 @@ private:
     PresenterServices services_;
     PresenterSettings settings_;
     InspectionSession session_;
-    aoi::ImageView image_;
+    aoi::ImageView image_;          // 套過有效位元數設定的影像：畫布與搜尋用這一個
+    aoi::ImageView sourceImage_;    // 影像來源給的原樣（significantBits 是推測的值）
     QString imageName_;
     SearchParams searchParams_;
     int scanScope_ = 0;

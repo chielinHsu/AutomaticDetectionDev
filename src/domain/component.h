@@ -94,6 +94,9 @@ struct Board {
     int imageWidth = 0;
     int imageHeight = 0;
     double umPerPixel = 0.0;  // 0 ＝ 未校正
+    // 影像的有效位元數（S07，給 16 bit 灰階）：0 ＝ 看最大值推測；8..16 ＝ 使用者或配方指定（相機的設定，例如 12 bit 相機）。
+    // 推測對暗的影像會錯（domain/image_depth.h 的 decideSignificantBits）。換影像時沿用（使用者 2026-10-06 決定）。
+    int significantBits = 0;
     std::vector<ComponentType> types;  // 板子自己的複本
     std::vector<ComponentInstance> components;
 };

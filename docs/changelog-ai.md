@@ -24,6 +24,41 @@
 - 下一位 agent 需要知道的限制、否決的做法、不要還原的修改
 ```
 
+## 2026-10-06 — Claude Code (Claude Opus 5.5)（S07：OpenCV back end）
+
+### 完成
+- 依 Step Protocol 做 S07，在 worktree 的分支 `step/07-opencv`（從 `main` 的 `5cf7748` 開出）。
+- 開工時向使用者要真實影像，並說明「有效位元數覆寫」的設計、問了三個做法與流程 B 的範圍：使用者提供兩張去識別化影像（12 bit、24.4 MP，不入版控）；選了「存進板子、換影像沿用」「參數面板的下拉選單」「流程 B 只做 adapter＋測試＋T7，UI 先不接」。12 bit 的存法（16 bit 容器、值 0..4095）使用者在 S06 之後已回答。
+- OpenCV back end（`src/infrastructure/backend_opencv/`，ADR-016）：`OpenCvTemplateBuilder`／`OpenCvTemplate`（金字塔 × 旋轉範本，含周圍影像轉）、`OpenCvPatternSearcher`（由粗到細的 NCC、視窗清單、爬坡、拋物線次像素與角度、domain 的 NMS）、`OpenCvCorrelation`（小的分數圖自己算）、`OpenCvPyramid`、`OpenCvSearchOptions`、`OpenCvLibraryMatcher`（`ILibraryMatcher`）、`OpenCvBackend`（工廠、`setOpenCvThreads`）；`OpenCvImages::toGray8`。組裝根在 `AOI_WITH_OPENCV=ON` 時註冊 opencv（`--backend opencv`），`app::workerThreads()` 給 JobRunner 與 OpenCV 共用。
+- 第一版 T2a、T4 超過預算（193／87 ms 中位數）：分段計時發現精修的 5×5 分數圖 `matchTemplate` 仍走 DFT；改成整數點積＋積分影像後 64／30 ms，找到的元件完全相同。
+- 有效位元數的覆寫：domain `Board::significantBits`、`decideSignificantBits`／`withSignificantBits`；application `InspectionDocument::setSignificantBits`（reset 保留）；storage 配方 schema v2（v1 → v2 遷移補 0；新增範例 `recipe-v2.json`）；presentation 參數面板「影像位元數」、`IParamsController`／`IParamsSink` 各加一個方法、Presenter 開圖與改設定時套用、比推測小時吐司；`copy.json` 新增 5 個 key。
+- 測試：`tests/backend/`（`tst_opencv_backend`、`tst_opencv_end_to_end`、`tst_opencv_library_matcher`、`perf_opencv`、`perf_opencv_real`）；`tst_image_view`、`tst_document`、`tst_params`、`tst_presenter`、`tst_recipe_store` 加了位元數與 v2；`tst_backend_registry`、`tst_cli` 依建置選項檢查 opencv。
+- 真實影像：HA 的種子分數分兩群（焊墊邊緣 0.70–0.85）、LA 的晶格在空槽補假缺格（S05 已知失敗 #11）——都在 use case／晶格，沒有改，列為使用者決定。
+- 文件：`docs/steps/S07-opencv/`（四種輸出＋`perf.md`）、ADR-016、ADR-014／015 的「後續（S07）」、`decisions.md`、`architecture.md`、`AI_CONTEXT.md`、`README.md`、`docs/plan/S08`–`S12` 的「S07 完成後的提醒」；`perf/budgets.json`（T1、T2a、T4、T6a、T6b 標 calibrated，limit 沒改）、`perf/baseline/casparhsu1-opencv.json`。
+
+### 修改的檔案
+- 新增：`src/infrastructure/backend_opencv/OpenCv{Backend,Correlation,LibraryMatcher,PatternSearcher,Pyramid,Template,TemplateBuilder}.{h,cpp}`、`OpenCvSearchOptions.h`；`tests/backend/`（6 個檔案）；`tests/infra/fixtures/recipe-v2.json`；`docs/steps/S07-opencv/`；`docs/adr/016-opencv-coarse-to-fine-search.md`；`perf/baseline/casparhsu1-opencv.json`
+- 修改：`src/domain/component.h`、`image_depth.{h,cpp}`、`image_view.h`（註解）；`src/application/document/InspectionDocument.{h,cpp}`；`src/infrastructure/backend_opencv/OpenCvImages.{h,cpp}`、`CMakeLists.txt`；`src/infrastructure/storage/JsonCodec.cpp`、`JsonRecipeStore.{h,cpp}`；`src/presentation/params/ParamsPanel.{h,cpp}`、`presenters/{AutoRoiPresenter,ParamsPresenter}.{h,cpp}`、`ControllerInterfaces.h`、`ViewInterfaces.h`、`shell/MainWindow.cpp`；`src/app/CompositionRoot.{h,cpp}`；`tests/CMakeLists.txt`、`tests/core/CMakeLists.txt`、`tst_backend_registry.cpp`、`tst_cli.cpp`、`tst_document.cpp`、`tests/domain/tst_image_view.cpp`、`tests/infra/RecipeTestSupport.h`、`tst_recipe_store.cpp`、`tests/ui/tst_params.cpp`、`tst_presenter.cpp`；`docs/ux/copy.json`（只新增 key）；`perf/budgets.json`；`AI_CONTEXT.md`、`README.md`、`docs/architecture.md`、`docs/decisions.md`、`docs/current-status.md`、`docs/adr/014-*`、`015-*`、`docs/plan/S08`–`S12`、`.ai/handoff.md`
+
+### 驗證
+- `scripts/dev/test.ps1`：Release 45、Release＋OpenCV 50、Debug 45、Debug＋OpenCV 50 個 CTest 項目全過（Release＋OpenCV 與 Debug＋OpenCV 在最終程式上重跑過；Release、Debug 在加角度掃描測試之前跑過，那兩個組態不建置 `tests/backend/`，之後改的只有 OpenCV 的搜尋器與它的測試）。
+- `node tools/check-deps.mjs`：173 個檔案 0 違規；`--self-test` 15 個 fixture 全過。`node tools/ste-lint.mjs --strict`：0 錯誤。`diagram.md` 7 張 Mermaid 用 mermaid 11（jsDelivr，瀏覽器窗格）解析全過，故意寫壞的一張被抓到。`explainer.html` 在瀏覽器窗格：每個控制項操作過、0 個 JS 錯誤、375 px 寬沒有水平捲動。
+- 效能：`-Preset release-opencv -Perf` 連跑 3 次全過（8 個 perf 執行檔；`AOI_REAL_IMAGE_DIR` 有設）。T1、T2a、T4、T6a、T6b 3 次都在預算內；U3 仍超標（S04 起）。
+- 變異：14 個，抓到 13 個；M11（拿掉角度的爬坡）存活，加了 ±5°、±30° 的角度掃描仍存活（結果完全相同）。
+- `AiInspTool.pro`：Qt 6.12.0 的 qmake ＋ jom（Release）建置成功；offscreen 下 `--backend opencv` 結束碼 2、訊息說要用 `AOI_WITH_OPENCV=ON`。**沒有在 Qt Creator 裡載入過。**
+
+### 未完成
+- 流程 B 的 UI（使用者決定之後再接）；`Backend` 沒有 `libraryMatcher` 欄位。
+- 真實影像上的門檻與晶格問題（使用者決定）；T7 的預算（提案）。
+- HALCON（S08）；契約測試的泛化（S09）。
+
+### 注意事項
+- **T6b 要扣掉樣本框中心與元件中心的固定偏移**（匹配的參考點是使用者框的中心）；不扣的話傾斜與抖動的板子多 0.3–0.6 px。
+- 角度誤差約是第 0 層步進的 0.2 倍（NCC 對角度的曲線在真值兩側不對稱）；試過「每個角度用自己的次像素峰值」只改善 0.013°，沒採用。
+- 真實影像的路徑在 `.ai/handoff.md`；**不要把影像或疊圖加進版控**。
+- 寫程式時又踩到：bash 的 `node -e` 與 heredoc 會吃掉反斜線（`\n` 變成真的換行、`build\release` 的 `\r`）；含反斜線的編輯改用 Write 寫腳本檔再執行。
+- `.claude/launch.json`（為了在瀏覽器窗格跑 Mermaid 檢查暫時建的）已刪除。
+
 ## 2026-10-06 — Claude Code (Claude Opus 5.5)（S06：影像緩衝、轉接器、配方與樣本庫儲存）
 
 ### 完成

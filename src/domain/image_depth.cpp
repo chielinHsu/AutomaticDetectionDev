@@ -23,6 +23,14 @@ int detectSignificantBits(const ImageView& image) noexcept {
     return 16;
 }
 
+SignificantBitsDecision decideSignificantBits(PixelFormat format, int detectedBits, int requestedBits) noexcept {
+    if (requestedBits == 0) return {detectedBits, SignificantBitsChoice::Detected};
+    if (!validSignificantBitsSetting(requestedBits)) return {detectedBits, SignificantBitsChoice::Invalid};
+    if (format != PixelFormat::Gray16) return {detectedBits, SignificantBitsChoice::NotApplicable};
+    if (requestedBits < detectedBits) return {detectedBits, SignificantBitsChoice::BelowData};
+    return {requestedBits, SignificantBitsChoice::Overridden};
+}
+
 int effectiveBits(const ImageView& image) noexcept {
     if (image.significantBits > 0) return image.significantBits;
     return image.format == PixelFormat::Gray16 ? 16 : 8;

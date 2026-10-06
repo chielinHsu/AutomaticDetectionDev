@@ -204,6 +204,42 @@ private slots:
         QCOMPARE(detectSignificantBits(subView(wide.view(), 3, 1, 7, 4)), bits);
     }
 
+    // 有效位元數的覆寫（S07）：設定值、推測值、格式 → 用哪一個。
+    void theBitDepthSettingOverridesTheGuessOnlyWhenItFitsTheData() {
+        using C = SignificantBitsChoice;
+        const auto check = [](PixelFormat f, int detected, int requested, int bits, C choice) {
+            const SignificantBitsDecision d = decideSignificantBits(f, detected, requested);
+            return d.bits == bits && d.choice == choice;
+        };
+        QVERIFY(check(PixelFormat::Gray16, 10, 0, 10, C::Detected));      // 自動
+        QVERIFY(check(PixelFormat::Gray16, 10, 12, 12, C::Overridden));   // 暗的 12 bit 影像：推測錯，覆寫對
+        QVERIFY(check(PixelFormat::Gray16, 8, 16, 16, C::Overridden));
+        QVERIFY(check(PixelFormat::Gray16, 12, 12, 12, C::Overridden));   // 和推測一樣也算覆寫（使用者明確指定）
+        QVERIFY(check(PixelFormat::Gray16, 12, 10, 12, C::BelowData));    // 值超過 1023：不收
+        QVERIFY(check(PixelFormat::Gray16, 16, 14, 16, C::BelowData));
+        QVERIFY(check(PixelFormat::Gray8, 0, 12, 0, C::NotApplicable));   // 8 bit 的影像沒有這個問題
+        QVERIFY(check(PixelFormat::Bgrx32, 0, 12, 0, C::NotApplicable));
+        QVERIFY(check(PixelFormat::Gray16, 10, 7, 10, C::Invalid));
+        QVERIFY(check(PixelFormat::Gray16, 10, 17, 10, C::Invalid));
+        QVERIFY(check(PixelFormat::Gray16, 10, -1, 10, C::Invalid));
+        for (const int b : kSignificantBitsChoices) QVERIFY(validSignificantBitsSetting(b));
+        QVERIFY(validSignificantBitsSetting(0));
+        QVERIFY(!validSignificantBitsSetting(4));
+    }
+
+    void applyingTheBitDepthDoesNotCopyPixels() {
+        ImageBuffer b(8, 4, PixelFormat::Gray16);
+        ImageView v = b.view();
+        v.significantBits = 10;
+        const ImageCopyCount before = imageCopyCount();
+        const ImageView told = withSignificantBits(v, decideSignificantBits(v.format, v.significantBits, 12));
+        QCOMPARE((imageCopyCount() - before).copies, std::uint64_t{0});
+        QVERIFY(told.data == v.data && told.owner == v.owner && told.strideBytes == v.strideBytes);
+        QCOMPARE(told.significantBits, 12);
+        QCOMPARE(effectiveBits(told), 12);
+        QCOMPARE(normalizedMax(effectiveBits(told)), 4095);
+    }
+
     void onlyGray16HasAnInferredDepth() {
         QCOMPARE(detectSignificantBits(ImageBuffer(4, 4, PixelFormat::Gray8).view()), 0);
         QCOMPARE(detectSignificantBits(ImageBuffer(4, 4, PixelFormat::Bgrx32).view()), 0);

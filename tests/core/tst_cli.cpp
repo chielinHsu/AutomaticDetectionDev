@@ -22,7 +22,10 @@ private slots:
     void unavailableBackendsFailClearly_data() {
         QTest::addColumn<QString>("id");
         QTest::addColumn<QString>("mustMention");
-        QTest::newRow("opencv") << "opencv" << "step S07";
+#ifndef AOI_WITH_OPENCV
+        // S07 起 OpenCV back end 有實作；沒有編進這個程式時，訊息說怎麼編進來。
+        QTest::newRow("opencv") << "opencv" << "AOI_WITH_OPENCV=ON";
+#endif
         QTest::newRow("halcon") << "halcon" << "step S08";
         QTest::newRow("unknown id") << "turbo" << "no back end with the id 'turbo'";
     }
@@ -57,12 +60,15 @@ private slots:
         QVERIFY(QString::fromUtf8(process.readAllStandardError()).contains(QStringLiteral("Unknown theme 'neon'")));
     }
 
-    void theFakeBackendAndTheDefaultStartAndKeepRunning_data() {
+    void availableBackendsStartAndKeepRunning_data() {
         QTest::addColumn<QStringList>("arguments");
         QTest::newRow("default") << QStringList{};
         QTest::newRow("--backend=fake") << QStringList{QStringLiteral("--backend=fake")};
+#ifdef AOI_WITH_OPENCV
+        QTest::newRow("--backend=opencv") << QStringList{QStringLiteral("--backend=opencv")};  // S07
+#endif
     }
-    void theFakeBackendAndTheDefaultStartAndKeepRunning() {
+    void availableBackendsStartAndKeepRunning() {
         QFETCH(QStringList, arguments);
         QProcess process;
         process.setProcessEnvironment(offscreen());

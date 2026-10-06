@@ -70,7 +70,7 @@ struct ImageView {
     double umPerPixel = 0.0;
     // 有效位元數（S06，給 Gray16）：值在 0..2^n − 1、低位對齊。12 bit 相機的影像常存成 16 bit 的檔案、值只到 4095，
     // 沒有這個欄位，畫面會幾乎全黑、對比會被低估 16 倍。0 ＝ 這個格式的完整位元數（Gray16 是 16、其他每通道 8）。
-    // 影像來源看最大值推測（image_depth.h）；之後配方或相機設定可以覆寫。
+    // 影像來源看最大值推測（image_depth.h）；S07 起使用者或配方可以覆寫（Board::significantBits、decideSignificantBits）。
     int significantBits = 0;
 
     // 一列像素實際用到的 byte 數（不含 stride 的填充）。

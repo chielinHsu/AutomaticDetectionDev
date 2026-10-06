@@ -13,6 +13,7 @@
 #include <utility>
 
 #include "domain/image_buffer.h"
+#include "domain/image_depth.h"
 
 namespace aoi::infra::json {
 namespace {
@@ -429,12 +430,14 @@ Result<QJsonObject> encodeBoard(const Board& board) {
     }
     if (board.imageWidth < 0 || board.imageHeight < 0) e.fail("board image size is negative");
     if (board.umPerPixel < 0.0) e.fail("board.umPerPixel is negative");
+    if (!validSignificantBitsSetting(board.significantBits)) e.fail("board.significantBits must be 0 or 8..16");
 
     QJsonObject o;
     o.insert(QStringLiteral("name"), e.text(board.name, "board.name"));
     o.insert(QStringLiteral("imageWidth"), board.imageWidth);
     o.insert(QStringLiteral("imageHeight"), board.imageHeight);
     o.insert(QStringLiteral("umPerPixel"), e.number(board.umPerPixel, "board.umPerPixel"));
+    o.insert(QStringLiteral("significantBits"), board.significantBits);  // schema v2（S07）
     QJsonArray types;
     for (std::size_t i = 0; i < board.types.size(); ++i)
         types.append(encodeTypeWith(e, board.types[i], at("board.types", static_cast<qsizetype>(i))));
@@ -497,6 +500,8 @@ Result<Board> decodeBoard(const QJsonValue& value, const std::string& where) {
     b.imageHeight = d.integer(o, "imageHeight", where, 0, kMaxInt);
     b.umPerPixel = d.number(o, "umPerPixel", where);
     if (!d.failed() && b.umPerPixel < 0.0) d.fail(at(where, "umPerPixel"), "must not be negative");
+    b.significantBits = d.integer(o, "significantBits", where, 0, 16);  // schema v2（S07）；v1 由遷移補 0
+    if (!d.failed() && !validSignificantBitsSetting(b.significantBits)) d.fail(at(where, "significantBits"), "must be 0 or 8..16");
 
     const QJsonArray types = d.array(o, "types", where);
     std::set<std::string> typeIds;

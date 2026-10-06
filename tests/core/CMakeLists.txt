@@ -54,3 +54,8 @@ add_dependencies(tst_cli aoi)
 target_compile_definitions(tst_cli PRIVATE
     AOI_EXE_PATH="$<TARGET_FILE:aoi>"
     AOI_FONT_DIR="${AOI_FONT_DIR}")
+# S07：OpenCV 編進程式時，--backend=opencv 要能啟動、組裝根要登記成可用。
+if(AOI_WITH_OPENCV)
+  target_compile_definitions(tst_cli PRIVATE AOI_WITH_OPENCV=1)
+  target_compile_definitions(tst_backend_registry PRIVATE AOI_WITH_OPENCV=1)
+endif()

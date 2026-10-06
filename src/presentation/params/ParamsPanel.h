@@ -13,6 +13,7 @@ class QSlider;
 namespace aoi::ui {
 
 // 右側「比對參數」dock 的內容（ux-spec 第 4、8 節）。簡易模式只有分數門檻與比對範圍；打開「進階」多出角度範圍。
+// S07 加「影像位元數」：自動（看最大值推測）或 8／10／12／14／16 bit；只有 16 bit 灰階的影像可以設定，其他停用。
 // 實作 IParamsView；使用者的操作以訊號發出，MainWindow 轉給 IParamsController（View 不認識 Presenter）。
 //
 // 分數門檻的滑桿在拖曳中就發出訊號（不是放開才發）：U3 量的就是「滑桿變動到重繪」，
@@ -35,15 +36,18 @@ public:
     QDoubleSpinBox* angleMin() const { return angleMin_; }
     QDoubleSpinBox* angleMax() const { return angleMax_; }
     QComboBox* scopeCombo() const { return scope_; }
+    QComboBox* bitsCombo() const { return bits_; }
     bool angleRowVisible() const;
 
 signals:
     void thresholdChanged(double value);
     void angleRangeChanged(double minDeg, double maxDeg);
     void scopeChanged(int scopeIndex);
+    void significantBitsChanged(int bits);  // 0 ＝ 自動
 
 private:
     void updateScoreLabel();
+    void updateBitsTexts();
 
     QLabel* scoreLabel_;
     QSlider* scoreSlider_;
@@ -55,6 +59,9 @@ private:
     QDoubleSpinBox* angleMax_;
     QLabel* scopeLabel_;
     QComboBox* scope_;
+    QLabel* bitsLabel_;
+    QComboBox* bits_;    // 項目的 data 是位元數（0 ＝ 自動）
+    int detectedBits_ = 0;
     bool syncing_ = false;  // 程式設定的值不算使用者的操作
 };
 

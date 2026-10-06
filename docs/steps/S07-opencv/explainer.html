@@ -1,0 +1,923 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S07 OpenCV back end</title>
+<style>
+:root{--bg:#f6f7f9;--panel:#fff;--ink:#18212b;--muted:#566273;--line:#d3d9e0;--accent:#1d4ed8;--accent-ink:#fff;
+  --sample:#c026d3;--found:#15803d;--cand:#b45309;--pred:#b91c1c;--ok:#15803d;--bad:#b91c1c;--warn:#b45309;--grid:#e6eaef}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#0f141a;--panel:#18202a;--ink:#e7edf4;--muted:#9aa8b8;--line:#2c3846;
+  --accent:#7aa7ff;--accent-ink:#0b1220;--sample:#e879f9;--found:#4ade80;--cand:#fbbf24;--pred:#f87171;--ok:#4ade80;--bad:#f87171;--warn:#fbbf24;--grid:#222c38}}
+:root[data-theme="dark"]{--bg:#0f141a;--panel:#18202a;--ink:#e7edf4;--muted:#9aa8b8;--line:#2c3846;
+  --accent:#7aa7ff;--accent-ink:#0b1220;--sample:#e879f9;--found:#4ade80;--cand:#fbbf24;--pred:#f87171;--ok:#4ade80;--bad:#f87171;--warn:#fbbf24;--grid:#222c38}
+*{box-sizing:border-box} html{color-scheme:light dark}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 system-ui,"Segoe UI","Microsoft JhengHei",sans-serif}
+.wrap{max-width:1100px;margin:0 auto;padding:16px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;margin-top:14px}
+h1{font-size:22px;margin:0 0 4px} h2{font-size:16px;margin:0 0 8px}
+.muted{color:var(--muted)} .small{font-size:12.5px}
+.top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap}
+.grid{display:grid;grid-template-columns:1.25fr 1fr;gap:14px} @media (max-width:860px){.grid{grid-template-columns:1fr}}
+.btn{border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:5px 10px;border-radius:8px;font:inherit;font-size:13px;cursor:pointer}
+.btn[aria-pressed=true]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.btns{display:flex;flex-wrap:wrap;gap:6px}
+select{font:inherit;font-size:13.5px;padding:4px 6px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--ink);max-width:100%}
+input[type=range]{width:100%;accent-color:var(--accent)}
+canvas.view{width:100%;height:auto;display:block;border-radius:10px;border:1px solid var(--line);image-rendering:pixelated;background:#000}
+svg.chart{width:100%;height:auto;display:block}
+svg text{fill:var(--ink);font:12px system-ui,"Microsoft JhengHei",sans-serif}
+.axis{stroke:var(--muted);stroke-width:1} .gridline{stroke:var(--grid);stroke-width:1}
+.line{fill:none;stroke:var(--accent);stroke-width:2.2} .pt{fill:var(--accent)} .pt.on{fill:var(--warn);stroke:var(--ink);stroke-width:1.2}
+.budget{stroke:var(--bad);stroke-width:1.5;stroke-dasharray:6 4}
+.metrics{display:grid;grid-template-columns:1fr auto;gap:2px 12px;font-size:13.5px;font-variant-numeric:tabular-nums}
+.metrics span{color:var(--muted)} .metrics b{text-align:right;font-weight:600}
+.big{font-size:28px;font-weight:700;font-variant-numeric:tabular-nums}
+.note{border-left:4px solid var(--accent);padding:4px 10px;margin:10px 0;background:color-mix(in srgb,var(--accent) 8%,transparent);font-size:13.5px}
+.warn{border-left-color:var(--warn);background:color-mix(in srgb,var(--warn) 10%,transparent)}
+table{border-collapse:collapse;width:100%;font-size:13.5px;font-variant-numeric:tabular-nums}
+th,td{border-bottom:1px solid var(--line);padding:5px 8px;text-align:right}
+th:first-child,td:first-child{text-align:left} th{color:var(--muted);font-weight:500}
+.pass{color:var(--ok);font-weight:600} .fail{color:var(--bad);font-weight:600}
+.steps{list-style:none;padding:0;margin:8px 0;font-size:13.5px} .steps li{padding:4px 8px;border-left:3px solid var(--line);margin:2px 0;cursor:pointer}
+.steps li.on{border-left-color:var(--accent);background:color-mix(in srgb,var(--accent) 8%,transparent)}
+.bars{display:grid;grid-template-columns:auto 1fr auto;gap:4px 8px;align-items:center;font-size:13px;font-variant-numeric:tabular-nums}
+.bar{height:12px;border-radius:6px;background:var(--accent);min-width:2px} .bar.low{background:var(--warn)}
+.legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12.5px;color:var(--muted)} .legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:4px;vertical-align:-2px}
+@media (max-width:560px){th,td{padding:5px 3px} .hide-sm{display:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div>
+      <h1>S07 OpenCV back end：由粗到細的樣本搜尋</h1>
+      <p class="muted" id="lead"></p>
+    </div>
+    <div class="btns" role="group" aria-label="外觀">
+      <button class="btn" data-theme-set="system" aria-pressed="true">跟隨系統</button>
+      <button class="btn" data-theme-set="light" aria-pressed="false">淺色</button>
+      <button class="btn" data-theme-set="dark" aria-pressed="false">深色</button>
+    </div>
+  </div>
+
+  <!-- 1. 由粗到細（頁面上現算的示意） -->
+  <div class="card">
+    <h2>1. 為什麼先看小圖：一步一步走一次</h2>
+    <p class="small muted">示意：這一節在頁面上用 JavaScript 現算（一張 320 × 240 的小合成板子、同一個分數定義 NCC）；C++ 的實作是 <code>OpenCvPatternSearcher</code>，實測的時間在第 2 節。</p>
+    <div class="grid">
+      <div>
+        <canvas id="demo" class="view" width="640" height="480" aria-label="合成板子與搜尋過程"></canvas>
+        <div class="legend" style="margin-top:6px">
+          <span><i style="background:var(--sample)"></i>樣本</span><span><i style="background:var(--cand)"></i>頂層的候選</span><span><i style="background:var(--found)"></i>精修後找到的</span>
+        </div>
+      </div>
+      <div>
+        <ol class="steps" id="steps"></ol>
+        <div class="btns"><button class="btn" id="prev">上一步</button><button class="btn" id="next">下一步</button></div>
+        <div class="metrics" style="margin-top:10px" id="demoMetrics"></div>
+        <p class="note small" id="demoNote"></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. 實測曲線 -->
+  <div class="card">
+    <h2>2. 實測：角度範圍、影像大小、樣本大小、執行緒數、樣本庫大小 → 時間</h2>
+    <div class="grid">
+      <div>
+        <label class="small">曲線 <select id="curve"></select></label>
+        <svg id="chart" class="chart" viewBox="0 0 560 300" role="img" aria-label="實測曲線"></svg>
+        <input type="range" id="point" min="0" max="0" step="1" value="0" aria-label="選一個量測點">
+      </div>
+      <div>
+        <div class="big" id="pointValue"></div>
+        <div class="muted" id="pointLabel"></div>
+        <div class="metrics" style="margin-top:8px" id="pointMetrics"></div>
+        <p class="note small" id="curveNote"></p>
+      </div>
+    </div>
+    <p class="small muted" id="machine"></p>
+  </div>
+
+  <!-- 3. 預算 -->
+  <div class="card">
+    <h2>3. 預算對照（perf/budgets.json，三次執行的範圍）</h2>
+    <table id="budgets"><thead><tr><th>項目</th><th class="hide-sm">內容</th><th>中位數</th><th>p95（T6a 是最低值）</th><th>預算</th><th>結果</th></tr></thead><tbody></tbody></table>
+    <p class="small muted" id="t6Cases"></p>
+  </div>
+
+  <!-- 4. 有效位元數 -->
+  <div class="card">
+    <h2>4. 暗的 12 bit 影像：自動推測與指定位元數</h2>
+    <div class="grid">
+      <div>
+        <canvas id="bits" class="view" width="320" height="120" aria-label="12 bit 影像的顯示"></canvas>
+        <div class="btns" style="margin-top:8px" role="group" aria-label="影像位元數" id="bitsButtons"></div>
+      </div>
+      <div>
+        <div class="metrics" id="bitsMetrics"></div>
+        <p class="note small" id="bitsNote"></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5. 真實影像 -->
+  <div class="card">
+    <h2>5. 使用者的真實影像（24.4 MP、12 bit）：種子分數的分布</h2>
+    <p class="small muted">影像不入版控，頁面只放數字（<code>perf_opencv_real</code> 的輸出）。</p>
+    <label class="small">影像 <select id="real"></select></label>
+    <div class="bars" style="margin-top:8px" id="realBars"></div>
+    <div class="metrics" style="margin-top:10px" id="realMetrics"></div>
+    <p class="note warn small" id="realNote"></p>
+  </div>
+</div>
+
+<script type="application/json" id="aoi-data">
+{
+  "lead": "S07 做出第一個真正看影像的 back end（OpenCV）：範本建立器、由粗到細的搜尋器、樣本庫比對器；並讓使用者指定 16 bit 影像的有效位元數。整條流程第一次在真的影像上跑通。",
+  "ste": [
+    "The search makes the image and the template smaller first.",
+    "At the smallest level, it tests all positions and all angles.",
+    "At each larger level, it tests only near each candidate.",
+    "Three scores give a curve. The top of the curve gives the position between pixels.",
+    "A wide angle range needs more angles. So it takes more time."
+  ],
+  "curves": [
+    {
+      "title": "角度範圍（5 MP、64×32、種子搜尋）",
+      "xTitle": "角度範圍（±度）",
+      "yTitle": "中位數（ms）",
+      "unit": "ms",
+      "focus": 2,
+      "budget": 150,
+      "budgetLabel": "T2a 預算 150 ms（±5°）",
+      "note": "角度越多，頂層要比的範本越多；頂層以下只比候選附近，所以時間沒有和角度數成正比。",
+      "points": [
+        {
+          "x": 0,
+          "label": "±0",
+          "y": 15,
+          "extra": [
+            [
+              "三次的中位數",
+              "13.6–15.4 ms"
+            ],
+            [
+              "頂層的角度數",
+              "1"
+            ]
+          ]
+        },
+        {
+          "x": 2,
+          "label": "±2",
+          "y": 31,
+          "extra": [
+            [
+              "三次的中位數",
+              "30.5–36.4 ms"
+            ],
+            [
+              "頂層的角度數",
+              "2"
+            ]
+          ]
+        },
+        {
+          "x": 5,
+          "label": "±5",
+          "y": 49,
+          "extra": [
+            [
+              "三次的中位數",
+              "45.8–54.3 ms"
+            ],
+            [
+              "頂層的角度數",
+              "3"
+            ]
+          ]
+        },
+        {
+          "x": 10,
+          "label": "±10",
+          "y": 64,
+          "extra": [
+            [
+              "三次的中位數",
+              "62.7–74.1 ms"
+            ],
+            [
+              "頂層的角度數",
+              "5"
+            ]
+          ]
+        },
+        {
+          "x": 20,
+          "label": "±20",
+          "y": 77,
+          "extra": [
+            [
+              "三次的中位數",
+              "68.6–77.6 ms"
+            ],
+            [
+              "頂層的角度數",
+              "8"
+            ]
+          ]
+        },
+        {
+          "x": 45,
+          "label": "±45",
+          "y": 110,
+          "extra": [
+            [
+              "三次的中位數",
+              "107–113 ms"
+            ],
+            [
+              "頂層的角度數",
+              "16"
+            ]
+          ]
+        },
+        {
+          "x": 90,
+          "label": "±90",
+          "y": 150,
+          "extra": [
+            [
+              "三次的中位數",
+              "142–150 ms"
+            ],
+            [
+              "頂層的角度數",
+              "30"
+            ]
+          ]
+        },
+        {
+          "x": 180,
+          "label": "±180",
+          "y": 195,
+          "extra": [
+            [
+              "三次的中位數",
+              "194–196 ms"
+            ],
+            [
+              "頂層的角度數",
+              "57"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "title": "影像大小（64×32、±5°、種子搜尋）",
+      "xTitle": "影像（MP）",
+      "yTitle": "中位數（ms）",
+      "unit": "ms",
+      "focus": 1,
+      "budget": 150,
+      "budgetLabel": "T2a 預算（5 MP）",
+      "note": "元件數跟著影像大小增加（合成板子的格距固定），所以時間大致和面積成正比。",
+      "points": [
+        {
+          "x": 1,
+          "label": "1 MP",
+          "y": 12,
+          "extra": [
+            [
+              "三次的中位數",
+              "10.3–12.4 ms"
+            ],
+            [
+              "元件數",
+              "130"
+            ]
+          ]
+        },
+        {
+          "x": 5,
+          "label": "5 MP",
+          "y": 41,
+          "extra": [
+            [
+              "三次的中位數",
+              "38.8–46.6 ms"
+            ],
+            [
+              "元件數",
+              "841"
+            ]
+          ]
+        },
+        {
+          "x": 12,
+          "label": "12 MP",
+          "y": 119,
+          "extra": [
+            [
+              "三次的中位數",
+              "103–123 ms"
+            ],
+            [
+              "元件數",
+              "2115"
+            ]
+          ]
+        },
+        {
+          "x": 25.2,
+          "label": "25.2 MP",
+          "y": 289,
+          "extra": [
+            [
+              "三次的中位數",
+              "270–289 ms"
+            ],
+            [
+              "元件數",
+              "4623"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "title": "樣本大小（5 MP、±5°、種子搜尋）",
+      "xTitle": "樣本（像素）",
+      "yTitle": "中位數（ms）",
+      "unit": "ms",
+      "focus": 1,
+      "note": "大的樣本有更多層金字塔，頂層一樣小；小的樣本（32×16）只能縮一次，頂層比較大，反而比較慢。元件數也不同。",
+      "points": [
+        {
+          "x": 0,
+          "label": "32x16",
+          "y": 54,
+          "extra": [
+            [
+              "三次的中位數",
+              "52.4–55.9 ms"
+            ],
+            [
+              "金字塔頂層",
+              "第 1 層"
+            ],
+            [
+              "元件數",
+              "870"
+            ]
+          ]
+        },
+        {
+          "x": 0,
+          "label": "64x32",
+          "y": 37,
+          "extra": [
+            [
+              "三次的中位數",
+              "34.9–43.4 ms"
+            ],
+            [
+              "金字塔頂層",
+              "第 2 層"
+            ],
+            [
+              "元件數",
+              "841"
+            ]
+          ]
+        },
+        {
+          "x": 0,
+          "label": "128x128",
+          "y": 31,
+          "extra": [
+            [
+              "三次的中位數",
+              "30.5–36.0 ms"
+            ],
+            [
+              "金字塔頂層",
+              "第 4 層"
+            ],
+            [
+              "元件數",
+              "98"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "title": "OpenCV 的執行緒數（5 MP、64×32、±5°）",
+      "xTitle": "執行緒",
+      "yTitle": "中位數（ms）",
+      "unit": "ms",
+      "focus": 4,
+      "note": "產品用「核心數 − 1」（和 JobRunner 的 worker 數相同，保留一個核心給 UI；ADR-016）。這台是 4 個效能核心＋8 個節能核心，4 個以上的增益變小。",
+      "points": [
+        {
+          "x": 1,
+          "label": "1",
+          "y": 130,
+          "extra": [
+            [
+              "三次的中位數",
+              "127–133 ms"
+            ]
+          ]
+        },
+        {
+          "x": 2,
+          "label": "2",
+          "y": 83,
+          "extra": [
+            [
+              "三次的中位數",
+              "74.9–83.5 ms"
+            ]
+          ]
+        },
+        {
+          "x": 4,
+          "label": "4",
+          "y": 71,
+          "extra": [
+            [
+              "三次的中位數",
+              "64.9–83.1 ms"
+            ]
+          ]
+        },
+        {
+          "x": 8,
+          "label": "8",
+          "y": 58,
+          "extra": [
+            [
+              "三次的中位數",
+              "52.7–58.0 ms"
+            ]
+          ]
+        },
+        {
+          "x": 15,
+          "label": "15",
+          "y": 55,
+          "extra": [
+            [
+              "三次的中位數",
+              "50.1–57.1 ms"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "title": "樣本庫的類型數（流程 B、640×480 的區域）",
+      "xTitle": "候選類型數 N",
+      "yTitle": "中位數（ms）",
+      "unit": "ms",
+      "focus": 2,
+      "note": "每個類型重建範本、在區域裡找一次：成本和 N 成正比（T7，預算待使用者決定）。快取範本與依外形預篩選是之後的優化。",
+      "points": [
+        {
+          "x": 1,
+          "label": "1",
+          "y": 8,
+          "extra": [
+            [
+              "三次的中位數",
+              "6.9–8.3 ms"
+            ],
+            [
+              "每個類型",
+              "8.0 ms"
+            ]
+          ]
+        },
+        {
+          "x": 10,
+          "label": "10",
+          "y": 81,
+          "extra": [
+            [
+              "三次的中位數",
+              "77.3–84.7 ms"
+            ],
+            [
+              "每個類型",
+              "8.1 ms"
+            ]
+          ]
+        },
+        {
+          "x": 100,
+          "label": "100",
+          "y": 849,
+          "extra": [
+            [
+              "三次的中位數",
+              "842–866 ms"
+            ],
+            [
+              "每個類型",
+              "8.5 ms"
+            ]
+          ]
+        },
+        {
+          "x": 1000,
+          "label": "1000",
+          "y": 8866,
+          "extra": [
+            [
+              "三次的中位數",
+              "8711–9370 ms"
+            ],
+            [
+              "每個類型",
+              "8.9 ms"
+            ]
+          ]
+        }
+      ]
+    }
+  ],
+  "budgets": [
+    {
+      "id": "T1",
+      "label": "範本建立，64×32、±5°",
+      "median": "0.27–0.41 ms",
+      "p95": "0.34–0.47 ms",
+      "budget": "≤ 30 ms",
+      "pass": true
+    },
+    {
+      "id": "T2a",
+      "label": "種子搜尋，5 MP、64×32、±5°、約 840 個元件",
+      "median": "58.6–60.1 ms",
+      "p95": "67.1–72.0 ms",
+      "budget": "≤ 150 ms",
+      "pass": true
+    },
+    {
+      "id": "T4",
+      "label": "視窗驗證，200 個視窗",
+      "median": "25.0–27.1 ms",
+      "p95": "30.5–32.7 ms",
+      "budget": "≤ 60 ms",
+      "pass": true
+    },
+    {
+      "id": "T6a",
+      "label": "召回率，合成板子 8 種、5 MP",
+      "median": "100 %",
+      "p95": "100 %",
+      "budget": "≥ 99 %",
+      "pass": true
+    },
+    {
+      "id": "T6b",
+      "label": "位置誤差，所有找到的元件",
+      "median": "0.010 px",
+      "p95": "0.106 px",
+      "budget": "≤ 0.5 px",
+      "pass": true
+    }
+  ],
+  "t6Cases": "合成板子組（每次相同）：clean 841/841、noise 4, blur 1 841/841、noise 12, blur 2 841/841、5% missing 793/793、10% glare 841/841、tilt 3 deg 834/834、jitter 3 px 841/841、12 bit 841/841。",
+  "real": [
+    {
+      "name": "HA（高角度光）",
+      "histogram": [
+        {
+          "range": "0.70–0.75",
+          "n": 342,
+          "low": true
+        },
+        {
+          "range": "0.75–0.80",
+          "n": 113,
+          "low": true
+        },
+        {
+          "range": "0.80–0.85",
+          "n": 57,
+          "low": true
+        },
+        {
+          "range": "0.85–0.90",
+          "n": 152,
+          "low": false
+        },
+        {
+          "range": "0.90–0.95",
+          "n": 77,
+          "low": false
+        },
+        {
+          "range": "0.95–1.00",
+          "n": 520,
+          "low": false
+        }
+      ],
+      "metrics": [
+        [
+          "候選：樣本／種子／驗證找到／推算",
+          "1／1261／2／0"
+        ],
+        [
+          "晶格",
+          "一維，rms 5.861 px、信心 0.281、缺格 2"
+        ],
+        [
+          "整個 use case（3 次執行 × 3 次）",
+          "113–205 ms"
+        ]
+      ],
+      "note": "分數分兩群：≥ 0.85 的幾乎都在針腳上；0.70–0.85（橘）多半是焊墊的邊緣（相似但不是）。use case 的種子門檻與預設的分數門檻都是 0.70，會把它們當成找到的，晶格也因此變差。門檻要不要改，等使用者決定。"
+    },
+    {
+      "name": "LA（低角度光，大片飽和）",
+      "histogram": [
+        {
+          "range": "0.70–0.75",
+          "n": 225,
+          "low": true
+        },
+        {
+          "range": "0.75–0.80",
+          "n": 10,
+          "low": true
+        },
+        {
+          "range": "0.80–0.85",
+          "n": 177,
+          "low": true
+        },
+        {
+          "range": "0.85–0.90",
+          "n": 28,
+          "low": false
+        },
+        {
+          "range": "0.90–0.95",
+          "n": 233,
+          "low": false
+        },
+        {
+          "range": "0.95–1.00",
+          "n": 359,
+          "low": false
+        }
+      ],
+      "metrics": [
+        [
+          "候選：樣本／種子／驗證找到／推算",
+          "1／1032／49／120"
+        ],
+        [
+          "晶格",
+          "二維，rms 4.182 px、信心 0.516、缺格 169"
+        ],
+        [
+          "整個 use case（3 次執行 × 3 次）",
+          "119–195 ms"
+        ]
+      ],
+      "note": "晶格是二維的，但在兩個空槽裡補了推算的缺格（S05 的已知失敗 #11：非矩形陣列），第一次在真實板子上確認。要不要改晶格的規則，等使用者決定。"
+    }
+  ],
+  "machine": "量測：13th Gen Intel(R) Core(TM) i7-1360P、16 個邏輯核心、63.6 GB、Windows 11 Version 23H2 (kernel 10.0.22631)、Qt 6.12.0、OpenCV 4.9.0、MSVC 194435228、Release、commit 5cf7748+uncommitted；三次執行（opencv_20261006-193942.json、opencv_20261006-194555.json、opencv_20261006-195217.json）。數字只能在同一台機器比較。"
+}
+</script>
+
+<script>
+(() => {
+  'use strict';
+  const data = JSON.parse(document.getElementById('aoi-data').textContent);
+  const $ = (id) => document.getElementById(id);
+  const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  $('lead').textContent = data.lead || '';
+
+  // ---- 外觀 ----
+  const themeButtons = document.querySelectorAll('[data-theme-set]');
+  const redrawAll = [];
+  const setTheme = (mode) => {
+    if (mode === 'system') document.documentElement.removeAttribute('data-theme');
+    else document.documentElement.setAttribute('data-theme', mode);
+    themeButtons.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.themeSet === mode)));
+    try { localStorage.setItem('aoi-s07-theme', mode); } catch (e) { /* 沒有儲存也能用 */ }
+    redrawAll.forEach((f) => f());
+  };
+  themeButtons.forEach((b) => b.addEventListener('click', () => setTheme(b.dataset.themeSet)));
+
+  // ---- 1. 由粗到細的示意 ----
+  // 合成板子：深色底、元件（主體＋兩端的電極），3 × 4 個，其中一格缺件；加一點雜訊。
+  const W = 320, H = 240;
+  const img = new Float32Array(W * H);
+  let seed = 7;
+  const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
+  for (let i = 0; i < img.length; i++) img[i] = 40 + rnd() * 10;
+  const parts = [];
+  for (let r = 0; r < 3; r++) for (let c = 0; c < 4; c++) {
+    if (r === 1 && c === 2) continue;  // 缺件
+    const cx = 52 + c * 72 + (r === 2 ? 0.5 : 0), cy = 48 + r * 72;
+    parts.push({ x: cx, y: cy });
+    for (let y = -9; y < 9; y++) for (let x = -20; x < 20; x++) {
+      const px = Math.round(cx + x), py = Math.round(cy + y);
+      const pad = x < -12 || x >= 12;
+      img[py * W + px] = pad ? 220 + rnd() * 10 : 140 + rnd() * 10;
+    }
+  }
+  const sample = { x: 52 - 24, y: 48 - 13, w: 48, h: 26 };
+  const crop = (src, sw, x0, y0, w, h) => { const out = new Float32Array(w * h); for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) out[y * w + x] = src[(y0 + y) * sw + x0 + x]; return out; };
+  const down = (src, sw, sh) => { const w = sw >> 1, h = sh >> 1, out = new Float32Array(w * h); for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { let s = 0; for (let dy = 0; dy < 2; dy++) for (let dx = 0; dx < 2; dx++) s += src[(2 * y + dy) * sw + 2 * x + dx]; out[y * w + x] = s / 4; } return { img: out, w, h }; };
+  const ncc = (src, sw, t, tw, th, x0, y0) => {
+    let st = 0, si = 0, sti = 0, stt = 0, sii = 0; const n = tw * th;
+    for (let y = 0; y < th; y++) for (let x = 0; x < tw; x++) { const a = t[y * tw + x], b = src[(y0 + y) * sw + x0 + x]; st += a; si += b; sti += a * b; stt += a * a; sii += b * b; }
+    const num = sti - st * si / n, den = Math.sqrt(Math.max(0, stt - st * st / n) * Math.max(0, sii - si * si / n));
+    return den > 1e-9 ? num / den : 0;
+  };
+  const tmpl0 = crop(img, W, sample.x, sample.y, sample.w, sample.h);
+  const l1 = down(img, W, H), l2 = down(l1.img, l1.w, l1.h);
+  const t1 = down(tmpl0, sample.w, sample.h), t2 = down(t1.img, t1.w, t1.h);
+  // 頂層（1/4）的分數圖
+  const sw2 = l2.w - t2.w + 1, sh2 = l2.h - t2.h + 1;
+  const score2 = new Float32Array(sw2 * sh2);
+  for (let y = 0; y < sh2; y++) for (let x = 0; x < sw2; x++) score2[y * sw2 + x] = ncc(l2.img, l2.w, t2.img, t2.w, t2.h, x, y);
+  const minScore = 0.7, coarse = minScore - 0.2;
+  const cands = [];
+  for (let y = 1; y < sh2 - 1; y++) for (let x = 1; x < sw2 - 1; x++) {
+    const v = score2[y * sw2 + x]; if (v < coarse) continue;
+    let peak = true; for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if ((dx || dy) && score2[(y + dy) * sw2 + x + dx] > v) peak = false;
+    if (peak) cands.push({ x, y, v });
+  }
+  // 精修：第 0 層，候選換算過來的位置 ± 3 像素，再用拋物線內插
+  const found = [];
+  let refinedPositions = 0;
+  for (const c of cands) {
+    const gx = c.x * 4, gy = c.y * 4; let best = -2, bx = 0, by = 0; const s = {};
+    for (let dy = -3; dy <= 3; dy++) for (let dx = -3; dx <= 3; dx++) {
+      const x = gx + dx, y = gy + dy; if (x < 0 || y < 0 || x + sample.w > W || y + sample.h > H) continue;
+      const v = ncc(img, W, tmpl0, sample.w, sample.h, x, y); s[x + ',' + y] = v; refinedPositions++;
+      if (v > best) { best = v; bx = x; by = y; }
+    }
+    if (best < minScore) continue;
+    const at = (x, y) => s[x + ',' + y] ?? best;
+    const para = (a, b, c2) => { const d = a - 2 * b + c2; return d < 0 ? Math.max(-0.5, Math.min(0.5, 0.5 * (a - c2) / d)) : 0; };
+    const ox = para(at(bx - 1, by), best, at(bx + 1, by)), oy = para(at(bx, by - 1), best, at(bx, by + 1));
+    found.push({ x: bx + sample.w / 2 + ox, y: by + sample.h / 2 + oy, ix: bx + sample.w / 2, iy: by + sample.h / 2, v: best, row: [at(bx - 1, by), best, at(bx + 1, by)], ox });
+  }
+  const steps = [
+    { t: '原圖：一個 48 × 26 的樣本（洋紅）', n: '原尺寸要在每個位置比一次：' + ((W - sample.w + 1) * (H - sample.h + 1)).toLocaleString() + ' 個位置（真的影像是 5 MP、還要乘上角度數）。' },
+    { t: '金字塔：影像與樣本都縮小到 1/4', n: '頂層 ' + l2.w + ' × ' + l2.h + '，樣本 ' + t2.w + ' × ' + t2.h + '：位置少了約 16 倍。' },
+    { t: '頂層的分數圖（越亮分數越高）', n: '每個位置一個 NCC 分數：' + (sw2 * sh2).toLocaleString() + ' 個位置。' },
+    { t: '候選：分數 ≥ ' + coarse.toFixed(2) + ' 的局部最大值（橘）', n: cands.length + ' 個候選；影像大部分的地方沒有候選。' },
+    { t: '精修：只在每個候選附近、原尺寸上比（綠）', n: '每個候選 ± 3 像素：總共 ' + refinedPositions.toLocaleString() + ' 個位置。分數 < ' + minScore + ' 的淘汰，剩 ' + found.length + ' 個（缺件的那一格沒有東西）。' },
+    { t: '次像素：三個分數畫拋物線，頂點在兩個像素之間', n: '第三排的元件放在 x ＋ 0.5 的位置：內插把它找回來（右邊的數字）。' },
+  ];
+  let step = 0;
+  const demo = $('demo'), dctx = demo.getContext('2d');
+  const drawGray = (src, sw, sh, scale) => {
+    const id = dctx.createImageData(sw * scale, sh * scale);
+    for (let y = 0; y < sh * scale; y++) for (let x = 0; x < sw * scale; x++) {
+      const v = Math.max(0, Math.min(255, src[Math.floor(y / scale) * sw + Math.floor(x / scale)])); const k = (y * sw * scale + x) * 4;
+      id.data[k] = id.data[k + 1] = id.data[k + 2] = v; id.data[k + 3] = 255;
+    }
+    dctx.putImageData(id, 0, 0);
+  };
+  const drawDemo = () => {
+    dctx.clearRect(0, 0, demo.width, demo.height);
+    if (step === 1 || step === 2 || step === 3) {
+      if (step === 2) {
+        const heat = new Float32Array(l2.w * l2.h);
+        for (let y = 0; y < sh2; y++) for (let x = 0; x < sw2; x++) heat[(y + (t2.h >> 1)) * l2.w + x + (t2.w >> 1)] = Math.max(0, score2[y * sw2 + x]) * 255;
+        drawGray(heat, l2.w, l2.h, 8);
+      } else drawGray(l2.img, l2.w, l2.h, 8);
+      dctx.strokeStyle = css('--sample'); dctx.lineWidth = 2;
+      dctx.strokeRect(sample.x / 4 * 8, sample.y / 4 * 8, t2.w * 8, t2.h * 8);
+      if (step === 3) { dctx.strokeStyle = css('--cand'); for (const c of cands) dctx.strokeRect(c.x * 8, c.y * 8, t2.w * 8, t2.h * 8); }
+    } else {
+      drawGray(img, W, H, 2);
+      dctx.lineWidth = 2;
+      dctx.strokeStyle = css('--sample'); dctx.strokeRect(sample.x * 2, sample.y * 2, sample.w * 2, sample.h * 2);
+      if (step >= 4) { dctx.strokeStyle = css('--found'); for (const f of found) dctx.strokeRect((f.x - sample.w / 2) * 2, (f.y - sample.h / 2) * 2, sample.w * 2, sample.h * 2); }
+    }
+    $('steps').querySelectorAll('li').forEach((li, i) => li.classList.toggle('on', i === step));
+    $('demoNote').textContent = steps[step].n;
+    const last = found.reduce((a, f) => (Math.abs(f.ox) > Math.abs(a?.ox ?? 0) ? f : a), null);
+    const rows = [
+      ['原尺寸逐一比對的位置數', ((W - sample.w + 1) * (H - sample.h + 1)).toLocaleString()],
+      ['由粗到細比的位置數', (sw2 * sh2 + refinedPositions).toLocaleString()],
+      ['頂層的候選', String(cands.length)],
+      ['找到的元件', String(found.length) + ' ／ 11'],
+    ];
+    if (step === 5 && last) rows.push(['一個元件：整數 → 內插後的 x', last.ix.toFixed(1) + ' → ' + last.x.toFixed(2) + '（真的是 ' + (last.ix + 0.5).toFixed(1) + '）']);
+    $('demoMetrics').innerHTML = rows.map(([k, v]) => '<span>' + k + '</span><b>' + v + '</b>').join('');
+  };
+  $('steps').innerHTML = steps.map((s, i) => '<li tabindex="0" data-i="' + i + '">' + (i + 1) + '. ' + s.t + '</li>').join('');
+  $('steps').querySelectorAll('li').forEach((li) => {
+    const go = () => { step = Number(li.dataset.i); drawDemo(); };
+    li.addEventListener('click', go);
+    li.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
+  });
+  $('prev').addEventListener('click', () => { step = Math.max(0, step - 1); drawDemo(); });
+  $('next').addEventListener('click', () => { step = Math.min(steps.length - 1, step + 1); drawDemo(); });
+  redrawAll.push(drawDemo);
+  drawDemo();
+
+  // ---- 2. 實測曲線 ----
+  const curves = data.curves || [];
+  $('curve').innerHTML = curves.map((c, i) => '<option value="' + i + '">' + c.title + '</option>').join('');
+  const chart = $('chart');
+  const drawChart = () => {
+    const c = curves[Number($('curve').value) || 0]; if (!c) return;
+    const k = Number($('point').value) || 0;
+    const xs = c.points.map((p) => p.x), ys = c.points.map((p) => p.y);
+    const maxY = Math.max(...ys, c.budget || 0) * 1.15, pad = { l: 52, r: 14, t: 14, b: 44 };
+    const gw = 560 - pad.l - pad.r, gh = 300 - pad.t - pad.b;
+    const X = (i) => pad.l + (c.points.length === 1 ? gw / 2 : (gw * i) / (c.points.length - 1));
+    const Y = (v) => pad.t + gh - (gh * v) / maxY;
+    let s = '';
+    for (let g = 0; g <= 4; g++) { const v = (maxY * g) / 4; s += '<line class="gridline" x1="' + pad.l + '" x2="' + (560 - pad.r) + '" y1="' + Y(v) + '" y2="' + Y(v) + '"/><text x="' + (pad.l - 6) + '" y="' + (Y(v) + 4) + '" text-anchor="end">' + Math.round(v) + '</text>'; }
+    s += '<line class="axis" x1="' + pad.l + '" x2="' + (560 - pad.r) + '" y1="' + (pad.t + gh) + '" y2="' + (pad.t + gh) + '"/>';
+    c.points.forEach((p, i) => { s += '<text x="' + X(i) + '" y="' + (pad.t + gh + 16) + '" text-anchor="middle">' + p.label + '</text>'; });
+    s += '<text x="' + (pad.l + gw / 2) + '" y="' + (300 - 6) + '" text-anchor="middle">' + c.xTitle + '</text>';
+    s += '<text x="12" y="' + (pad.t + gh / 2) + '" transform="rotate(-90 12 ' + (pad.t + gh / 2) + ')" text-anchor="middle">' + c.yTitle + '</text>';
+    if (c.budget) s += '<line class="budget" x1="' + pad.l + '" x2="' + (560 - pad.r) + '" y1="' + Y(c.budget) + '" y2="' + Y(c.budget) + '"/><text x="' + (560 - pad.r) + '" y="' + (Y(c.budget) - 5) + '" text-anchor="end">' + c.budgetLabel + '</text>';
+    s += '<polyline class="line" points="' + c.points.map((p, i) => X(i) + ',' + Y(p.y)).join(' ') + '"/>';
+    c.points.forEach((p, i) => { s += '<circle class="pt' + (i === k ? ' on' : '') + '" cx="' + X(i) + '" cy="' + Y(p.y) + '" r="' + (i === k ? 6 : 4) + '"/>'; });
+    chart.innerHTML = s;
+    const p = c.points[k];
+    $('pointValue').textContent = p.y.toLocaleString() + ' ' + c.unit;
+    $('pointLabel').textContent = c.xTitle + '：' + p.label;
+    $('pointMetrics').innerHTML = (p.extra || []).map(([a, b]) => '<span>' + a + '</span><b>' + b + '</b>').join('');
+    $('curveNote').textContent = c.note || '';
+  };
+  const selectCurve = () => { const c = curves[Number($('curve').value) || 0]; $('point').max = String(Math.max(0, (c?.points.length || 1) - 1)); $('point').value = String(c?.focus ?? 0); drawChart(); };
+  $('curve').addEventListener('change', selectCurve);
+  $('point').addEventListener('input', drawChart);
+  redrawAll.push(drawChart);
+  selectCurve();
+  $('machine').textContent = data.machine || '';
+
+  // ---- 3. 預算 ----
+  $('budgets').querySelector('tbody').innerHTML = (data.budgets || []).map((b) =>
+    '<tr><td>' + b.id + '</td><td class="hide-sm">' + b.label + '</td><td>' + b.median + '</td><td>' + b.p95 + '</td><td>' + b.budget + '</td><td class="' + (b.pass ? 'pass' : 'fail') + '">' + (b.pass ? '通過' : '超過') + '</td></tr>').join('');
+  $('t6Cases').textContent = data.t6Cases || '';
+
+  // ---- 4. 有效位元數 ----
+  // 暗的 12 bit 影像：底色 160、主體 480、電極 960（12 bit 的值），最大值 ≤ 1023 → 推測成 10 bit。
+  const bitsChoices = [{ id: 'auto', label: '自動（偵測：10 bit）', bits: 10 }, { id: '12', label: '12 bit', bits: 12 }, { id: '10', label: '10 bit', bits: 10 }];
+  let bitsChoice = 'auto';
+  const levels = [160, 480, 960];
+  const sampleStd = (bits) => { const scale = 255 / ((1 << bits) - 1); const vs = [levels[0], levels[1], levels[1], levels[2]].map((v) => v * scale); const m = vs.reduce((a, b) => a + b) / vs.length; return Math.sqrt(vs.reduce((a, b) => a + (b - m) * (b - m), 0) / vs.length); };
+  const drawBits = () => {
+    const ch = bitsChoices.find((c) => c.id === bitsChoice); const shift = ch.bits - 8;
+    const cv = $('bits'), ctx = cv.getContext('2d');
+    const id = ctx.createImageData(cv.width, cv.height);
+    for (let y = 0; y < cv.height; y++) for (let x = 0; x < cv.width; x++) {
+      const inPart = y > 30 && y < 90 && x > 60 && x < 260; const pad = inPart && (x < 100 || x > 220);
+      const v12 = pad ? levels[2] : inPart ? levels[1] : levels[0]; const v = Math.min(255, v12 >> shift); const k = (y * cv.width + x) * 4;
+      id.data[k] = id.data[k + 1] = id.data[k + 2] = v; id.data[k + 3] = 255;
+    }
+    ctx.putImageData(id, 0, 0);
+    document.querySelectorAll('[data-bits]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.bits === bitsChoice)));
+    const sd = sampleStd(ch.bits);
+    $('bitsMetrics').innerHTML = [['影像的最大值（12 bit 的值）', String(levels[2])], ['用的位元數', ch.bits + ' bit'], ['電極顯示成（0..255）', String(Math.min(255, levels[2] >> shift))], ['換算到 0..255 的亮度標準差', sd.toFixed(1)]]
+      .map(([a, b]) => '<span>' + a + '</span><b>' + b + '</b>').join('');
+    $('bitsNote').textContent = ch.id === '12' ? '相機真正的位元數：顯示是實際的暗度，對比也照實換算。設定存在板子裡（配方 v2），下一張影像沿用。'
+      : '看最大值（960 ≤ 1023）推測成 10 bit：畫面亮了 4 倍，對比也被放大 4 倍。若影像裡有超過 1023 的值，選 10 bit 會被拒絕（設定和資料矛盾）。';
+  };
+  $('bitsButtons').innerHTML = bitsChoices.filter((c) => c.id !== '10').map((c) => '<button class="btn" data-bits="' + c.id + '" aria-pressed="false">' + c.label + '</button>').join('');
+  document.querySelectorAll('[data-bits]').forEach((b) => b.addEventListener('click', () => { bitsChoice = b.dataset.bits; drawBits(); }));
+  drawBits();
+
+  // ---- 5. 真實影像 ----
+  const real = data.real || [];
+  $('real').innerHTML = real.map((r, i) => '<option value="' + i + '">' + r.name + '</option>').join('');
+  const drawReal = () => {
+    const r = real[Number($('real').value) || 0]; if (!r) return;
+    const max = Math.max(...r.histogram.map((h) => h.n));
+    $('realBars').innerHTML = r.histogram.map((h) => '<span>' + h.range + '</span><div class="bar' + (h.low ? ' low' : '') + '" style="width:' + (100 * h.n / max).toFixed(1) + '%"></div><b>' + h.n + '</b>').join('');
+    $('realMetrics').innerHTML = (r.metrics || []).map(([a, b]) => '<span>' + a + '</span><b>' + b + '</b>').join('');
+    $('realNote').textContent = r.note || '';
+  };
+  $('real').addEventListener('change', drawReal);
+  drawReal();
+
+  try { const saved = localStorage.getItem('aoi-s07-theme'); if (saved) setTheme(saved); } catch (e) { /* 忽略 */ }
+})();
+</script>
+</body>
+</html>

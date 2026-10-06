@@ -13,6 +13,8 @@
 
 > **S06 完成後的提醒（2026-10-06）**：`IImageSource` 已經有 Liskov 的測試：`tests/infra/tst_image_sources_agree`（Qt 與 OpenCV，18 種檔案：16 種完全相同；已知例外：16 階灰色表的 BMP，`QEXPECT_FAIL`；灰階＋alpha 的 PNG 沒有驗證）。HALCON 加進來時把它改成以來源參數化。`IRecipeStore`、`ILibraryStore` 的契約測試在 `tests/infra/tst_recipe_store`、`tst_library_store`、`tst_library_layers`（只有 JSON 一個實作）。
 
+> **S07 完成後的提醒（2026-10-06）**：（1）**契約測試的草稿**是 `tests/backend/tst_opencv_backend.cpp`（ITemplateBuilder／IPatternSearcher 的每一條契約，加上座標與角度的正負號）與 `tst_opencv_library_matcher.cpp`（ILibraryMatcher）；泛化時注意 OpenCV 與假 back end 的差別：OpenCV 搜尋的角度範圍要被範本的範圍涵蓋（否則 `InvalidArgument`），範本有一部分在影像外的元件找不到，平的樣本給 `sampleProblem` ＝ `LowContrast`。（2）A/B 的情境：`perf_opencv`（合成板子：T6 的 8 種情況、角度範圍、影像大小、樣本大小）與 `perf_opencv_real`（使用者的真實影像，`AOI_REAL_IMAGE_DIR`）。（3）真實影像上兩個值得比的現象：相似的別的東西（焊墊邊緣）的分數 0.70–0.85、在非矩形陣列的空槽裡補假缺格（S05 的已知失敗 #11）。（4）use case 的門檻（`seedMinScore` 0.70、預設的分數門檻 0.70）在真實影像上偏低：要不要改、改成多少，是使用者的決定（`docs/current-status.md`）。
+
 <!--STE-->
 ## Purpose
 This step proves that the two back ends are interchangeable. It also shows their differences on the screen.
