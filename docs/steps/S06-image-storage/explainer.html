@@ -1,0 +1,514 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S06 影像緩衝與儲存</title>
+<style>
+:root{--bg:#f6f7f9;--panel:#fff;--ink:#18212b;--muted:#566273;--line:#d3d9e0;--accent:#1d4ed8;--accent-ink:#fff;
+  --sample:#1d4ed8;--found:#15803d;--infer:#b45309;--reject:#b91c1c;--pred:#6b7787;--ok:#15803d;--bad:#b91c1c;--copy:#b45309;--board:#eef3ec}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#0f141a;--panel:#18202a;--ink:#e7edf4;--muted:#9aa8b8;--line:#2c3846;
+  --accent:#7aa7ff;--accent-ink:#0b1220;--sample:#7aa7ff;--found:#4ade80;--infer:#fbbf24;--reject:#f87171;--pred:#8fa0b4;--ok:#4ade80;--bad:#f87171;--copy:#fbbf24;--board:#16221b}}
+:root[data-theme="dark"]{--bg:#0f141a;--panel:#18202a;--ink:#e7edf4;--muted:#9aa8b8;--line:#2c3846;
+  --accent:#7aa7ff;--accent-ink:#0b1220;--sample:#7aa7ff;--found:#4ade80;--infer:#fbbf24;--reject:#f87171;--pred:#8fa0b4;--ok:#4ade80;--bad:#f87171;--copy:#fbbf24;--board:#16221b}
+*{box-sizing:border-box} html{color-scheme:light dark}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 system-ui,"Segoe UI","Microsoft JhengHei",sans-serif}
+.wrap{max-width:1100px;margin:0 auto;padding:16px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;margin-top:14px}
+h1{font-size:22px;margin:0 0 4px} h2{font-size:16px;margin:0 0 8px} h3{font-size:13px;letter-spacing:.04em;color:var(--accent);margin:12px 0 2px}
+.zh{color:var(--muted);font-size:13.5px} .muted{color:var(--muted)} .small{font-size:12.5px}
+.top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap}
+.grid{display:grid;grid-template-columns:1.3fr 1fr;gap:14px} @media (max-width:860px){.grid{grid-template-columns:1fr}}
+.controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px 16px;margin-top:8px;font-size:13.5px}
+.controls label{display:flex;flex-direction:column;gap:2px}
+.controls .row{display:flex;gap:8px;align-items:center}
+select,input[type=text]{font:inherit;font-size:13.5px;padding:4px 6px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--ink);max-width:100%}
+input[type=range]{width:100%;accent-color:var(--accent)} output{min-width:3em;font-variant-numeric:tabular-nums}
+.btn{border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:5px 10px;border-radius:8px;font:inherit;font-size:13px;cursor:pointer}
+.btn[aria-pressed=true]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.btns{display:flex;flex-wrap:wrap;gap:6px}
+.checks{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:13.5px} .checks label{display:flex;gap:6px;align-items:center}
+svg.flow{width:100%;height:auto;display:block}
+svg text{fill:var(--ink);font:12px system-ui,"Microsoft JhengHei",sans-serif}
+.box{fill:var(--panel);stroke:var(--line);stroke-width:1.2} .box.px{stroke:var(--accent);stroke-width:2}
+.edge{stroke:var(--muted);stroke-width:1.6;fill:none} .edge.copy{stroke:var(--copy);stroke-width:2.4;stroke-dasharray:6 3}
+.tag0{fill:var(--ok)} .tag1{fill:var(--copy)}
+.metrics{display:grid;grid-template-columns:1fr auto;gap:2px 12px;font-size:13.5px;font-variant-numeric:tabular-nums}
+.metrics span{color:var(--muted)} .metrics b{text-align:right;font-weight:600}
+.big{font-size:28px;font-weight:700;font-variant-numeric:tabular-nums} .big.ok{color:var(--ok)} .big.copy{color:var(--copy)}
+.mem{height:14px;border-radius:7px;background:var(--line);margin:4px 0 10px;overflow:hidden} .mem i{display:block;height:100%;background:var(--accent)} .mem i.all{background:var(--bad)}
+.note{border-left:4px solid var(--accent);padding:4px 10px;margin:10px 0;background:color-mix(in srgb,var(--accent) 8%,transparent);font-size:13.5px}
+.warn{border-left-color:var(--copy);background:color-mix(in srgb,var(--copy) 10%,transparent)}
+canvas.board{width:100%;height:auto;display:block;border-radius:10px;border:1px solid var(--line);image-rendering:pixelated;background:#000}
+table{border-collapse:collapse;width:100%;font-size:13.5px;font-variant-numeric:tabular-nums}
+th,td{border-bottom:1px solid var(--line);padding:5px 8px;text-align:right}
+th:first-child,td:first-child{text-align:left} th{color:var(--muted);font-weight:500}
+.barcell{width:36%} .bar{height:10px;border-radius:5px;background:var(--accent);min-width:2px} .bar.cv{background:var(--copy)}
+@media (max-width:560px){.barcell{width:16%} th,td{padding:5px 3px} .hide-sm{display:none}}
+.steps{list-style:none;padding:0;margin:8px 0;font-size:13.5px} .steps li{padding:4px 8px;border-left:3px solid var(--line);margin:2px 0}
+.steps li.on{border-left-color:var(--accent);background:color-mix(in srgb,var(--accent) 8%,transparent)} .steps li.fail{border-left-color:var(--bad);color:var(--bad)} .steps li.done{border-left-color:var(--ok)}
+.files{display:flex;gap:10px;flex-wrap:wrap;font-size:13px} .file{border:1px solid var(--line);border-radius:8px;padding:6px 10px;min-width:140px} .file b{display:block}
+.queue{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0;min-height:30px} .chip{border:1px solid var(--line);border-radius:14px;padding:2px 10px;font-size:12.5px}
+.chip.writing{border-color:var(--accent);color:var(--accent)} .chip.waiting{border-style:dashed} .chip.cancel{color:var(--muted);text-decoration:line-through} .chip.ok{border-color:var(--ok);color:var(--ok)}
+.layers{display:grid;grid-template-columns:repeat(3,1fr);gap:8px} @media (max-width:560px){.layers{grid-template-columns:1fr}}
+.layer{border:1px solid var(--line);border-radius:10px;padding:8px;font-size:13px} .layer h4{margin:0 0 4px;font-size:13px}
+.layer.hit{border-color:var(--ok);box-shadow:0 0 0 2px color-mix(in srgb,var(--ok) 35%,transparent)} .layer.target{border-color:var(--accent);box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 35%,transparent)}
+.entry{padding:2px 6px;border-radius:6px} .entry.hit{background:color-mix(in srgb,var(--ok) 18%,transparent)} .entry.shadow{color:var(--muted);text-decoration:line-through}
+.ro{font-size:11px;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div>
+      <h1>S06 影像緩衝、轉接器、配方與樣本庫儲存</h1>
+      <p class="muted" id="lead"></p>
+    </div>
+    <div class="btns" role="group" aria-label="外觀">
+      <button class="btn" data-theme-set="system" aria-pressed="true">跟隨系統</button>
+      <button class="btn" data-theme-set="light" aria-pressed="false">淺色</button>
+      <button class="btn" data-theme-set="dark" aria-pressed="false">深色</button>
+    </div>
+  </div>
+
+  <!-- 1. 轉換路徑 -->
+  <div class="card">
+    <h2>1. 一份像素，很多人讀：選一條路徑，看複製次數與記憶體</h2>
+    <div class="controls">
+      <label>影像大小<select id="size"></select></label>
+      <label>檔案<select id="kind"></select></label>
+      <label>誰解碼<select id="decoder"></select></label>
+    </div>
+    <div class="checks" style="margin-top:8px" id="users"></div>
+    <div class="grid" style="margin-top:8px">
+      <svg class="flow" id="flow" viewBox="0 0 640 260" role="img" aria-label="轉換路徑"></svg>
+      <div>
+        <div class="metrics">
+          <span>複製次數（測試斷言的數字）</span><b id="copies"></b>
+          <span>正規格式</span><b id="fmt"></b>
+          <span>像素記憶體（共用一份）</span><b id="memShared"></b>
+          <span>如果每個人各複製一份</span><b id="memAll"></b>
+          <span>載入時間（中位數，3 次的範圍）</span><b id="loadMs"></b>
+        </div>
+        <div class="small muted" style="margin-top:8px">共用一份</div>
+        <div class="mem"><i id="barShared"></i></div>
+        <div class="small muted">每個人各一份</div>
+        <div class="mem"><i class="all" id="barAll"></i></div>
+        <div class="note" id="why"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. 合成板子 -->
+  <div class="card">
+    <h2>2. 合成板子：調參數，看影像與標準答案</h2>
+    <div class="grid">
+      <div>
+        <canvas class="board" id="board" width="480" height="320" aria-label="合成板子的預覽"></canvas>
+        <p class="small muted">示意：頁面用同樣的規則與亂數順序在瀏覽器裡畫（480 × 320）。標準答案與逐位元可重現的影像以 C++ 的 <code>tests/support/synthetic_board</code> 為準，頁面的像素不保證與它相同。</p>
+      </div>
+      <div>
+        <div class="controls" id="synthControls"></div>
+        <div class="metrics" style="margin-top:10px" id="truth"></div>
+        <pre class="small" id="truthJson" style="white-space:pre-wrap;overflow-wrap:anywhere;margin:8px 0 0"></pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. 配方存檔 -->
+  <div class="card">
+    <h2>3. 配方存檔：先寫暫存檔，成功才換名；背景存檔依序寫</h2>
+    <div class="grid">
+      <div>
+        <div class="btns"><button class="btn" id="saveOk">正常存檔</button><button class="btn" id="saveFail">存到一半失敗（例如磁碟滿、目標唯讀）</button></div>
+        <ol class="steps" id="saveSteps"></ol>
+        <div class="files" id="saveFiles"></div>
+      </div>
+      <div>
+        <p class="small muted" style="margin:0">每按一次〔存檔〕交出一份快照（v1、v2…）。寫一份要 1.5 秒（示意）。同一個檔案同時只寫一份；還沒開始寫的舊快照被新的取代。</p>
+        <div class="btns" style="margin-top:6px"><button class="btn" id="queueSave">存檔（交出下一版）</button><button class="btn" id="queueReset">重來</button></div>
+        <div class="queue" id="queue"></div>
+        <div class="metrics" id="queueInfo"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. 樣本庫分層 -->
+  <div class="card">
+    <h2>4. 樣本庫的分層（TRI）：查找誰回答、存檔存到哪一層</h2>
+    <div class="controls">
+      <label>查找料號或別名<input type="text" id="lookup" value="8371" autocomplete="off"></label>
+    </div>
+    <div class="btns" style="margin-top:6px" id="lookupPresets"></div>
+    <div class="layers" style="margin-top:10px" id="layers"></div>
+    <div class="note" id="lookupResult"></div>
+    <div class="btns" id="saveCases"></div>
+    <div class="note" id="saveResult"></div>
+  </div>
+
+  <!-- 5. 量到的數字 -->
+  <div class="card">
+    <h2>5. 量到的數字（這台機器、Release、合成影像）</h2>
+    <div class="controls"><label>影像大小<select id="tableSize"></select></label></div>
+    <table id="loadTable" style="margin-top:8px"></table>
+    <table id="storeTable" style="margin-top:14px"></table>
+    <p class="small muted" id="machine"></p>
+  </div>
+
+  <div class="card" id="text"></div>
+</div>
+
+<!-- 頁面的文字與數字。"ste" 底下的字串由 tools/ste-lint.mjs 檢查。數字來自 perf.md（3 次執行的範圍）與測試的斷言。 -->
+<script type="application/json" id="aoi-data">
+{
+  "lead": "S06 定下影像記憶體的規則（誰擁有像素、誰可以讀、什麼時候算一次複製），做出 Qt、OpenCV 與共用 ImageView 之間的轉換、影像來源、配方與樣本庫的儲存，以及帶標準答案的合成板子。",
+  "sizes": [
+    { "id": "5MP", "label": "5 MP（2592 × 1944）", "w": 2592, "h": 1944 },
+    { "id": "25MP", "label": "25 MP（5792 × 4320）", "w": 5792, "h": 4320 }
+  ],
+  "kinds": [
+    { "id": "PNG", "label": "彩色 PNG", "qt": { "format": "Bgrx32", "copies": 0 }, "opencv": { "format": "Bgrx32", "copies": 1 } },
+    { "id": "JPEG", "label": "彩色 JPEG", "qt": { "format": "Bgrx32", "copies": 0 }, "opencv": { "format": "Bgrx32", "copies": 1 } },
+    { "id": "BMP", "label": "彩色 BMP", "qt": { "format": "Bgrx32", "copies": 0 }, "opencv": { "format": "Bgrx32", "copies": 1 } },
+    { "id": "grayPNG", "label": "8 bit 灰階 PNG", "qt": { "format": "Gray8", "copies": 0 }, "opencv": { "format": "Gray8", "copies": 0 } },
+    { "id": "gray16PNG", "label": "16 bit 灰階 PNG", "qt": { "format": "Gray16", "copies": 0 }, "opencv": { "format": "Gray16", "copies": 0 } },
+    { "id": "gray12PNG", "label": "12 bit 灰階（16 bit 的 PNG，值到 4095）", "display": 1, "qt": { "format": "Gray16（12 bit）", "copies": 0 }, "opencv": { "format": "Gray16（12 bit）", "copies": 0 } },
+    { "id": "grayBMP", "label": "8 bit 灰階 BMP（索引色檔）", "qt": { "format": "Gray8", "copies": 1 }, "opencv": { "format": "Gray8", "copies": 0 } },
+    { "id": "color16PNG", "label": "16 bit 彩色 PNG", "qt": { "format": "Bgrx32", "copies": 1 }, "opencv": { "format": "Bgrx32", "copies": 1 } },
+    { "id": "TIFF", "label": "彩色 TIFF", "qt": null, "opencv": { "format": "Bgrx32", "copies": 1 } },
+    { "id": "grayTIFF", "label": "8 bit 灰階 TIFF", "qt": null, "opencv": { "format": "Gray8", "copies": 0 } },
+    { "id": "gray16TIFF", "label": "16 bit 灰階 TIFF", "qt": null, "opencv": { "format": "Gray16", "copies": 0 } }
+  ],
+  "users": [
+    { "id": "canvas", "label": "畫面（ImageItem::wrap）", "copies": 0, "on": true },
+    { "id": "search", "label": "搜尋（use case 的 worker）", "copies": 0, "on": true },
+    { "id": "mat", "label": "OpenCV 包裝（borrowAsMat）", "copies": 0, "on": false },
+    { "id": "halcon", "label": "HALCON（S08，預期，未驗證）", "copies": null, "on": false }
+  ],
+  "loadMs": {
+    "qt": { "BMP-5MP": "28.8–32.9", "PNG-5MP": "92.0–120", "JPEG-5MP": "44.7–54.5", "grayPNG-5MP": "39.3–42.8", "gray16PNG-5MP": "74.0–80.4", "BMP-25MP": "144–186", "PNG-25MP": "451–564", "JPEG-25MP": "200–236", "grayPNG-25MP": "163–211", "gray16PNG-25MP": "395–458" },
+    "opencv": { "BMP-5MP": "30.5–37.6", "PNG-5MP": "92.1–119", "JPEG-5MP": "55.4–59.6", "grayPNG-5MP": "42.5–61.1", "gray16PNG-5MP": "77.4–149", "TIFF-5MP": "129–141", "grayTIFF-5MP": "63.1–67.7", "gray16TIFF-5MP": "92.3–96.5", "BMP-25MP": "150–179", "PNG-25MP": "392–467", "JPEG-25MP": "223–311", "grayPNG-25MP": "196–322", "gray16PNG-25MP": "363–425", "TIFF-25MP": "559–684", "grayTIFF-25MP": "295–330", "gray16TIFF-25MP": "415–519" }
+  },
+  "store": [
+    { "label": "配方存檔，500 個元件", "ms": "16.8–17.6", "note": "0.23 MB" },
+    { "label": "配方讀檔，500 個元件", "ms": "5.26–5.81", "note": "0.23 MB" },
+    { "label": "配方存檔，5 000 個元件", "ms": "93.5–483", "note": "2.1 MB" },
+    { "label": "配方讀檔，5 000 個元件", "ms": "29.0–38.6", "note": "2.1 MB" },
+    { "label": "背景存檔：呼叫端（UI）花的時間", "ms": "0.345–0.377", "note": "取快照＋交出" },
+    { "label": "背景存檔：交出到寫完", "ms": "97.1–111", "note": "在 worker 上" },
+    { "label": "樣本庫 1 000 筆：存一筆", "ms": "120–139", "note": "整份重寫，3.75 MB" },
+    { "label": "樣本庫 1 000 筆：開啟", "ms": "58.4–66.4", "note": "讀檔＋檢查＋索引" },
+    { "label": "樣本庫 1 000 筆：找別名", "ms": "0.0074–0.0084", "note": "讀進來之後" }
+  ],
+  "machine": "數字：中位數，同一個建置連跑 3 次的範圍（perf.md）。i7-1360P、Windows 11、MSVC 19.44、Qt 6.12.0、OpenCV 4.9.0、Release、熱的檔案快取。同一份程式在這台機器會飄 1.4–2 倍；配方存檔有 1 次特別慢（5 000 個元件 483 ms，原因不明）。",
+  "layers": [
+    { "id": "project", "label": "專案層 proj-*", "writable": true,
+      "entries": [ { "id": "proj-1", "part": "IC-1", "aliases": [] }, { "id": "proj-2", "part": "8371", "aliases": ["SOP20"] } ] },
+    { "id": "user", "label": "使用者層 user-*", "writable": true,
+      "entries": [ { "id": "user-1", "part": "R-0402", "aliases": ["0402"] }, { "id": "user-2", "part": "8371", "aliases": [] } ] },
+    { "id": "system", "label": "系統層 sys-*（唯讀）", "writable": false,
+      "entries": [ { "id": "sys-1", "part": "8371", "aliases": ["20-SOIC"] }, { "id": "sys-2", "part": "0603", "aliases": [] } ] }
+  ],
+  "sections": [
+    { "title": "Purpose",
+      "ste": { "text": "This step sets the rules for image memory. It builds the converters, the image sources, the recipe store and the library store." },
+      "zh": "定下影像記憶體的規則，做出轉換、影像來源、配方與樣本庫的儲存。" },
+    { "title": "Reason",
+      "ste": { "text": "A copy of a 5 MP image costs time and memory. A count of copies turns zero copy into a fact that a test checks." },
+      "zh": "5 MP 影像複製一次要時間也要記憶體；把複製數出來，零複製才是測試可以斷言的事實。" },
+    { "title": "Effect",
+      "ste": { "text": "Qt decodes the common formats with zero copies. The canvas and the search read the same pixels. A failed save keeps the old file." },
+      "zh": "常見格式由 Qt 解碼、0 次複製；畫面與搜尋讀同一塊像素；存檔失敗時舊檔原封不動。" },
+    { "title": "Limits",
+      "ste": { "text": "The HALCON part waits for step S08. The screen has no save command yet. A 25 MP PNG stops the screen for about 0.5 s." },
+      "zh": "HALCON 的部分等 S08；畫面上還沒有〔儲存〕；25 MP 的 PNG 解碼時畫面約停 0.5 秒。" }
+  ]
+}
+</script>
+<script>
+(() => {
+  const data = JSON.parse(document.getElementById('aoi-data').textContent);
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  $('lead').textContent = data.lead;
+
+  // ---- 外觀 ----
+  const themeButtons = document.querySelectorAll('[data-theme-set]');
+  const setTheme = (mode) => {
+    if (mode === 'system') document.documentElement.removeAttribute('data-theme');
+    else document.documentElement.setAttribute('data-theme', mode);
+    themeButtons.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.themeSet === mode)));
+    try { localStorage.setItem('aoi-s06-theme', mode); } catch (e) { /* 沒有儲存也能用 */ }
+  };
+  themeButtons.forEach((b) => b.addEventListener('click', () => setTheme(b.dataset.themeSet)));
+  try { const saved = localStorage.getItem('aoi-s06-theme'); if (saved) setTheme(saved); } catch (e) { /* 忽略 */ }
+
+  // ---- 1. 轉換路徑 ----
+  const bpp = { Gray8: 1, Gray16: 2, Bgrx32: 4, "Gray16（12 bit）": 2 };
+  data.sizes.forEach((s) => $('size').insertAdjacentHTML('beforeend', `<option value="${s.id}">${esc(s.label)}</option>`));
+  data.kinds.forEach((k) => $('kind').insertAdjacentHTML('beforeend', `<option value="${k.id}">${esc(k.label)}</option>`));
+  data.users.forEach((u) => $('users').insertAdjacentHTML('beforeend',
+    `<label><input type="checkbox" data-user="${u.id}" ${u.on ? 'checked' : ''}>${esc(u.label)}</label>`));
+
+  const fillDecoders = () => {
+    const kind = data.kinds.find((k) => k.id === $('kind').value);
+    const current = $('decoder').value;
+    $('decoder').innerHTML = '';
+    if (kind.qt) $('decoder').insertAdjacentHTML('beforeend', '<option value="qt">Qt（QtImageSource）</option>');
+    $('decoder').insertAdjacentHTML('beforeend', '<option value="opencv">OpenCV（OpenCvImageSource）</option>');
+    if ([...$('decoder').options].some((o) => o.value === current)) $('decoder').value = current;
+  };
+
+  const drawFlow = (decoder, rule, users) => {
+    const W = 640;
+    const node = (x, y, w, h, title, sub, cls = '') =>
+      `<rect class="box ${cls}" x="${x}" y="${y}" width="${w}" height="${h}" rx="8"/>` +
+      `<text x="${x + w / 2}" y="${y + h / 2 - (sub ? 4 : -4)}" text-anchor="middle" font-weight="600">${esc(title)}</text>` +
+      (sub ? `<text x="${x + w / 2}" y="${y + h / 2 + 12}" text-anchor="middle" class="small" fill="currentColor">${esc(sub)}</text>` : '');
+    const edge = (x1, y1, x2, y2, copies) => {
+      const cls = copies > 0 ? 'edge copy' : 'edge';
+      const label = copies === null ? '?' : copies === 0 ? '0' : `${copies} 複製`;
+      const tag = copies > 0 ? 'tag1' : 'tag0';
+      const mx = (x1 + x2) / 2, my = (y1 + y2) / 2 - 6;
+      return `<path class="${cls}" d="M${x1},${y1} C${(x1 + x2) / 2},${y1} ${(x1 + x2) / 2},${y2} ${x2},${y2}"/>` +
+        `<text x="${mx}" y="${my}" text-anchor="middle" class="${tag}" font-weight="700">${label}</text>`;
+    };
+    let svg = '';
+    svg += node(10, 105, 110, 50, '影像檔', $('kind').selectedOptions[0].textContent.slice(0, 12));
+    svg += node(160, 105, 120, 50, decoder === 'qt' ? 'Qt 解碼' : 'OpenCV 解碼', decoder === 'qt' ? 'QImageReader' : 'imdecode');
+    svg += node(320, 95, 130, 70, '一塊像素', rule.format, 'px');
+    svg += edge(120, 130, 160, 130, 0);
+    svg += edge(280, 130, 320, 130, rule.copies);
+    const shown = users.length ? users : [];
+    shown.forEach((u, i) => {
+      const y = 20 + i * (220 / Math.max(1, shown.length));
+      svg += node(490, y, 140, 44, u.label.split('（')[0], (u.label.split('（')[1] || '').replace('）', ''));
+      svg += edge(450, 130, 490, y + 22, u.copies);
+    });
+    $('flow').innerHTML = svg;
+  };
+
+  const updatePath = () => {
+    fillDecoders();
+    const size = data.sizes.find((s) => s.id === $('size').value);
+    const kind = data.kinds.find((k) => k.id === $('kind').value);
+    const decoder = $('decoder').value;
+    const rule = kind[decoder];
+    const users = data.users.filter((u) => document.querySelector(`[data-user="${u.id}"]`).checked)
+      .map((u) => (u.id === 'canvas' && kind.display ? { ...u, copies: kind.display } : u));
+    const mb = (size.w * size.h * bpp[rule.format]) / 1e6;
+    const halcon = users.some((u) => u.copies === null);
+    const total = rule.copies + users.reduce((n, u) => n + (u.copies || 0), 0);
+    $('copies').innerHTML = `<span class="big ${total ? 'copy' : 'ok'}">${total}${halcon ? ' ＋ ?' : ''}</span>`;
+    $('fmt').textContent = rule.format;
+    $('memShared').textContent = `${mb.toFixed(1)} MB`;
+    const all = mb * (1 + users.length);
+    $('memAll').textContent = `${all.toFixed(1)} MB`;
+    $('barShared').style.width = `${(100 * mb / all).toFixed(1)}%`;
+    $('barAll').style.width = '100%';
+    const ms = (data.loadMs[decoder] || {})[`${kind.id}-${size.id}`];
+    $('loadMs').textContent = ms ? `${ms} ms` : '沒有量';
+    let why = '';
+    if (!kind.qt) why = '這台機器的 Qt 沒有 TIFF 外掛，只有 OpenCV 讀得了。';
+    else if (decoder === 'opencv' && rule.copies > 0) why = 'OpenCV 把彩色解成 B、G、R 三個 byte；正規格式是四個 byte 的 Bgrx32，所以要複製一次。產品的順序是 Qt 在前，所以常見格式不會走這條路。';
+    else if (decoder === 'qt' && rule.copies > 0) why = 'Qt 解出的格式不是正規格式（索引色或 16 bit 彩色），要轉一次，而且計數。';
+    else why = '解碼出來就是正規格式：view 直接指到它的像素，畫面、搜尋、OpenCV 的包裝都讀同一塊。';
+    if (kind.display) why = '12 bit 的影像值只到 4095：來源看最大值推測出 12 bit，像素照原樣（0 次複製）；畫面照原樣畫會幾乎全黑，所以顯示前轉成 8 bit（右移 4 位），這一次複製有計數。搜尋與 OpenCV 讀的仍是原本的 16 bit 像素。';
+    if (halcon) why += ' HALCON 的轉換在 S08：預期灰階可以零複製、彩色要轉成分平面（一次），都還沒驗證。';
+    $('why').textContent = why;
+    drawFlow(decoder, rule, users);
+  };
+  ['size', 'kind', 'decoder'].forEach((id) => $(id).addEventListener('change', updatePath));
+  document.querySelectorAll('[data-user]').forEach((c) => c.addEventListener('change', updatePath));
+  updatePath();
+
+  // ---- 2. 合成板子（與 C++ 相同的規則：xorshift32、每格抽 4 個數、畫 → 反光 → 模糊 → 雜訊）----
+  const synth = [
+    { id: 'tilt', label: '傾斜（度）', min: -10, max: 10, step: 0.5, value: 2 },
+    { id: 'jitter', label: '位置誤差（±像素）', min: 0, max: 4, step: 0.25, value: 0.5 },
+    { id: 'missing', label: '缺件比例', min: 0, max: 0.6, step: 0.05, value: 0.1 },
+    { id: 'glare', label: '反光比例', min: 0, max: 0.6, step: 0.05, value: 0.1 },
+    { id: 'blur', label: '模糊半徑', min: 0, max: 3, step: 1, value: 1 },
+    { id: 'noise', label: '雜訊（±灰階）', min: 0, max: 30, step: 1, value: 6 },
+    { id: 'seed', label: 'seed', min: 1, max: 50, step: 1, value: 1 }
+  ];
+  synth.forEach((s) => $('synthControls').insertAdjacentHTML('beforeend',
+    `<label>${esc(s.label)}<span class="row"><input type="range" id="s-${s.id}" min="${s.min}" max="${s.max}" step="${s.step}" value="${s.value}"><output id="o-${s.id}">${s.value}</output></span></label>`));
+
+  const makeRng = (seed) => {
+    let s = (seed >>> 0) || 0x9E3779B9;
+    const next = () => { s ^= s << 13; s >>>= 0; s ^= s >>> 17; s ^= s << 5; s >>>= 0; return s; };
+    return { next, unit: () => (next() >>> 8) / 16777216, sym() { return this.unit() * 2 - 1; } };
+  };
+  const rotate = (x, y, deg) => { const r = deg * Math.PI / 180, c = Math.cos(r), s = Math.sin(r); return [x * c + y * s, -x * s + y * c]; };
+
+  const renderBoard = () => {
+    const v = Object.fromEntries(synth.map((s) => [s.id, Number($(`s-${s.id}`).value)]));
+    synth.forEach((s) => { $(`o-${s.id}`).textContent = $(`s-${s.id}`).value; });
+    const W = 480, H = 320, rows = 4, cols = 7, pitchX = 60, pitchY = 64, ox = 60, oy = 62, bw = 36, bh = 18;
+    const bg = 60, body = 150, pad = 225;
+    const rng = makeRng(v.seed);
+    const parts = [];
+    for (let r = 0; r < rows; ++r) for (let c = 0; c < cols; ++c) {
+      const jx = rng.sym() * v.jitter, jy = rng.sym() * v.jitter;
+      const missing = rng.unit() < v.missing, glare = rng.unit() < v.glare;
+      const [dx, dy] = rotate(c * pitchX, r * pitchY, v.tilt);
+      const p = { row: r, col: c, x: ox + dx + jx, y: oy + dy + jy, present: !missing, glare: glare && !missing };
+      const inside = [[-bw / 2, -bh / 2], [bw / 2, -bh / 2], [bw / 2, bh / 2], [-bw / 2, bh / 2]].every(([a, b]) => {
+        const [qx, qy] = rotate(a, b, v.tilt); const x = p.x + qx, y = p.y + qy; return x >= 0 && y >= 0 && x <= W && y <= H; });
+      if (inside) parts.push(p);
+    }
+    const g = new Uint8ClampedArray(W * H).fill(bg);
+    const draw = (p, fn) => {
+      const r = -v.tilt * Math.PI / 180, cr = Math.cos(r), sr = Math.sin(r);
+      const ext = Math.ceil(Math.hypot(bw, bh) / 2) + 2;
+      for (let y = Math.max(0, Math.floor(p.y - ext)); y < Math.min(H, Math.ceil(p.y + ext)); ++y)
+        for (let x = Math.max(0, Math.floor(p.x - ext)); x < Math.min(W, Math.ceil(p.x + ext)); ++x) {
+          let a = 0, b = 0;
+          for (let sy = 0; sy < 4; ++sy) for (let sx = 0; sx < 4; ++sx) {
+            const px = x + (sx + 0.5) / 4 - p.x, py = y + (sy + 0.5) / 4 - p.y;
+            const lx = px * cr + py * sr, ly = -px * sr + py * cr;
+            const k = fn(lx, ly); if (k === 1) ++a; else if (k === 2) ++b;
+          }
+          if (a + b) { const i = y * W + x; g[i] = fn.mix(g[i], a, b); }
+        }
+    };
+    const bodyFn = (lx, ly) => (Math.abs(lx) > bw / 2 || Math.abs(ly) > bh / 2) ? 0 : (Math.abs(lx) >= bw / 2 - bw * 0.22 ? 2 : 1);
+    bodyFn.mix = (old, a, b) => Math.floor((old * (16 - a - b) + body * a + pad * b + 8) / 16);
+    const glareFn = (lx, ly) => { const u = (lx - bw * 0.15) / (bw * 0.3), w = (ly + bh * 0.1) / (bh * 0.45); return u * u + w * w <= 1 ? 1 : 0; };
+    glareFn.mix = (old, a) => Math.floor((old * (16 - a) + 255 * a + 8) / 16);
+    parts.filter((p) => p.present).forEach((p) => draw(p, bodyFn));
+    parts.filter((p) => p.glare).forEach((p) => draw(p, glareFn));
+    if (v.blur > 0) {
+      const r = v.blur, n = 2 * r + 1, t = new Uint8ClampedArray(g.length);
+      for (let pass = 0; pass < 3; ++pass) {
+        for (let y = 0; y < H; ++y) for (let x = 0; x < W; ++x) {
+          let s = 0; for (let k = -r; k <= r; ++k) s += g[y * W + Math.min(W - 1, Math.max(0, x + k))]; t[y * W + x] = Math.floor((s + (n >> 1)) / n); }
+        for (let y = 0; y < H; ++y) for (let x = 0; x < W; ++x) {
+          let s = 0; for (let k = -r; k <= r; ++k) s += t[Math.min(H - 1, Math.max(0, y + k)) * W + x]; g[y * W + x] = Math.floor((s + (n >> 1)) / n); }
+      }
+    }
+    if (v.noise > 0) { const span = 2 * v.noise + 1; for (let i = 0; i < g.length; ++i) g[i] = g[i] + (rng.next() % span) - v.noise; }
+    const ctx = $('board').getContext('2d'); const img = ctx.createImageData(W, H);
+    for (let i = 0; i < g.length; ++i) { img.data[4 * i] = img.data[4 * i + 1] = img.data[4 * i + 2] = g[i]; img.data[4 * i + 3] = 255; }
+    ctx.putImageData(img, 0, 0);
+    // 標準答案的疊圖：缺件的格子畫琥珀色虛線框
+    ctx.save(); ctx.strokeStyle = '#fbbf24'; ctx.setLineDash([4, 3]); ctx.lineWidth = 1.5;
+    parts.filter((p) => !p.present).forEach((p) => { ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(-v.tilt * Math.PI / 180); ctx.strokeRect(-bw / 2, -bh / 2, bw, bh); ctx.restore(); });
+    ctx.restore();
+    const present = parts.filter((p) => p.present).length;
+    $('truth').innerHTML = `<span>格子</span><b>${parts.length}</b><span>有元件</span><b>${present}</b><span>缺件（虛線框）</span><b>${parts.length - present}</b><span>反光</span><b>${parts.filter((p) => p.glare).length}</b>`;
+    const f = (x) => Number(x.toFixed(3));
+    $('truthJson').textContent = 'parts: ' + JSON.stringify(parts.slice(0, 2).map((p) => ({ row: p.row, col: p.col, x: f(p.x), y: f(p.y), angleDeg: v.tilt, present: p.present, glare: p.glare }))) + ' …';
+  };
+  synth.forEach((s) => $(`s-${s.id}`).addEventListener('input', renderBoard));
+  renderBoard();
+
+  // ---- 3. 配方存檔 ----
+  const saveSteps = (fail) => {
+    const steps = ['把配方轉成 JSON（檢查：數字有限、字串是 UTF-8、參照存在）', '寫進暫存檔（同一個資料夾）', fail ? '寫到一半失敗 → 丟掉暫存檔' : '換名：暫存檔取代舊檔（一步完成）'];
+    const list = $('saveSteps'); list.innerHTML = steps.map((s) => `<li>${esc(s)}</li>`).join('');
+    const items = list.querySelectorAll('li');
+    const files = (state) => {
+      $('saveFiles').innerHTML = `<div class="file"><b>board.aoi.json</b>${state.old}</div><div class="file"><b>暫存檔</b>${state.tmp}</div>`;
+    };
+    files({ old: '舊的內容（v1）', tmp: '—' });
+    let i = 0;
+    const tick = () => {
+      if (i > 0) items[i - 1].className = 'done';
+      if (i === items.length) { files(fail ? { old: '舊的內容（v1）：原封不動', tmp: '已刪除' } : { old: '新的內容（v2）', tmp: '—（已換名）' }); return; }
+      items[i].className = fail && i === 2 ? 'fail' : 'on';
+      if (i === 1) files({ old: '舊的內容（v1）', tmp: '寫入中…' });
+      ++i; setTimeout(tick, 700);
+    };
+    tick();
+  };
+  $('saveOk').addEventListener('click', () => saveSteps(false));
+  $('saveFail').addEventListener('click', () => saveSteps(true));
+
+  let version = 0, writing = null, waiting = null, history = [], timer = null, disk = '（沒有檔案）';
+  const renderQueue = () => {
+    const chips = history.map((h) => `<span class="chip ${h.state}">v${h.v}：${{ writing: '寫入中', waiting: '排隊', cancel: '被取代', ok: '寫完' }[h.state]}</span>`);
+    $('queue').innerHTML = chips.join('') || '<span class="small muted">還沒有存檔</span>';
+    $('queueInfo').innerHTML = `<span>磁碟上的檔案</span><b>${esc(disk)}</b><span>同時在寫的份數</span><b>${writing ? 1 : 0}</b>`;
+  };
+  const startNext = () => {
+    if (!waiting) { writing = null; renderQueue(); return; }
+    writing = waiting; waiting = null; writing.state = 'writing'; renderQueue();
+    timer = setTimeout(() => { writing.state = 'ok'; disk = `v${writing.v}`; startNext(); }, 1500);
+  };
+  $('queueSave').addEventListener('click', () => {
+    const item = { v: ++version, state: 'waiting' };
+    history.push(item);
+    if (waiting) waiting.state = 'cancel';
+    waiting = item;
+    if (!writing) startNext(); else renderQueue();
+  });
+  $('queueReset').addEventListener('click', () => { clearTimeout(timer); version = 0; writing = null; waiting = null; history = []; disk = '（沒有檔案）'; renderQueue(); });
+  renderQueue();
+
+  // ---- 4. 樣本庫分層 ----
+  const key = (s) => s.trim().toLowerCase();
+  const renderLayers = (hit) => {
+    const seen = new Set();
+    $('layers').innerHTML = data.layers.map((l) => {
+      const rows = l.entries.map((e) => {
+        const shadow = seen.has(key(e.part)); seen.add(key(e.part));
+        const cls = hit && hit.entry === e ? 'entry hit' : shadow ? 'entry shadow' : 'entry';
+        return `<div class="${cls}" title="${shadow ? '被上層同料號的條目遮住' : ''}">${esc(e.id)}：${esc(e.part)}${e.aliases.length ? `（別名 ${esc(e.aliases.join('、'))}）` : ''}</div>`;
+      }).join('');
+      const cls = ['layer', hit && hit.layer === l ? 'hit' : '', hit && hit.target === l.id ? 'target' : ''].join(' ');
+      return `<div class="${cls}"><h4>${esc(l.label)}</h4>${rows}${l.writable ? '' : '<div class="ro">唯讀</div>'}</div>`;
+    }).join('');
+  };
+  const lookup = () => {
+    const k = key($('lookup').value);
+    if (!k) { renderLayers(null); $('lookupResult').textContent = '輸入料號或別名。'; return; }
+    for (const l of data.layers) {
+      const byPart = l.entries.find((e) => key(e.part) === k);
+      const byAlias = l.entries.find((e) => e.aliases.some((a) => key(a) === k));
+      const e = byPart || byAlias;
+      if (e) { renderLayers({ layer: l, entry: e }); $('lookupResult').textContent = `${l.label} 回答：${e.id}（比對到${byPart ? '料號' : '別名'}）。上面的層先找，同一層先比料號再比別名。`; return; }
+    }
+    renderLayers(null); $('lookupResult').textContent = '每一層都沒有：find 回傳「沒有」（不是錯誤）。';
+  };
+  $('lookup').addEventListener('input', lookup);
+  ['8371', 'SOP20', '20-SOIC', '0603', '0402', 'R-100'].forEach((p) => $('lookupPresets').insertAdjacentHTML('beforeend', `<button class="btn" data-lookup="${p}">${p}</button>`));
+  document.querySelectorAll('[data-lookup]').forEach((b) => b.addEventListener('click', () => { $('lookup').value = b.dataset.lookup; lookup(); }));
+  const cases = [
+    { label: '存一個新類型 R-100', part: 'R-100', libId: '', target: 'user', why: '規則 ③：沒有任何層有這個料號、也沒有來源 → 使用者層（TRI：其他存到 User）。' },
+    { label: '板子上改了 IC-1（來自 proj-1）', part: 'IC-1', libId: 'proj-1', target: 'project', why: '規則 ①：專案層已經有 IC-1 → 覆寫它、保留 id（TRI：從 Project 載入的存回 Project）。' },
+    { label: '改了原廠的 0603（來自 sys-2）', part: '0603', libId: 'sys-2', target: 'user', why: '規則 ③：系統層唯讀 → 存到使用者層，遮住原廠的那一份；原廠的檔案不動。' },
+    { label: '新類型，但料號是 8371', part: '8371', libId: '', target: 'project', why: '規則 ①：最高的可寫層（專案層）已經有 8371 → 覆寫它；存完 find(8371) 一定回傳剛存的內容。' }
+  ];
+  cases.forEach((c, i) => $('saveCases').insertAdjacentHTML('beforeend', `<button class="btn" data-case="${i}">${esc(c.label)}</button>`));
+  document.querySelectorAll('[data-case]').forEach((b) => b.addEventListener('click', () => {
+    const c = cases[Number(b.dataset.case)];
+    document.querySelectorAll('[data-case]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+    renderLayers({ target: c.target });
+    $('saveResult').textContent = `存到${data.layers.find((l) => l.id === c.target).label}。${c.why}`;
+  }));
+  lookup();
+  $('saveResult').textContent = '按一個情況，看存到哪一層。';
+
+  // ---- 5. 數字 ----
+  data.sizes.forEach((s) => $('tableSize').insertAdjacentHTML('beforeend', `<option value="${s.id}">${esc(s.label)}</option>`));
+  const renderTable = () => {
+    const size = $('tableSize').value;
+    const rows = data.kinds.map((k) => ({ k, qt: data.loadMs.qt[`${k.id}-${size}`], cv: data.loadMs.opencv[`${k.id}-${size}`] })).filter((r) => r.qt || r.cv);
+    const max = Math.max(...rows.flatMap((r) => [Number(r.qt) || 0, Number(r.cv) || 0]));
+    const bar = (v, cls) => v ? `<div class="bar ${cls}" style="width:${(100 * Number(v) / max).toFixed(1)}%"></div>` : '';
+    $('loadTable').innerHTML = '<tr><th>載入（中位數 ms）</th><th>Qt</th><th>複製</th><th>OpenCV</th><th>複製</th><th class="barcell hide-sm"></th></tr>' + rows.map((r) =>
+      `<tr><td>${esc(r.k.label)}</td><td>${r.qt || '讀不了'}</td><td>${r.k.qt ? r.k.qt.copies : '—'}</td><td>${r.cv || '—'}</td><td>${r.k.opencv.copies}</td><td class="barcell hide-sm">${bar(r.qt, '')}${bar(r.cv, 'cv')}</td></tr>`).join('');
+  };
+  $('tableSize').addEventListener('change', renderTable);
+  renderTable();
+  $('storeTable').innerHTML = '<tr><th>儲存（中位數）</th><th>ms</th><th>備註</th></tr>' + data.store.map((s) => `<tr><td>${esc(s.label)}</td><td>${esc(s.ms)}</td><td>${esc(s.note)}</td></tr>`).join('');
+  $('machine').textContent = data.machine;
+
+  $('text').innerHTML = data.sections.map((s) => `<h3>${esc(s.title)}</h3><p lang="en">${esc(s.ste.text)}</p><p class="zh" lang="zh-Hant">${esc(s.zh)}</p>`).join('');
+})();
+</script>
+</body>
+</html>

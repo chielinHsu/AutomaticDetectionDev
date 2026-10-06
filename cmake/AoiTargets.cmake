@@ -33,9 +33,14 @@ function(aoi_add_qt_test name)
   target_link_libraries(${name} PRIVATE Qt6::Test ${T_LIBS})
   aoi_set_warnings(${name})
   add_test(NAME ${name} COMMAND ${name} -o "${AOI_TEST_LOG_DIR}/${name}.txt,txt")
+  # Qt 的 DLL 一定要在 PATH 上；AOI_WITH_OPENCV=ON 時 OpenCV 的 DLL 也是（S06）。
+  set(_aoi_path_mods "PATH=path_list_prepend:${AOI_QT_BIN_DIR}")
+  if(AOI_OPENCV_BIN_DIR)
+    list(APPEND _aoi_path_mods "PATH=path_list_prepend:${AOI_OPENCV_BIN_DIR}")
+  endif()
   set_tests_properties(${name} PROPERTIES
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QPA_FONTDIR=${AOI_FONT_DIR}"
-    ENVIRONMENT_MODIFICATION "PATH=path_list_prepend:${AOI_QT_BIN_DIR}"
+    ENVIRONMENT_MODIFICATION "${_aoi_path_mods}"
     TIMEOUT 300)
   if(T_LABELS)
     set_tests_properties(${name} PROPERTIES LABELS "${T_LABELS}")
@@ -51,4 +56,16 @@ if(_aoi_qt_core_loc)
   get_filename_component(AOI_QT_BIN_DIR "${_aoi_qt_core_loc}" DIRECTORY)
 else()
   set(AOI_QT_BIN_DIR "")
+endif()
+
+# OpenCV 的 DLL 資料夾（AOI_WITH_OPENCV=ON 時，執行測試要在 PATH 上）：opencv_world 的 Release 或 Debug 版所在的資料夾。
+set(AOI_OPENCV_BIN_DIR "")
+if(AOI_WITH_OPENCV AND TARGET opencv_world)
+  get_target_property(_aoi_cv_loc opencv_world IMPORTED_LOCATION_RELEASE)
+  if(NOT _aoi_cv_loc)
+    get_target_property(_aoi_cv_loc opencv_world IMPORTED_LOCATION_DEBUG)
+  endif()
+  if(_aoi_cv_loc)
+    get_filename_component(AOI_OPENCV_BIN_DIR "${_aoi_cv_loc}" DIRECTORY)
+  endif()
 endif()

@@ -3,6 +3,8 @@ add_library(aoi_application STATIC
   backend/BackendRegistry.cpp
   document/InspectionDocument.cpp
   document/ProposalSession.cpp
+  document/RecipeSaver.cpp
+  image/ImageSourceChain.cpp
   interaction/InspectionSession.cpp
   interaction/InteractionStateMachine.cpp
   jobs/JobRunner.cpp

@@ -15,8 +15,10 @@ public:
     // QImage 本身是隱式共享，這裡只存一份參照，不複製像素。
     void setImage(const QImage& image);
 
-    // 零複製：把 ImageView 的像素包成 QImage（共享擁有者放進清理函式，QImage 活著緩衝就活著）。
-    // ImageView 無效時回傳空的 QImage。
+    // 零複製：把 ImageView 的像素包成 QImage（共享擁有者放進清理函式，QImage 活著緩衝就活著）。五種格式都對得上
+    // （與 infrastructure/image_qt 的 wrapAsQImage 同一張對照表，tst_image_qt 比對）。
+    // 例外（S06）：有效位元數不到 16 的 Gray16（例如 12 bit，值只到 4095）照原樣畫會幾乎全黑，所以轉成 8 bit 顯示，
+    // 算一次複製（image_copy.h）。ImageView 無效時回傳空的 QImage。
     static QImage wrap(const aoi::ImageView& view);
 
     const QImage& image() const { return image_; }

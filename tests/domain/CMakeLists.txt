@@ -7,6 +7,9 @@ aoi_add_qt_test(tst_lattice_parts SOURCES tst_lattice_parts.cpp LIBS aoi_domain)
 aoi_add_qt_test(tst_lattice_rules SOURCES tst_lattice_rules.cpp LIBS aoi_domain)
 aoi_add_qt_test(tst_nms SOURCES tst_nms.cpp LIBS aoi_domain)
 
+# S06：ImageView 的所有權規則、ImageBuffer、subView、複製計數。
+aoi_add_qt_test(tst_image_view SOURCES tst_image_view.cpp LIBS aoi_domain)
+
 # 說明頁（docs/steps/S05-lattice/explainer.html）的資料由 C++ 算：檢查頁面裡的資料仍是目前的程式算出來的。
 # 更新頁面：設環境變數 AOI_EXPORT_EXPLAINER=1 再執行 tst_lattice_explainer。
 aoi_add_qt_test(tst_lattice_explainer SOURCES tst_lattice_explainer.cpp LIBS aoi_domain)

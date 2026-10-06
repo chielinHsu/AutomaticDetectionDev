@@ -1,10 +1,9 @@
-// SceneBuilder（工作階段 → 畫布的框與物件樹的列）與 ImageViewAdapter（QImage → ImageView）。
-#include <QImage>
+// SceneBuilder（工作階段 → 畫布的框與物件樹的列）。S04 的 ImageViewAdapter（QImage → ImageView）在 S06 移到
+// infrastructure/image_qt，它的測試在 tests/infra/tst_image_qt。
 #include <QtTest>
 
 #include "ProposalTestSupport.h"
 #include "presentation/presenters/SceneBuilder.h"
-#include "presentation/shell/ImageViewAdapter.h"
 
 using namespace aoi;
 using namespace aoi::ui;
@@ -188,70 +187,6 @@ private slots:
         int total = 0;
         for (int n : scene.rows->stateCounts) total += n;
         QCOMPARE(total, 5001);
-    }
-
-    // ---- ImageViewAdapter ----
-    void aGrayImageBecomesGray8WithoutCopyingThePixels() {
-        QImage image(64, 48, QImage::Format_Grayscale8);
-        image.fill(77);
-        const aoi::ImageView view = toImageView(image);
-        QVERIFY(view.valid());
-        QVERIFY(view.format == PixelFormat::Gray8);
-        QCOMPARE(view.width, 64);
-        QCOMPARE(view.height, 48);
-        QCOMPARE(view.strideBytes, static_cast<int>(image.bytesPerLine()));
-        QVERIFY(view.data == image.constBits());  // 零複製：指到同一塊像素
-        QCOMPARE(view.data[0], std::uint8_t{77});
-    }
-
-    void rgb32AndArgb32BecomeBgrx32() {
-        for (QImage::Format f : {QImage::Format_RGB32, QImage::Format_ARGB32, QImage::Format_ARGB32_Premultiplied}) {
-            QImage image(10, 10, f);
-            image.fill(QColor(10, 20, 30));
-            const aoi::ImageView view = toImageView(image);
-            QVERIFY(view.valid());
-            QVERIFY(view.format == PixelFormat::Bgrx32);
-            QCOMPARE(view.data[0], std::uint8_t{30});  // B
-            QCOMPARE(view.data[1], std::uint8_t{20});  // G
-            QCOMPARE(view.data[2], std::uint8_t{10});  // R
-        }
-    }
-
-    void rgb888BecomesRgb24() {
-        QImage image(10, 10, QImage::Format_RGB888);
-        image.fill(QColor(10, 20, 30));
-        const aoi::ImageView view = toImageView(image);
-        QVERIFY(view.format == PixelFormat::Rgb24);
-        QCOMPARE(view.data[0], std::uint8_t{10});
-        QCOMPARE(view.data[2], std::uint8_t{30});
-    }
-
-    void otherFormatsAreConvertedOnceToBgrx32() {
-        QImage image(10, 10, QImage::Format_RGB16);
-        image.fill(QColor(255, 0, 0));
-        const aoi::ImageView view = toImageView(image);
-        QVERIFY(view.valid());
-        QVERIFY(view.format == PixelFormat::Bgrx32);
-        QCOMPARE(view.data[2], std::uint8_t{255});  // R
-    }
-
-    void theViewKeepsThePixelsAliveAfterTheOriginalImageIsGone() {
-        aoi::ImageView view;
-        {
-            QImage image(32, 32, QImage::Format_RGB32);
-            image.fill(QColor(1, 2, 3));
-            view = toImageView(image);
-        }  // 原本的 QImage 已經解構
-        QVERIFY(view.owner != nullptr);
-        QCOMPARE(view.data[0], std::uint8_t{3});
-        QCOMPARE(view.data[1], std::uint8_t{2});
-    }
-
-    void aNullImageGivesAnInvalidViewAndTheCalibrationPassesThrough() {
-        QVERIFY(!toImageView(QImage()).valid());
-        QImage image(8, 8, QImage::Format_Grayscale8);
-        QCOMPARE(toImageView(image, 2.5).umPerPixel, 2.5);
-        QCOMPARE(toImageView(image).umPerPixel, 0.0);
     }
 };
 

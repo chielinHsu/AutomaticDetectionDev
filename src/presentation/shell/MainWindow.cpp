@@ -9,7 +9,6 @@
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QFormLayout>
-#include <QImage>
 #include <QKeyEvent>
 #include <QLabel>
 #include <QLineEdit>
@@ -22,11 +21,11 @@
 #include <QTreeView>
 #include <QUrl>
 #include <QVBoxLayout>
+#include <string>
 
 #include "presentation/canvas/ImageCanvas.h"
 #include "presentation/i18n/Translations.h"
 #include "presentation/shell/EmptyCard.h"
-#include "presentation/shell/ImageLoader.h"
 #include "presentation/objects/ObjectsPanel.h"
 #include "presentation/params/ParamsPanel.h"
 #include "presentation/shell/MessageBar.h"
@@ -35,10 +34,7 @@
 namespace aoi::ui {
 namespace {
 
-bool isImageFile(const QString& path) {
-    static const QStringList suffixes = {"png", "bmp", "jpg", "jpeg", "tif", "tiff"};
-    return suffixes.contains(QFileInfo(path).suffix().toLower());
-}
+std::string utf8(const QString& s) { return s.toUtf8().toStdString(); }
 
 QString withShortcut(const QString& name, const QString& keys) { return QStringLiteral("%1 (%2)").arg(name, keys); }
 
@@ -150,7 +146,7 @@ void MainWindow::buildActions() {
     connect(openAction_, &QAction::triggered, this, &MainWindow::promptOpen);
     saveAction_ = new QAction(this);
     saveAction_->setShortcut(QKeySequence::Save);
-    saveAction_->setEnabled(false);  // 配方儲存在 S06
+    saveAction_->setEnabled(false);  // 配方的儲存層在 S06（infrastructure/storage）；存檔與開啟配方的 UI 還沒排進任何一步（docs/current-status.md）
     exportAction_ = new QAction(this);
     exportAction_->setEnabled(false);  // 匯出在 S12
     quitAction_ = new QAction(this);
@@ -425,20 +421,24 @@ void MainWindow::promptOpen() {
 }
 
 bool MainWindow::openImage(const QString& path) {
-    const LoadedImage loaded = loadImageFile(path);
     const QString name = QFileInfo(path).fileName();
-    if (!loaded.ok()) {
-        // 舊影像保留。錯誤卡片是 Presenter 的事（它知道目前的狀態，Dismiss 要回到 Idle 還是 Empty）。
-        emit imageOpenFailed(name, loaded.error);
+    if (imageSource_ == nullptr) {
+        emit imageOpenFailed(name, QStringLiteral("No image source is set."));
         return false;
     }
-    setImage(loaded.image, name);
+    const aoi::Result<aoi::ImageView> loaded = imageSource_->load(utf8(path));
+    if (!loaded) {
+        // 舊影像保留。錯誤卡片是 Presenter 的事（它知道目前的狀態，Dismiss 要回到 Idle 還是 Empty）。
+        emit imageOpenFailed(name, QString::fromStdString(loaded.error().message));
+        return false;
+    }
+    setImage(loaded.value(), name);
     return true;
 }
 
-void MainWindow::setImage(const QImage& image, const QString& name) {
+void MainWindow::setImage(const aoi::ImageView& image, const QString& name) {
     imageName_ = name;
-    canvas_->setImage(image);
+    canvas_->showImage(image);
     setWindowTitle(QStringLiteral("%1 — %2").arg(name, qtTrId("app.title")));
     canvas_->setFocus(Qt::OtherFocusReason);
     emit imageOpened(image, name);
@@ -531,7 +531,7 @@ void MainWindow::changeEvent(QEvent* event) {
 
 void MainWindow::dragEnterEvent(QDragEnterEvent* event) {
     for (const QUrl& url : event->mimeData()->urls()) {
-        if (url.isLocalFile() && isImageFile(url.toLocalFile())) {
+        if (url.isLocalFile() && imageSource_ != nullptr && imageSource_->canRead(utf8(url.toLocalFile()))) {
             event->acceptProposedAction();
             return;
         }
@@ -540,7 +540,7 @@ void MainWindow::dragEnterEvent(QDragEnterEvent* event) {
 
 void MainWindow::dropEvent(QDropEvent* event) {
     for (const QUrl& url : event->mimeData()->urls()) {
-        if (url.isLocalFile() && isImageFile(url.toLocalFile())) {
+        if (url.isLocalFile() && imageSource_ != nullptr && imageSource_->canRead(utf8(url.toLocalFile()))) {
             openImage(url.toLocalFile());
             event->acceptProposedAction();
             return;

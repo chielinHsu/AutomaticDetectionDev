@@ -20,6 +20,10 @@ aoi_add_qt_test(tst_document SOURCES tst_document.cpp LIBS ${AOI_CORE_TEST_LIBS}
 aoi_add_qt_test(tst_session SOURCES tst_session.cpp LIBS ${AOI_CORE_TEST_LIBS})
 aoi_add_qt_test(tst_qt_executor SOURCES tst_qt_executor.cpp LIBS ${AOI_CORE_TEST_LIBS})
 
+# S06：影像來源的組合（ImageSourceChain）與背景存檔（RecipeSaver），都是 application 層、用假的 port。
+aoi_add_qt_test(tst_image_chain SOURCES tst_image_chain.cpp LIBS ${AOI_CORE_TEST_LIBS})
+aoi_add_qt_test(tst_recipe_saver SOURCES tst_recipe_saver.cpp LIBS ${AOI_CORE_TEST_LIBS})
+
 # 效能量測（label perf）：PerfProbe 單次成本、JobRunner 延遲與取消延遲、use case 本身的成本。
 # 只有 Release／RelWithDebInfo 才把「PerfProbe 關閉時 < 1 µs」當成失敗條件；預設的 test preset 排除 label=perf。
 aoi_add_qt_test(perf_core SOURCES perf_core.cpp LIBS ${AOI_CORE_TEST_LIBS} LABELS perf)

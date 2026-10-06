@@ -48,6 +48,19 @@ private slots:
         QCOMPARE(r.document().board().name, std::string("board.png"));
     }
 
+    // S06：開圖的訊號帶 ImageView；Presenter 用它的校正值（不再固定 0），而且拿到的是畫布畫的同一塊像素。
+    void theOpenedImageCarriesItsCalibrationIntoTheBoard() {
+        Rig r;
+        r.board = aoi::dev::makeFakeBoard(640, 480);
+        aoi::ImageView view = r.board.view();
+        view.umPerPixel = 12.5;
+        r.window.setImage(view, QStringLiteral("calibrated.png"));
+        QCoreApplication::processEvents();
+        QCOMPARE(r.document().board().umPerPixel, 12.5);
+        QCOMPARE(r.document().board().imageWidth, 640);
+        QVERIFY(r.canvas()->imageItem()->image().constBits() == view.data);
+    }
+
     void aBrokenFileWithoutAnImageShowsAnErrorCardAndDismissesToEmpty() {
         Rig r;
         QVERIFY(!r.window.openImage(QStringLiteral("this-file-does-not-exist.png")));

@@ -10,6 +10,7 @@ qt_add_library(aoi_presentation STATIC
     canvas/ImageCanvas.h
     canvas/ImageItem.cpp
     canvas/ImageItem.h
+    canvas/ImageViewMetaType.h
     canvas/OverlayStyle.cpp
     canvas/OverlayStyle.h
     canvas/OverlayTypes.h
@@ -41,10 +42,6 @@ qt_add_library(aoi_presentation STATIC
     presenters/ViewInterfaces.h
     shell/EmptyCard.cpp
     shell/EmptyCard.h
-    shell/ImageLoader.cpp
-    shell/ImageLoader.h
-    shell/ImageViewAdapter.cpp
-    shell/ImageViewAdapter.h
     shell/MainWindow.cpp
     shell/MainWindow.h
     shell/MessageBar.cpp

@@ -1,5 +1,9 @@
-# domain 層只用 C++ 標準庫。S05 起有晶格估計的 .cpp（lattice/），所以是 STATIC；其餘仍是只有標頭的型別。
+# domain 層只用 C++ 標準庫。S05 起有晶格估計的 .cpp（lattice/），所以是 STATIC；其餘多半是只有標頭的型別。
+# S06：影像緩衝（image_buffer）、複製計數（image_copy）、位元深度（image_depth，12 bit 的影像）。
 add_library(aoi_domain STATIC
+  image_buffer.cpp
+  image_copy.cpp
+  image_depth.cpp
   lattice/basis_finder.cpp
   lattice/cell_components.cpp
   lattice/lattice_acceptance.cpp

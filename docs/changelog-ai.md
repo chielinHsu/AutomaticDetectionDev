@@ -24,6 +24,49 @@
 - 下一位 agent 需要知道的限制、否決的做法、不要還原的修改
 ```
 
+## 2026-10-06 — Claude Code (Claude Opus 5.5)（S06：影像緩衝、轉接器、配方與樣本庫儲存）
+
+### 完成
+- 依 Step Protocol 做 S06，在 worktree 的分支 `step/06-image-storage`（從 `main` 的 `79aa74b` 開出）。
+- 影像的所有權規則定案（ADR-014）：像素交出去就不改、owner 讓它活著、子影像共用 owner、做不到零複製就計數；`Bgr24`、`Gray16`、`subView`；`ImageBuffer`（緊密排列、對齊 64 byte）；`countImageCopy`（全程式共用的 atomic，測試取差）。
+- 新 adapter `infrastructure/image_qt`（Qt Core＋Gui）：`fromQImage`／`wrapAsQImage`／`toCanonicalQImage`、`QtImageSource`。`check-deps` 新增 `qt-gui` 類別（白名單）與這一層的規則，2 個新 fixture（共 15 個）。開工時向使用者說明了為什麼不用精靈產生的 `mainwindow.*`、為什麼要新的一層。
+- `backend_opencv`：`OpenCvImages`（`fromMat`、`borrowAsMat`；拒絕包著外部記憶體的 Mat）、`OpenCvImageSource`（自己讀 UTF-8 路徑再 `imdecode`）。**OpenCV 4.9.0（vc16）第一次連結成功**；preset `release-opencv`／`debug-opencv`，`aoi.exe` 建置後複製 DLL，測試的 PATH 加上 OpenCV。
+- 影像來源只交出三種正規格式（`Gray8`、`Gray16`、`Bgrx32`）；組裝順序 **Qt 在前、OpenCV 在後**（計畫寫 Qt 當後備；改的理由是複製次數，ADR-014）。開圖改走 `IImageSource`，訊號帶 `ImageView`；`ImageLoader`、`ImageViewAdapter` 刪除。
+- **12 bit**（使用者中途指出影像也有 12 bit）：`ImageView::significantBits`、`domain/image_depth`（看最大值推測）、畫布轉 8 bit 顯示（計數）、use case 的對比檢查依位元數換算、參考影像存位元數、合成板子產生 12 bit。實測 OpenCV 讀緊密打包的 12 bit TIFF 會左移 4 位。
+- storage（Qt Core）：`JsonCodec`（每個欄位都寫、讀得嚴格、錯誤帶 JSON 路徑）、`JsonFile`（格式標記、`schemaVersion`、逐版遷移、`QSaveFile` 原子寫入、略過 BOM）、`JsonRecipeStore`、`JsonLibraryStore`（一個檔案一層、id 永不重複使用、壞檔不覆蓋）、`LayeredLibraryStore`（**使用者決定照 TRI 分層**：專案 → 使用者 → 唯讀的系統；先另開 session 圖解我的建議與 TRI 的差異）。
+- application：`ImageSourceChain`、`RecipeSaver`（「非同步寫檔」：同一個檔案依序寫、還沒開始的舊存檔被取代）。
+- `tests/support/synthetic_board`（同 seed 同輸出、標準答案 JSON、PNG＋JSON 存檔；不傾斜時鎖住像素雜湊）。
+- **Qt 6.12.0**：使用者中途更新 Qt，選擇 S06 就切換。preset 與 `env.ps1` 的預設改成 6.12.0；切換前在 6.8.0 跑了一次全部效能測試當對照，切換後同樣跑一次（`perf.md`）。6.12.0 棄用了 `QDragEnterEvent(QPoint…)`，`tst_shell` 改用 `QPointF`。
+- 文件：`docs/steps/S06-image-storage/`（四種輸出＋`perf.md`）、ADR-014、ADR-015、`perf/baseline/casparhsu1-storage.json`、`docs/architecture.md`、`AI_CONTEXT.md`、`README.md`、`docs/plan/S07`–`S12` 的「S06 完成後的提醒」。
+
+### 修改的檔案
+- 新增：`src/domain/image_buffer.*`、`image_copy.*`、`image_depth.*`；`src/application/image/ImageSourceChain.*`、`document/RecipeSaver.*`；`src/infrastructure/image_qt/`、`storage/`、`backend_opencv/`；`src/presentation/canvas/ImageViewMetaType.h`；`tests/support/`；`tests/infra/`（含 `fixtures/recipe-v1.json`、`library-v1.json`）；`tests/domain/tst_image_view.cpp`；`tests/core/tst_image_chain.cpp`、`tst_recipe_saver.cpp`；`tests/core/fixtures/deps/image-qt-widgets/`、`storage-gui/`、`clean/src/infrastructure/image_qt/`；`docs/steps/S06-image-storage/`；`docs/adr/014-*`、`015-*`；`perf/baseline/casparhsu1-storage.json`
+- 修改：`src/domain/image_view.h`、`CMakeLists.txt`；`src/application/ports/IImageSource.h`、`IRecipeStore.h`、`ILibraryStore.h`、`usecases/GenerateObjectsFromSample.cpp`、`CMakeLists.txt`；`src/infrastructure/CMakeLists.txt`；`src/presentation/shell/MainWindow.*`、`presenters/AutoRoiPresenter.*`、`canvas/ImageItem.*`、`canvas/ImageCanvas.h`、`CMakeLists.txt`；`src/app/CompositionRoot.*`、`main.cpp`、`CMakeLists.txt`；`CMakeLists.txt`、`CMakePresets.json`、`cmake/AoiTargets.cmake`、`scripts/dev/env.ps1`、`scripts/dev/test.ps1`；`tools/check-deps.mjs`；`tests/CMakeLists.txt`、`tests/core/CMakeLists.txt`、`QtTestPrinters.h`、`tst_generate_objects.cpp`；`tests/domain/CMakeLists.txt`；`tests/ui/PresenterRig.h`、`perf_ui_baseline.cpp`、`tst_presenter.cpp`、`tst_scene.cpp`、`tst_shell.cpp`；`AiInspTool/AiInspTool.pro`；`AI_CONTEXT.md`、`README.md`、`docs/architecture.md`、`docs/decisions.md`、`docs/current-status.md`、`docs/plan/S07`–`S12`、`.ai/handoff.md`
+- 刪除：`src/presentation/shell/ImageLoader.*`、`ImageViewAdapter.*`（測試搬到 `tests/infra/tst_image_qt`）
+
+### 驗證
+- **Qt 6.12.0（最終版）**：`scripts/dev/test.ps1` 四種組態全過：Release 45、Release＋OpenCV（`-Preset release-opencv`）47、Debug 45、Debug＋OpenCV 47 個 CTest 項目。切換前在 Qt 6.8.0（12 bit 加入前）四種組態也全過（44、46、44、46 個項目）；Debug 兩種組態在 6.8.0 第一次有失敗，原因見注意事項。
+- `node tools/check-deps.mjs`：158 個檔案 0 違規；`--self-test` 15 個 fixture 全過。`ste-lint --strict`：698 句 0 錯誤。`check-contrast`：0 失敗。`s00-demo-fixture.mjs --check`：一致。`diagram.md` 8 張 Mermaid 用 mermaid 11.17.2（jsdom）解析全過，只驗語法；先確認一張故意寫壞的圖會失敗。`check-ai-structure.ps1`：OK（0 警告）。
+- 效能（`perf.md`）：`perf-opencv`（6 個 perf 執行檔）在 Qt 6.12.0 連跑 3 次全過，切換前在 6.8.0 跑 1 次當對照；配方的量測另外單獨跑 3 次（查一個 483 ms 的異常值）。有預算的指標除了 U3 都在預算內；`perf/budgets.json` 沒有改。
+- 變異：31 個，抓到 30 個（M05 第一輪存活，補了 EXIF 方向的測試後抓到；M24 是等價變異）；在 Qt 6.8.0 的 `release-opencv` 建置上做，還原後用 SHA-256 確認。
+- `AiInspTool.pro`：Qt 6.12.0 的 qmake ＋ jom（Release）建置成功；offscreen 下 `--backend opencv` 結束碼 2、`--demo 500` 啟動後仍在執行。**沒有在 Qt Creator 裡載入過。**
+- `explainer.html`：S06 中在瀏覽器窗格操作過各個控制項；最後一次改資料（6.12.0 的數字）之後，只確認了載入、表格內容、沒有主控台錯誤、375 px 寬沒有水平捲動。
+
+### 未完成
+- HALCON 的 `HImage` ⇄ `ImageView` 與 `HalconImageSource`：這台機器沒有 HALCON 的 C++ 開發檔，沒有做（S08）。
+- 存檔與開啟配方的 UI（使用者決定這一步不接；必要功能，記在待辦）；開啟配方還需要 v2 schema（影像路徑）。
+- 分層樣本庫的組裝（各層的檔案放哪裡）；有效位元數的覆寫（配方或相機設定）。
+- 灰階＋alpha 的 PNG 兩個來源是否一致沒有驗證；`Gray16` 的畫布繪製成本沒有量；開圖仍在 UI 執行緒。
+
+### 注意事項
+- **Qt 6.8.0 的 `qUncompress` 對被截斷的資料會撞上 `Q_UNREACHABLE`**（Debug 中止；Release 是未定義行為，只是碰巧沒事）。Debug 的 `tst_recipe_store` 抓到；參考影像因此改成不壓縮的 base64。Release 碰巧通過，再次證明 Debug 要跑。
+- Debug＋OpenCV 第一次跑時有兩個「失敗」是時序造成的：建置開始時二進位檔還是舊的編碼器，範例檔在測試前已改成新格式。四種組態全部重建後全過。
+- `tst_image_sources_agree` 的「16 階灰色表的 PNG」原本預期兩邊不一致（`QEXPECT_FAIL`），實測一致（XPASS）：Qt 的 `isGrayscale()` 對索引色的定義是「索引 ＝ 灰階值」，不是「每個顏色都是灰」。真正不一致的是 16 階灰色表的 **BMP**（OpenCV 的 BMP 解碼器看「每個顏色都是灰」），改成記住它。
+- `-0.0` 存成 JSON 讀回是 `+0.0`；Qt 的大小寫折疊是簡單折疊（`ß` ≠ `ss`）；Windows 上同時存同一個檔案，有的換名會失敗（30 次約 7 次）：都寫進契約或註解。
+- 寫文件與程式時踩到的坑：bash heredoc 會吃掉反斜線（`/\s+/` 變 `/s+/`，`check-deps` 的自我測試抓到）；JS 的 `String.replace` 會把替換字串裡的 `$$` 變成 `$`（`.pro` 的 `$$files` 被改壞，看 diff 發現）；`for (x : f().value())` 在 C++20 是懸空參照（測試讀到空的）。
+- 變異測試腳本與 Mermaid 檢查腳本在 session 的暫存目錄，不在 repo；變異的還原用原始位元組並驗證 SHA-256。
+- `perf_storage` 把測試影像（約 250 MB）寫在**目前目錄**的 `perf-images-s06/`：CTest 在建置目錄執行所以沒事，手動執行時要先切到建置目錄（這個 session 在 worktree 根目錄跑過一次，已刪掉）。
+
 ## 2026-10-06 — Claude Code (Claude Opus 5.5)（S05：晶格估計與補漏）
 
 ### 完成

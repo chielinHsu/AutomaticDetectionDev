@@ -7,7 +7,10 @@
 # 注意：S03 起 ../src 有 application、infrastructure、組裝根，這個檔已經調整；S04 新增的 application/document、interaction，
 #       infrastructure/threading/QtThreadPoolExecutor 與 presentation/presenters、objects、params 都在已納入的資料夾底下（萬用字元遞迴納入），
 #       不必改。S05 起 domain 有 .cpp（domain/lattice：晶格估計、NMS），已加入 SOURCES。
-#       S06 起還會有 storage、S07／S08 有 OpenCV／HALCON，到時候要跟著調整，不要只依賴它確認「全部都能建置」
+#       S06 加了 infrastructure/image_qt（QImage 的影像來源，Qt Gui）與 infrastructure/storage（配方與樣本庫的 JSON，Qt Core），
+#       已用萬用字元加入；domain 的 image_buffer、image_copy 與 application/image、document/RecipeSaver 在已納入的資料夾底下。
+#       infrastructure/backend_opencv（S06 起有影像來源）要 OpenCV，這個 qmake 專案不建置它：組裝根在沒有定義 AOI_WITH_OPENCV 時
+#       只用 Qt 的影像來源（讀不了 TIFF）。S07／S08 有 OpenCV／HALCON 的搜尋器，到時候要跟著調整，不要只依賴它確認「全部都能建置」
 #       （正式的建置與測試走 CMake）。
 #
 # 精靈原本產生的 main.cpp、mainwindow.h、mainwindow.cpp、mainwindow.ui 現在沒有被使用（入口是 ../src/app/main.cpp）。
@@ -20,14 +23,16 @@ CONFIG += c++20
 
 INCLUDEPATH += $$PWD/../src
 
-# S03：src/ 多了 application、infrastructure（只有不依賴視覺函式庫的 backend_fake、perf、threading）與組裝根。
+# S03：src/ 多了 application、infrastructure（只有不依賴視覺函式庫的 backend_fake、perf、threading；S06 加 image_qt、storage）與組裝根。
 # backend_opencv、backend_halcon（S07、S08）需要各自的函式庫，這個 qmake 專案不建置它們；到時候要用的話再加。
 SOURCES += $$PWD/../src/app/main.cpp
 SOURCES += $$PWD/../src/app/CompositionRoot.cpp
 SOURCES += $$files($$PWD/../src/domain/*.cpp, true)
 SOURCES += $$files($$PWD/../src/application/*.cpp, true)
 SOURCES += $$files($$PWD/../src/infrastructure/backend_fake/*.cpp, true)
+SOURCES += $$files($$PWD/../src/infrastructure/image_qt/*.cpp, true)
 SOURCES += $$files($$PWD/../src/infrastructure/perf/*.cpp, true)
+SOURCES += $$files($$PWD/../src/infrastructure/storage/*.cpp, true)
 SOURCES += $$files($$PWD/../src/infrastructure/threading/*.cpp, true)
 SOURCES += $$files($$PWD/../src/presentation/*.cpp, true)
 
@@ -35,7 +40,9 @@ SOURCES += $$files($$PWD/../src/presentation/*.cpp, true)
 HEADERS += $$files($$PWD/../src/domain/*.h, true)
 HEADERS += $$files($$PWD/../src/application/*.h, true)
 HEADERS += $$files($$PWD/../src/infrastructure/backend_fake/*.h, true)
+HEADERS += $$files($$PWD/../src/infrastructure/image_qt/*.h, true)
 HEADERS += $$files($$PWD/../src/infrastructure/perf/*.h, true)
+HEADERS += $$files($$PWD/../src/infrastructure/storage/*.h, true)
 HEADERS += $$files($$PWD/../src/infrastructure/threading/*.h, true)
 HEADERS += $$PWD/../src/app/CompositionRoot.h
 HEADERS += $$files($$PWD/../src/presentation/*.h, true)

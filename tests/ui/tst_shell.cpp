@@ -17,6 +17,8 @@
 #include <memory>
 
 #include "TestSupport.h"
+#include "domain/image_copy.h"
+#include "infrastructure/image_qt/QtImageSource.h"
 #include "presentation/canvas/ImageCanvas.h"
 #include "presentation/dev/FakeScene.h"
 #include "presentation/i18n/Translations.h"
@@ -35,16 +37,18 @@ const ThemeTokens& tokens() { return ThemeTokens::builtin(); }
 
 struct Fixture {
     ThemeManager theme{*qApp, tokens()};
+    aoi::infra::QtImageSource imageSource;
     MainWindow window{theme};
     aoi::dev::FakeBoard board;
 
     Fixture(bool withImage = false) {
         Translations::install(QStringLiteral("zh_TW"));
+        window.setImageSource(&imageSource);
         window.show();
         Q_UNUSED(QTest::qWaitForWindowExposed(&window));
         if (withImage) {
             board = aoi::dev::makeFakeBoard(1200, 800);
-            window.setImage(board.toQImage(), QStringLiteral("board.png"));
+            window.setImage(board.view(), QStringLiteral("board.png"));
             QCoreApplication::processEvents();
         }
     }
@@ -413,9 +417,16 @@ private slots:
         Fixture f;
         QSignalSpy opened(&f.window, &MainWindow::imageOpened);
         f.board = aoi::dev::makeFakeBoard(300, 200);
-        f.window.setImage(f.board.toQImage(), QStringLiteral("board.png"));
+        const aoi::ImageView view = f.board.view();
+        const aoi::ImageCopyCount before = aoi::imageCopyCount();
+        f.window.setImage(view, QStringLiteral("board.png"));
         QCOMPARE(opened.count(), 1);
-        QCOMPARE(opened.first().at(0).value<QImage>().size(), QSize(300, 200));
+        const auto announced = opened.first().at(0).value<aoi::ImageView>();
+        QCOMPARE(announced.width, 300);
+        QCOMPARE(announced.height, 200);
+        QVERIFY(announced.data == view.data);  // 零複製：Presenter 拿到的就是畫布畫的那一塊像素
+        QVERIFY(f.canvas()->imageItem()->image().constBits() == view.data);
+        QCOMPARE((aoi::imageCopyCount() - before).copies, std::uint64_t{0});
         QCOMPARE(opened.first().at(1).toString(), QStringLiteral("board.png"));
     }
 
@@ -428,7 +439,7 @@ private slots:
         QMimeData mime;
         mime.setUrls({QUrl::fromLocalFile(path)});
         // Qt 把沒有先 DragEnter 的 Drop 丟掉，所以要照真實的順序送：進入、放下。
-        QDragEnterEvent enter(QPoint(50, 50), Qt::CopyAction, &mime, Qt::LeftButton, Qt::NoModifier);
+        QDragEnterEvent enter(QPointF(50, 50), Qt::CopyAction, &mime, Qt::LeftButton, Qt::NoModifier);
         QApplication::sendEvent(&f.window, &enter);
         QVERIFY(enter.isAccepted());
         QDropEvent drop(QPointF(50, 50), Qt::CopyAction, &mime, Qt::LeftButton, Qt::NoModifier);
@@ -441,7 +452,7 @@ private slots:
         Fixture f;
         QMimeData mime;
         mime.setUrls({QUrl::fromLocalFile(QStringLiteral("C:/some/notes.txt"))});
-        QDragEnterEvent enter(QPoint(50, 50), Qt::CopyAction, &mime, Qt::LeftButton, Qt::NoModifier);
+        QDragEnterEvent enter(QPointF(50, 50), Qt::CopyAction, &mime, Qt::LeftButton, Qt::NoModifier);
         enter.ignore();
         QApplication::sendEvent(&f.window, &enter);
         QVERIFY(!enter.isAccepted());
@@ -461,7 +472,7 @@ private slots:
             f.window.grab().save(QDir(dirPath).filePath(QStringLiteral("empty-%1.png").arg(mode.second)));
         }
         f.board = aoi::dev::makeFakeBoard();
-        f.window.setImage(f.board.toQImage(), QStringLiteral("demo.fake"));
+        f.window.setImage(f.board.view(), QStringLiteral("demo.fake"));
         aoi::dev::FakeSceneOptions o;
         o.boxes = 5000;
         f.canvas()->showComponents(aoi::dev::makeFakeComponents(o));

@@ -34,7 +34,7 @@
 #include "TestSupport.h"
 #include "presentation/canvas/ImageCanvas.h"
 #include "presentation/dev/FakeScene.h"
-#include "presentation/shell/ImageLoader.h"
+#include "infrastructure/image_qt/QtImageSource.h"
 #include "presentation/theme/ThemeTokens.h"
 
 using namespace aoi::ui;
@@ -340,19 +340,24 @@ private slots:
         if (!QFile::exists(path)) QVERIFY(rig.board.toQImage().save(path));
         const qint64 fileBytes = QFileInfo(path).size();
 
+        // S06：解碼走產品的 IImageSource（Qt 版），畫布直接畫 ImageView 的像素（零複製）。
+        aoi::infra::QtImageSource source;
         std::vector<double> decode, paint, total;
         const QImage none;
         for (int i = 0; i < kWarmup + kRuns; ++i) {
             rig.canvas.setImage(none);
             rig.flush();
-            const LoadedImage loaded = loadImageFile(path);
-            QVERIFY2(loaded.ok(), qPrintable(loaded.error));
-            const double paintMs = rig.frame([&] { rig.canvas.setImage(loaded.image); });
+            QElapsedTimer timer;
+            timer.start();
+            const aoi::Result<aoi::ImageView> loaded = source.load(path.toStdString());
+            const double decodeMs = static_cast<double>(timer.nsecsElapsed()) / 1e6;
+            QVERIFY2(loaded.ok(), loaded.ok() ? "" : loaded.error().message.c_str());
+            const double paintMs = rig.frame([&] { rig.canvas.showImage(loaded.value()); });
             QVERIFY(paintMs > 0);
             if (i >= kWarmup) {
-                decode.push_back(loaded.decodeMs);
+                decode.push_back(decodeMs);
                 paint.push_back(paintMs);
-                total.push_back(loaded.decodeMs + paintMs);
+                total.push_back(decodeMs + paintMs);
             }
         }
         const QString tag = format.toUpper();

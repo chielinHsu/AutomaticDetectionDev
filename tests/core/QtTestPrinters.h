@@ -3,6 +3,9 @@
 #include <QString>
 #include <QtTest>
 
+#include <string_view>
+
+#include "application/Error.h"
 #include "application/interaction/InteractionStateMachine.h"
 
 // QCOMPARE 要把值印成文字，而 Qt Test 用 ADL 找 toString()：aoi::toString(InteractionState) 回 std::string_view，
@@ -24,5 +27,19 @@ inline QString stateName(InteractionState s) {
         if (actual_ != expected_) {                                                                              \
             QFAIL(qPrintable(QStringLiteral("state: expected %1, actual %2")                                     \
                                  .arg(aoi::test::stateName(expected_), aoi::test::stateName(actual_))));         \
+        }                                                                                                        \
+    } while (false)
+
+// ErrorCode 的比較（S06）：同樣的原因不能用 QCOMPARE；失敗訊息印出名稱（「expected NotFound, actual IoFailed」）與錯誤訊息。
+#define QCOMPARE_CODE(actualCode, expectedCode)                                                                  \
+    do {                                                                                                         \
+        const aoi::ErrorCode actual_ = (actualCode);                                                             \
+        const aoi::ErrorCode expected_ = (expectedCode);                                                         \
+        if (actual_ != expected_) {                                                                              \
+            const std::string_view a_ = aoi::toString(actual_);                                                  \
+            const std::string_view e_ = aoi::toString(expected_);                                                \
+            QFAIL(qPrintable(QStringLiteral("error code: expected %1, actual %2")                                \
+                                 .arg(QString::fromUtf8(e_.data(), static_cast<qsizetype>(e_.size())),           \
+                                      QString::fromUtf8(a_.data(), static_cast<qsizetype>(a_.size())))));        \
         }                                                                                                        \
     } while (false)
