@@ -21,20 +21,21 @@ AOI 教學工具：使用者在影像上框一個樣本 ROI → 程式找出相�
 |---|---|---|
 | 語言 | C++20 | `domain` 層只用標準庫，見 `docs/architecture.md` |
 | UI | Qt Widgets ＋ QGraphicsView | ADR-001（已採用）；S02 起有程式 |
-| 建置 | CMake ＋ Ninja | `CMakeLists.txt`、`CMakePresets.json`（debug／release／relwithdebinfo）；自家程式碼 `/W4 /WX` |
+| 建置 | CMake ＋ Ninja | `CMakeLists.txt`、`CMakePresets.json`（debug／release／relwithdebinfo；S06 加 debug-opencv／release-opencv）；自家程式碼 `/W4 /WX` |
 | 視覺 | OpenCV、HALCON | 只能在對應的 `infrastructure/backend_*` 使用 |
 | 測試 | Qt Test | [ADR-003](docs/adr/003-test-framework.md)（採用），以 CTest 執行 |
 | 工具腳本 | Node.js | `tools/*.mjs` |
 | 平台 | Windows 11、MSVC 2022 | 編譯器尚未驗證，見下表 |
 
-## 環境（Windows 11，本機實際探測結果；S02 於 2026-10-05 實際建置與執行驗證）
+## 環境（Windows 11，本機實際探測結果；S02 於 2026-10-05 實際建置與執行驗證；S06 於 2026-10-06 改用 Qt 6.12.0）
 
 | 項目 | 位置與版本 | 驗證 |
 |---|---|---|
 | Visual Studio 2022 Community 17.14.35 | `D:\VS2022`（用 `vswhere` 找，不寫死） | `cl` 19.44.35228（toolset 14.44.35207）。同一個 VS 還有 14.16、14.29、14.32 三個舊 toolset，**沒有使用** |
-| Qt 6.8.0 MSVC2022 64-bit | `D:\Qt\6.8.0\msvc2022_64` | 有 Widgets、Test、Gui、Core、Concurrent、Svg、LinguistTools 與 Debug 版程式庫；實際 configure、build、執行過 |
+| Qt 6.12.0 MSVC2022 64-bit（S06 起；使用者 2026-10-06 更新） | `D:\Qt\6.12.0\msvc2022_64`（preset 與 `env.ps1` 的預設） | 有 Widgets、Test、Gui、Core、Concurrent、Svg 與 Debug 版程式庫；S06 實際 configure、build、四種組態的測試、效能量測都跑過。影像外掛和 6.8.0 一樣只有 gif、ico、jpeg、svg（**沒有 TIFF**）。6.12.0 棄用了 `QDragEnterEvent` 吃 `QPoint` 的建構子（`/WX` 會擋），用 `QPointF` 的 |
+| Qt 6.8.0 MSVC2022 64-bit | `D:\Qt\6.8.0\msvc2022_64`（仍在機器上） | S02–S05 用它建置與量測（那幾步的基準線是 6.8.0 的數字）。要改回它：`AOI_QT_ROOT` 設成這個路徑、configure 時 `-DCMAKE_PREFIX_PATH=D:/Qt/6.8.0/msvc2022_64`，建置目錄要刪掉重建 |
 | CMake / Ninja | `D:\Qt\Tools\CMake_64\bin`（3.30.5）/ `D:\Qt\Tools\Ninja`（1.12.1） | 實際使用 |
-| OpenCV 4.9.0 (vc16) | `D:\opencv\opencv\build`；**`OpenCV_DIR` 要指到 `D:\opencv\opencv\build\x64\vc16\lib`**（preset 已設）。指到 `build` 根目錄會失敗：根目錄的 `OpenCVConfig.cmake`（Windows Pack）找不到相容 MSVC 19.44 的二進位檔 | S02 實際跑過 `-DAOI_WITH_OPENCV=ON` 的 configure：找到 4.9.0。**沒有編進任何程式、沒有連結過**（vc16 的程式庫配 MSVC 2022 的 vc17 toolset 能不能連結，S07 才知道） |
+| OpenCV 4.9.0 (vc16) | `D:\opencv\opencv\build`；**`OpenCV_DIR` 要指到 `D:\opencv\opencv\build\x64\vc16\lib`**（preset 已設）。指到 `build` 根目錄會失敗：根目錄的 `OpenCVConfig.cmake`（Windows Pack）找不到相容 MSVC 19.44 的二進位檔。只有 `opencv_world490`（Release）／`opencv_world490d`（Debug）一個 DLL；有 libtiff、libpng、libjpeg、OpenEXR（EXR 要設 `OPENCV_IO_ENABLE_OPENEXR` 才開放，沒有用） | **S06 起編進程式、連結與執行都成功**（vc16 的程式庫配 VS 2022 的 MSVC 19.44；preset `release-opencv`／`debug-opencv`，`aoi.exe` 建置後會複製 DLL，測試的 PATH 由 `cmake/AoiTargets.cmake` 加上）。實測：`imdecode` 讀 12 bit 緊密打包的 TIFF 會給 16 bit、值左移 4 位 |
 | HALCON 24.11 Progress-Steady | `%HALCONROOT%` = `C:\Program Files\MVTec\HALCON-24.11-Progress-Steady` | **只有 runtime**：有 `bin\x64-win64\halconcpp.dll` 與 `license\`，但**沒有 `include\` 與 `lib\`**（找不到 `HalconCpp.h` 與任何 `.lib`）。要在 S08 用 C++ 編譯，要先補裝開發元件；`-DAOI_WITH_HALCON=ON` 現在會在 configure 時明確失敗 |
 
 - **進入開發環境**：每個 PowerShell session 先 dot-source `. .\scripts\dev\env.ps1`（用 `vswhere` 找 VS、跑 `vcvars64.bat`、把 Qt／CMake／Ninja 放進 PATH）。路徑可用環境變數 `AOI_QT_ROOT`、`AOI_QT_TOOLS` 覆寫。Claude Code 的 PowerShell 工具**每次呼叫都是新的 shell**，所以每次呼叫都要重新 dot-source。
@@ -42,7 +43,7 @@ AOI 教學工具：使用者在影像上框一個樣本 ROI → 程式找出相�
 - **路徑長度**：Windows 預設路徑上限 260 字元。建置目錄放在 repo 內的 `build/<preset>`（被 gitignore）；放到很深的暫存路徑（例如 Claude 的 scratchpad）時，MSVC 會因 PDB 路徑過長失敗（C1041）。
 - **Qt Test 在這台機器不把結果寫到 stdout**（重新導向後是空的）；要用 `-o 檔案,txt`。`CMakeLists` 已經把 log 放在 `build/<preset>/test-logs/<name>.txt`，`scripts/dev/test.ps1` 失敗時會印出來。
 - offscreen 平台不會自己找到字型：要設 `QT_QPA_FONTDIR=C:/Windows/Fonts`（CTest 與 test preset 已設）。
-- Qt 6.8 的 `LanguageChange` 是排入事件佇列的，語言切換後要等下一輪事件迴圈（測試用 `QCoreApplication::processEvents()`）。
+- Qt 6.8 起（6.12.0 也一樣，測試照舊通過）的 `LanguageChange` 是排入事件佇列的，語言切換後要等下一輪事件迴圈（測試用 `QCoreApplication::processEvents()`）。
 - Shell 是 Windows PowerShell 5.1：沒有 `&&`；commit 訊息寫成檔案再 `git commit -F <檔案>`，不要用 `-F -`（格式見 `project-rules.md`「Commit 訊息」）。
 - Node 可用（v22），工具腳本放 `tools/*.mjs`（`check-deps.mjs` 也由 CTest 呼叫，所以 `node` 要在 PATH 上）。`python.exe` 只是 Store 捷徑，不要依賴。
 - 以上路徑若有差異，**更新此表**。
@@ -51,11 +52,13 @@ AOI 教學工具：使用者在影像上框一個樣本 ROI → 程式找出相�
 
 | 路徑 | 內容 |
 |---|---|
-| `src/` | 程式碼，依五層分（`domain`、`application`、`infrastructure`、`presentation`、`app`）。`domain`：型別多半只有標頭（座標與角度慣例在 `geometry.h`，框的展開在 `box_expander.h`），S05 起 `lattice/` 有 .cpp（晶格估計 `LatticeEstimator`、預測 `LatticePredictor`、正規方程累加器、NMS；`aoi_domain` 因此是 STATIC）；`application`：`Error`／`Result`／`CancelToken`、`ports/`、`jobs/JobRunner`、`usecases/`、`backend/BackendRegistry`，S04 起有 `document/`（`UndoStack`、`ProposalSession`、`InspectionDocument`）與 `interaction/`（`InteractionStateMachine`、`InspectionSession`：所有互動規則，沒有 Qt）；`infrastructure`：`backend_fake/`、`perf/`、`threading/`（含 S04 的 `QtThreadPoolExecutor`）（`backend_opencv`、`backend_halcon`、`storage` 在 S06–S08）；`presentation`（`canvas/`、`tools/`、`shell/`、`theme/`、`i18n/`、`dev/`；S04 起接上 application：`presenters/`＝`AutoRoiPresenter`、`ParamsPresenter`、`SceneBuilder`、`AppPresenters`，`objects/`＝物件樹，`params/`＝參數面板）；`app`：`CompositionRoot`（組裝）與 `main.cpp`。檔案命名見 `docs/architecture.md` |
+| `src/` | 程式碼，依五層分（`domain`、`application`、`infrastructure`、`presentation`、`app`）。`domain`：型別多半只有標頭（座標與角度慣例在 `geometry.h`，框的展開在 `box_expander.h`，影像的所有權規則在 `image_view.h`；S06 的 `image_buffer`、`image_copy`（複製計數）、`image_depth`（12 bit）有 .cpp），S05 起 `lattice/` 有 .cpp（晶格估計 `LatticeEstimator`、預測 `LatticePredictor`、正規方程累加器、NMS；`aoi_domain` 因此是 STATIC）；`application`：`Error`／`Result`／`CancelToken`、`ports/`、`jobs/JobRunner`、`usecases/`、`backend/BackendRegistry`，S04 起有 `document/`（`UndoStack`、`ProposalSession`、`InspectionDocument`）與 `interaction/`（`InteractionStateMachine`、`InspectionSession`：所有互動規則，沒有 Qt）；`infrastructure`：`backend_fake/`、`perf/`、`threading/`（含 S04 的 `QtThreadPoolExecutor`）；S06 加 `image_qt/`（QImage ⇄ ImageView、`QtImageSource`）、`storage/`（配方與樣本庫的 JSON、TRI 的分層）、`backend_opencv/`（影像轉換與 `OpenCvImageSource`，`AOI_WITH_OPENCV=ON` 才建置）；`backend_halcon` 在 S08；`presentation`（`canvas/`、`tools/`、`shell/`、`theme/`、`i18n/`、`dev/`；S04 起接上 application：`presenters/`＝`AutoRoiPresenter`、`ParamsPresenter`、`SceneBuilder`、`AppPresenters`，`objects/`＝物件樹，`params/`＝參數面板）；`app`：`CompositionRoot`（組裝）與 `main.cpp`。檔案命名見 `docs/architecture.md` |
 | `tests/ui/` | Qt Test（S02、S04）：`tst_*` 是單元測試與整合測試（`tst_presenter` 接上真的核心、假 back end 與視窗；`PresenterRig.h` 是它的測試台），`perf_ui_baseline`、`perf_paint_micro`、`perf_ui_s04` 是效能量測（label `perf`） |
-| `tests/core/` | Qt Test（S03、S04）：核心的單元測試（`tst_domain`、`tst_core_types`、`tst_job_runner`、`tst_generate_objects`、`tst_fake_backend`、`tst_backend_registry`、`tst_perf_probe`；S04 新增 `tst_undo_stack`、`tst_state_machine`、`tst_box_expander`、`tst_proposal_session`、`tst_document`、`tst_session`、`tst_qt_executor`）、`tst_cli`（從外面用真的 `aoi` 行程驗證 `--backend`）、`perf_core`（label `perf`）、`fixtures/deps/`（依賴檢查的 13 個 fixture）；`check_deps*` 的 CTest 項目也在這裡註冊。S03 的 `tst_grid` 在 S05 搬到 `tests/domain/tst_lattice.cpp` |
+| `tests/core/` | Qt Test（S03、S04）：核心的單元測試（`tst_domain`、`tst_core_types`、`tst_job_runner`、`tst_generate_objects`、`tst_fake_backend`、`tst_backend_registry`、`tst_perf_probe`；S04 新增 `tst_undo_stack`、`tst_state_machine`、`tst_box_expander`、`tst_proposal_session`、`tst_document`、`tst_session`、`tst_qt_executor`）、`tst_cli`（從外面用真的 `aoi` 行程驗證 `--backend`）、`perf_core`（label `perf`）、`fixtures/deps/`（依賴檢查的 15 個 fixture）；S06 新增 `tst_image_chain`、`tst_recipe_saver`；`check_deps*` 的 CTest 項目也在這裡註冊。S03 的 `tst_grid` 在 S05 搬到 `tests/domain/tst_lattice.cpp` |
+| `tests/infra/` | Qt Test（S06）：`tst_image_qt`、`tst_recipe_store`、`tst_library_store`、`tst_library_layers`、`tst_synthetic_board`、`tst_image_source_composition`；`AOI_WITH_OPENCV=ON` 時加 `tst_opencv_image`、`tst_image_sources_agree`；效能量測 `perf_storage`（label `perf`）；`fixtures/recipe-v1.json`、`library-v1.json`（v1 的範例檔：手寫、**不要改**，之後的版本也要讀得進來） |
+| `tests/support/` | 測試共用（S06）：合成板子產生器 `synthetic_board`（標準庫；同 seed 同輸出、標準答案 JSON；8 bit、彩色、12／16 bit）與 `synthetic_board_io`（存成 PNG＋JSON） |
 | `tests/domain/` | Qt Test（S05）：晶格的測試（`tst_lattice`、`tst_lattice_scenarios`（1 029 種情境，總表印在 log）、`tst_lattice_parts`、`tst_lattice_rules`、`tst_nms`、`tst_lattice_crosscheck`（與 S00 示範頁交叉驗證，fixture 在 `fixtures/`）、`tst_lattice_explainer`（說明頁的資料是不是目前的 C++ 算的；設 `AOI_EXPORT_EXPLAINER=1` 執行會改寫頁面））、`perf_lattice`（T3，label `perf`）；CTest 的 `s00_demo_fixture_is_current` |
-| `AiInspTool/` | 使用者用 Qt Creator 開啟的 **qmake 專案**（`AiInspTool.pro`＋`aoi_ux.qrc`）：直接建置 `../src` 的 domain、presentation 與 `app/main.cpp`（程式碼只有一份，用萬用字元納入）。精靈產生的 `main.cpp`、`mainwindow.*` 沒有被使用。**不在五層之內，`tools/check-deps.mjs`（S03）不要掃它**；單元測試只在 CMake。S03 起 `src/` 多出 application、infrastructure（OpenCV、HALCON）時，這個 `.pro` 要跟著調整，否則 Qt Creator 建置會壞（正式路徑是 CMake）。S03 已把 application、`infrastructure/{backend_fake,perf,threading}` 與組裝根納入（萬用字元遞迴納入，S04 新增的 `application/{document,interaction}`、`threading/QtThreadPoolExecutor`、`presentation/{presenters,objects,params}` 不必改 `.pro`）；S06 的 storage、S07／S08 的 OpenCV／HALCON 還沒有 |
+| `AiInspTool/` | 使用者用 Qt Creator 開啟的 **qmake 專案**（`AiInspTool.pro`＋`aoi_ux.qrc`）：直接建置 `../src` 的 domain、presentation 與 `app/main.cpp`（程式碼只有一份，用萬用字元納入）。精靈產生的 `main.cpp`、`mainwindow.*` 沒有被使用。**不在五層之內，`tools/check-deps.mjs`（S03）不要掃它**；單元測試只在 CMake。S03 起 `src/` 多出 application、infrastructure（OpenCV、HALCON）時，這個 `.pro` 要跟著調整，否則 Qt Creator 建置會壞（正式路徑是 CMake）。S03 已把 application、`infrastructure/{backend_fake,perf,threading}` 與組裝根納入（萬用字元遞迴納入，S04 新增的 `application/{document,interaction}`、`threading/QtThreadPoolExecutor`、`presentation/{presenters,objects,params}` 不必改 `.pro`）；S06 加了 `infrastructure/image_qt`、`storage`（萬用字元；Qt 6.12.0 的 qmake＋jom 建置過）；`backend_opencv` 不在 qmake 專案裡（要 OpenCV），所以 Qt Creator 版讀不了 TIFF；S07／S08 的 OpenCV／HALCON 搜尋器還沒有 |
 | `cmake/`、`CMakeLists.txt`、`CMakePresets.json` | 建置設定；`cmake/AoiTargets.cmake` 放警告設定與 `aoi_add_qt_test` |
 | `scripts/dev/` | `env.ps1`（進入開發環境）、`test.ps1`（建置＋跑測試，失敗時印 log） |
 | `perf/baseline/` | 各機器的效能基準線（入版控）；原始量測在 `perf/results/`（不入版控） |
@@ -76,10 +79,10 @@ AOI 教學工具：使用者在影像上框一個樣本 ROI → 程式找出相�
 | 目的 | 指令 | 備註 |
 |---|---|---|
 | 建置 | `. .\scripts\dev\env.ps1` 後 `cmake --preset release` 與 `cmake --build build/release`（`debug`、`relwithdebinfo` 同理） | S02 起可用。選項 `AOI_WITH_OPENCV`、`AOI_WITH_HALCON`（預設 OFF）、`AOI_BUILD_TESTS`、`AOI_DEMO_SCENE` |
-| 單元測試 | `powershell -ExecutionPolicy Bypass -File scripts/dev/test.ps1`（含建置；`-Preset debug` 可換組態） | S02 起 5 個 UI 的 Qt Test 執行檔；S03 起再加 8 個核心的測試執行檔、`tst_cli`（命令列）與 3 個 `check_deps*` 項目；S04 起再加 7 個核心（`tst_undo_stack`…`tst_qt_executor`）與 5 個 UI（`tst_objects_model`、`tst_params`、`tst_messages`、`tst_scene`、`tst_presenter`）；S05 起 `tst_grid` 併入 `tests/domain/`，再加 7 個 domain 的測試執行檔與 `s00_demo_fixture_is_current`，共 36 個項目；經 CTest 在 offscreen 平台執行；契約測試 S09 起 |
+| 單元測試 | `powershell -ExecutionPolicy Bypass -File scripts/dev/test.ps1`（含建置；`-Preset debug` 可換組態） | S02 起 5 個 UI 的 Qt Test 執行檔；S03 起再加 8 個核心的測試執行檔、`tst_cli`（命令列）與 3 個 `check_deps*` 項目；S04 起再加 7 個核心（`tst_undo_stack`…`tst_qt_executor`）與 5 個 UI（`tst_objects_model`、`tst_params`、`tst_messages`、`tst_scene`、`tst_presenter`）；S05 起 `tst_grid` 併入 `tests/domain/`，再加 7 個 domain 的測試執行檔與 `s00_demo_fixture_is_current`，共 36 個項目；S06 再加 `tst_image_view`、`tst_image_chain`、`tst_recipe_saver` 與 `tests/infra/` 的 6 個，共 45 個（`-Preset release-opencv` 再加 2 個，共 47 個）；經 CTest 在 offscreen 平台執行；契約測試 S09 起 |
 | 效能基準線 | `powershell -ExecutionPolicy Bypass -File scripts/dev/test.ps1 -Perf` | S02 的 UI 基準線（U1、U4、I1、I2、I5）、S03 的核心量測（`perf_core`：PerfProbe 開關成本、工作延遲、取消延遲、use case 自己的成本）、S05 的晶格量測（`perf_lattice`：T3 晶格擬合 1 000 點、NMS、O(1) 漸進重新擬合對每次重算）與 S04 的互動量測（`perf_ui_s04`：U2 物件表填入 5 000 列、U3 分數滑桿到重繪、I3 搜尋期間事件迴圈最長阻塞、I4 按取消到 UI 閒置、I6 復原 1 000 框的接受；`perf_paint_micro` 是繪製的微基準）；Release 才有意義；結果見 `docs/steps/S02-ui-shell/perf.md`、`docs/steps/S03-core/perf.md`、`docs/steps/S04-presenter/perf.md`、`docs/steps/S05-lattice/perf.md`，基準線在 `perf/baseline/` |
 | 執行程式 | 進入開發環境後 `build\release\aoi.exe`；`--demo 5000` 開合成板子與框，`--lang zh_TW\|en`、`--theme light\|dark\|system`、`--backend fake\|opencv\|halcon`（預設 `fake`；沒編進程式的 back end 以結束碼 2 明確失敗，訊息寫到 stderr） | |
-| 依賴方向檢查 | `node tools/check-deps.mjs` | S03 起可用；掃 `src/` 的 `#include`，違規即失敗（結束碼 1）。`--self-test` 對 13 個 fixture 驗證它真的抓得到；`--root <dir>` 掃別的樹。CTest 的 `check_deps`、`check_deps_self_test`、`check_deps_catches_a_violation`（找不到 Node 時不註冊，configure 會警告） |
+| 依賴方向檢查 | `node tools/check-deps.mjs` | S03 起可用；掃 `src/` 的 `#include`，違規即失敗（結束碼 1）。`--self-test` 對 15 個 fixture 驗證它真的抓得到；`--root <dir>` 掃別的樹。CTest 的 `check_deps`、`check_deps_self_test`、`check_deps_catches_a_violation`（找不到 Node 時不註冊，configure 會警告） |
 | 文件風格檢查 | `node tools/ste-lint.mjs` | 現在可用；只檢查 `<!--STE-->` 標記之間的文字 |
 | 顏色對比檢查 | `node tools/check-contrast.mjs` | S01 起可用；驗算 `docs/ux/tokens.json`（文字 ≥ 4.5、圖形 ≥ 3）並檢查四種狀態線型不重複；改過顏色後加 `--write` 更新結果 |
 | 效能 | S10 的 harness | 預算在 `perf/budgets.json` |

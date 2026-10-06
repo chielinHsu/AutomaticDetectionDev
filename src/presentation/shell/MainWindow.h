@@ -1,11 +1,12 @@
 #pragma once
 
-#include <QImage>
 #include <QMainWindow>
 #include <QString>
 #include <QStringList>
 
+#include "application/ports/IImageSource.h"
 #include "presentation/canvas/ICanvasController.h"
+#include "presentation/canvas/ImageViewMetaType.h"
 #include "presentation/presenters/ControllerInterfaces.h"
 #include "presentation/presenters/ViewInterfaces.h"
 #include "presentation/tools/ToolId.h"
@@ -71,10 +72,13 @@ public:
     QLabel* cursorLabel() const { return cursorLabel_; }
     QLabel* summaryLabel() const { return summaryLabel_; }
 
-    // 解碼影像檔並顯示。失敗時舊影像保留，發出 imageOpenFailed（錯誤卡片由 Presenter 顯示）。
+    // 影像從哪裡來（S06：IImageSource，由 app 組裝；不歸視窗所有，要活得比視窗久）。沒有設定時 openImage 一律失敗。
+    void setImageSource(aoi::IImageSource* source) { imageSource_ = source; }
+    // 經 IImageSource 解碼影像檔並顯示（零複製：畫布直接畫 view 的像素）。失敗時舊影像保留，發出 imageOpenFailed
+    // （錯誤卡片由 Presenter 顯示）。
     bool openImage(const QString& path);
-    // 已有 QImage 時（示範場景、測試）。name 只用在視窗標題。成功後發出 imageOpened。
-    void setImage(const QImage& image, const QString& name);
+    // 已有影像時（示範場景、測試）。name 只用在視窗標題。成功後發出 imageOpened。
+    void setImage(const aoi::ImageView& image, const QString& name);
     // 工具列的工具換成 id（工具、按鈕、畫布一起換）。
     void selectTool(ToolId id);
     // 上方 back end 選單：顯示目前用的與其他已註冊的。S04 不能在執行中切換（只有一個可用的 back end，S07 才有第二個），所以是停用的。
@@ -96,7 +100,7 @@ public:
     void setRedo(bool enabled, const QString& label) override;
 
 signals:
-    void imageOpened(const QImage& image, const QString& name);
+    void imageOpened(const aoi::ImageView& image, const QString& name);
     void imageOpenFailed(const QString& name, const QString& reason);
 
 protected:
@@ -119,6 +123,7 @@ private:
     void promptOpen();
 
     ThemeManager& theme_;
+    aoi::IImageSource* imageSource_ = nullptr;
     ImageCanvas* canvas_ = nullptr;
     MessageBar* messageBar_ = nullptr;
     EmptyCard* emptyCard_ = nullptr;
@@ -177,3 +182,4 @@ private:
 };
 
 }  // namespace aoi::ui
+

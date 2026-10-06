@@ -1,0 +1,761 @@
+{
+  "schema": 1,
+  "step": "S06",
+  "note": "Image loading, conversions, recipe and library storage, recorded in S06 on Qt 6.12.0. No budget covers these metrics (U4 is in perf_ui_baseline). Numbers compare only on this machine. Each metric is the last of 3 runs of the same build (one session, back to back); medianRangeOf3Runs and p95RangeOf3Runs show the spread over all 3 runs. The OS file cache was warm: the load times are decode times, not disk times. RCP-SAVE-5000 had a median of 483 ms in the third run (93-99 ms in the other two); three more runs of the recipe test alone gave 87, 99 and 167 ms. The cause is not known (disk or virus scan are guesses).",
+  "method": "perf_storage: 5 MP loads 3 warm-up and 15 measured runs, 25 MP loads 1 and 5, copying conversions 3 and 15, recipes 5 and 30, background save 25 runs with the first 5 dropped, library save and open 3 and 15, library find 5 and 30, zero-copy wrappers 30 samples of 1000 calls each. Median and p95. Copies are the countImageCopy delta of one load.",
+  "runs": {
+    "perf_storage": [
+      "storage_20261006-165723-opencv.json",
+      "storage_20261006-170256-opencv.json",
+      "storage_20261006-170913-opencv.json"
+    ]
+  },
+  "machine": {
+    "buildType": "Release",
+    "commit": "79aa74b+uncommitted",
+    "compiler": "MSVC 194435228",
+    "cpu": "13th Gen Intel(R) Core(TM) i7-1360P",
+    "logicalCores": 16,
+    "machineName": "CasparHsu1",
+    "measurementHygiene": "process priority HIGH; power throttling off; thread pinned to logical CPU 0 (efficiency class 1 of 2 classes)",
+    "opencv": "4.9.0",
+    "os": "Windows 11 Version 23H2 (kernel 10.0.22631)",
+    "qt": "6.12.0",
+    "ramGB": 63.6
+  },
+  "metrics": [
+    {
+      "id": "IMG-qt-BMP-5MP",
+      "label": "load 5MP BMP through the qt image source (read + decode + canonical format)",
+      "max": 31.6077,
+      "median": 30.1314,
+      "n": 15,
+      "note": "file 15.1 MB; gives Bgrx32; 0 copies per load",
+      "p95": 31.6077,
+      "unit": "ms",
+      "medianRangeOf3Runs": [
+        28.8145,
+        32.9396
+      ],
+      "p95RangeOf3Runs": [
+        29.201,
+        34.3905
+      ]
+    },
+    {
+      "id": "IMG-qt-PNG-5MP",
+      "label": "load 5MP PNG through the qt image source (read + decode + canonical format)",
+      "max": 101.1465,
+      "median": 92.0137,
+      "n": 15,
+      "note": "file 4.7 MB; gives Bgrx32; 0 copies per load",
+      "p95": 101.1465,
+      "unit": "ms",
+      "medianRangeOf3Runs": [
+        92.0137,
+        119.5523
+      ],
+      "p95RangeOf3Runs": [
+        101.1465,
+        206.8683
+      ]
+    },
+    {
+      "id": "IMG-qt-JPEG-5MP",
+      "label": "load 5MP JPEG through the qt image source (read + decode + canonical format)",
+      "max": 48.9463,
+      "median": 44.6896,
+      "n": 15,
+      "note": "file 0.5 MB; gives Bgrx32; 0 copies per load",
+      "p95": 48.9463,
+      "unit": "ms",
+      "medianRangeOf3Runs": [
+        44.6896,
+        54.4525
+      ],
+      "p95RangeOf3Runs": [
+        48.9463,
+        82.0462
+      ]
+    },
+    {
+      "id": "IMG-qt-grayPNG-5MP",
+      "label": "load 5MP grayPNG through the qt image source (read + decode + canonical format)",
+      "max": 41.1419,
+      "median": 40.3176,
+      "n": 15,
+      "note": "file 2.9 MB; gives Gray8; 0 copies per load",
+      "p95": 41.1419,
+      "unit": "ms",
+      "medianRangeOf3Runs": [
+        39.2745,
+        42.7725
+      ],
+      "p95RangeOf3Runs": [
+        41.1419,
+        47.0488
+      ]
+    },
+    {
+      "id": "IMG-qt-gray16PNG-5MP",
+      "label": "load 5MP gray16PNG through the qt image source (read + decode + canonical format)",
+      "max": 80.5766,
+      "median": 74.05,
+      "n": 15,
+      "note": "file 4.9 MB; gives Gray16; 0 copies per load",
+      "p95": 80.5766,
+      "unit": "ms",
+      "medianRangeOf3Runs": [
+        74.05,
+        80.3816
+      ],
+      "p95RangeOf3Runs": [
+        80.5766,
+        86.5386
+      ]
+    },
+    {
+      "id": "IMG-qt-BMP-25MP",
+      "label": "load 25MP BMP through the qt image source (read + decode + canonical format)",
+      "max": 156.0311,
+      "median": 144.0643,
+      "n": 5,
+      "note": "file 75.1 MB; gives Bgrx32; 0 copies per load",
+      "p95": 156.0311,
+      "unit": "ms",
+      "medianRangeOf3Runs": [
+        144.0643,
+        185.7151
+      ],
+      "p95RangeOf3Runs": [
+        156.0311,
+        232.3008
+      ]
+    },
+    {
+      "id": "IMG-qt-PNG-25MP",
+      "label": "load 25MP PNG through the qt image source (read + decode + canonical format)",
+      "max": 509.9481,
+      "median": 477.0175,
+      "n": 5,
+      "note": "file 23.4 MB; gives Bgrx32; 0 copies per load",
+      "p95": 509.9481,
+      "unit": "ms",
+      "medianRangeOf3Runs": [
+        451.2635,
+        564.4321
+      ],
+      "p95RangeOf3Runs": [
+        469.3621,
+        840.2291
+      ]
+    },
+    {
+      "id": "IMG-qt-JPEG-25MP",
+      "label": "load 25MP JPEG through the qt image source (read + decode + canonical format)",
+      "max": 244.7415,
+      "median": 223.8539,
+      "n": 5,
+      "note": "file 2.5 MB; gives Bgrx32; 0 copies per load",
+      "p95": 244.7415,
+      "unit": "ms",
+      "medianRangeOf3Runs": [
+        200.2678,
+        236.3241
+      ],
+      "p95RangeOf3Runs": [
+        223.1095,
+        244.7415
+      ]
+    },
+    {
+      "id": "IMG-qt-grayPNG-25MP",
+      "label": "load 25MP grayPNG through the qt image source (read + decode + canonical format)",
+      "max": 223.0014,
+      "median": 211.2771,
+      "n": 5,
+      "note": "file 14.2 MB; gives Gray8; 0 copies per load",
+      "p95": 223.0014,
+      "unit": "ms",
+      "medianRangeOf3Runs": [
+        163.4258,
+        211.2771
+      ],
+      "p95RangeOf3Runs": [
+        183.4284,
+        223.0014
+      ]
+    },
+    {
+      "id": "IMG-qt-gray16PNG-25MP",
+      "label": "load 25MP gray16PNG through the qt image source (read + decode + canonical format)",
+      "max": 433.5568,
+      "median": 401.6237,
+      "n": 5,
+      "note": "file 23.6 MB; gives Gray16; 0 copies per load",
+      "p95": 433.5568,
+      "unit": "ms",
+      "medianRangeOf3Runs": [
+        395.2003,
+        457.5122
+      ],
+      "p95RangeOf3Runs": [
+        419.5986,
+        505.963
+      ]
+    },
+    {
+      "id": "IMG-opencv-BMP-5MP",
+      "label": "load 5MP BMP through the opencv image source (read + decode + canonical format)",
+      "max": 41.3924,
+      "median": 36.3887,
+      "n": 15,
+      "note": "file 15.1 MB; gives Bgrx32; 1 copies per load",
+      "p95": 41.3924,
+      "unit": "ms",
+      "medianRangeOf3Runs": [
+        30.4715,
+        37.6074
+      ],
+      "p95RangeOf3Runs": [
+        32.173,
+        41.3924
+      ]
+    },
+    {
+      "id": "IMG-opencv-PNG-5MP",
+      "label": "load 5MP PNG through the opencv image source (read + decode + canonical format)",
+      "max": 125.3349,
+      "median": 106.0442,
+      "n": 15,
+      "note": "file 4.7 MB; gives Bgrx32; 1 copies per load",
+      "p95": 125.3349,
+      "unit": "ms",
+      "medianRangeOf3Runs": [
+        92.1028,
+        119.1475
+      ],
+      "p95RangeOf3Runs": [
+        107.2491,
+        170.9196
+      ]
+    },
+    {
+      "id": "IMG-opencv-JPEG-5MP",
+      "label": "load 5MP JPEG through the opencv image source (read + decode + canonical format)",
+      "max": 87.8302,
+      "median": 59.6306,
+      "n": 15,
+      "note": "file 0.5 MB; gives Bgrx32; 1 copies per load",
+      "p95": 87.8302,
+      "unit": "ms",
+      "medianRangeOf3Runs": [
+        55.3602,
+        59.6306
+      ],
+      "p95RangeOf3Runs": [
+        60.6713,
+        87.8302
+      ]
+    },
+    {
+      "id": "IMG-opencv-grayPNG-5MP",
+      "label": "load 5MP grayPNG through the opencv image source (read + decode + canonical format)",
+      "max": 44.5495,
+      "median": 42.5763,
+      "n": 15,
+      "note": "file 2.9 MB; gives Gray8; 0 copies per load",
+      "p95": 44.5495,
+      "unit": "ms",
+      "medianRangeOf3Runs": [
+        42.5268,
+        61.1053
+      ],
+      "p95RangeOf3Runs": [
+        44.5495,
+        69.1962
+      ]
+    },
+    {
+      "id": "IMG-opencv-gray16PNG-5MP",
+      "label": "load 5MP gray16PNG through the opencv image source (read + decode + canonical format)",
+      "max": 84.6829,
+      "median": 79.8489,
+      "n": 15,
+      "note": "file 4.9 MB; gives Gray16; 0 copies per load",
+      "p95": 84.6829,
+      "unit": "ms",
+      "medianRangeOf3Runs": [
+        77.3889,
+        148.559
+      ],
+      "p95RangeOf3Runs": [
+        84.6829,
+        215.771
+      ]
+    },
+    {
+      "id": "IMG-opencv-TIFF-5MP",
+      "label": "load 5MP TIFF through the opencv image source (read + decode + canonical format)",
+      "max": 165.4832,
+      "median": 128.6277,
+      "n": 15,
+      "note": "file 6.4 MB; gives Bgrx32; 1 copies per load",
+      "p95": 165.4832,
+      "unit": "ms",
+      "medianRangeOf3Runs": [
+        128.6277,
+        141.4235
+      ],
+      "p95RangeOf3Runs": [
+        153.9688,
+        165.4832
+      ]
+    },
+    {
+      "id": "IMG-opencv-grayTIFF-5MP",
+      "label": "load 5MP grayTIFF through the opencv image source (read + decode + canonical format)",
+      "max": 69.5346,
+      "median": 63.875,
+      "n": 15,
+      "note": "file 3.9 MB; gives Gray8; 0 copies per load",
+      "p95": 69.5346,
+      "unit": "ms",
+      "medianRangeOf3Runs": [
+        63.1347,
+        67.6954
+      ],
+      "p95RangeOf3Runs": [
+        65.9291,
+        72.2147
+      ]
+    },
+    {
+      "id": "IMG-opencv-gray16TIFF-5MP",
+      "label": "load 5MP gray16TIFF through the opencv image source (read + decode + canonical format)",
+      "max": 109.4645,
+      "median": 96.5252,
+      "n": 15,
+      "note": "file 5.5 MB; gives Gray16; 0 copies per load",
+      "p95": 109.4645,
+      "unit": "ms",
+      "medianRangeOf3Runs": [
+        92.2699,
+        96.5252
+      ],
+      "p95RangeOf3Runs": [
+        100.2828,
+        109.4645
+      ]
+    },
+    {
+      "id": "IMG-opencv-BMP-25MP",
+      "label": "load 25MP BMP through the opencv image source (read + decode + canonical format)",
+      "max": 196.0436,
+      "median": 158.7996,
+      "n": 5,
+      "note": "file 75.1 MB; gives Bgrx32; 1 copies per load",
+      "p95": 196.0436,
+      "unit": "ms",
+      "medianRangeOf3Runs": [
+        150.4035,
+        178.6868
+      ],
+      "p95RangeOf3Runs": [
+        160.5041,
+        196.0436
+      ]
+    },
+    {
+      "id": "IMG-opencv-PNG-25MP",
+      "label": "load 25MP PNG through the opencv image source (read + decode + canonical format)",
+      "max": 452.4484,
+      "median": 442.5481,
+      "n": 5,
+      "note": "file 23.4 MB; gives Bgrx32; 1 copies per load",
+      "p95": 452.4484,
+      "unit": "ms",
+      "medianRangeOf3Runs": [
+        392.2796,
+        467.03
+      ],
+      "p95RangeOf3Runs": [
+        414.5392,
+        994.292
+      ]
+    },
+    {
+      "id": "IMG-opencv-JPEG-25MP",
+      "label": "load 25MP JPEG through the opencv image source (read + decode + canonical format)",
+      "max": 410.3497,
+      "median": 310.9879,
+      "n": 5,
+      "note": "file 2.5 MB; gives Bgrx32; 1 copies per load",
+      "p95": 410.3497,
+      "unit": "ms",
+      "medianRangeOf3Runs": [
+        222.8502,
+        310.9879
+      ],
+      "p95RangeOf3Runs": [
+        231.5069,
+        410.3497
+      ]
+    },
+    {
+      "id": "IMG-opencv-grayPNG-25MP",
+      "label": "load 25MP grayPNG through the opencv image source (read + decode + canonical format)",
+      "max": 224.8239,
+      "median": 211.6605,
+      "n": 5,
+      "note": "file 14.2 MB; gives Gray8; 0 copies per load",
+      "p95": 224.8239,
+      "unit": "ms",
+      "medianRangeOf3Runs": [
+        196.0828,
+        322.1903
+      ],
+      "p95RangeOf3Runs": [
+        197.8621,
+        378.1832
+      ]
+    },
+    {
+      "id": "IMG-opencv-gray16PNG-25MP",
+      "label": "load 25MP gray16PNG through the opencv image source (read + decode + canonical format)",
+      "max": 456.8668,
+      "median": 425.2639,
+      "n": 5,
+      "note": "file 23.6 MB; gives Gray16; 0 copies per load",
+      "p95": 456.8668,
+      "unit": "ms",
+      "medianRangeOf3Runs": [
+        362.8389,
+        425.2639
+      ],
+      "p95RangeOf3Runs": [
+        377.7614,
+        456.8668
+      ]
+    },
+    {
+      "id": "IMG-opencv-TIFF-25MP",
+      "label": "load 25MP TIFF through the opencv image source (read + decode + canonical format)",
+      "max": 673.8558,
+      "median": 622.7071,
+      "n": 5,
+      "note": "file 30.3 MB; gives Bgrx32; 1 copies per load",
+      "p95": 673.8558,
+      "unit": "ms",
+      "medianRangeOf3Runs": [
+        558.6662,
+        684.1247
+      ],
+      "p95RangeOf3Runs": [
+        587.7901,
+        837.7729
+      ]
+    },
+    {
+      "id": "IMG-opencv-grayTIFF-25MP",
+      "label": "load 25MP grayTIFF through the opencv image source (read + decode + canonical format)",
+      "max": 336.7183,
+      "median": 330.3766,
+      "n": 5,
+      "note": "file 19.5 MB; gives Gray8; 0 copies per load",
+      "p95": 336.7183,
+      "unit": "ms",
+      "medianRangeOf3Runs": [
+        295.2485,
+        330.3766
+      ],
+      "p95RangeOf3Runs": [
+        298.4507,
+        336.7183
+      ]
+    },
+    {
+      "id": "IMG-opencv-gray16TIFF-25MP",
+      "label": "load 25MP gray16TIFF through the opencv image source (read + decode + canonical format)",
+      "max": 620.4066,
+      "median": 505.8187,
+      "n": 5,
+      "note": "file 26.0 MB; gives Gray16; 0 copies per load",
+      "p95": 620.4066,
+      "unit": "ms",
+      "medianRangeOf3Runs": [
+        414.7253,
+        518.9578
+      ],
+      "p95RangeOf3Runs": [
+        420.6596,
+        926.5752
+      ]
+    },
+    {
+      "id": "CONV-qt-RGB32-wrap",
+      "label": "QImage RGB32 -> ImageView (zero copy), per call",
+      "max": 0.1575,
+      "median": 0.1232,
+      "n": 30,
+      "note": "0 copies in 31000 calls",
+      "p95": 0.1236,
+      "unit": "us",
+      "medianRangeOf3Runs": [
+        0.1031,
+        0.1232
+      ],
+      "p95RangeOf3Runs": [
+        0.1212,
+        0.155
+      ]
+    },
+    {
+      "id": "CONV-qt-view-wrap",
+      "label": "ImageView Bgrx32 -> QImage (zero copy), per call",
+      "max": 0.2775,
+      "median": 0.171,
+      "n": 30,
+      "note": "0 copies in 31000 calls",
+      "p95": 0.2686,
+      "unit": "us",
+      "medianRangeOf3Runs": [
+        0.1453,
+        0.171
+      ],
+      "p95RangeOf3Runs": [
+        0.1503,
+        0.2686
+      ]
+    },
+    {
+      "id": "CONV-qt-Indexed8-to-Gray8",
+      "label": "QImage Indexed8 (gray table) -> Gray8 (one copy)",
+      "max": 1.9717,
+      "median": 1.3373,
+      "n": 15,
+      "note": "18 copies in 18 calls",
+      "p95": 1.9717,
+      "unit": "ms",
+      "medianRangeOf3Runs": [
+        1.2212,
+        1.3373
+      ],
+      "p95RangeOf3Runs": [
+        1.4067,
+        1.9717
+      ]
+    },
+    {
+      "id": "CONV-qt-RGB888-to-RGB32",
+      "label": "QImage RGB888 -> RGB32 (one copy, canonical format)",
+      "max": 6.8341,
+      "median": 6.2062,
+      "n": 15,
+      "note": "18 copies in 18 calls",
+      "p95": 6.8341,
+      "unit": "ms",
+      "medianRangeOf3Runs": [
+        5.5258,
+        6.2062
+      ],
+      "p95RangeOf3Runs": [
+        6.0572,
+        6.8341
+      ]
+    },
+    {
+      "id": "CONV-cv-BGR-to-BGRx",
+      "label": "cv::Mat 8UC3 -> 8UC4 (the copy the OpenCV source makes for color files)",
+      "max": 4.2165,
+      "median": 3.5812,
+      "n": 15,
+      "p95": 4.2165,
+      "unit": "ms",
+      "medianRangeOf3Runs": [
+        2.8359,
+        3.5812
+      ],
+      "p95RangeOf3Runs": [
+        3.5792,
+        4.2165
+      ]
+    },
+    {
+      "id": "CONV-cv-wrap",
+      "label": "cv::Mat -> ImageView plus ImageView -> cv::Mat (zero copy), per pair",
+      "max": 0.2822,
+      "median": 0.207,
+      "n": 30,
+      "note": "0 copies in 31000 calls",
+      "p95": 0.2074,
+      "unit": "us",
+      "medianRangeOf3Runs": [
+        0.1741,
+        0.207
+      ],
+      "p95RangeOf3Runs": [
+        0.1824,
+        0.2231
+      ]
+    },
+    {
+      "id": "RCP-SAVE-500",
+      "label": "save a recipe with 500 components (serialize + atomic write)",
+      "max": 22.6129,
+      "median": 17.571,
+      "n": 30,
+      "note": "file 0.23 MB",
+      "p95": 22.5922,
+      "unit": "ms",
+      "medianRangeOf3Runs": [
+        16.7956,
+        17.571
+      ],
+      "p95RangeOf3Runs": [
+        21.2606,
+        25.9336
+      ]
+    },
+    {
+      "id": "RCP-LOAD-500",
+      "label": "load a recipe with 500 components (read + parse + check)",
+      "max": 6.4111,
+      "median": 5.8106,
+      "n": 30,
+      "note": "file 0.23 MB",
+      "p95": 6.3844,
+      "unit": "ms",
+      "medianRangeOf3Runs": [
+        5.2584,
+        5.8106
+      ],
+      "p95RangeOf3Runs": [
+        6.3844,
+        7.181
+      ]
+    },
+    {
+      "id": "RCP-SAVE-5000",
+      "label": "save a recipe with 5000 components (serialize + atomic write)",
+      "max": 810.2643,
+      "median": 482.6805,
+      "n": 30,
+      "note": "file 2.10 MB",
+      "p95": 525.3737,
+      "unit": "ms",
+      "medianRangeOf3Runs": [
+        93.4908,
+        482.6805
+      ],
+      "p95RangeOf3Runs": [
+        102.1137,
+        525.3737
+      ]
+    },
+    {
+      "id": "RCP-LOAD-5000",
+      "label": "load a recipe with 5000 components (read + parse + check)",
+      "max": 33.0038,
+      "median": 29.0159,
+      "n": 30,
+      "note": "file 2.10 MB",
+      "p95": 32.9969,
+      "unit": "ms",
+      "medianRangeOf3Runs": [
+        29.0159,
+        38.5841
+      ],
+      "p95RangeOf3Runs": [
+        32.9969,
+        42.8975
+      ]
+    },
+    {
+      "id": "RCP-SAVER-CALL-5000",
+      "label": "background save, time on the caller thread (snapshot copy + hand over)",
+      "max": 0.5678,
+      "median": 0.3765,
+      "n": 20,
+      "p95": 0.5254,
+      "unit": "ms",
+      "medianRangeOf3Runs": [
+        0.3455,
+        0.3765
+      ],
+      "p95RangeOf3Runs": [
+        0.5254,
+        0.606
+      ]
+    },
+    {
+      "id": "RCP-SAVER-DONE-5000",
+      "label": "background save, hand over to written",
+      "max": 126.8837,
+      "median": 111.4618,
+      "n": 20,
+      "p95": 125.3507,
+      "unit": "ms",
+      "medianRangeOf3Runs": [
+        97.1093,
+        111.4618
+      ],
+      "p95RangeOf3Runs": [
+        108.9197,
+        196.1136
+      ]
+    },
+    {
+      "id": "LIB-SAVE-1000",
+      "label": "save one entry into a 1000-entry library (the whole file is rewritten)",
+      "max": 133.3072,
+      "median": 120.1554,
+      "n": 15,
+      "note": "file 3.75 MB",
+      "p95": 133.3072,
+      "unit": "ms",
+      "medianRangeOf3Runs": [
+        120.1554,
+        138.6625
+      ],
+      "p95RangeOf3Runs": [
+        133.3072,
+        161.0439
+      ]
+    },
+    {
+      "id": "LIB-OPEN-1000",
+      "label": "open a 1000-entry library (read + parse + index)",
+      "max": 68.7525,
+      "median": 58.3563,
+      "n": 15,
+      "p95": 68.7525,
+      "unit": "ms",
+      "medianRangeOf3Runs": [
+        58.3563,
+        66.3704
+      ],
+      "p95RangeOf3Runs": [
+        64.9232,
+        70.8122
+      ]
+    },
+    {
+      "id": "LIB-FIND-1000",
+      "label": "find by alias in a 1000-entry library (after it is loaded)",
+      "max": 0.0125,
+      "median": 0.0074,
+      "n": 30,
+      "p95": 0.0125,
+      "unit": "ms",
+      "medianRangeOf3Runs": [
+        0.0074,
+        0.0084
+      ],
+      "p95RangeOf3Runs": [
+        0.0077,
+        0.0125
+      ]
+    }
+  ]
+}

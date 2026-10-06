@@ -11,6 +11,8 @@
 
 > **S04 完成後的提醒（2026-10-06）**：S04 留下一個已知超標的預算：**U3**（分數滑桿到重繪，預算 16 ms；5 832 個元件 p95 46–61 ms，504 個元件的 p95 也常超過）。拆解在 `docs/steps/S04-presenter/perf.md`：整個畫布重繪 19–30 ms、場景重建＋畫布更新 9–15 ms、重新過濾不到 1 ms。先有 before 數字再動手。候選（都是推測，沒有量測）：只重畫狀態改變的框、把快照拆成幾何與狀態、把背景已接受的元件快取成一層。U3 的預算要不要重新定義是使用者的決定（S01 確認過現在的數字）。做完要拿掉 `tests/ui/perf_ui_s04.cpp` 的 `knownOver("U3")`。U3 與 S02 的 I1（ADR-009，待使用者決定）看起來是同一個瓶頸（整個畫布的繪製），OpenGL 視埠的試驗可以一起量。
 
+> **S06 完成後的提醒（2026-10-06）**：有數字、沒有改的候選（`docs/steps/S06-image-storage/perf.md`）：（1）開圖在 UI 執行緒同步解碼（25 MP 的 PNG 約 0.5 秒、TIFF 約 0.6 秒）：可以改到背景解碼，但要先決定開圖期間的互動（狀態機沒有「開圖中」這個狀態）。（2）樣本庫存一筆要整份重寫（1 000 筆約 0.12–0.14 秒）：一個條目一個檔案可以改善，代價是 id 與「下一個號碼」的一致性。（3）12 bit 影像的顯示每次開圖轉一次 8 bit（一次複製，5 MP 約幾 ms）；16 bit 的影像畫布用 `Format_Grayscale16` 零複製，**繪製成本沒有量**。
+
 <!--STE-->
 ## Purpose
 This step makes the slowest parts faster. We change only the parts that the test shows as slow.

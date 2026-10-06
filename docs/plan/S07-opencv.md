@@ -15,6 +15,8 @@
 
 > **S04 完成後的提醒（2026-10-06）**：（1）流程 B 的接口：`AutoRoiPresenter::finishRegionScan()` 現在直接回「樣本庫是空的」（庫與比對器都還沒有實作）。S07 做好 `ILibraryMatcher` 後，把它換成真的呼叫（走 `JobRunner`，和流程 A 同一條路）；狀態機、取消、忙碌提示、結果卡都已經就位，不必改。（2）`Stage::Match` 的進度已經對應到進度列（`ProgressBridge`，整段 0..1）。（3）執行中切換 back end 的下拉選單仍是停用的（`MainWindow::setBackends` 只填清單）；`--backend` 命令列是唯一的切換方式。（4）Presenter 的測試用 `tests/ui/PresenterRig.h` 的假 back end（可設成失敗、可卡住視窗驗證階段）；新的 back end 不需要動它。
 
+> **S06 完成後的提醒（2026-10-06）**：（1）**OpenCV 已經編進程式並連結成功**（vc16 的 `opencv_world490`＋VS 2022 的 MSVC 19.44）：用 preset `release-opencv`／`debug-opencv`（`scripts/dev/test.ps1 -Preset release-opencv`）；`aoi.exe` 建置後會複製 OpenCV 的 DLL，測試的 PATH 由 `cmake/AoiTargets.cmake` 加上。`infrastructure/backend_opencv` 已有 `OpenCvImages`（`fromMat`、`borrowAsMat`：零複製，借來的 Mat 不可以寫）與 `OpenCvImageSource`；範本建立器與搜尋器加在同一個資料夾與 target。（2）搜尋器拿到的影像只有三種正規格式：`Gray8`、`Gray16`、`Bgrx32`（ADR-014）。`Gray16` 可能是 **12 bit**（使用者的影像有 12 bit；值只到 4095，`ImageView::significantBits` ＝ 12），換算亮度用 `domain/image_depth.h` 的 `effectiveBits`／`normalizedMax`；轉灰階或轉 8 bit 給 `matchTemplate` 是一次複製，要呼叫 `countImageCopy`。OpenCV 讀 12 bit 緊密打包的 TIFF 會左移 4 位（`tst_opencv_image` 鎖住）。（3）合成板子：`tests/support/synthetic_board`（`Gray8`、`Bgrx32`、12／16 bit 的 `Gray16`；位置誤差、傾斜、缺件、反光、模糊、雜訊；標準答案含每個元件的位姿）是 T6a／T6b 的資料來源，`saveSyntheticBoard` 存成 PNG＋JSON。（4）樣本庫照 TRI 分層（`LayeredLibraryStore`：專案 → 使用者 → 唯讀的系統），`loadAll()` 就是上層遮住下層之後的候選清單；各層的檔案放哪裡還沒決定（ADR-015），程式也還沒有組裝它。（5）向使用者要真實影像時，順便問 12 bit 的影像怎麼存（16 bit 容器、值 0..4095？還是緊密打包的 12 bit TIFF？）。（6）S06 起用 **Qt 6.12.0**（使用者更新；6.8.0 仍在機器上，S02–S05 的數字是 6.8.0 量的）。
+
 <!--STE-->
 ## Purpose
 This step builds the OpenCV back end. It builds the template and searches the image for similar parts.

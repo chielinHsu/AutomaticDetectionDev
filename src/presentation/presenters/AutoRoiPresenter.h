@@ -1,7 +1,6 @@
 #pragma once
 
 #include <QElapsedTimer>
-#include <QImage>
 #include <QObject>
 #include <QString>
 #include <QTimer>
@@ -13,7 +12,7 @@
 #include "application/jobs/JobRunner.h"
 #include "application/ports/IPerfProbe.h"
 #include "application/usecases/GenerateObjectsFromSample.h"
-#include "domain/image_view.h"
+#include "presentation/canvas/ImageViewMetaType.h"
 #include "domain/search_params.h"
 #include "presentation/canvas/ICanvasController.h"
 #include "presentation/canvas/ICanvasView.h"
@@ -129,7 +128,7 @@ public:
 
 public slots:
     // MainWindow 開好（或打不開）影像時呼叫。
-    void onImageOpened(const QImage& image, const QString& name);
+    void onImageOpened(const aoi::ImageView& image, const QString& name);
     void onImageOpenFailed(const QString& name, const QString& reason);
     // 畫布上左鍵按下（開始拖出區域）或放開。
     void onPointerDragChanged(bool active, ToolId tool);

@@ -5,7 +5,12 @@
 #include <thread>
 #include <utility>
 
+#include "application/image/ImageSourceChain.h"
 #include "infrastructure/backend_fake/FakeBackend.h"
+#include "infrastructure/image_qt/QtImageSource.h"
+#ifdef AOI_WITH_OPENCV
+#include "infrastructure/backend_opencv/OpenCvImageSource.h"
+#endif
 
 namespace aoi::app {
 
@@ -34,6 +39,15 @@ BackendRegistry makeBackendRegistry() {
     (void)registry.registerUnavailable("halcon", "HALCON",
                                        "The HALCON back end is not built into this program yet. It arrives in step S08.");
     return registry;
+}
+
+std::unique_ptr<IImageSource> makeImageSource() {
+    auto chain = std::make_unique<ImageSourceChain>();
+    chain->add(std::make_unique<infra::QtImageSource>());
+#ifdef AOI_WITH_OPENCV
+    chain->add(std::make_unique<infra::OpenCvImageSource>());
+#endif
+    return chain;
 }
 
 Result<CoreServices> composeCore(const BackendRegistry& registry, std::string_view backendId, bool perfEnabled,

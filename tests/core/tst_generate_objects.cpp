@@ -7,9 +7,11 @@
 #include <atomic>
 #include <chrono>
 #include <cmath>
+#include <cstring>
 #include <thread>
 
 #include "CoreTestSupport.h"
+#include "domain/image_buffer.h"
 #include "application/usecases/GenerateObjectsFromSample.h"
 #include "application/usecases/ProposalView.h"
 #include "domain/lattice/lattice_accumulator.h"
@@ -398,6 +400,69 @@ private slots:
         const ProposalView v = classify(r.value(), 0.80);  // classify 直接帶出這個原因
         QVERIFY(v.noMatch.has_value());
         QCOMPARE(static_cast<int>(v.noMatch->reason), reason);
+    }
+
+    // S06 新增 Bgr24、Gray16：對比檢查要用對的通道與單位。棋盤只在一個通道上有起伏，
+    // 起伏的大小選在門檻（標準差 3）兩側：讀錯通道或沒把 16 bit 換到 0..255，結果就會翻過來。
+    void theContrastCheckReadsEveryPixelFormat_data() {
+        QTest::addColumn<int>("format");
+        QTest::addColumn<int>("channel");    // 有起伏的 byte（Gray16 是整個像素）
+        QTest::addColumn<int>("amplitude");  // 棋盤兩格的差的一半（該通道的單位）
+        QTest::addColumn<bool>("lowContrast");
+        QTest::addColumn<int>("bits");  // Gray16 的有效位元數（0 ＝ 16）
+        // 亮度權重：R 77、G 150、B 29（/256）。棋盤的標準差 ＝ 權重 × 起伏。
+        QTest::newRow("Gray8 ±2 is flat") << int(PixelFormat::Gray8) << 0 << 2 << true << 0;
+        QTest::newRow("Gray8 ±10 has texture") << int(PixelFormat::Gray8) << 0 << 10 << false << 0;
+        QTest::newRow("Gray16 ±2x257 is flat") << int(PixelFormat::Gray16) << 0 << 2 * 257 << true << 0;
+        QTest::newRow("Gray16 ±10x257 has texture") << int(PixelFormat::Gray16) << 0 << 10 * 257 << false << 0;
+        // 12 bit（值只到 4095）：±10×16 在 8 bit 的單位是 ±10；當成 16 bit 會被低估成 ±0.6
+        QTest::newRow("12 bit ±2x16 is flat") << int(PixelFormat::Gray16) << 0 << 2 * 16 << true << 12;
+        QTest::newRow("12 bit ±10x16 has texture") << int(PixelFormat::Gray16) << 0 << 10 * 16 << false << 12;
+        QTest::newRow("12 bit data read as 16 bit is flat") << int(PixelFormat::Gray16) << 0 << 10 * 16 << true << 16;
+        QTest::newRow("Bgr24 blue ±20 is flat") << int(PixelFormat::Bgr24) << 0 << 20 << true << 0;     // 29/256×20 ≈ 2.3
+        QTest::newRow("Bgr24 red ±20 has texture") << int(PixelFormat::Bgr24) << 2 << 20 << false << 0; // 77/256×20 ≈ 6.0
+        QTest::newRow("Rgb24 red ±20 has texture") << int(PixelFormat::Rgb24) << 0 << 20 << false << 0;
+        QTest::newRow("Rgb24 blue ±20 is flat") << int(PixelFormat::Rgb24) << 2 << 20 << true << 0;
+        QTest::newRow("Bgrx32 blue ±20 is flat") << int(PixelFormat::Bgrx32) << 0 << 20 << true << 0;
+        QTest::newRow("Bgrx32 red ±20 has texture") << int(PixelFormat::Bgrx32) << 2 << 20 << false << 0;
+        QTest::newRow("Bgrx32 x byte is ignored") << int(PixelFormat::Bgrx32) << 3 << 100 << true << 0;
+    }
+    void theContrastCheckReadsEveryPixelFormat() {
+        QFETCH(int, format);
+        QFETCH(int, channel);
+        QFETCH(int, amplitude);
+        QFETCH(bool, lowContrast);
+        QFETCH(int, bits);
+        const PixelFormat f = static_cast<PixelFormat>(format);
+        ImageBuffer buffer(800, 600, f);
+        QVERIFY(buffer.valid());
+        const int bpp = bytesPerPixel(f);
+        for (int y = 0; y < buffer.height(); ++y) {
+            std::uint8_t* row = buffer.row(y);
+            for (int x = 0; x < buffer.width(); ++x) {
+                const int sign = ((x / 4 + y / 4) & 1) ? 1 : -1;
+                std::uint8_t* p = row + static_cast<std::ptrdiff_t>(x) * bpp;
+                if (f == PixelFormat::Gray16) {
+                    const int middle = (bits == 12 || (bits == 16 && amplitude < 257)) ? 2048 : 32768;  // 12 bit 的資料在 0..4095 的中間
+                    const auto v = static_cast<std::uint16_t>(middle + sign * amplitude);
+                    std::memcpy(p, &v, sizeof v);
+                } else {
+                    for (int c = 0; c < bpp; ++c) p[c] = 128;
+                    p[channel] = static_cast<std::uint8_t>(128 + sign * amplitude);
+                }
+            }
+        }
+        Fixture fx(gridSpec());
+        SampleRequest request;
+        request.image = buffer.view();
+        request.image.significantBits = bits;
+        request.sample = kSample;
+        const Result<SampleProposal> r = fx.useCase.run(request, {}, nullptr);
+        QVERIFY(r.ok());
+        const bool stopped = r.value().sampleProblem.has_value() &&
+                             r.value().sampleProblem->reason == NoMatchReason::LowContrast;
+        QCOMPARE(stopped, lowContrast);
+        QCOMPARE(fx.searcher.calls.load() == 0, lowContrast);
     }
 
     // 範本建立器才看得出來的樣本問題（框到不只一個元件、沒框到元件）：建了範本、但不搜尋。

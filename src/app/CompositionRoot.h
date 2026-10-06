@@ -9,6 +9,7 @@
 #include "application/usecases/GenerateObjectsFromSample.h"
 #include "infrastructure/perf/PerfProbe.h"
 #include "application/ports/IExecutor.h"
+#include "application/ports/IImageSource.h"
 #include "infrastructure/threading/QtThreadPoolExecutor.h"
 #include "infrastructure/threading/ThreadPoolExecutor.h"
 
@@ -31,6 +32,10 @@ struct CoreServices {
     std::unique_ptr<GenerateObjectsFromSample> generateObjects;
     std::unique_ptr<JobRunner> runner;
 };
+
+// 影像來源（S06）：Qt（常見格式零複製）在前；OpenCV 編進程式時接在後面，讀 Qt 解不開的格式（這台機器的 Qt 沒有 TIFF 外掛）。
+// 順序的理由見 ADR-014。回傳的物件可以同時被多個執行緒使用；請在主執行緒建立（Qt 的影像外掛在這裡載入）。
+std::unique_ptr<IImageSource> makeImageSource();
 
 // 依 id 建立 back end 並接上 use case、JobRunner。id 不存在或不可用時回 Error（訊息說明原因與可用的 back end）。
 Result<CoreServices> composeCore(const BackendRegistry& registry, std::string_view backendId, bool perfEnabled = false,

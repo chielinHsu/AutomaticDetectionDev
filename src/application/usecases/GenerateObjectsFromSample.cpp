@@ -3,9 +3,11 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <cstring>
 #include <limits>
 #include <utility>
 
+#include "domain/image_depth.h"
 #include "domain/lattice/lattice_accumulator.h"
 #include "domain/lattice/lattice_predictor.h"
 
@@ -30,6 +32,8 @@ double luminanceStdDev(const ImageView& image, const Rect& area) {
     if (w <= 0 || h <= 0) return 0.0;
 
     const int step = std::max(1, static_cast<int>(std::sqrt(static_cast<double>(w) * static_cast<double>(h) / 4096.0)));
+    // Gray16 依有效位元數換到 0..255（12 bit 的影像值只到 4095）：minContrast 的單位不變。
+    const double gray16Scale = 255.0 / normalizedMax(effectiveBits(image));
     double sum = 0.0;
     double sumSquares = 0.0;
     std::size_t count = 0;
@@ -49,6 +53,17 @@ double luminanceStdDev(const ImageView& image, const Rect& area) {
                 case PixelFormat::Bgrx32: {
                     const std::uint8_t* p = row + 4 * x;
                     luminance = (77.0 * p[2] + 150.0 * p[1] + 29.0 * p[0]) / 256.0;
+                    break;
+                }
+                case PixelFormat::Bgr24: {
+                    const std::uint8_t* p = row + 3 * x;
+                    luminance = (77.0 * p[2] + 150.0 * p[1] + 29.0 * p[0]) / 256.0;
+                    break;
+                }
+                case PixelFormat::Gray16: {
+                    std::uint16_t v = 0;
+                    std::memcpy(&v, row + 2 * x, sizeof v);  // 列的起點不保證 2 byte 對齊
+                    luminance = v * gray16Scale;
                     break;
                 }
             }

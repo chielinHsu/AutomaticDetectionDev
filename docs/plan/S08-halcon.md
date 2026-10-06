@@ -11,6 +11,8 @@
 
 > **S03 完成後的提醒（2026-10-05）**：新增 back end 的方式與 S07 相同（adapter ＋ 在 `CompositionRoot.cpp` 註冊）。HALCON 的角度是弧度、座標是 `(Row, Column)`：轉換放在 adapter，正負號與軸順序是 ADR-010 裡「未驗證」的部分，要實測並用 S09 的契約測試鎖住。這台機器只有 HALCON runtime（沒有標頭與程式庫），要先補裝開發元件。
 
+> **S06 完成後的提醒（2026-10-06）**：（1）**`HImage` ⇄ `ImageView` 與 `HalconImageSource` 沒有做**：這台機器沒有 HALCON 的 C++ 開發檔，寫了無法編譯與驗證。預期（未驗證，請查 HALCON 運算子說明再做）：`Gray8`、`Gray16` 的緊密排列可以零複製（外部記憶體），彩色的 `Bgrx32`（交錯）要轉成 HALCON 的分平面，一次複製並呼叫 `countImageCopy`。`domain/image_buffer` 的 `ImageBuffer` 是緊密排列的（為了這一點）；子影像（`subView`）的 stride 比一列大，HALCON 可能要複製。（2）影像來源的契約（ADR-014）：只交出 `Gray8`／`Gray16`／`Bgrx32`、`significantBits` 用 `detectSignificantBits`、校正值 0、不套用 EXIF 旋轉、canRead 只看檔名；加進 `app/CompositionRoot::makeImageSource` 的 `ImageSourceChain` 時要決定順序（現在 Qt 在前、OpenCV 在後）。`tests/infra/tst_image_sources_agree` 是「兩個來源給出相同影像」的寫法，加上 HALCON 的那一欄。（3）S06 起用 Qt 6.12.0。
+
 <!--STE-->
 ## Purpose
 This step builds the HALCON back end. It uses the HALCON shape model to find similar parts.

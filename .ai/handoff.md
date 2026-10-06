@@ -8,41 +8,39 @@
 
 ## 正在做
 
-無。**S05（Domain：晶格估計與補漏）已完成**：分支 `step/05-lattice`，以 `--no-ff` 合併到 `main`，tag `step-05-done`。全部只在本機，**沒有 push**。S06 由新的 session 做。
-**仍有兩件事等使用者決定**（S02、S04 留下的）：（1）[ADR-009](../docs/adr/009-ui-toolkit-review-after-s02.md)（I1 在預算邊緣）；（2）U3 超出預算（`knownOver("U3")`）。S05 新增一個：**T3 的預算沒有說是哪一種 1 000 點**（乾淨的陣列 p95 0.65–1.19 ms 通過；散佈的點 p95 3.1–4.2 ms 不在預算裡）。
+無。**S06（影像緩衝、轉接器、配方與樣本庫儲存）已完成**：分支 `step/06-image-storage`，以 `--no-ff` 合併到 `main`，tag `step-06-done`。全部只在本機，**沒有 push**。S07 由新的 session 做。
+**S06 中使用者做的決定**：（1）樣本庫照 **TRI 的分層**（專案 → 使用者 → 唯讀的系統）；（2）這一步**不接存檔／開啟配方的 UI**，但它們是必要功能，已列在 `docs/current-status.md` 待辦；（3）影像**也有 12 bit**；（4）**改用 Qt 6.12.0**（6.8.0 仍在機器上）。
+**仍等使用者決定**：ADR-009（I1）、U3 超標、T3 要不要涵蓋散佈的點；新增：存檔／開啟配方的 UI 放進哪一步、S06 的指標要不要有預算。
 
-## 已完成（S05）
+## 已完成（S06）
 
-- `src/domain/lattice/`（只用標準庫；`aoi_domain` 由 INTERFACE 改 STATIC）：`LatticeEstimator`（`fit`、`fitAll`）、`LatticePredictor`、`LatticeAccumulator`（O(1) 正規方程）、`NonMaxSuppression`、`SpatialGrid`、`IVectorClustering`；內部：`basis_finder`、`lattice_acceptance`、`cell_components`、`lattice_detail.h`。接受規則見 ADR-013（寧可沒有晶格，也不要錯的晶格）。
-- use case `GenerateObjectsFromSample`：`SimpleGrid` 刪除；種子先 NMS；缺格與已有候選重疊不補；由近到遠、上限內留近的；驗證找到的用 O(1) 重新擬合。`presentation/` 沒改。
-- 測試：`tests/domain/`（7 個執行檔＋`s00_demo_fixture_is_current`；`tst_grid` 搬進 `tst_lattice`）、`tst_generate_objects` 新增 6 個 S05 測試；32 個變異最終全被抓到。
-- 文件：`docs/steps/S05-lattice/`（四種輸出＋`perf.md`）、ADR-013、`perf/baseline/casparhsu1-lattice.json`、`perf/budgets.json`（T3 `calibrated`，limit 沒改）；`docs/plan/S06`、`S07`、`S10`、`S11` 開頭有「S05 完成後的提醒」。
-- 改了 S04 的 `tests/ui/tst_presenter.cpp` 兩個斷言（產品程式沒動）：原本在進入預覽的瞬間讀狀態列，搜尋超過測試台的忙碌門檻（40 ms）時讀到「搜尋中…」。Debug 全套跑出一次失敗；60 ms 的搜尋可以穩定重現；改成 `QTRY_VERIFY2` 等最終狀態。
+- domain：`ImageView` 的所有權規則 1–6、`Bgr24`／`Gray16`、`significantBits`（12 bit）、`subView`；`ImageBuffer`（緊密排列）、`image_copy`（複製計數）、`image_depth`（看最大值推測位元數）。
+- application：`ImageSourceChain`（Qt 在前、OpenCV 在後）、`RecipeSaver`（背景存檔，同一個檔案依序、被取代的回 Cancelled）；port 契約補完；use case 的對比檢查讀新格式與 12 bit。
+- infrastructure：新 adapter `image_qt`（Qt Core＋Gui；`check-deps` 加 `qt-gui` 類別與 2 個 fixture，共 15 個）、`storage`（JSON：`JsonCodec`、`JsonFile`、`JsonRecipeStore`、`JsonLibraryStore`、`LayeredLibraryStore`）、`backend_opencv`（`OpenCvImages`、`OpenCvImageSource`；**OpenCV 第一次連結成功**，preset `release-opencv`／`debug-opencv`）。
+- presentation：開圖改走 `IImageSource`，訊號帶 `ImageView`；`ImageLoader`、`ImageViewAdapter` 刪除；12 bit 轉 8 bit 顯示（計數）。
+- tests：`tests/infra/`、`tests/support/`（合成板子產生器）、`tst_image_view`、`tst_image_chain`、`tst_recipe_saver`；變異 31 個抓到 30 個（M24 等價）。
+- 文件：`docs/steps/S06-image-storage/`（四種輸出＋`perf.md`）、ADR-014、ADR-015、`perf/baseline/casparhsu1-storage.json`、`docs/plan/S07`–`S12` 的「S06 完成後的提醒」。
 
 ## 下一步
 
-**S06：影像緩衝、轉接器、Recipe 儲存**（`docs/plan/S06-image-storage.md`，開頭有 S03–S05 的提醒）。domain 已有 .cpp：加 storage 時，`AiInspTool.pro` 照 `domain/*.cpp` 的方式加萬用字元。
+**S07：OpenCV back end**（`docs/plan/S07-opencv.md`，開頭有 S06 的提醒）。開工時向使用者要真實影像，並問 12 bit 的影像怎麼存（16 bit 容器、值 0..4095？還是緊密打包的 TIFF？）。
 
 ## 不要動
 
-- `ai-project-template/`；`docs/ux/tokens.json`、`copy.json`（改了要跑 `check-contrast`、`tst_theme_i18n`）。
-- `perf/budgets.json` 的 limit 一個都沒改；不要為了讓測試過而放寬。`knownOver("U3")` 等 S11。
-- `tests/ui/PresenterRig.h` 的視窗閘門（`gateWindows`）故意不看取消旗標。
-- 晶格的門檻（`LatticeOptions`）與 ADR-013 的規則：改之前跑 `tst_lattice_scenarios`（1 029 組）與 `tst_lattice_rules`；規則彼此備援，只看估計器的結果常看不出拿掉了一條。
-- `tests/domain/fixtures/s00-demo-lattice.json` 由 `tools/s00-demo-fixture.mjs` 產生，不要手改；`explainer.html` 的 `lattice-data` 由 `tst_lattice_explainer` 匯出（`AOI_EXPORT_EXPLAINER=1`），不要手改。
-- port 的契約、`ImageView`、`SearchParams`；`tools/check-deps.mjs` 的 `RULES` 與 `docs/architecture.md` 的依賴表要一起改。
+- `ai-project-template/`；`docs/ux/tokens.json`、`copy.json`；`perf/budgets.json` 的 limit（S06 一個都沒改）；`knownOver("U3")` 等 S11。
+- `tests/infra/fixtures/recipe-v1.json`、`library-v1.json`：v1 的範例檔，手寫，**永遠要讀得進來**；格式改了就升版＋遷移，不要改範例檔。
+- `AOI_SYNTHETIC_REFERENCE_HASH`（`tests/infra/CMakeLists.txt`）：合成板子產生器的像素雜湊；只有刻意改產生器時才更新。
+- `tests/ui/PresenterRig.h` 的視窗閘門；晶格的門檻與 ADR-013 的規則；port 契約、`ImageView`、`SearchParams`；`check-deps` 的 `RULES` 與 `docs/architecture.md` 的依賴表要一起改。
 
 ## 已知問題與風險
 
-- 晶格的門檻是合成資料定的起點，S07 用真實影像校準；**非矩形陣列（L 形、環形）沒有測**；缺件 ≥ 50% 時整組二維不成立（刻意的取捨）。
-- 信心與「建議檢查」在 `GridSummary` 裡，畫面沒顯示；沒有任何一步的 plan 檔寫到。
-- 這台機器同一份程式會飄 1.4–2 倍；T3 的餘裕 40–68%。S10 的閘門要用多次執行。`casparhsu1-core.json` 的 P4 是 S03 暫代版的數字，S05 的在 `casparhsu1-lattice.json` 的 `useCase`。
-- 時間相依的 UI 測試：搜尋變慢（Debug、真實 back end）時，「進入預覽的瞬間」的畫面可能還有忙碌標示；讀狀態列要等最終狀態。
-- 大檔案：`lattice_estimator.cpp` 432 行（spec 有說明）；`AutoRoiPresenter.cpp` 707 行（S04）。
-- 變異測試腳本不在 repo；還原要寫回原始位元並驗證雜湊（會更新修改時間，Ninja 才會重建）。
-- 建置環境：`env.ps1` 之後才 configure／build；含中文或引號的檔案用 Write／Edit 寫，不用 heredoc 或 `node -e`；`.ps1` 不放中文；Qt Test 要 `-o 檔案`。
-- `AiInspTool.pro`：命令列 qmake ＋ jom 建置過，**沒有在 Qt Creator 裡載入過**。未追蹤的 `AiInspTool/release/`、`.qtc_clangd/` 在使用者的主工作目錄，沒有動。
+- **Qt 6.8.0 的 `qUncompress` 對截斷的資料是未定義行為**（Debug 撞上 `Q_UNREACHABLE`）：參考影像因此不壓縮；6.12.0 有沒有修好沒有驗證（已不呼叫它）。
+- 開圖在 UI 執行緒解碼：25 MP 的 PNG 約 0.5 秒畫面停住。HALCON 的轉換與來源沒有做（沒有開發檔）。
+- 已知例外：16 階灰色表的 BMP（Qt 給 Bgrx32、OpenCV 給 Gray8）；灰階＋alpha 的 PNG 沒有驗證。有效位元數是看最大值推測的。
+- 分層的樣本庫還沒有組裝進程式（各層的檔案放哪裡沒決定）；樣本庫存一筆要整份重寫。
+- 這台機器同一份程式會飄 1.4–2 倍；S02–S05 的基準線是 Qt 6.8.0 的數字（`perf.md` 有 6.8.0 對 6.12.0 的一次比較）。
+- 建置環境：`env.ps1` 之後才 configure／build；換 Qt 版本要刪掉 `build/<preset>` 重建；含中文或引號的檔案用 Write 寫（bash heredoc 會吃掉反斜線，JS 的 `replace` 會把 `$$` 變成 `$`）；Qt Test 要 `-o 檔案`。
 
 ## 驗證（都已實際執行）
 
-- 見 `docs/changelog-ai.md` 本步驟那一筆（Release、Debug 各 36 個 CTest 項目、check-deps、ste-lint、Mermaid、效能 3 次、變異 32 個）。
+- 見 `docs/changelog-ai.md` 本步驟那一筆（Qt 6.12.0 的 Release、Release＋OpenCV、Debug、Debug＋OpenCV、qmake＋jom、check-deps、ste-lint、Mermaid、效能 3 次、變異 31 個）。

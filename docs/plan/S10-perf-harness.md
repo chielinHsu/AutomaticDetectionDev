@@ -15,6 +15,8 @@
 
 > **S04 完成後的提醒（2026-10-06）**：（1）新增 `perf_ui_s04`（U2、U3、I3、I4、I6）與 `perf_paint_micro` 的 `dashedAndDottedFrames`；基準線在 `perf/baseline/casparhsu1-presenter.json`。PerfProbe 新增 `ui.*` 切片：`ui.threshold`、`ui.threshold.refilter`、`ui.threshold.params`、`ui.publishAll`、`ui.publishScene`、`ui.scene.build`、`ui.scene.canvas`、`ui.scene.tree`、`ui.chrome`、`ui.draft`、`ui.selection`。（2）同一份程式在這台機器連跑 3 次會差到 30%，I3 的餘裕只有 16–38%：閘門不能拿單次 p95 比預算，要用多次執行的範圍。（3）效能矩陣要加兩個維度：被拒絕（點線）的框的比例（ADR-012 之前成本差 12 倍）、背景已接受的元件數（`U3-bg` 比沒有背景慢約 16–28 ms）。（4）`perf_ui_s04` 用 `knownOver("U3")` 把已知超標的 U3 排除在失敗條件之外（其他指標超標仍會失敗）；閘門要有同樣的「已知、不擋」機制，並在 S11 處理 U3 後拿掉。
 
+> **S06 完成後的提醒（2026-10-06）**：（1）`tests/infra/perf_storage`（label `perf`）量影像載入（Qt 與 OpenCV、5 MP 與 25 MP、BMP／PNG／JPEG／TIFF／16 bit）、轉換的複製次數、配方 500／5 000 個元件的存讀、背景存檔佔呼叫端的時間、1 000 筆樣本庫；**這些都沒有預算**（要不要加，是對預算的決定）。基準線在 `perf/baseline/casparhsu1-storage.json`。U4 的量測改走產品的 `QtImageSource`。（2）S06 起用 **Qt 6.12.0**：`docs/steps/S06-image-storage/perf.md` 有同一個時段、同一份程式在 6.8.0 與 6.12.0 各跑一次全部效能測試的比較；S02–S05 的基準線是 6.8.0 量的，回歸閘門比較時要注意 Qt 版本。（3）開圖在 UI 執行緒解碼：25 MP 的 PNG 約 0.4 秒畫面停住，矩陣要有這一格。
+
 <!--STE-->
 ## Purpose
 This step builds the full performance test. It measures the search time, the screen update time and the interaction time.

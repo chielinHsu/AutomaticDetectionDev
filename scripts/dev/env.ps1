@@ -4,14 +4,14 @@
 #   . .\scripts\dev\env.ps1
 #
 # 路徑預設是本機實測的位置（見 AI_CONTEXT.md 的環境表）。換機器時用環境變數覆寫，不要改這個檔：
-#   AOI_QT_ROOT     Qt 的 msvc2022_64 資料夾   （預設 D:\Qt\6.8.0\msvc2022_64）
+#   AOI_QT_ROOT     Qt 的 msvc2022_64 資料夾   （預設 D:\Qt\6.12.0\msvc2022_64；S06 起。S02-S05 用 6.8.0）
 #   AOI_QT_TOOLS    Qt Tools 資料夾            （預設 D:\Qt\Tools）
 # VS 2022 用 vswhere 找，不寫死路徑。
 
 $aoiPrevEap = $ErrorActionPreference   # dot-source 會改到呼叫端的設定，結尾還原
 $ErrorActionPreference = 'Stop'
 
-$qtRoot = if ($env:AOI_QT_ROOT) { $env:AOI_QT_ROOT } else { 'D:\Qt\6.8.0\msvc2022_64' }
+$qtRoot = if ($env:AOI_QT_ROOT) { $env:AOI_QT_ROOT } else { 'D:\Qt\6.12.0\msvc2022_64' }
 $qtTools = if ($env:AOI_QT_TOOLS) { $env:AOI_QT_TOOLS } else { 'D:\Qt\Tools' }
 
 $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'

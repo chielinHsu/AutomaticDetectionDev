@@ -26,7 +26,8 @@ const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 //   domain / application / presentation / app   對應的層
 //   own        同一個 adapter 自己（只有 infrastructure/* 用得到）
 //   qt-core    白名單裡的 Qt Core 標頭
-//   qt         任何 Qt 標頭（含 Widgets、Gui）
+//   qt-gui     白名單裡的 Qt Gui 標頭（QImage 等；S06 起 infrastructure/image_qt 可以用）
+//   qt         任何 Qt 標頭（含 Widgets；也包含 qt-core 與 qt-gui）
 //   opencv / halcon   視覺函式庫
 //   other      其他第三方或平台標頭（例如 <windows.h>）
 // 其他類別一律禁止。
@@ -37,6 +38,7 @@ const RULES = {
   'infrastructure/backend_fake': { allow: ['std', 'domain', 'application', 'own'], why: 'the fake back end uses the standard library only' },
   'infrastructure/backend_opencv': { allow: ['std', 'domain', 'application', 'own', 'opencv', 'other'], why: 'the OpenCV adapter may use OpenCV, never Qt Widgets, HALCON or another adapter' },
   'infrastructure/backend_halcon': { allow: ['std', 'domain', 'application', 'own', 'halcon', 'other'], why: 'the HALCON adapter may use HALCON, never Qt Widgets, OpenCV or another adapter' },
+  'infrastructure/image_qt': { allow: ['std', 'domain', 'application', 'own', 'qt-core', 'qt-gui', 'other'], why: 'image_qt may use Qt Core and Qt Gui (QImage), never Qt Widgets or a vision library' },
   'infrastructure/storage': { allow: ['std', 'domain', 'application', 'own', 'qt-core', 'other'], why: 'storage may use Qt Core, never Qt Widgets or a vision library' },
   'infrastructure/perf': { allow: ['std', 'domain', 'application', 'own', 'qt-core', 'other'], why: 'perf may use Qt Core, never Qt Widgets or a vision library' },
   'infrastructure/threading': { allow: ['std', 'domain', 'application', 'own', 'qt-core', 'other'], why: 'threading may use Qt Core, never Qt Widgets or a vision library' },
@@ -55,6 +57,10 @@ unordered_map unordered_set utility valarray variant vector version
 cassert cctype cerrno cfenv cfloat cinttypes climits clocale cmath csetjmp csignal cstdarg cstddef cstdint cstdio cstdlib cstring ctime cuchar cwchar cwctype
 assert.h ctype.h errno.h fenv.h float.h inttypes.h limits.h locale.h math.h setjmp.h signal.h stdarg.h stddef.h stdint.h stdio.h stdlib.h string.h time.h wchar.h wctype.h`
   .split(/\s+/).filter(Boolean));
+
+// 已知屬於 Qt Gui 模組的標頭（裸名稱；S06）。QtGui/ 前綴的一律算 Gui。不在兩份白名單裡的 Q 開頭標頭一律算 qt（寧可誤報）。
+const QT_GUI_HEADERS = new Set(`QImage QImageReader QImageWriter QImageIOHandler QColor QColorSpace QRgb QPixmap QBitmap QPainter QPainterPath
+QPen QBrush QTransform QPolygon QPolygonF QRegion QFont QFontMetrics QFontMetricsF QGuiApplication QIcon QKeySequence QPalette`.split(/\s+/).filter(Boolean));
 
 // 已知屬於 Qt Core 模組的標頭（裸名稱）。QtCore/ 前綴的一律算 Core。
 const QT_CORE_HEADERS = new Set(`QObject QCoreApplication QString QStringList QStringView QByteArray QByteArrayView QChar QLatin1StringView QList QMap QHash QSet
@@ -119,10 +125,12 @@ function classify(includeText, isQuoted, fileDir, srcRoot) {
   if (/^opencv2?$/i.test(first)) return { kind: 'opencv', detail: includeText };
   if (/^halcon/i.test(first) || /^hdevengine/i.test(first)) return { kind: 'halcon', detail: includeText };
   if (/^Qt[A-Z]/.test(first) && includeText.includes('/')) {
-    return { kind: first === 'QtCore' ? 'qt-core' : 'qt', detail: includeText };  // <QtWidgets/QWidget> 這種有模組前綴的寫法
+    const kind = first === 'QtCore' ? 'qt-core' : first === 'QtGui' ? 'qt-gui' : 'qt';
+    return { kind, detail: includeText };  // <QtWidgets/QWidget> 這種有模組前綴的寫法
   }
   if (/^Q[A-Za-z0-9_]*$/.test(includeText)) {
-    return { kind: QT_CORE_HEADERS.has(includeText) ? 'qt-core' : 'qt', detail: includeText };
+    const kind = QT_CORE_HEADERS.has(includeText) ? 'qt-core' : QT_GUI_HEADERS.has(includeText) ? 'qt-gui' : 'qt';
+    return { kind, detail: includeText };
   }
   if (/^qt[a-z]*\//.test(includeText) || /^q[a-z0-9_]+\.h$/.test(includeText)) return { kind: 'qt', detail: includeText };
   if (STD_HEADERS.has(includeText)) return { kind: 'std', detail: includeText };
@@ -151,6 +159,8 @@ function judge(layerName, inc) {
     }
     case 'qt-core':
       return allow.has('qt-core') || allow.has('qt') ? null : `${layerName} must not include Qt (<${inc.detail}>): ${rule.why}`;
+    case 'qt-gui':
+      return allow.has('qt-gui') || allow.has('qt') ? null : `${layerName} must not include Qt Gui (<${inc.detail}>): ${rule.why}`;
     case 'qt':
       return allow.has('qt') ? null : `${layerName} must not include Qt Widgets/Gui or an unknown Qt header (<${inc.detail}>): ${rule.why}`;
     case 'opencv':

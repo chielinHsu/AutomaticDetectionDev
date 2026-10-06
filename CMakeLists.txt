@@ -14,7 +14,8 @@ option(AOI_WITH_HALCON "Build the HALCON back end (S08)" OFF)
 option(AOI_BUILD_TESTS "Build the Qt Test targets" ON)
 option(AOI_DEMO_SCENE "Link the synthetic scene generator into the app (--demo)" ON)
 
-set(AOI_QT_COMPONENTS Widgets)
+# Core（storage、threading）、Gui（image_qt 的 QImage）、Widgets（presentation）。
+set(AOI_QT_COMPONENTS Core Gui Widgets)
 if(AOI_BUILD_TESTS)
   list(APPEND AOI_QT_COMPONENTS Test)
 endif()

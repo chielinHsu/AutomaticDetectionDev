@@ -1,0 +1,14 @@
+{
+  "violations": [
+    {
+      "file": "src/infrastructure/storage/G.h",
+      "line": 3,
+      "includes": "QImage"
+    },
+    {
+      "file": "src/infrastructure/storage/G.h",
+      "line": 4,
+      "includes": "QtGui/QColor"
+    }
+  ]
+}

@@ -1,0 +1,49 @@
+{
+    "format": "aoi-library",
+    "schemaVersion": 1,
+    "nextEntryNumber": 4,
+    "entries": [
+        {
+            "id": "lib-1",
+            "libId": "",
+            "partNumber": "8371",
+            "aliases": ["SOP20", "20-SOIC"],
+            "name": "SOIC-20",
+            "category": "ic",
+            "groups": [
+                {
+                    "id": 1,
+                    "kind": "body",
+                    "widthUm": 6400,
+                    "heightUm": 3900,
+                    "centerXUm": 0,
+                    "centerYUm": 0,
+                    "matrix": { "rows": 1, "cols": 1, "pitchXUm": 0, "pitchYUm": 0, "skipped": [] },
+                    "window": { "parentGroupId": 0, "offsetXRatio": 0, "offsetYRatio": 0, "widthRatio": 0.8, "heightRatio": 0.6, "algo": "" }
+                }
+            ],
+            "referenceImage": null
+        },
+        {
+            "id": "lib-3",
+            "libId": "",
+            "partNumber": "0603",
+            "aliases": [],
+            "name": "電阻 0603",
+            "category": "chip",
+            "groups": [
+                {
+                    "id": 1,
+                    "kind": "body",
+                    "widthUm": 1600,
+                    "heightUm": 800,
+                    "centerXUm": 0,
+                    "centerYUm": 0,
+                    "matrix": { "rows": 1, "cols": 1, "pitchXUm": 0, "pitchYUm": 0, "skipped": [] },
+                    "window": { "parentGroupId": 0, "offsetXRatio": 0, "offsetYRatio": 0, "widthRatio": 0.8, "heightRatio": 0.6, "algo": "" }
+                }
+            ],
+            "referenceImage": { "width": 3, "height": 2, "format": "Gray8", "umPerPixel": 12.5, "significantBits": 0, "encoding": "base64", "data": "ChQeKDI8" }
+        }
+    ]
+}

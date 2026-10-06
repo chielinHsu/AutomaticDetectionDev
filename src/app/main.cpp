@@ -86,8 +86,12 @@ int main(int argc, char* argv[]) {
         return 2;
     }
 
+    // 影像來源（S06）：視窗經它開圖。要活得比視窗久，所以先建立。
+    const std::unique_ptr<aoi::IImageSource> imageSource = aoi::app::makeImageSource();
+
     // 視窗、Presenter 的建立順序＝解構順序的反面：核心活得最久，然後是視窗，最後才是 Presenter（它解構時先解除視窗的 Controller）。
     aoi::ui::MainWindow window(theme);
+    window.setImageSource(imageSource.get());
     QStringList backendNames;
     int currentBackend = 0;
     QString fallbackBackend = QStringLiteral("OpenCV");
@@ -118,7 +122,7 @@ int main(int argc, char* argv[]) {
             return 2;
         }
         const aoi::dev::FakeBoard board = aoi::dev::makeFakeBoard();
-        window.setImage(board.toQImage(), QStringLiteral("demo-%1.fake").arg(boxes));
+        window.setImage(board.view(), QStringLiteral("demo-%1.fake").arg(boxes));
         aoi::dev::FakeSceneOptions options;
         options.boxes = static_cast<std::size_t>(boxes);
         window.canvas()->showComponents(aoi::dev::makeFakeComponents(options));

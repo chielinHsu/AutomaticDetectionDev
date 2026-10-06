@@ -1,0 +1,19 @@
+{
+  "violations": [
+    {
+      "file": "src/infrastructure/image_qt/W.h",
+      "line": 3,
+      "includes": "QWidget"
+    },
+    {
+      "file": "src/infrastructure/image_qt/W.h",
+      "line": 4,
+      "includes": "QtWidgets/QLabel"
+    },
+    {
+      "file": "src/infrastructure/image_qt/W.h",
+      "line": 5,
+      "includes": "opencv2/core.hpp"
+    }
+  ]
+}

@@ -18,6 +18,7 @@
 #include "app/CompositionRoot.h"
 #include "application/backend/BackendRegistry.h"
 #include "infrastructure/backend_fake/FakeBackend.h"
+#include "infrastructure/image_qt/QtImageSource.h"
 #include "presentation/canvas/ImageCanvas.h"
 #include "presentation/dev/FakeScene.h"
 #include "presentation/i18n/Translations.h"
@@ -101,6 +102,7 @@ struct Rig {
     aoi::ui::ThemeManager theme{*qApp, aoi::ui::ThemeTokens::builtin()};
     aoi::BackendRegistry registry;
     aoi::Result<aoi::app::CoreServices> core;
+    aoi::infra::QtImageSource imageSource;  // 產品用 makeImageSource()；這裡固定 Qt 的，測試不受 AOI_WITH_OPENCV 影響
     aoi::ui::MainWindow window;
     std::unique_ptr<aoi::ui::AppPresenters> presenters;
     aoi::dev::FakeBoard board;
@@ -109,6 +111,7 @@ struct Rig {
                  aoi::app::ExecutorKind executor = aoi::app::ExecutorKind::QtThreadPool)
         : core(makeCore(registry, probe, std::move(world), executor)), window(theme) {
         aoi::ui::Translations::install(QStringLiteral("zh_TW"));
+        window.setImageSource(&imageSource);
         aoi::app::CoreServices& services = core.value();
         aoi::ui::PresenterServices presenterServices{*services.generateObjects, *services.runner, services.probe.get(),
                                                      QStringLiteral("Fake (test)"), QStringLiteral("OpenCV")};
@@ -150,7 +153,7 @@ struct Rig {
 
     void open(int w = 1200, int h = 800) {
         board = aoi::dev::makeFakeBoard(w, h);
-        window.setImage(board.toQImage(), QStringLiteral("board.png"));
+        window.setImage(board.view(), QStringLiteral("board.png"));
         QCoreApplication::processEvents();
     }
 

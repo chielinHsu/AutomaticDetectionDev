@@ -8,6 +8,7 @@
 #include "presentation/canvas/ICanvasController.h"
 #include "presentation/canvas/ICanvasView.h"
 #include "presentation/canvas/ImageItem.h"
+#include "presentation/canvas/ImageViewMetaType.h"
 #include "presentation/canvas/OverlayStyle.h"
 #include "presentation/canvas/RoiGraphicsItem.h"
 #include "presentation/canvas/RoiLayerItem.h"

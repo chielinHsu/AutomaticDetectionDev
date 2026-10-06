@@ -11,6 +11,8 @@
 
 > **S03 完成後的提醒（2026-10-05）**：`tests/core/tst_fake_backend.cpp` 已經是「對假 back end 跑的契約測試」：把它的斷言改成以工廠參數化、對每個已編入的 back end 各跑一次（沒編入的標示 SKIPPED）。ADR-010 的角度慣例要用旋轉過的合成影像鎖住（目前只有 `tst_domain` 用數字鎖 domain 的數學）。
 
+> **S06 完成後的提醒（2026-10-06）**：`IImageSource` 已經有 Liskov 的測試：`tests/infra/tst_image_sources_agree`（Qt 與 OpenCV，18 種檔案：16 種完全相同；已知例外：16 階灰色表的 BMP，`QEXPECT_FAIL`；灰階＋alpha 的 PNG 沒有驗證）。HALCON 加進來時把它改成以來源參數化。`IRecipeStore`、`ILibraryStore` 的契約測試在 `tests/infra/tst_recipe_store`、`tst_library_store`、`tst_library_layers`（只有 JSON 一個實作）。
+
 <!--STE-->
 ## Purpose
 This step proves that the two back ends are interchangeable. It also shows their differences on the screen.

@@ -7,7 +7,6 @@
 #include <chrono>
 
 #include "presentation/i18n/Translations.h"
-#include "presentation/shell/ImageViewAdapter.h"
 
 namespace aoi::ui {
 
@@ -103,11 +102,11 @@ AutoRoiPresenter::~AutoRoiPresenter() {
 
 // ---- 影像 ----------------------------------------------------------------------------------------------
 
-void AutoRoiPresenter::onImageOpened(const QImage& image, const QString& name) {
+void AutoRoiPresenter::onImageOpened(const aoi::ImageView& image, const QString& name) {
     invalidateJobs();
     imageName_ = name;
-    image_ = toImageView(image);
-    session_.imageOpened(name.toStdString(), image.width(), image.height(), 0.0);
+    image_ = image;  // 共用像素（零複製）；搜尋的 worker 讀同一塊
+    session_.imageOpened(name.toStdString(), image.width, image.height, image.umPerPixel);
     lastMs_ = -1.0;
     nudgeClock_.invalidate();
     views_.canvas.showRegionDraft(std::nullopt, DraftMode::Sample);
