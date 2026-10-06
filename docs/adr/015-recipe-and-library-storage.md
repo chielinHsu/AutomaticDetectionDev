@@ -69,6 +69,6 @@ S03 定了 port：`IRecipeStore`（save／load 一份 `Recipe` ＝ 板子＋搜�
 ## 後果
 
 - **存檔與開啟配方的 UI 還沒有任何一步涵蓋**（使用者決定這一步不接，記在 `docs/current-status.md` 的待辦）。要開啟配方，v1 還缺**影像的路徑**（`Board` 只有 `name`，是影像的檔名）：加上去要升 schema 版本並寫一個遷移。
-- 分層的庫還沒有組裝進程式（沒有 UI 用它）：專案層的檔案放哪裡（建議：配方所在的資料夾）、使用者層（建議：`QStandardPaths::AppDataLocation`）、要不要有系統層，接 UI 的那一步決定。
+- 分層的庫還沒有組裝進程式（沒有 UI 用它）：專案層的檔案放哪裡（建議：配方所在的資料夾）、使用者層（建議：`QStandardPaths::AppDataLocation`）、要不要有系統層，接 UI 的那一步決定（**使用者 2026-10-06 確認**：等接樣本庫 UI 的那一步，和存檔／開啟配方的 UI 一起定；分層的規則本身照 TRI，已經定了）。
 - 樣本庫第一次呼叫時讀檔、之後用記憶體的內容：另一個程式同時改同一個檔案，這裡不會知道（v0.1 的限制）。
 - S07 的 `ILibraryMatcher`：候選清單由呼叫端挑（ADR-006 §7）；用 `LayeredLibraryStore::loadAll()` 就是 TRI 順序、上層遮住下層之後的清單。
