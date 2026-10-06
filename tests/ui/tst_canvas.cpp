@@ -167,6 +167,95 @@ private slots:
         QVERIFY(f.canvas.isFitted());
     }
 
+    // ---- 適配寬度 ----
+    void fitWidthFillsTheWidthAndKeepsTheCentreRow() {
+        Fixture f(1200, 1200);  // 正方形影像、橫長的視窗（1000 × 700）：適配視窗只用到高度，左右留白
+        const double vw = f.canvas.viewport()->width(), vh = f.canvas.viewport()->height();
+        const double margin = tokens().interaction.fitMarginPx;
+        f.canvas.fitWidth();
+        QVERIFY(f.canvas.fitMode() == ImageCanvas::FitMode::Width);
+        QVERIFY(!f.canvas.isFitted());  // isFitted 只代表「適配視窗」
+        QVERIFY2(std::abs(f.canvas.viewScale() - (vw - 2 * margin) / 1200.0) < 1e-9, "fit-width scale");
+        // 左右各留一個邊界（捲動是整數像素，誤差 ≤ 1 px）。
+        QVERIFY(std::abs(toView(f.canvas, QPointF(0, 600)).x() - margin) <= 1.0);
+        QVERIFY(std::abs(toView(f.canvas, QPointF(1200, 600)).x() - (vw - margin)) <= 1.0);
+        // 從適配視窗切過來：原本在中央的影像中線還在中央，上下超出視窗。
+        QVERIFY(std::abs(toView(f.canvas, QPointF(600, 600)).y() - vh / 2.0) <= 1.0);
+        QVERIFY(toView(f.canvas, QPointF(600, 0)).y() < 0);
+        QVERIFY(toView(f.canvas, QPointF(600, 1200)).y() > vh);
+    }
+
+    void fitWidthNeverShowsSpaceAboveTheTopOrBelowTheBottom() {
+        Fixture f(1200, 1200);
+        const double vh = f.canvas.viewport()->height();
+        const double margin = tokens().interaction.fitMarginPx;
+        // 正在看影像最上方（在左上角放大）時適配寬度：上緣停在上邊界，不會露出影像上面的空白。
+        for (int i = 0; i < 8; ++i) sendWheel(f.canvas.viewport(), QPointF(5, 5), 1);
+        f.canvas.fitWidth();
+        QVERIFY2(std::abs(toView(f.canvas, QPointF(600, 0)).y() - margin) <= 1.0,
+                 qPrintable(QString::number(toView(f.canvas, QPointF(600, 0)).y())));
+        // 最下方也一樣：下緣停在下邊界。
+        f.canvas.fit();
+        for (int i = 0; i < 8; ++i) sendWheel(f.canvas.viewport(), QPointF(5, vh - 5), 1);
+        f.canvas.fitWidth();
+        QVERIFY2(std::abs(toView(f.canvas, QPointF(600, 1200)).y() - (vh - margin)) <= 1.0,
+                 qPrintable(QString::number(toView(f.canvas, QPointF(600, 1200)).y())));
+    }
+
+    void fitWidthCentresAnImageThatIsWiderThanTheWindowVertically() {
+        Fixture f(1200, 300);  // 比視窗扁：寬度撐滿之後，高度還放得下
+        const double vw = f.canvas.viewport()->width(), vh = f.canvas.viewport()->height();
+        const double margin = tokens().interaction.fitMarginPx;
+        sendWheel(f.canvas.viewport(), QPointF(100, 100), 4);  // 先縮放到偏離中心的地方
+        f.canvas.fitWidth();
+        QVERIFY(std::abs(f.canvas.viewScale() - (vw - 2 * margin) / 1200.0) < 1e-9);
+        QVERIFY(std::abs(toView(f.canvas, QPointF(600, 150)).y() - vh / 2.0) <= 1.0);
+    }
+
+    void fitWidthFollowsResizeWithoutDriftingUntilTheUserZooms() {
+        Fixture f(1200, 1200);
+        const double margin = tokens().interaction.fitMarginPx;
+        f.canvas.fitWidth();
+        const double row = toScene(f.canvas, f.viewCenter()).y();  // 視窗中央的影像列（影像中線）
+        // 拉大縮小幾次：縮放跟著寬度走，中央那一列不能每次 resize 就偏一點。
+        for (const QSize size : {QSize(800, 500), QSize(1100, 650), QSize(900, 560), QSize(1000, 700)}) {
+            f.canvas.resize(size);
+            QTest::qWait(10);
+            QVERIFY(f.canvas.fitMode() == ImageCanvas::FitMode::Width);
+            const double vw = f.canvas.viewport()->width();
+            QVERIFY(std::abs(f.canvas.viewScale() - (vw - 2 * margin) / 1200.0) < 1e-9);
+            const double now = toScene(f.canvas, f.viewCenter()).y();
+            QVERIFY2(std::abs(now - row) <= 2.0, qPrintable(QStringLiteral("centre row %1, was %2").arg(now).arg(row)));
+        }
+        sendWheel(f.canvas.viewport(), f.viewCenter(), 2);
+        QVERIFY(f.canvas.fitMode() == ImageCanvas::FitMode::None);
+        const double zoomed = f.canvas.viewScale();
+        f.canvas.resize(900, 600);
+        QTest::qWait(10);
+        QCOMPARE(f.canvas.viewScale(), zoomed);  // 使用者縮放過，縮放視窗不改變縮放
+    }
+
+    void panningEndsFitWidthToo() {
+        Fixture f(1200, 1200);
+        f.canvas.fitWidth();
+        f.canvas.panBy(QPoint(0, 40));
+        QVERIFY(f.canvas.fitMode() == ImageCanvas::FitMode::None);
+    }
+
+    void loadingAnImageGoesBackToFitWindow() {
+        Fixture f(1200, 1200);
+        f.canvas.fitWidth();
+        f.canvas.setImage(f.board.toQImage());
+        QVERIFY(f.canvas.fitMode() == ImageCanvas::FitMode::Window);
+        QVERIFY(f.canvas.isFitted());
+    }
+
+    void fitWidthIsClampedToTheZoomRange() {
+        Fixture f(20, 20);  // 很小的影像：撐滿寬度要放大約 4 760%，限制在 3 200%
+        f.canvas.fitWidth();
+        QCOMPARE(f.canvas.zoomPercent(), tokens().interaction.zoomMaxPercent);
+    }
+
     void cursorMovesReportImageCoordinates() {
         Fixture f;
         QSignalSpy spy(&f.canvas, &ImageCanvas::cursorMoved);
@@ -194,6 +283,7 @@ private slots:
         QVERIFY(rec.regions.empty());
         QVERIFY(!canvas.hasImage());
         canvas.fit();  // 沒有影像時不當機
+        canvas.fitWidth();
         sendWheel(canvas.viewport(), QPointF(100, 100), 3);
     }
 

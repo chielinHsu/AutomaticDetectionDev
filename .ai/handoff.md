@@ -3,12 +3,14 @@
 > 覆寫式交接單：每次收工整份重寫，不累積歷史（歷史在 `docs/changelog-ai.md`）。保持在 60 行內。
 > 流程見 `ai-handoff` skill。
 
-- 最後一位 agent：Claude Code (Claude Sonnet 5.5)
+- 最後一位 agent：Claude Code (Claude Opus 5.5)
 - 日期：2026-10-06
 
 ## 正在做
 
-無。**S04（Presenter、互動狀態機、復原／重做）已完成**：分支 `step/04-presenter`，以 `--no-ff` 合併到 `main`，tag `step-04-done`。全部只在本機，**沒有 push**。S05 由新的 session 做。
+無。**S04 之後的小修改〔適配寬度〕（`W`）已完成**：使用者同意後在分支 `feat/fit-width`（從 `main` 的 `5c8923f` 開出）commit，並以 `--no-ff` 合併到 `main`；只在本機，**沒有 push**，沒有打 tag（不是 Step）。改了 `ImageCanvas`（`FitMode`、`fitWidth()`）、`MainWindow`（選單、工具列、快捷鍵）、`copy.json`（`action.fitWidth`）、`ux-spec.md` 第 8 節與兩個測試檔。規則：寬度撐滿、保留中央那一列但不露出上下緣外的空白、影像比畫布扁時置中、resize 時沿用同一列（不重新讀，避免 NoAnchor 造成的偏移）；載入影像仍是適配視窗。
+
+**S04（Presenter、互動狀態機、復原／重做）已完成**：分支 `step/04-presenter`，以 `--no-ff` 合併到 `main`，tag `step-04-done`。全部只在本機，**沒有 push**。S05 由新的 session 做。
 **有兩件事等使用者決定**：（1）[ADR-009](../docs/adr/009-ui-toolkit-review-after-s02.md)（I1 在預算邊緣，要不要重審 UI 工具集）；（2）**U3（分數滑桿到重繪）超出預算**：5 832 個元件 p95 46–61 ms，預算 16 ms。預算數字沒有改，測試用 `knownOver("U3")` 把它列為已知超標（不是放寬）；降低成本（S11）或重新定義預算，由使用者決定。
 
 ## 已完成（S04）

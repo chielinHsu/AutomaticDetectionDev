@@ -59,6 +59,7 @@ public:
     EmptyCard* emptyCard() const { return emptyCard_; }
     QAction* toolAction(ToolId id) const;
     QAction* fitAction() const { return fitAction_; }
+    QAction* fitWidthAction() const { return fitWidthAction_; }
     QAction* openAction() const { return openAction_; }
     QAction* undoAction() const { return undoAction_; }
     QAction* redoAction() const { return redoAction_; }
@@ -137,6 +138,7 @@ private:
     QAction* undoAction_ = nullptr;
     QAction* redoAction_ = nullptr;
     QAction* fitAction_ = nullptr;
+    QAction* fitWidthAction_ = nullptr;
 
     QMenu* fileMenu_ = nullptr;
     QMenu* editMenu_ = nullptr;

@@ -20,13 +20,16 @@ class QGraphicsScene;
 
 namespace aoi::ui {
 
-// 影像畫布：游標中心縮放、平移、適配視窗、疊圖，以及把指標事件交給目前的工具。
+// 影像畫布：游標中心縮放、平移、適配視窗、適配寬度、疊圖，以及把指標事件交給目前的工具。
 //
 // 場景座標 ＝ 影像像素（原點在影像左上角，x 向右、y 向下）。縮放百分比 ＝ 螢幕（裝置無關）像素／影像像素 × 100。
 // 縮放、平移、適配是畫布自己的檢視狀態，不經過 Presenter，也不進復原堆疊。
 class ImageCanvas : public QGraphicsView, public ICanvasView, public IToolHost, public ICanvasInputGate {
     Q_OBJECT
 public:
+    // 目前的檢視是不是「適配」出來的：是的話，視窗大小改變時照同一種方式重新適配；使用者縮放或平移之後就是 None。
+    enum class FitMode { None, Window, Width };
+
     explicit ImageCanvas(const ThemeTokens& tokens, QWidget* parent = nullptr);
     ~ImageCanvas() override;
 
@@ -69,8 +72,13 @@ public:
     double zoomPercent() const { return viewScale() * 100.0; }
     // 以 viewPos（視埠座標）為中心縮放，factor > 1 放大。結果限制在 5%–3200%。游標下的影像點不會移位。
     void zoomAt(const QPointF& viewPos, double factor);
+    // 適配視窗：整張影像放得下，四周留 fitMarginPx。載入影像時用這個。
     void fit();
-    bool isFitted() const { return fitted_; }
+    // 適配寬度：影像寬度撐滿視窗（左右留 fitMarginPx），超出視窗的上下部分靠平移看。垂直方向保留目前
+    // 視窗中央那一列，但上緣、下緣不會離開邊界；影像比視窗矮時垂直置中。縮放同樣限制在 5%–3200%。
+    void fitWidth();
+    FitMode fitMode() const { return fitMode_; }
+    bool isFitted() const { return fitMode_ == FitMode::Window; }
     void panBy(const QPoint& deltaViewPx);  // 內容跟著 delta 移動（拖曳平移用）
 
     void applyTheme(const ThemeColors& colors);
@@ -117,6 +125,7 @@ private:
     void endPan();
     void updateCursor();
     void applyScale(double newScale, const QPointF& anchorViewPos);
+    void applyFitWidth();  // 用 fitWidthRow_ 當垂直的錨點
     void notifyScale();
 
     const ThemeTokens& tokens_;
@@ -135,7 +144,8 @@ private:
     bool toolsEnabled_ = true;
     bool busyCursor_ = false;
 
-    bool fitted_ = true;
+    FitMode fitMode_ = FitMode::Window;
+    double fitWidthRow_ = 0;  // 適配寬度時保持在視窗中央的影像列（場景座標 y）
     bool spaceDown_ = false;
     bool panning_ = false;
     bool toolDragging_ = false;
