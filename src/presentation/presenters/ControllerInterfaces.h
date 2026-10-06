@@ -38,6 +38,8 @@ public:
     virtual void setScoreThreshold(double value) = 0;
     virtual void setAngleRange(double minDeg, double maxDeg) = 0;
     virtual void setScanScope(int scopeIndex) = 0;
+    // 影像的有效位元數（S07）：0 ＝ 自動，8..16 ＝ 指定。立刻生效（不搜尋）。
+    virtual void setSignificantBits(int bits) = 0;
 };
 
 // ParamsPresenter 對 AutoRoiPresenter 的窄介面：它只需要「改門檻」與「改搜尋參數」。
@@ -50,6 +52,8 @@ public:
     virtual void applySearchParams(const aoi::SearchParams& params) = 0;
     // 比對範圍：目前只影響流程 B（樣本庫），所以只記下來。
     virtual void applyScanScope(int scopeIndex) = 0;
+    // 影像的有效位元數（S07）：重新換算顯示與之後的搜尋；已顯示的提案不重新搜尋。
+    virtual void applySignificantBits(int bits) = 0;
 };
 
 }  // namespace aoi::ui

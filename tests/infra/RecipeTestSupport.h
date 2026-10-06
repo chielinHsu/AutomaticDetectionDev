@@ -72,6 +72,7 @@ inline Recipe richRecipe(int components = 12) {
     r.board.imageWidth = 2592;
     r.board.imageHeight = 1944;
     r.board.umPerPixel = 12.345678901234567;
+    r.board.significantBits = 12;  // schema v2（S07）
     r.board.types = {richType("T0", 0), richType("T1", 1), richType("T2", 2), richType("T3", 3), richType("T4", 4), richType("T5", 5)};
     const double tricky[] = {0.1, 1.0 / 3.0, 1e-300, -123456.789012345678, 5e300, 2.5, 4096.0, std::numeric_limits<double>::denorm_min()};
     for (int i = 0; i < components; ++i) {
@@ -142,7 +143,8 @@ inline QString diffType(const ComponentType& a, const ComponentType& b, const QS
 inline QString diffRecipe(const Recipe& a, const Recipe& b) {
     const Board& x = a.board;
     const Board& y = b.board;
-    if (x.name != y.name || x.imageWidth != y.imageWidth || x.imageHeight != y.imageHeight || !sameBits(x.umPerPixel, y.umPerPixel))
+    if (x.name != y.name || x.imageWidth != y.imageWidth || x.imageHeight != y.imageHeight || !sameBits(x.umPerPixel, y.umPerPixel) ||
+        x.significantBits != y.significantBits)
         return QStringLiteral("board header");
     if (x.types.size() != y.types.size()) return QStringLiteral("type count");
     for (std::size_t i = 0; i < x.types.size(); ++i) {

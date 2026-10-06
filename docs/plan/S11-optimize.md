@@ -13,6 +13,8 @@
 
 > **S06 完成後的提醒（2026-10-06）**：有數字、沒有改的候選（`docs/steps/S06-image-storage/perf.md`）：（1）開圖在 UI 執行緒同步解碼（25 MP 的 PNG 約 0.5 秒、TIFF 約 0.6 秒）：可以改到背景解碼，但要先決定開圖期間的互動（狀態機沒有「開圖中」這個狀態）。（2）樣本庫存一筆要整份重寫（1 000 筆約 0.12–0.14 秒）：一個條目一個檔案可以改善，代價是 id 與「下一個號碼」的一致性。（3）12 bit 影像的顯示每次開圖轉一次 8 bit（一次複製，5 MP 約幾 ms）；16 bit 的影像畫布用 `Format_Grayscale16` 零複製，**繪製成本沒有量**。
 
+> **S07 完成後的提醒（2026-10-06）**：OpenCV 搜尋的候選（數字在 `docs/steps/S07-opencv/perf.md`）：（1）頂層的 `matchTemplate` 約佔 5 MP 種子搜尋的一半；（2）頂層的候選約是元件數的 2 倍（`minScore − 0.2` 放進來的假峰，精修時淘汰）；（3）流程 B 每個類型約 9 ms、每次重建範本（ADR-006 §7.3 的快取沒有做）；（4）`Gray16` 每次搜尋都轉一次 8 bit（種子一次、視窗一次），24 MP 的真實影像種子搜尋約 170 ms；（5）S07 已經做過一次改寫（精修的小分數圖自己算：T2a 193 → 64 ms，ADR-016 的證據），before／after 的方法可以沿用。
+
 <!--STE-->
 ## Purpose
 This step makes the slowest parts faster. We change only the parts that the test shows as slow.

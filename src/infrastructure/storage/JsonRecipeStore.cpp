@@ -1,6 +1,7 @@
 #include "infrastructure/storage/JsonRecipeStore.h"
 
 #include <QJsonObject>
+#include <QJsonValue>
 #include <QString>
 #include <new>
 #include <string>
@@ -10,7 +11,19 @@
 
 namespace aoi::infra {
 
-std::vector<json::Migration> JsonRecipeStore::builtInMigrations() { return {}; }  // v1 是第一版
+std::vector<json::Migration> JsonRecipeStore::builtInMigrations() {
+    std::vector<json::Migration> migrations;
+    // v1 → v2（S07）：board 補 significantBits ＝ 0（自動；v1 沒有覆寫）。board 不是物件的壞檔留給解碼器報錯。
+    migrations.push_back([](QJsonObject& root) -> Result<void> {
+        const QJsonValue board = root.value(QStringLiteral("board"));
+        if (!board.isObject()) return {};
+        QJsonObject b = board.toObject();
+        if (!b.contains(QStringLiteral("significantBits"))) b.insert(QStringLiteral("significantBits"), 0);
+        root.insert(QStringLiteral("board"), b);
+        return {};
+    });
+    return migrations;
+}
 
 JsonRecipeStore::JsonRecipeStore() : JsonRecipeStore(kSchemaVersion, builtInMigrations()) {}
 

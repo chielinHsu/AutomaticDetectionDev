@@ -25,6 +25,7 @@ public:
     std::vector<double> thresholds;
     std::vector<SearchParams> searches;
     std::vector<int> scopes;
+    std::vector<int> bits;
 
     SearchParams searchParams() const override { return params; }
     void applyThreshold(double t) override { thresholds.push_back(t); }
@@ -33,6 +34,7 @@ public:
         params = p;
     }
     void applyScanScope(int s) override { scopes.push_back(s); }
+    void applySignificantBits(int b) override { bits.push_back(b); }
 };
 
 }  // namespace
@@ -119,6 +121,49 @@ private slots:
         QVERIFY(panel.scopeCombo()->itemText(2).contains(QStringLiteral("library")));
     }
 
+    // ---- 影像位元數（S07）----
+    void theBitDepthComboShowsTheDetectedValueAndTheChoice() {
+        ParamsPanel panel;
+        QComboBox* combo = panel.bitsCombo();
+        QCOMPARE(combo->count(), 6);  // 自動、8、10、12、14、16
+        QVERIFY(!combo->isEnabled());  // 還沒有影像
+        QCOMPARE(combo->itemText(0), QStringLiteral("自動"));
+        ParamsState p;
+        p.detectedBits = 10;
+        p.significantBits = 12;
+        p.bitsApplicable = true;
+        QSignalSpy spy(&panel, &ParamsPanel::significantBitsChanged);
+        panel.setParams(p);
+        QCOMPARE(spy.count(), 0);  // 外面設的值不回報
+        QVERIFY(combo->isEnabled());
+        QCOMPARE(combo->itemText(0), QStringLiteral("自動（偵測：10 bit）"));
+        QCOMPARE(combo->currentData().toInt(), 12);
+        QCOMPARE(combo->currentText(), QStringLiteral("12 bit"));
+        // 不是 16 bit 灰階：停用。
+        p.bitsApplicable = false;
+        p.detectedBits = 0;
+        p.significantBits = 0;
+        panel.setParams(p);
+        QVERIFY(!combo->isEnabled());
+        QCOMPARE(combo->currentIndex(), 0);
+    }
+
+    void pickingABitDepthReportsTheBits() {
+        ParamsPanel panel;
+        QSignalSpy spy(&panel, &ParamsPanel::significantBitsChanged);
+        const int twelve = panel.bitsCombo()->findData(12);
+        QVERIFY(twelve > 0);
+        panel.bitsCombo()->setCurrentIndex(twelve);
+        emit panel.bitsCombo()->activated(twelve);
+        emit panel.bitsCombo()->activated(0);
+        QCOMPARE(spy.count(), 2);
+        QCOMPARE(spy.at(0).first().toInt(), 12);
+        QCOMPARE(spy.at(1).first().toInt(), 0);  // 自動
+        Translations::install(QStringLiteral("en"));
+        panel.retranslate();
+        QCOMPARE(panel.bitsCombo()->itemText(twelve), QStringLiteral("12-bit"));
+    }
+
     void disablingThePanelDisablesTheControls() {
         ParamsPanel panel;
         static_cast<IParamsView&>(panel).setEnabled(false);
@@ -128,6 +173,16 @@ private slots:
     }
 
     // ---- ParamsPresenter ----
+    void theBitDepthGoesStraightThrough() {
+        RecordingSink sink;
+        ParamsPresenter p(sink, 120);
+        p.setSignificantBits(12);
+        p.setSignificantBits(0);
+        QCOMPARE(sink.bits, (std::vector<int>{12, 0}));
+        QVERIFY(sink.searches.empty());  // 不搜尋
+        QVERIFY(!p.searchPending());
+    }
+
     void theThresholdGoesStraightThrough() {
         RecordingSink sink;
         ParamsPresenter p(sink, 120);

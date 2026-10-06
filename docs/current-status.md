@@ -3,7 +3,7 @@
 新 session 開工前先讀這份，再讀 `docs/plan/Sxx-*.md`。步驟完成後由該步驟的 session 更新。原檔名 `STATUS.md`，2026-10-05 更名為本檔以符合共用結構（見 `docs/adr/000-ai-agent-structure.md`）。各步驟的完整內容在 `docs/steps/Sxx-*/` 與 `docs/changelog-ai.md`，本檔只留重點。
 
 - 更新日期：2026-10-06
-- 階段：S00–S06 完成；S07 待開始。S01–S06 都已用 `--no-ff` 合併到 `main` 並打 tag（`step-01-done`…`step-06-done`）；AI 共用結構、commit 格式規則與 S04 之後的〔適配寬度〕也已合併到 `main`（全部只在本機，**沒有 push**）。**S06 起用 Qt 6.12.0**（使用者 2026-10-06 更新；6.8.0 仍在機器上）。**等使用者決定的事**：（1）[ADR-009](adr/009-ui-toolkit-review-after-s02.md)：I1 在預算邊緣、真實視窗超標；（2）**U3 超出預算**（S04）；（3）T3 要不要涵蓋散佈的點（S05）；（4）**存檔／開啟配方的 UI 放進哪一步**（S06 新增，見待辦；分層樣本庫各層的檔案位置也在那一步一起定）；（5）S06 的指標（開圖、存檔）要不要有預算
+- 階段：S00–S07 完成；S08 待開始。S01–S07 都已用 `--no-ff` 合併到 `main` 並打 tag（`step-01-done`…`step-07-done`）；AI 共用結構、commit 格式規則與 S04 之後的〔適配寬度〕也已合併到 `main`（全部只在本機，**沒有 push**）。S06 起用 Qt 6.12.0。**等使用者決定的事**：（1）[ADR-009](adr/009-ui-toolkit-review-after-s02.md)：I1 在預算邊緣、真實視窗超標；（2）**U3 超出預算**（S04）；（3）T3 要不要涵蓋散佈的點（S05）；（4）**存檔／開啟配方的 UI 放進哪一步**（S06；分層樣本庫各層的檔案位置、流程 B 的 UI 也在那一步一起定）；（5）S06 的指標（開圖、存檔）要不要有預算；（6）**S07 新增**：真實影像上 use case 的種子門檻與預設的分數門檻（0.70）偏低、晶格在空槽補假缺格、T7（流程 B）的預算（見「S07 的產出與發現」）
 
 | 步驟 | 層級 | 主題 | 狀態 | 分支 | tag |
 |---|---|---|---|---|---|
@@ -14,8 +14,8 @@
 | S04 | 系統 | Presenter、互動狀態機、復原/重做 | ✅ 完成（⚠ U3 超標、待使用者決定） | `step/04-presenter` | `step-04-done` |
 | S05 | 底層 | Domain：晶格估計與補漏（純 C++） | ✅ 完成 | `step/05-lattice` | `step-05-done` |
 | S06 | 底層 | 影像緩衝、轉接器、Recipe 儲存 | ✅ 完成 | `step/06-image-storage` | `step-06-done` |
-| S07 | 底層 | OpenCV back end | ⏳ 下一個 | `step/07-opencv` | |
-| S08 | 底層 | HALCON back end | ⬜ | `step/08-halcon` | |
+| S07 | 底層 | OpenCV back end | ✅ 完成（⚠ 真實影像的門檻與晶格待使用者決定） | `step/07-opencv` | `step-07-done` |
+| S08 | 底層 | HALCON back end | ⏳ 下一個 | `step/08-halcon` | |
 | S09 | 底層 | 契約測試與 A/B 比較 | ⬜ | `step/09-contract-ab` | |
 | S10 | 驗證 | 效能測試 harness 與回歸閘門 | ⬜ | `step/10-perf-harness` | |
 | S11 | 驗證 | 效能優化（先量再改） | ⬜ | `step/11-optimize` | |
@@ -43,17 +43,29 @@
 - **要留意的事**：（1）開圖仍在 UI 執行緒解碼（25 MP 的 PNG 約 0.5 秒停住）。（2）已知例外：16 階灰色表的 BMP（Qt 給 `Bgrx32`、OpenCV 給 `Gray8`）；灰階＋alpha 的 PNG 沒有驗證。（3）有效位元數是推測的，沒有覆寫的設定（配方或相機）。（4）分層樣本庫（TRI 的規則已做好）還沒有組裝進程式：三層各是哪個檔案（路徑）還沒定，**使用者決定等接樣本庫 UI 的那一步，和存檔／開啟配方的 UI 一起定**（建議值在 ADR-015）；存一筆要整份重寫。（5）HALCON 的轉換與來源沒有做（沒有開發檔，S08）。
 - **新增設計決定**：ADR-014（影像的所有權與複製）、ADR-015（配方與樣本庫的儲存）。`docs/plan/S07`–`S12` 開頭各加了「S06 完成後的提醒」。
 
+## S07 的產出與發現（2026-10-06）
+
+- **做了什麼**：OpenCV back end（`src/infrastructure/backend_opencv/`，ADR-016）：`OpenCvTemplateBuilder`（金字塔 × 旋轉範本，含周圍影像轉、不留空白的角）、`OpenCvPatternSearcher`（由粗到細的 NCC：頂層全部角度 → 往下逐層精修 ± 2 像素、爬坡 → 第 0 層拋物線內插位置與角度 → domain 的 NMS；視窗清單只轉換、只掃視窗附近）、`OpenCvCorrelation`（小的分數圖自己算：整數點積＋積分影像）、`OpenCvLibraryMatcher`（`ILibraryMatcher`，流程 B；**UI 沒有接**，使用者決定）、`OpenCvBackend`（工廠、`setOpenCvThreads`）。組裝根在 `AOI_WITH_OPENCV=ON` 時把 opencv 註冊成可用（`--backend opencv`），執行緒數和 JobRunner 共用 `app::workerThreads()`（核心數 − 1）。**use case、port、晶格沒有為了 OpenCV 改**（開放封閉）。
+- **使用者在 S07 的回答與決定**：（1）**12 bit 的影像存成 16 bit 容器、值 0..4095**（不是緊密打包的 TIFF）；（2）**有效位元數的覆寫在 S07 做**，做法由使用者選：存在板子裡（`Board::significantBits`，**配方 schema v2**，v1 由遷移補 0）、**換影像沿用**、UI 是**參數面板的下拉選單「影像位元數」**（自動（偵測：N bit）／8／10／12／14／16 bit）；（3）流程 B 只做 adapter、測試與 T7，**UI 先不接**；（4）提供兩張去識別化的真實影像（**不入版控**；路徑在 `.ai/handoff.md`）。
+- **有效位元數**：domain 的 `decideSignificantBits`（0 ＝ 自動；**比推測的小就不收**，影像裡有值會被截掉）；套用只改 view 的欄位（零複製）。畫布、use case 的對比檢查、OpenCV 搜尋器都讀 view 的位元數，所以 Presenter 在開圖與改設定時套上就夠了。這是 S07 對 domain／application 唯一的修改（`Board::significantBits`、`InspectionDocument::setSignificantBits`），為了使用者指定的功能，不是為了 OpenCV。
+- **驗證（都已實際執行）**：Release 45、Release＋OpenCV 50、Debug 45、Debug＋OpenCV 50 個 CTest 項目全過；`check-deps` 0 違規、自我測試 15 個 fixture；`ste-lint --strict` 0 錯誤；`diagram.md` 7 張 Mermaid 語法通過（mermaid 11，故意寫壞的一張被抓到）；`explainer.html` 在瀏覽器窗格操作過（0 個 JS 錯誤、375 px 寬沒有水平捲動）；變異測試 14 個抓到 13 個（M11「拿掉角度的爬坡」存活：測過的情境都等價）。
+- **效能（3 次，細節見 `docs/steps/S07-opencv/perf.md`）**：T1 p95 0.34–0.47 ms（預算 30）、**T2a** 5 MP 種子搜尋 p95 **67–72 ms**（預算 150）、**T4** 200 個視窗 p95 **31–33 ms**（預算 60）、**T6a 召回率 100%**（6 673／6 673）、**T6b** 位置誤差 p95 **0.106 px**（預算 0.5）。第一版的 T2a、T4 超過預算：精修的小分數圖 `matchTemplate` 仍走 DFT，改成自己算之後才通過（T2a 193 → 64 ms，ADR-016）。use case 整條（5 MP）67–70 ms；角度 ±180° 約是 ±5° 的 4 倍；25 MP 種子搜尋 0.27–0.29 秒；流程 B 每個候選類型 8–9 ms（T7，線性）。U3 仍超標（S04 起）。**limit 一個都沒改**，T1、T2a、T4、T6a、T6b 標 `calibrated`。
+- **真實影像的發現（要使用者決定）**：（1）HA（高角度光）的種子分數分兩群：≥ 0.85 幾乎都是針腳，0.70–0.85 多半是焊墊的邊緣；use case 的 `seedMinScore` 0.70 與預設的分數門檻 0.70 會把它們當成找到的，晶格因此只剩一維、信心 0.28。**要不要提高（例如 0.80–0.85）**？（2）LA（低角度光）的晶格在兩個空槽裡補了約 120 個假缺格（S05 已知失敗 #11，第一次在真實板子確認）。**要不要讓晶格不跨過空的區域**？兩件事都在 application／domain，S07 沒有改。整條 use case 在 24.4 MP 上 0.11–0.21 秒。
+- **已知限制**：角度誤差約是第 0 層步進的 0.2 倍（48×28 的範本最大 0.42°，範本角落位移約 0.2 像素）；範本有一部分在影像外的元件找不到；強度相關法對光照、反光、縮放敏感；流程 B 的範本每次重建、只有尺寸的預篩選，小的類型可能在大元件的一部分上得到高分。
+- **新增設計決定**：ADR-016（OpenCV 搜尋）；ADR-014、ADR-015 各加「後續（S07）」一節（12 bit 的存法與覆寫、配方 v2）。`docs/plan/S08`–`S12` 開頭各加了「S07 完成後的提醒」。
+
 ## 預算校準狀態
 
-`perf/budgets.json` 頂層仍是 `status: "proposed"`（T 類搜尋預算要等 S07）。T3 標 `calibrated`（S05）。UI 類：U1a、U1b、U4、I2、I5 標 `calibrated`，I1 標 `calibrated-at-limit`；S04 起 U2、I3、I4、I6 也標 `calibrated`，**U3 標 `measured-over-limit`**。**S06 沒有改 `budgets.json`**：S06 的指標（載入、複製次數、配方存讀）沒有預算，只記在 `docs/steps/S06-image-storage/perf.md` 與 `perf/baseline/casparhsu1-storage.json`；U4 在 Qt 6.12.0 重量過，記在 `perf.md`。S02–S05 的基準線（`perf/baseline/casparhsu1*.json`）是 Qt 6.8.0 的數字，只在這台機器可比較。
+`perf/budgets.json` 頂層仍是 `status: "proposed"`（T2b 等 S08、T5 等 S10）。T3 標 `calibrated`（S05）；**S07 把 T1、T2a、T4、T6a、T6b 標 `calibrated`**（limit 沒有改；新增 `searchCalibrationS07`；T7 的預算只在 `docs/steps/S07-opencv/perf.md` 提案，沒有寫進檔案）。UI 類：U1a、U1b、U4、I2、I5 標 `calibrated`，I1 標 `calibrated-at-limit`；S04 起 U2、I3、I4、I6 也標 `calibrated`，**U3 標 `measured-over-limit`**。**S06 沒有改 `budgets.json`**：S06 的指標（載入、複製次數、配方存讀）沒有預算，只記在 `docs/steps/S06-image-storage/perf.md` 與 `perf/baseline/casparhsu1-storage.json`；U4 在 Qt 6.12.0 重量過，記在 `perf.md`。S02–S05 的基準線（`perf/baseline/casparhsu1*.json`）是 Qt 6.8.0 的數字，只在這台機器可比較。
 
 ## 未解決事項
 
-- **存檔與開啟配方的 UI（必要功能，沒有排進任何一步）**：儲存層與背景存檔在 S06 做好了，畫面上的〔儲存〕仍停用，也沒有〔開啟配方〕；開啟配方還需要 schema v2（記住影像路徑）。需要使用者決定放進哪一步。**樣本庫 UI 也在同一步**：使用者 2026-10-06 決定，分層樣本庫三層的檔案位置（專案層、使用者層、系統層各放哪裡）等到那一步和這兩個 UI 一起定。
-- **S04 沒有涵蓋的 UI**：`LibraryPresenter`、`TypeEditorPresenter`（樣本庫面板、元件類型編輯器、流程 C）沒有任何一步的 plan 檔涵蓋；流程 B（區域掃描）的結果固定是「樣本庫是空的」；接受提案時的元件類型是暫時的（`X1…`）；沒有校正值的影像暫以 1 µm ＝ 1 像素展開框；晶格的信心與「建議檢查」還沒有顯示。
+- **真實影像上的門檻與晶格（S07 發現，等使用者決定）**：（1）use case 的 `seedMinScore` 與預設的分數門檻（都是 0.70）在使用者的影像上會放進焊墊邊緣（0.70–0.85）；（2）晶格在非矩形陣列的空槽裡補假缺格（S05 已知失敗 #11）。證據與疊圖的說明在 `docs/steps/S07-opencv/perf.md` §4；兩件事都在 application／domain。
+- **T7（流程 B 的樣本庫比對）的預算**：實測每個候選類型 8–9 ms、線性；提案在 `docs/steps/S07-opencv/perf.md` §2，要不要寫進 `perf/budgets.json` 是使用者的決定。
+- **存檔與開啟配方的 UI（必要功能，沒有排進任何一步）**：儲存層與背景存檔在 S06 做好了，畫面上的〔儲存〕仍停用，也沒有〔開啟配方〕；開啟配方還需要記住影像路徑（S07 的 schema v2 只加了 `board.significantBits`）。需要使用者決定放進哪一步。**樣本庫 UI 也在同一步**：使用者 2026-10-06 決定，分層樣本庫三層的檔案位置（專案層、使用者層、系統層各放哪裡）等到那一步和這兩個 UI 一起定；**流程 B 的 UI（`finishRegionScan` 接 `OpenCvLibraryMatcher`）也等那一步**（S07 的 `Backend` 結構沒有 `libraryMatcher` 欄位）。
+- **S04 沒有涵蓋的 UI**：`LibraryPresenter`、`TypeEditorPresenter`（樣本庫面板、元件類型編輯器、流程 C）沒有任何一步的 plan 檔涵蓋；流程 B（區域掃描）的結果固定是「樣本庫是空的」（S07 做好了 OpenCV 的比對器，但接受提案時類型沒有存參考影像、樣本庫也還沒組裝，所以畫面沒接）；接受提案時的元件類型是暫時的（`X1…`）；沒有校正值的影像暫以 1 µm ＝ 1 像素展開框；晶格的信心與「建議檢查」還沒有顯示。
 - ADR-006 未決：實例覆寫、Panel 多連板、角度正負號、窗的演算法與參數、自由公式。庫的分層 S06 已照 TRI 決定並實作（`LayeredLibraryStore`）；各層的檔案位置等接樣本庫 UI 的那一步（見上一條）。新預算 T7（區域掃描隨樣本庫大小 N）等 S07 實測後再提。
-- **HALCON 只有 runtime，沒有 `include`／`lib`（找不到 `HalconCpp.h`）：S08 前要補裝開發元件**。HALCON「每個條目一個 shape model」是預期做法，未驗證；ADR-010 的 OpenCV／HALCON 座標轉換未驗證（S07、S08）。
-- 真實板子影像（去識別化 1–2 張）— S07 開工時請使用者提供，並問 12 bit 的影像怎麼存（16 bit 容器還是緊密打包的 TIFF）。
+- **HALCON 只有 runtime，沒有 `include`／`lib`（找不到 `HalconCpp.h`）：S08 前要補裝開發元件**。HALCON「每個條目一個 shape model」是預期做法，未驗證；ADR-010 的 HALCON 座標轉換未驗證（S08）。OpenCV 端的轉換 S07 已實測並用測試鎖住（像素中心 ±0.5、金字塔換算、角度正負號）。
 - 設定記憶（主題、字級、語言）、減少動態、高 DPI 的實際外觀：**沒有做**。`QBENCHMARK` 沒有用到也沒有驗證（ADR-003）。
-- `AiInspTool.pro`：S06 納入 `image_qt` 與 `storage`（萬用字元）；Qt 6.12.0 的命令列 qmake ＋ jom 建置過、執行檔可以啟動；**沒有在 Qt Creator 裡實際載入過**；OpenCV、HALCON 還沒有納入（S07、S08）。
+- `AiInspTool.pro`：S06 納入 `image_qt` 與 `storage`（萬用字元）；Qt 6.12.0 的命令列 qmake ＋ jom 建置過、執行檔可以啟動；**沒有在 Qt Creator 裡實際載入過**；OpenCV、HALCON 沒有納入（OpenCV back end 只在 CMake 的 `*-opencv` preset；HALCON 在 S08）；S07 的參數面板改動用萬用字元自動納入；S07 用 Qt 6.12.0 的 qmake ＋ jom（Release）重新建置過，`--backend opencv` 以結束碼 2 明確失敗（訊息說要用 `AOI_WITH_OPENCV=ON`）。
 - AI 共用結構與 `ai-project-template/`（2026-10-05 套用並合併，見 `docs/adr/000-ai-agent-structure.md`）：stage 時一律明確列出路徑；Codex 端的流程沒有在本機端到端測過（該機器的 Codex CLI 無法執行 `codex exec`）。

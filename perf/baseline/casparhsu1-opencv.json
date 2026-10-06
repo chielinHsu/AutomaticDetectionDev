@@ -1,0 +1,894 @@
+{
+  "schema": 1,
+  "step": "S07",
+  "note": "OpenCV back end baseline recorded in S07. Numbers compare only on this machine. Each metric is the last of 3 runs of the same build (one session, back to back); medianRangeOf3Runs and p95RangeOf3Runs (p05 for T6a, higher is better) show the spread over all 3 runs. Synthetic boards from tests/support/synthetic_board; the real-image lines come from perf_opencv_real on the user's two de-identified 12-bit images (not in the repository; AOI_REAL_IMAGE_DIR).",
+  "method": "perf_opencv: T1, T2a, T4 5 warm-up + 30 runs; curves 1 warm-up + 5 runs; threads 2 warm-up + 10 runs; use case 25 runs, first 5 dropped; T7 10 runs (N = 1000: 3); peak memory 3 runs sampled every 1 ms. Median and p95. OpenCV threads = cores - 1 (product policy) unless TH-*.",
+  "runs": {
+    "perf_opencv": [
+      "opencv_20261006-193942.json",
+      "opencv_20261006-194555.json",
+      "opencv_20261006-195217.json"
+    ]
+  },
+  "machine": {
+    "buildType": "Release",
+    "commit": "5cf7748+uncommitted",
+    "compiler": "MSVC 194435228",
+    "cpu": "13th Gen Intel(R) Core(TM) i7-1360P",
+    "logicalCores": 16,
+    "machineName": "CasparHsu1",
+    "measurementHygiene": "process priority HIGH; power throttling off; thread pinned to logical CPU 0 (efficiency class 1 of 2 classes)",
+    "opencv": "4.9.0",
+    "opencvThreads": 15,
+    "os": "Windows 11 Version 23H2 (kernel 10.0.22631)",
+    "qt": "6.12.0",
+    "ramGB": 63.6
+  },
+  "metrics": [
+    {
+      "budget": 30,
+      "id": "T1",
+      "label": "template build, 64x32 sample, +-5 deg",
+      "median": 0.413,
+      "n": 30,
+      "p95": 0.466,
+      "pass": true,
+      "unit": "ms",
+      "medianRangeOf3Runs": [
+        0.271,
+        0.413
+      ],
+      "p95RangeOf3Runs": [
+        0.345,
+        0.466
+      ],
+      "passInAll3Runs": true
+    },
+    {
+      "id": "T1-360",
+      "label": "template build, 64x32 sample, +-180 deg",
+      "median": 4.756,
+      "n": 10,
+      "note": "2 warm-up, 10 runs",
+      "p95": 6.406,
+      "unit": "ms",
+      "medianRangeOf3Runs": [
+        4.113,
+        4.756
+      ],
+      "p95RangeOf3Runs": [
+        4.359,
+        6.406
+      ]
+    },
+    {
+      "budget": 150,
+      "id": "T2a",
+      "label": "seed search, 5 MP, 64x32, +-5 deg, 841 parts",
+      "median": 58.561,
+      "n": 30,
+      "note": "last run: convert 0.00, pyramid 1.62, coarse 22.08 (3 angles at level 2, 1653 candidates), refine 33.48, nms 1.49 ms; 841 matches",
+      "p95": 67.133,
+      "pass": true,
+      "unit": "ms",
+      "medianRangeOf3Runs": [
+        58.561,
+        60.125
+      ],
+      "p95RangeOf3Runs": [
+        67.133,
+        72.042
+      ],
+      "passInAll3Runs": true
+    },
+    {
+      "budget": 60,
+      "id": "T4",
+      "label": "windowed verify, 200 windows (1.5x template), floor 0.30",
+      "median": 24.984,
+      "n": 30,
+      "note": "600 matches; per-window sums: convert 0.26, pyramid 12.71, coarse 147.33, refine 196.97 ms",
+      "p95": 31.703,
+      "pass": true,
+      "unit": "ms",
+      "medianRangeOf3Runs": [
+        24.984,
+        27.115
+      ],
+      "p95RangeOf3Runs": [
+        30.546,
+        32.736
+      ],
+      "passInAll3Runs": true
+    },
+    {
+      "budget": 99,
+      "id": "T6a",
+      "label": "recall on the synthetic set (8 boards, 5 MP)",
+      "median": 100,
+      "n": 1,
+      "note": "6673 of 6673 parts",
+      "p05": 100,
+      "pass": true,
+      "unit": "percent",
+      "medianRangeOf3Runs": [
+        100,
+        100
+      ],
+      "p05RangeOf3Runs": [
+        100,
+        100
+      ],
+      "passInAll3Runs": true
+    },
+    {
+      "budget": 0.5,
+      "id": "T6b",
+      "label": "position error on the synthetic set",
+      "median": 0.01,
+      "n": 6673,
+      "note": "p95 of all found parts; max 0.503 px",
+      "p95": 0.106,
+      "pass": true,
+      "unit": "px",
+      "medianRangeOf3Runs": [
+        0.01,
+        0.01
+      ],
+      "p95RangeOf3Runs": [
+        0.106,
+        0.106
+      ],
+      "passInAll3Runs": true
+    },
+    {
+      "id": "A-0",
+      "label": "seed search, 5 MP, 64x32, +-0 deg",
+      "median": 14.79,
+      "n": 5,
+      "note": "1 warm-up, 5 runs; 1 angles at level 2",
+      "p95": 15.514,
+      "unit": "ms",
+      "medianRangeOf3Runs": [
+        13.615,
+        15.366
+      ],
+      "p95RangeOf3Runs": [
+        14.8,
+        17.061
+      ]
+    },
+    {
+      "id": "A-2",
+      "label": "seed search, 5 MP, 64x32, +-2 deg",
+      "median": 31.274,
+      "n": 5,
+      "note": "1 warm-up, 5 runs; 2 angles at level 2",
+      "p95": 35.234,
+      "unit": "ms",
+      "medianRangeOf3Runs": [
+        30.457,
+        36.405
+      ],
+      "p95RangeOf3Runs": [
+        35.234,
+        36.786
+      ]
+    },
+    {
+      "id": "A-5",
+      "label": "seed search, 5 MP, 64x32, +-5 deg",
+      "median": 45.821,
+      "n": 5,
+      "note": "1 warm-up, 5 runs; 3 angles at level 2",
+      "p95": 47.695,
+      "unit": "ms",
+      "medianRangeOf3Runs": [
+        45.821,
+        54.315
+      ],
+      "p95RangeOf3Runs": [
+        47.695,
+        55.719
+      ]
+    },
+    {
+      "id": "A-10",
+      "label": "seed search, 5 MP, 64x32, +-10 deg",
+      "median": 62.652,
+      "n": 5,
+      "note": "1 warm-up, 5 runs; 5 angles at level 2",
+      "p95": 75.411,
+      "unit": "ms",
+      "medianRangeOf3Runs": [
+        62.652,
+        74.091
+      ],
+      "p95RangeOf3Runs": [
+        74.631,
+        77.647
+      ]
+    },
+    {
+      "id": "A-20",
+      "label": "seed search, 5 MP, 64x32, +-20 deg",
+      "median": 68.58,
+      "n": 5,
+      "note": "1 warm-up, 5 runs; 8 angles at level 2",
+      "p95": 73.098,
+      "unit": "ms",
+      "medianRangeOf3Runs": [
+        68.58,
+        77.566
+      ],
+      "p95RangeOf3Runs": [
+        73.098,
+        85.146
+      ]
+    },
+    {
+      "id": "A-45",
+      "label": "seed search, 5 MP, 64x32, +-45 deg",
+      "median": 106.697,
+      "n": 5,
+      "note": "1 warm-up, 5 runs; 16 angles at level 2",
+      "p95": 114.797,
+      "unit": "ms",
+      "medianRangeOf3Runs": [
+        106.697,
+        112.551
+      ],
+      "p95RangeOf3Runs": [
+        114.797,
+        145.497
+      ]
+    },
+    {
+      "id": "A-90",
+      "label": "seed search, 5 MP, 64x32, +-90 deg",
+      "median": 142.044,
+      "n": 5,
+      "note": "1 warm-up, 5 runs; 30 angles at level 2",
+      "p95": 154.525,
+      "unit": "ms",
+      "medianRangeOf3Runs": [
+        142.044,
+        150.31
+      ],
+      "p95RangeOf3Runs": [
+        154.525,
+        172.204
+      ]
+    },
+    {
+      "id": "A-180",
+      "label": "seed search, 5 MP, 64x32, +-180 deg",
+      "median": 194.063,
+      "n": 5,
+      "note": "1 warm-up, 5 runs; 57 angles at level 2",
+      "p95": 230.538,
+      "unit": "ms",
+      "medianRangeOf3Runs": [
+        194.063,
+        195.569
+      ],
+      "p95RangeOf3Runs": [
+        203.155,
+        238.088
+      ]
+    },
+    {
+      "id": "S-1MP",
+      "label": "seed search, 1 MP (1280x800), 64x32, +-5 deg, 130 parts",
+      "median": 10.336,
+      "n": 5,
+      "note": "1 warm-up, 5 runs",
+      "p95": 13.856,
+      "unit": "ms",
+      "medianRangeOf3Runs": [
+        10.336,
+        12.432
+      ],
+      "p95RangeOf3Runs": [
+        12.578,
+        15.59
+      ]
+    },
+    {
+      "id": "S-5MP",
+      "label": "seed search, 5 MP (2592x1944), 64x32, +-5 deg, 841 parts",
+      "median": 38.814,
+      "n": 5,
+      "note": "1 warm-up, 5 runs",
+      "p95": 52.374,
+      "unit": "ms",
+      "medianRangeOf3Runs": [
+        38.814,
+        46.649
+      ],
+      "p95RangeOf3Runs": [
+        43.038,
+        52.374
+      ]
+    },
+    {
+      "id": "S-12MP",
+      "label": "seed search, 12 MP (4000x3000), 64x32, +-5 deg, 2115 parts",
+      "median": 122.648,
+      "n": 5,
+      "note": "1 warm-up, 5 runs",
+      "p95": 136.327,
+      "unit": "ms",
+      "medianRangeOf3Runs": [
+        102.922,
+        122.648
+      ],
+      "p95RangeOf3Runs": [
+        123.707,
+        136.327
+      ]
+    },
+    {
+      "id": "S-25MP",
+      "label": "seed search, 25 MP (5800x4350), 64x32, +-5 deg, 4623 parts",
+      "median": 289.356,
+      "n": 5,
+      "note": "1 warm-up, 5 runs",
+      "p95": 324.493,
+      "unit": "ms",
+      "medianRangeOf3Runs": [
+        269.747,
+        289.356
+      ],
+      "p95RangeOf3Runs": [
+        317.749,
+        336.262
+      ]
+    },
+    {
+      "id": "P-32x16",
+      "label": "seed search, 5 MP, 32x16 sample, +-5 deg, 870 parts",
+      "median": 53.995,
+      "n": 5,
+      "note": "1 warm-up, 5 runs; top level 1",
+      "p95": 58.388,
+      "unit": "ms",
+      "medianRangeOf3Runs": [
+        52.355,
+        55.886
+      ],
+      "p95RangeOf3Runs": [
+        58.388,
+        63.498
+      ]
+    },
+    {
+      "id": "P-64x32",
+      "label": "seed search, 5 MP, 64x32 sample, +-5 deg, 841 parts",
+      "median": 43.351,
+      "n": 5,
+      "note": "1 warm-up, 5 runs; top level 2",
+      "p95": 45.303,
+      "unit": "ms",
+      "medianRangeOf3Runs": [
+        34.904,
+        43.351
+      ],
+      "p95RangeOf3Runs": [
+        39.009,
+        45.303
+      ]
+    },
+    {
+      "id": "P-128x128",
+      "label": "seed search, 5 MP, 128x128 sample, +-5 deg, 98 parts",
+      "median": 36.031,
+      "n": 5,
+      "note": "1 warm-up, 5 runs; top level 4",
+      "p95": 38.039,
+      "unit": "ms",
+      "medianRangeOf3Runs": [
+        30.491,
+        36.031
+      ],
+      "p95RangeOf3Runs": [
+        34.998,
+        40.652
+      ]
+    },
+    {
+      "id": "TH-1",
+      "label": "seed search, 5 MP, OpenCV threads 1",
+      "median": 129.558,
+      "n": 10,
+      "note": "2 warm-up, 10 runs",
+      "p95": 138.373,
+      "unit": "ms",
+      "medianRangeOf3Runs": [
+        126.492,
+        132.982
+      ],
+      "p95RangeOf3Runs": [
+        138.373,
+        162.278
+      ]
+    },
+    {
+      "id": "TH-2",
+      "label": "seed search, 5 MP, OpenCV threads 2",
+      "median": 83.147,
+      "n": 10,
+      "note": "2 warm-up, 10 runs",
+      "p95": 91.274,
+      "unit": "ms",
+      "medianRangeOf3Runs": [
+        74.918,
+        83.482
+      ],
+      "p95RangeOf3Runs": [
+        85.813,
+        112.392
+      ]
+    },
+    {
+      "id": "TH-4",
+      "label": "seed search, 5 MP, OpenCV threads 4",
+      "median": 64.899,
+      "n": 10,
+      "note": "2 warm-up, 10 runs",
+      "p95": 76.151,
+      "unit": "ms",
+      "medianRangeOf3Runs": [
+        64.899,
+        83.064
+      ],
+      "p95RangeOf3Runs": [
+        76.151,
+        91.552
+      ]
+    },
+    {
+      "id": "TH-8",
+      "label": "seed search, 5 MP, OpenCV threads 8",
+      "median": 52.713,
+      "n": 10,
+      "note": "2 warm-up, 10 runs",
+      "p95": 59.834,
+      "unit": "ms",
+      "medianRangeOf3Runs": [
+        52.713,
+        58.005
+      ],
+      "p95RangeOf3Runs": [
+        59.834,
+        73.885
+      ]
+    },
+    {
+      "id": "TH-15",
+      "label": "seed search, 5 MP, OpenCV threads 15",
+      "median": 50.137,
+      "n": 10,
+      "note": "2 warm-up, 10 runs",
+      "p95": 57.5,
+      "unit": "ms",
+      "medianRangeOf3Runs": [
+        50.137,
+        57.145
+      ],
+      "p95RangeOf3Runs": [
+        57.5,
+        72.832
+      ]
+    },
+    {
+      "id": "UC-template",
+      "label": "use case stage 'template', 5 MP, 754 parts, 10% missing (87 holes verified)",
+      "median": 0.69,
+      "n": 20,
+      "note": "5 warm-up, 20 runs",
+      "p95": 1.41,
+      "unit": "ms",
+      "medianRangeOf3Runs": [
+        0.69,
+        0.819
+      ],
+      "p95RangeOf3Runs": [
+        1.41,
+        2.497
+      ]
+    },
+    {
+      "id": "UC-seed",
+      "label": "use case stage 'seed', 5 MP, 754 parts, 10% missing (87 holes verified)",
+      "median": 47.692,
+      "n": 20,
+      "note": "5 warm-up, 20 runs",
+      "p95": 52.288,
+      "unit": "ms",
+      "medianRangeOf3Runs": [
+        47.692,
+        49.836
+      ],
+      "p95RangeOf3Runs": [
+        52.288,
+        56.957
+      ]
+    },
+    {
+      "id": "UC-fit",
+      "label": "use case stage 'fit', 5 MP, 754 parts, 10% missing (87 holes verified)",
+      "median": 1.767,
+      "n": 20,
+      "note": "5 warm-up, 20 runs",
+      "p95": 1.963,
+      "unit": "ms",
+      "medianRangeOf3Runs": [
+        1.767,
+        1.885
+      ],
+      "p95RangeOf3Runs": [
+        1.963,
+        2.442
+      ]
+    },
+    {
+      "id": "UC-verify",
+      "label": "use case stage 'verify', 5 MP, 754 parts, 10% missing (87 holes verified)",
+      "median": 14.828,
+      "n": 20,
+      "note": "5 warm-up, 20 runs",
+      "p95": 19.77,
+      "unit": "ms",
+      "medianRangeOf3Runs": [
+        14.828,
+        16.212
+      ],
+      "p95RangeOf3Runs": [
+        17.89,
+        19.77
+      ]
+    },
+    {
+      "id": "UC-total",
+      "label": "use case stage 'total', 5 MP, 754 parts, 10% missing (87 holes verified)",
+      "median": 66.56,
+      "n": 20,
+      "note": "5 warm-up, 20 runs",
+      "p95": 73.416,
+      "unit": "ms",
+      "medianRangeOf3Runs": [
+        66.56,
+        70.335
+      ],
+      "p95RangeOf3Runs": [
+        73.416,
+        78.324
+      ]
+    },
+    {
+      "id": "MEM-5MP-Gray8",
+      "label": "peak extra memory of one seed search, 5MP Gray8 (image itself 4.8 MB)",
+      "median": 6.527,
+      "n": 3,
+      "note": "3 runs; sampled every 1 ms",
+      "p95": 7.137,
+      "unit": "MB",
+      "medianRangeOf3Runs": [
+        4.148,
+        6.527
+      ],
+      "p95RangeOf3Runs": [
+        6.871,
+        9.262
+      ]
+    },
+    {
+      "id": "MEM-5MP-Gray16",
+      "label": "peak extra memory of one seed search, 5MP Gray16 (image itself 9.6 MB)",
+      "median": 6.109,
+      "n": 3,
+      "note": "3 runs; sampled every 1 ms",
+      "p95": 11.234,
+      "unit": "MB",
+      "medianRangeOf3Runs": [
+        6.109,
+        13.012
+      ],
+      "p95RangeOf3Runs": [
+        11.234,
+        14.504
+      ]
+    },
+    {
+      "id": "MEM-25MP-Gray8",
+      "label": "peak extra memory of one seed search, 25MP Gray8 (image itself 24.1 MB)",
+      "median": 43.527,
+      "n": 3,
+      "note": "3 runs; sampled every 1 ms",
+      "p95": 45.352,
+      "unit": "MB",
+      "medianRangeOf3Runs": [
+        38.762,
+        47.387
+      ],
+      "p95RangeOf3Runs": [
+        44.926,
+        47.41
+      ]
+    },
+    {
+      "id": "MEM-25MP-Gray16",
+      "label": "peak extra memory of one seed search, 25MP Gray16 (image itself 48.1 MB)",
+      "median": 71.563,
+      "n": 3,
+      "note": "3 runs; sampled every 1 ms",
+      "p95": 73.324,
+      "unit": "MB",
+      "medianRangeOf3Runs": [
+        68.379,
+        71.563
+      ],
+      "p95RangeOf3Runs": [
+        70.793,
+        73.324
+      ]
+    },
+    {
+      "id": "T7-1",
+      "label": "library match, region 640x480, 1 candidate types",
+      "median": 7.967,
+      "n": 10,
+      "note": "1 warm-up, 10 runs; 64 components, 1 samples compared; 7.97 ms per type",
+      "p95": 10.194,
+      "unit": "ms",
+      "medianRangeOf3Runs": [
+        6.912,
+        8.315
+      ],
+      "p95RangeOf3Runs": [
+        8.852,
+        10.55
+      ]
+    },
+    {
+      "id": "T7-10",
+      "label": "library match, region 640x480, 10 candidate types",
+      "median": 77.347,
+      "n": 10,
+      "note": "1 warm-up, 10 runs; 64 components, 10 samples compared; 7.73 ms per type",
+      "p95": 87.331,
+      "unit": "ms",
+      "medianRangeOf3Runs": [
+        77.347,
+        84.704
+      ],
+      "p95RangeOf3Runs": [
+        87.331,
+        92.879
+      ]
+    },
+    {
+      "id": "T7-100",
+      "label": "library match, region 640x480, 100 candidate types",
+      "median": 849.279,
+      "n": 10,
+      "note": "1 warm-up, 10 runs; 120 components, 100 samples compared; 8.49 ms per type",
+      "p95": 877.311,
+      "unit": "ms",
+      "medianRangeOf3Runs": [
+        841.622,
+        866.368
+      ],
+      "p95RangeOf3Runs": [
+        877.311,
+        937.532
+      ]
+    },
+    {
+      "id": "T7-1000",
+      "label": "library match, region 640x480, 1000 candidate types",
+      "median": 8865.995,
+      "n": 3,
+      "note": "1 warm-up, 3 runs; 120 components, 1000 samples compared; 8.87 ms per type",
+      "p95": 9572.294,
+      "unit": "ms",
+      "medianRangeOf3Runs": [
+        8710.578,
+        9369.898
+      ],
+      "p95RangeOf3Runs": [
+        8871.823,
+        9897.104
+      ]
+    }
+  ],
+  "curves": {
+    "angleRange": [
+      {
+        "halfRangeDeg": 0,
+        "medianMs": 14.8,
+        "topAngles": 1
+      },
+      {
+        "halfRangeDeg": 2,
+        "medianMs": 31.3,
+        "topAngles": 2
+      },
+      {
+        "halfRangeDeg": 5,
+        "medianMs": 45.8,
+        "topAngles": 3
+      },
+      {
+        "halfRangeDeg": 10,
+        "medianMs": 62.7,
+        "topAngles": 5
+      },
+      {
+        "halfRangeDeg": 20,
+        "medianMs": 68.6,
+        "topAngles": 8
+      },
+      {
+        "halfRangeDeg": 45,
+        "medianMs": 106.7,
+        "topAngles": 16
+      },
+      {
+        "halfRangeDeg": 90,
+        "medianMs": 142,
+        "topAngles": 30
+      },
+      {
+        "halfRangeDeg": 180,
+        "medianMs": 194.1,
+        "topAngles": 57
+      }
+    ],
+    "imageSize": [
+      {
+        "medianMs": 10.3,
+        "megapixels": 1,
+        "parts": 130
+      },
+      {
+        "medianMs": 38.8,
+        "megapixels": 5,
+        "parts": 841
+      },
+      {
+        "medianMs": 122.6,
+        "megapixels": 12,
+        "parts": 2115
+      },
+      {
+        "medianMs": 289.4,
+        "megapixels": 25.2,
+        "parts": 4623
+      }
+    ],
+    "libraryTypes": [
+      {
+        "medianMs": 8,
+        "types": 1
+      },
+      {
+        "medianMs": 77.3,
+        "types": 10
+      },
+      {
+        "medianMs": 849.3,
+        "types": 100
+      },
+      {
+        "medianMs": 8866,
+        "types": 1000
+      }
+    ],
+    "sampleSize": [
+      {
+        "medianMs": 54,
+        "parts": 870,
+        "sample": "32x16",
+        "topLevel": 1
+      },
+      {
+        "medianMs": 43.4,
+        "parts": 841,
+        "sample": "64x32",
+        "topLevel": 2
+      },
+      {
+        "medianMs": 36,
+        "parts": 98,
+        "sample": "128x128",
+        "topLevel": 4
+      }
+    ],
+    "t6Cases": [
+      {
+        "case": "clean",
+        "found": 841,
+        "maxErrorPx": 0,
+        "present": 841
+      },
+      {
+        "case": "noise 4, blur 1",
+        "found": 841,
+        "maxErrorPx": 0.021,
+        "present": 841
+      },
+      {
+        "case": "noise 12, blur 2",
+        "found": 841,
+        "maxErrorPx": 0.069,
+        "present": 841
+      },
+      {
+        "case": "5% missing",
+        "found": 793,
+        "maxErrorPx": 0.021,
+        "present": 793
+      },
+      {
+        "case": "10% glare",
+        "found": 841,
+        "maxErrorPx": 0.503,
+        "present": 841
+      },
+      {
+        "case": "tilt 3 deg",
+        "found": 834,
+        "maxErrorPx": 0.07,
+        "present": 834
+      },
+      {
+        "case": "jitter 3 px",
+        "found": 841,
+        "maxErrorPx": 0.193,
+        "present": 841
+      },
+      {
+        "case": "12 bit",
+        "found": 841,
+        "maxErrorPx": 0.021,
+        "present": 841
+      }
+    ],
+    "threads": [
+      {
+        "medianMs": 129.6,
+        "threads": 1
+      },
+      {
+        "medianMs": 83.1,
+        "threads": 2
+      },
+      {
+        "medianMs": 64.9,
+        "threads": 4
+      },
+      {
+        "medianMs": 52.7,
+        "threads": 8
+      },
+      {
+        "medianMs": 50.1,
+        "threads": 15
+      }
+    ]
+  },
+  "realImages": [
+    "(HA (high angle light)) 0_0_HA.tif: 5314 x 4594 Gray16, 12 bit (detected), load 371 ms",
+    "(HA (high angle light))   sample problem: no | candidates 1264: sample 1, seed 1261, verified 2, predicted 0 | lowest score 0.675",
+    "(HA (high angle light))   seed scores: 0.70-0.75 342 | 0.75-0.80 113 | 0.80-0.85 57 | 0.85-0.90 152 | 0.90-0.95 77 | 0.95-1.00 520",
+    "(HA (high angle light))   lattice: found 1, lattices 1, u (46.01, 127.34), v (0.00, 0.00), rms 5.861 px, coverage 0.750, confidence 0.281, holes 2",
+    "(HA (high angle light))   time (last run): template 1.0, seed 183.3, fit 17.2, verify 1.7, total 204.8 ms | total over 3 runs: min 126.7, max 204.8 ms",
+    "(LA (low angle light)) 0_0_LA.tif: 5314 x 4594 Gray16, 12 bit (detected), load 486 ms",
+    "(LA (low angle light))   sample problem: no | candidates 1202: sample 1, seed 1032, verified 49, predicted 120 | lowest score 0.350",
+    "(LA (low angle light))   seed scores: 0.70-0.75 225 | 0.75-0.80 10 | 0.80-0.85 177 | 0.85-0.90 28 | 0.90-0.95 233 | 0.95-1.00 359",
+    "(LA (low angle light))   lattice: found 1, lattices 1, u (1.22, 154.10), v (-134.14, -75.93), rms 4.182 px, coverage 0.548, confidence 0.516, holes 169",
+    "(LA (low angle light))   time (last run): template 0.6, seed 142.5, fit 4.5, verify 25.1, total 173.6 ms | total over 3 runs: min 119.1, max 173.6 ms"
+  ]
+}

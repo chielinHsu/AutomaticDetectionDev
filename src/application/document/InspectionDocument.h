@@ -54,8 +54,13 @@ public:
 
     InspectionDocument();
 
-    // 開啟新影像：清掉板子與歷史，通知 Reset。
+    // 開啟新影像：清掉板子與歷史，通知 Reset。影像的有效位元數設定（Board::significantBits）保留：它是相機的設定，
+    // 下一張影像多半來自同一台相機（使用者 2026-10-06 決定：換影像沿用，直到使用者改回「自動」）。
     void reset(std::string name, int imageWidth, int imageHeight, double umPerPixel);
+
+    // 影像的有效位元數設定（S07）：0 ＝ 自動（看最大值推測），8..16 ＝ 指定。不是 Command：和分數門檻一樣是檢視的設定，
+    // 不進復原堆疊、不改「有沒有未存的修改」；存配方時一起存（schema v2）。不合法的值（不是 0、也不在 8..16）不收，回 false。
+    bool setSignificantBits(int bits);
 
     const Board& board() const { return board_; }
     const std::vector<ComponentInstance>& components() const { return board_.components; }

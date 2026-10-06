@@ -105,8 +105,16 @@ AutoRoiPresenter::~AutoRoiPresenter() {
 void AutoRoiPresenter::onImageOpened(const aoi::ImageView& image, const QString& name) {
     invalidateJobs();
     imageName_ = name;
-    image_ = image;  // 共用像素（零複製）；搜尋的 worker 讀同一塊
+    sourceImage_ = image;  // 共用像素（零複製）；搜尋的 worker 讀同一塊
+    image_ = image;
     session_.imageOpened(name.toStdString(), image.width, image.height, image.umPerPixel);
+    // 有效位元數的設定換影像沿用（相機的設定；使用者 2026-10-06 決定）：套到新影像上。新影像的值超過設定（BelowData）時用推測的值並說明。
+    const int requested = session_.document().board().significantBits;
+    const SignificantBitsDecision bits = applyBitsSetting(requested);
+    if (bits.choice == SignificantBitsChoice::BelowData) {
+        views_.status.showToast(uiText("ui.params.bits.rejected", {{"requested", QString::number(requested)},
+                                                                    {"bits", QString::number(bits.bits)}}));
+    }
     lastMs_ = -1.0;
     nudgeClock_.invalidate();
     views_.canvas.showRegionDraft(std::nullopt, DraftMode::Sample);
@@ -387,6 +395,33 @@ void AutoRoiPresenter::applyScanScope(int scopeIndex) {
         finishRegionScan();
 }
 
+void AutoRoiPresenter::applySignificantBits(int bits) {
+    if (!sourceImage_.valid() || !validSignificantBitsSetting(bits)) {
+        views_.params.setParams(currentParams());
+        return;
+    }
+    const SignificantBitsDecision decision = decideSignificantBits(sourceImage_.format, sourceImage_.significantBits, bits);
+    if (decision.choice == SignificantBitsChoice::BelowData) {
+        // 影像裡有值超過這個位元數：設定和資料矛盾，不收（下拉選單回到原來的值）。
+        views_.status.showToast(uiText("ui.params.bits.rejected", {{"requested", QString::number(bits)},
+                                                                    {"bits", QString::number(image_.significantBits)}}));
+        views_.params.setParams(currentParams());
+        return;
+    }
+    session_.document().setSignificantBits(bits);
+    applyBitsSetting(bits);
+    views_.params.setParams(currentParams());
+}
+
+SignificantBitsDecision AutoRoiPresenter::applyBitsSetting(int requested) {
+    const SignificantBitsDecision decision = decideSignificantBits(sourceImage_.format, sourceImage_.significantBits, requested);
+    if (decision.bits != image_.significantBits) {
+        image_ = withSignificantBits(sourceImage_, decision);
+        views_.canvas.showImage(image_);  // 顯示依位元數換到 8 bit（ImageItem），所以要重畫；之後的搜尋也用新的值
+    }
+    return decision;
+}
+
 // ---- 搜尋 ----------------------------------------------------------------------------------------------
 
 void AutoRoiPresenter::startSearch() {
@@ -553,6 +588,9 @@ ParamsState AutoRoiPresenter::currentParams() const {
     p.angleMinDeg = searchParams_.angleMinDeg;
     p.angleMaxDeg = searchParams_.angleMaxDeg;
     p.scopeIndex = scanScope_;
+    p.significantBits = session_.document().board().significantBits;
+    p.detectedBits = sourceImage_.format == PixelFormat::Gray16 ? sourceImage_.significantBits : 0;
+    p.bitsApplicable = sourceImage_.valid() && sourceImage_.format == PixelFormat::Gray16;
     return p;
 }
 

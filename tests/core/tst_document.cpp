@@ -390,6 +390,26 @@ private slots:
         QVERIFY(d.redoInfo()->kind == CommandKind::DeleteComponents);
     }
 
+    // S07：影像的有效位元數是相機的設定，換影像沿用（使用者 2026-10-06 決定）；不是 Command，不進復原堆疊。
+    void theBitDepthSettingSurvivesAResetAndIsNotACommand() {
+        InspectionDocument d = freshDocument();
+        Counting n;
+        n.attach(d);
+        QCOMPARE(d.board().significantBits, 0);
+        QVERIFY(d.setSignificantBits(12));
+        QCOMPARE(d.board().significantBits, 12);
+        QVERIFY(!d.canUndo());
+        QVERIFY(!d.isDirty());
+        QCOMPARE(n.resets, 0);
+        QVERIFY(!d.setSignificantBits(7));   // 只能是 0 或 8..16
+        QVERIFY(!d.setSignificantBits(17));
+        QCOMPARE(d.board().significantBits, 12);
+        d.reset("next.tif", 640, 480, 0.0);
+        QCOMPARE(d.board().significantBits, 12);
+        QVERIFY(d.setSignificantBits(0));
+        QCOMPARE(d.board().significantBits, 0);
+    }
+
     void resetClearsTheBoardTheHistoryAndTheCounters() {
         InspectionDocument d = freshDocument();
         Counting n;

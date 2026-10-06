@@ -13,6 +13,7 @@ namespace aoi::ui {
 //  - 角度範圍等需要重新搜尋的參數 → 防抖（預設 120 ms，tokens.json 的 timing.paramDebounce）後才交出去，
 //    拖曳中不會排滿工作佇列；交出去之後由 JobRunner 的 latest-wins 取代舊的搜尋（T5）。
 //  - 比對範圍 → 立刻交出去（只影響流程 B）。
+//  - 影像的有效位元數（S07）→ 立刻交出去（不搜尋，只重新換算顯示）。
 // 只在 UI 執行緒使用。
 class ParamsPresenter : public QObject, public IParamsController {
     Q_OBJECT
@@ -22,6 +23,7 @@ public:
     void setScoreThreshold(double value) override;
     void setAngleRange(double minDeg, double maxDeg) override;
     void setScanScope(int scopeIndex) override;
+    void setSignificantBits(int bits) override;
 
     int debounceMs() const { return timer_.interval(); }
     bool searchPending() const { return timer_.isActive(); }

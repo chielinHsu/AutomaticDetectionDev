@@ -1,5 +1,10 @@
 #include "infrastructure/backend_opencv/OpenCvImages.h"
 
+#include <opencv2/imgproc.hpp>
+
+#include "domain/image_copy.h"
+#include "domain/image_depth.h"
+
 namespace aoi::infra {
 namespace {
 
@@ -51,6 +56,29 @@ MatView borrowAsMat(const ImageView& view) {
     cv::Mat mat(view.height, view.width, typeOf(view.format), const_cast<std::uint8_t*>(view.data),
                 static_cast<std::size_t>(view.strideBytes));
     return {mat, view.owner};
+}
+
+GrayRoi toGray8(const ImageView& view, const cv::Rect& roi) {
+    if (!view.valid() || roi.width <= 0 || roi.height <= 0) return {};
+    if (roi.x < 0 || roi.y < 0 || roi.x + roi.width > view.width || roi.y + roi.height > view.height) return {};
+    const MatView whole = borrowAsMat(view);
+    const cv::Mat part = whole.mat(roi);
+    GrayRoi out;
+    switch (view.format) {
+        case PixelFormat::Gray8:
+            out.mat = part;
+            out.owner = whole.owner;
+            return out;
+        case PixelFormat::Gray16:
+            part.convertTo(out.mat, CV_8U, 255.0 / normalizedMax(effectiveBits(view)));
+            break;
+        case PixelFormat::Bgrx32: cv::cvtColor(part, out.mat, cv::COLOR_BGRA2GRAY); break;
+        case PixelFormat::Bgr24: cv::cvtColor(part, out.mat, cv::COLOR_BGR2GRAY); break;
+        case PixelFormat::Rgb24: cv::cvtColor(part, out.mat, cv::COLOR_RGB2GRAY); break;
+    }
+    out.copied = true;
+    countImageCopy(static_cast<std::size_t>(out.mat.total()));
+    return out;
 }
 
 }  // namespace aoi::infra

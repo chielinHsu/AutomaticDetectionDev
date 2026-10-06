@@ -17,6 +17,8 @@
 
 > **S06 完成後的提醒（2026-10-06）**：（1）`tests/infra/perf_storage`（label `perf`）量影像載入（Qt 與 OpenCV、5 MP 與 25 MP、BMP／PNG／JPEG／TIFF／16 bit）、轉換的複製次數、配方 500／5 000 個元件的存讀、背景存檔佔呼叫端的時間、1 000 筆樣本庫；**這些都沒有預算**（要不要加，是對預算的決定）。基準線在 `perf/baseline/casparhsu1-storage.json`。U4 的量測改走產品的 `QtImageSource`。（2）S06 起用 **Qt 6.12.0**：`docs/steps/S06-image-storage/perf.md` 有同一個時段、同一份程式在 6.8.0 與 6.12.0 各跑一次全部效能測試的比較；S02–S05 的基準線是 6.8.0 量的，回歸閘門比較時要注意 Qt 版本。（3）開圖在 UI 執行緒解碼：25 MP 的 PNG 約 0.4 秒畫面停住，矩陣要有這一格。
 
+> **S07 完成後的提醒（2026-10-06）**：（1）`tests/backend/perf_opencv`（label `perf`）量 T1、T2a、T4、T6a／T6b、T7（樣本庫 N ＝ 1、10、100、1000）、角度範圍／影像大小（1–25 MP）／樣本大小的曲線、OpenCV 的執行緒數、use case 的各階段（`UC-*`）、峰值記憶體（背景執行緒每 1 ms 取樣 private bytes）；結果 `perf/results/opencv_*.json` 有 `curves` 一節（`explainer.html` 用它），基準線 `perf/baseline/casparhsu1-opencv.json`。（2）`perf/budgets.json` 的 T1、T2a、T4、T6a、T6b 已在 S07 校準（limit 沒有改）；T5 只有 use case 的部分（`UC-total`，沒有 UI），T7 的預算只是提案（`perf.md`，等使用者決定）。（3）`perf_opencv_real` 要設 `AOI_REAL_IMAGE_DIR` 才跑，沒有設就跳過（CTest 算通過）：回歸閘門不要依賴它。
+
 <!--STE-->
 ## Purpose
 This step builds the full performance test. It measures the search time, the screen update time and the interaction time.

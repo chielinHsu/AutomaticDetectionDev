@@ -83,7 +83,8 @@ private slots:
         QVERIFY2(loaded.ok(), loaded.ok() ? "" : loaded.error().message.c_str());
         const QString diff = diffRecipe(original, loaded.value());
         QVERIFY2(diff.isEmpty(), qPrintable(diff));
-        QCOMPARE(loaded.value().schemaVersion, 1);
+        QCOMPARE(loaded.value().schemaVersion, JsonRecipeStore::kSchemaVersion);
+        QCOMPARE(loaded.value().board.significantBits, 12);
         // 參考影像讀回來是自己擁有的緊密緩衝
         const ImageView& ref = loaded.value().board.types[1].referenceImage;
         QVERIFY(ref.owner != nullptr);
@@ -154,6 +155,7 @@ private slots:
         QCOMPARE(b.imageWidth, 2592);
         QCOMPARE(b.imageHeight, 1944);
         QCOMPARE(b.umPerPixel, 12.5);
+        QCOMPARE(b.significantBits, 0);  // v1 沒有這個欄位：遷移補 0（自動）
         QCOMPARE(b.types.size(), std::size_t{2});
         const ComponentType& ic = b.types[0];
         QCOMPARE(ic.id, std::string("T1"));
@@ -205,6 +207,19 @@ private slots:
         QCOMPARE(recipe.params.maxMatches, std::size_t{5000});
     }
 
+    // ---- v2 範例檔（S07：board.significantBits；tests/infra/fixtures/recipe-v2.json，之後的版本也要讀得進來）----
+    void theV2FixtureLoadsAndOnlyAddsTheBitDepth() {
+        JsonRecipeStore store;
+        const Result<Recipe> v2 = store.load(utf8(fixture("recipe-v2.json")));
+        QVERIFY2(v2.ok(), v2.ok() ? "" : v2.error().message.c_str());
+        QCOMPARE(v2.value().schemaVersion, 2);
+        QCOMPARE(v2.value().board.significantBits, 12);
+        // 除了位元數，和 v1 範例是同一份配方。
+        Recipe v1 = store.load(utf8(fixture("recipe-v1.json"))).value();
+        v1.board.significantBits = 12;
+        QVERIFY2(diffRecipe(v1, v2.value()).isEmpty(), qPrintable(diffRecipe(v1, v2.value())));
+    }
+
     void theV1FixtureSurvivesASaveAndLoad() {
         JsonRecipeStore store;
         const Result<Recipe> first = store.load(utf8(fixture("recipe-v1.json")));
@@ -227,7 +242,8 @@ private slots:
         const QByteArray bytes = readBytes(path);
         const QJsonObject root = QJsonDocument::fromJson(bytes).object();
         QCOMPARE(root.value(QStringLiteral("format")).toString(), QStringLiteral("aoi-recipe"));
-        QCOMPARE(root.value(QStringLiteral("schemaVersion")).toInt(), 1);
+        QCOMPARE(root.value(QStringLiteral("schemaVersion")).toInt(), JsonRecipeStore::kSchemaVersion);
+        QCOMPARE(root.value(QStringLiteral("board")).toObject().value(QStringLiteral("significantBits")).toInt(), 12);
         QVERIFY(bytes.contains("\n    "));  // 縮排：方便比對與人工檢查
         QVERIFY(!bytes.startsWith("\xEF\xBB\xBF"));
     }
@@ -236,7 +252,9 @@ private slots:
     void olderFilesAreMigratedStepByStep() {
         std::vector<int> calls;
         std::vector<int> seenVersions;
-        std::vector<json::Migration> migrations;
+        // 內建的 v1 → v2，再加兩個假的（v2 → v3、v3 → v4）：假裝這個程式是 v4。
+        std::vector<json::Migration> migrations = JsonRecipeStore::builtInMigrations();
+        QCOMPARE(migrations.size(), std::size_t{1});
         migrations.push_back([&](QJsonObject& root) -> Result<void> {
             calls.push_back(1);
             seenVersions.push_back(root.value(QStringLiteral("schemaVersion")).toInt());
@@ -249,11 +267,11 @@ private slots:
             if (!root.value(QStringLiteral("addedByMigration1")).toBool()) return makeError(ErrorCode::Internal, "order");
             return {};
         });
-        JsonRecipeStore store(3, migrations);  // 假裝這個程式是 v3
+        JsonRecipeStore store(4, migrations);
         const Result<Recipe> r = store.load(utf8(fixture("recipe-v1.json")));
         QVERIFY2(r.ok(), r.ok() ? "" : r.error().message.c_str());
         QCOMPARE(calls, (std::vector<int>{1, 2}));
-        QCOMPARE(seenVersions, (std::vector<int>{1, 2}));  // 每升一版，schemaVersion 跟著改
+        QCOMPARE(seenVersions, (std::vector<int>{2, 3}));  // 每升一版，schemaVersion 跟著改
         QCOMPARE(r.value().schemaVersion, 1);              // 回報檔案原本的版本
     }
 
@@ -271,9 +289,9 @@ private slots:
 
     void aFileFromANewerProgramIsRefused() {
         QTemporaryDir dir = makeTempDir();
-        const QString path = dir.filePath(QStringLiteral("v2.json"));
+        const QString path = dir.filePath(QStringLiteral("v3.json"));
         QJsonObject root = fixtureObject();
-        root.insert(QStringLiteral("schemaVersion"), 2);
+        root.insert(QStringLiteral("schemaVersion"), JsonRecipeStore::kSchemaVersion + 1);
         QVERIFY(writeBytes(path, QJsonDocument(root).toJson()));
         const Result<Recipe> r = JsonRecipeStore().load(utf8(path));
         QCOMPARE_CODE(r.error().code, ErrorCode::FormatInvalid);
@@ -306,6 +324,8 @@ private slots:
         row("duplicate type id", setAt(QStringLiteral("board.types.1.id"), QStringLiteral("T1")), "board.types[1].id is used twice");
         row("negative image width", setAt(QStringLiteral("board.imageWidth"), -5), "board.imageWidth is out of range");
         row("negative calibration", setAt(QStringLiteral("board.umPerPixel"), -1), "board.umPerPixel must not be negative");
+        row("7 significant bits", setAt(QStringLiteral("board.significantBits"), 7), "board.significantBits must be 0 or 8..16");
+        row("17 significant bits", setAt(QStringLiteral("board.significantBits"), 17), "board.significantBits is out of range");
         row("negative matrix rows", setAt(QStringLiteral("board.types.0.groups.1.matrix.rows"), -1), "matrix.rows is out of range");
         row("aliases not text", setAt(QStringLiteral("board.types.0.aliases"), QJsonArray{1, 2}), "board.types[0].aliases[0] must be a string");
         row("image not base64", setAt(QStringLiteral("board.types.0.referenceImage.data"), QStringLiteral("***")), "referenceImage.data is not valid base64");

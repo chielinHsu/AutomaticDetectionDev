@@ -5,6 +5,7 @@
 #include <iterator>
 
 #include "domain/box_expander.h"
+#include "domain/image_depth.h"
 
 namespace aoi {
 
@@ -205,7 +206,9 @@ private:
 InspectionDocument::InspectionDocument() = default;
 
 void InspectionDocument::reset(std::string name, int imageWidth, int imageHeight, double umPerPixel) {
+    const int significantBits = board_.significantBits;  // 相機的設定：換影像沿用
     board_ = Board{};
+    board_.significantBits = significantBits;
     board_.name = std::move(name);
     board_.imageWidth = imageWidth;
     board_.imageHeight = imageHeight;
@@ -214,6 +217,12 @@ void InspectionDocument::reset(std::string name, int imageWidth, int imageHeight
     lastTypeId_.clear();
     history_.clear();
     notify(DocumentChange::Cause::Reset, CommandKind::Accept, 0);
+}
+
+bool InspectionDocument::setSignificantBits(int bits) {
+    if (!validSignificantBitsSetting(bits)) return false;
+    board_.significantBits = bits;
+    return true;
 }
 
 const ComponentInstance* InspectionDocument::find(int componentId) const {

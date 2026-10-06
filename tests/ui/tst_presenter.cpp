@@ -1,10 +1,14 @@
 // Presenter 的整合測試：使用者的操作（滑鼠、鍵盤、按鈕）進去，畫面上的結果出來。
 // 用產品的接線（core → MainWindow → AppPresenters）加上假 back end，在 offscreen 平台跑真的 QThreadPool。
+#include <QComboBox>
 #include <QDir>
 #include <QThread>
 #include <QtTest>
 
 #include "PresenterRig.h"
+#include "domain/image_buffer.h"
+#include "domain/image_depth.h"
+#include "presentation/params/ParamsPanel.h"
 #include "QtTestPrinters.h"
 
 using namespace aoi;
@@ -17,6 +21,18 @@ namespace {
 QString zh(const char* id, TextArgs args = {}) {
     Translations::install(QStringLiteral("zh_TW"));
     return uiText(id, args);
+}
+
+// 16 bit 灰階、有紋理的影像，最大值 maxValue（S07 的有效位元數）。看最大值推測的位元數放在 significantBits，和影像來源一樣。
+aoi::ImageView gray16Image(int w, int h, int maxValue) {
+    aoi::ImageBuffer buffer(w, h, aoi::PixelFormat::Gray16);
+    for (int y = 0; y < h; ++y) {
+        auto* row = reinterpret_cast<std::uint16_t*>(buffer.row(y));
+        for (int x = 0; x < w; ++x) row[x] = static_cast<std::uint16_t>(((x / 8 + y / 8) % 2 ? maxValue : maxValue / 4) - (x + y) % 16);
+    }
+    aoi::ImageView view = buffer.view();
+    view.significantBits = aoi::detectSignificantBits(view);
+    return view;
 }
 
 }  // namespace
@@ -59,6 +75,62 @@ private slots:
         QCOMPARE(r.document().board().umPerPixel, 12.5);
         QCOMPARE(r.document().board().imageWidth, 640);
         QVERIFY(r.canvas()->imageItem()->image().constBits() == view.data);
+    }
+
+    // ---- 影像的有效位元數（S07；使用者 2026-10-06 決定：存在板子裡、換影像沿用、參數面板的下拉選單）----
+    void aDarkTwelveBitImageCanBeToldItsBitDepthAndTheNextImageKeepsIt() {
+        Rig r;
+        const aoi::ImageView dark = gray16Image(320, 240, 1000);  // 12 bit 相機的暗影像：看最大值會推測成 10 bit
+        QCOMPARE(dark.significantBits, 10);
+        r.window.setImage(dark, QStringLiteral("dark.tif"));
+        QCoreApplication::processEvents();
+        QComboBox* combo = r.window.paramsPanel()->bitsCombo();
+        QVERIFY(combo->isEnabled());
+        QCOMPARE(combo->itemText(0), zh("ui.params.bits.auto", {{"bits", QStringLiteral("10")}}));
+        QCOMPARE(r.presenter().image().significantBits, 10);
+        // 畫布顯示：推測的 10 bit 把 1000 畫成 1000 >> 2 ＝ 250（太亮）。
+        QCOMPARE(qGray(r.canvas()->imageItem()->image().pixel(4, 12)), 250);  // 這個像素是 1000
+
+        const int twelve = combo->findData(12);
+        combo->setCurrentIndex(twelve);
+        emit combo->activated(twelve);
+        QCOMPARE(r.document().board().significantBits, 12);
+        QCOMPARE(r.presenter().image().significantBits, 12);
+        QVERIFY(r.presenter().image().data == dark.data);  // 只改欄位，不複製像素
+        QCOMPARE(qGray(r.canvas()->imageItem()->image().pixel(4, 12)), 62);  // 1000 >> 4：相機真正的亮度
+        QVERIFY(r.document().historyDepth() == 0);  // 是設定，不是一個可以復原的修改
+
+        // 下一張影像（同一台相機）：沿用 12 bit。
+        r.window.setImage(gray16Image(320, 240, 900), QStringLiteral("dark2.tif"));
+        QCoreApplication::processEvents();
+        QCOMPARE(r.document().board().significantBits, 12);
+        QCOMPARE(r.presenter().image().significantBits, 12);
+        QCOMPARE(combo->currentData().toInt(), 12);
+
+        // 改回自動。
+        emit combo->activated(0);
+        QCOMPARE(r.document().board().significantBits, 0);
+        QCOMPARE(r.presenter().image().significantBits, 10);
+    }
+
+    void aBitDepthBelowThePixelValuesIsRefused() {
+        Rig r;
+        r.window.setImage(gray16Image(320, 240, 4000), QStringLiteral("bright.tif"));  // 推測 12 bit
+        QCoreApplication::processEvents();
+        QComboBox* combo = r.window.paramsPanel()->bitsCombo();
+        const int ten = combo->findData(10);
+        combo->setCurrentIndex(ten);
+        emit combo->activated(ten);
+        QCOMPARE(r.document().board().significantBits, 0);  // 沒有收
+        QCOMPARE(r.presenter().image().significantBits, 12);
+        QCOMPARE(combo->currentIndex(), 0);                   // 選單回到原來的值
+        QCOMPARE(r.hint(), zh("ui.params.bits.rejected", {{"requested", QStringLiteral("10")}, {"bits", QStringLiteral("12")}}));
+    }
+
+    void anEightBitImageHasNoBitDepthChoice() {
+        Rig r;
+        r.open(320, 240);
+        QVERIFY(!r.window.paramsPanel()->bitsCombo()->isEnabled());
     }
 
     void aBrokenFileWithoutAnImageShowsAnErrorCardAndDismissesToEmpty() {

@@ -1,0 +1,83 @@
+{
+    "format": "aoi-recipe",
+    "schemaVersion": 2,
+    "board": {
+        "name": "板子 A.png",
+        "imageWidth": 2592,
+        "imageHeight": 1944,
+        "umPerPixel": 12.5,
+        "significantBits": 12,
+        "types": [
+            {
+                "id": "T1",
+                "libId": "lib-7",
+                "partNumber": "8371",
+                "aliases": ["SOP20", "20-SOIC"],
+                "name": "SOIC-20",
+                "category": "ic",
+                "groups": [
+                    {
+                        "id": 1,
+                        "kind": "body",
+                        "widthUm": 6400,
+                        "heightUm": 3900,
+                        "centerXUm": 0,
+                        "centerYUm": 0,
+                        "matrix": { "rows": 1, "cols": 1, "pitchXUm": 0, "pitchYUm": 0, "skipped": [] },
+                        "window": { "parentGroupId": 0, "offsetXRatio": 0, "offsetYRatio": 0, "widthRatio": 0.8, "heightRatio": 0.6, "algo": "" }
+                    },
+                    {
+                        "id": 2,
+                        "kind": "pin",
+                        "widthUm": 450,
+                        "heightUm": 1200,
+                        "centerXUm": 0,
+                        "centerYUm": -2600,
+                        "matrix": { "rows": 2, "cols": 10, "pitchXUm": 1270, "pitchYUm": 5200, "skipped": [{ "row": 0, "col": 3 }] },
+                        "window": { "parentGroupId": 0, "offsetXRatio": 0, "offsetYRatio": 0, "widthRatio": 0.8, "heightRatio": 0.6, "algo": "" }
+                    },
+                    {
+                        "id": 3,
+                        "kind": "window",
+                        "widthUm": 0,
+                        "heightUm": 0,
+                        "centerXUm": 0,
+                        "centerYUm": 0,
+                        "matrix": { "rows": 1, "cols": 1, "pitchXUm": 0, "pitchYUm": 0, "skipped": [] },
+                        "window": { "parentGroupId": 2, "offsetXRatio": 0.1, "offsetYRatio": -0.25, "widthRatio": 1.4, "heightRatio": 2, "algo": "Solder" }
+                    }
+                ],
+                "referenceImage": { "width": 3, "height": 2, "format": "Gray8", "umPerPixel": 12.5, "significantBits": 0, "encoding": "base64", "data": "ChQeKDI8" }
+            },
+            {
+                "id": "X1",
+                "libId": "",
+                "partNumber": "",
+                "aliases": [],
+                "name": "X1",
+                "category": "other",
+                "groups": [
+                    {
+                        "id": 1,
+                        "kind": "body",
+                        "widthUm": 40.25,
+                        "heightUm": 20.5,
+                        "centerXUm": 0,
+                        "centerYUm": 0,
+                        "matrix": { "rows": 1, "cols": 1, "pitchXUm": 0, "pitchYUm": 0, "skipped": [] },
+                        "window": { "parentGroupId": 0, "offsetXRatio": 0, "offsetYRatio": 0, "widthRatio": 0.8, "heightRatio": 0.6, "algo": "" }
+                    }
+                ],
+                "referenceImage": { "width": 2, "height": 1, "format": "Gray16", "umPerPixel": 0, "significantBits": 16, "encoding": "base64", "data": "NBL//w==" }
+            }
+        ],
+        "components": [
+            { "id": 1, "name": "U1", "pose": { "x": 812.5, "y": 433.25, "angleDeg": 90 }, "side": "top", "typeId": "T1", "state": "sample", "score": 1, "origin": "auto" },
+            { "id": 2, "name": "U2", "pose": { "x": 1012.5, "y": 433.125, "angleDeg": -0.5 }, "side": "bottom", "typeId": "T1", "state": "found", "score": 0.875, "origin": "auto" },
+            { "id": 5, "name": "X1", "pose": { "x": 100, "y": 200, "angleDeg": 0 }, "side": "top", "typeId": "X1", "state": "inferred", "score": null, "origin": "auto" },
+            { "id": 9, "name": "X2", "pose": { "x": 140, "y": 200, "angleDeg": 0 }, "side": "top", "typeId": "X1", "state": "found", "score": null, "origin": "manual" },
+            { "id": 10, "name": "X3", "pose": { "x": 180, "y": 200, "angleDeg": 0 }, "side": "top", "typeId": "X1", "state": "rejected", "score": 0.25, "origin": "auto" }
+        ]
+    },
+    "params": { "minScore": 0.7, "angleMinDeg": -10, "angleMaxDeg": 10, "maxMatches": 5000 }
+}

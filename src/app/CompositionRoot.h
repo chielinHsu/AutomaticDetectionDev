@@ -16,6 +16,9 @@
 // app 層：組裝根。這裡是整個程式唯一同時認識 application 與所有 adapter 的地方（依賴反轉：use case 只認識 port）。
 namespace aoi::app {
 
+// 背景工作的執行緒數：核心數 − 1（保留一個給 UI 執行緒），至少 1。JobRunner 的 worker 與 OpenCV 的平行迴圈都用它（ADR-016）。
+std::size_t workerThreads();
+
 // 註冊所有 back end：可用的與不可用的（附原因）。新增一個 back end ＝ 在這裡加一行，其他地方都不必改。
 // 不可用的 back end 也要登記，這樣 --backend=halcon 與 UI 的選單才能給出明確的訊息。
 BackendRegistry makeBackendRegistry();

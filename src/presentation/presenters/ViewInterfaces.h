@@ -56,6 +56,10 @@ struct ParamsState {
     double angleMinDeg = -5.0;
     double angleMaxDeg = 5.0;
     int scopeIndex = 0;  // 0 ＝ 先板子後整庫、1 ＝ 只用板子、2 ＝ 整個樣本庫
+    // 影像的有效位元數（S07）：設定值（0 ＝ 自動，8..16）、看最大值推測的值（16 bit 影像才有）、能不能設定（只有 16 bit 灰階）。
+    int significantBits = 0;
+    int detectedBits = 0;
+    bool bitsApplicable = false;
 };
 
 class IParamsView {

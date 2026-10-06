@@ -659,6 +659,26 @@
       "zh_TW": "整個樣本庫",
       "en": "The whole library"
     },
+    "ui.params.bits": {
+      "zh_TW": "影像位元數",
+      "en": "Image bit depth"
+    },
+    "ui.params.bits.auto": {
+      "zh_TW": "自動（偵測：{bits} bit）",
+      "en": "Auto (detected: {bits}-bit)"
+    },
+    "ui.params.bits.autoNone": {
+      "zh_TW": "自動",
+      "en": "Auto"
+    },
+    "ui.params.bits.value": {
+      "zh_TW": "{bits} bit",
+      "en": "{bits}-bit"
+    },
+    "ui.params.bits.rejected": {
+      "zh_TW": "影像裡有超過 {requested} bit 的值，維持 {bits} bit。",
+      "en": "The image has values above {requested}-bit. It stays {bits}-bit."
+    },
     "ui.status.compared": {
       "zh_TW": "比對 {n} 個樣本",
       "en": "{n} samples compared"
