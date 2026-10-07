@@ -7,7 +7,7 @@
 //   2. 漸進驗證：依頁面的順序走訪，每個格子「找到／推算」的判斷完全相同，最後的模型與推算的位置相同。
 //      頁面每找到一個就把所有點重新算一遍；C++ 用正規方程累加器每次 O(1) 更新——結果要一樣，這也證明 O(1) 的更新是對的。
 //   3. 估計器（不知道索引）：LatticeEstimator 只拿到點，要自己找出晶格；每個點的格點位置 ＝ 頁面用已知索引擬合的結果。
-// CTest 的 s00_demo_fixture_is_current 另外檢查 fixture 與 S00 頁面一致（頁面改了，fixture 就過期）。
+// scripts/dev/test.ps1 的 s00_demo_fixture_is_current 另外檢查 fixture 與 S00 頁面一致（頁面改了，fixture 就過期）。
 #include <QtTest>
 #include <QFile>
 #include <QJsonArray>

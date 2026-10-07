@@ -17,6 +17,8 @@
 
 > **S08 完成後的提醒（2026-10-07）**：HALCON 的候選（數字在 `docs/steps/S08-halcon/perf.md`）：（1）`create_shape_model` 約 10 ms（OpenCV 的範本 0.4 ms），流程 B 每個類型都要建一次：在樣本庫載入時快取模型（ADR-006 §7.3）對 HALCON 的效果比對 OpenCV 大；（2）`Gray16` 換 8 bit 每次搜尋一次（查表，5 MP 約 8 ms），`nativeGray16`（原生 `uint2`，零複製）一樣準、更快，是不是預設要和 S09 的 A/B 一起決定；（3）S08 已經做過一次「先量再改」：Gray16 的轉換由逐像素 `lround`（5 MP 213 ms）改成查表（約 8 ms）。（4）授權第一次檢查約 1.6 秒（HALCON 的初始化），在建立 back end 時做；如果要在背景先暖機，要先有數字與 UI 的決定。
 
+> **建置改 qmake 之後的提醒（2026-10-07，[ADR-018](../adr/018-qmake-only-build.md)）**：建置只用 qmake（`AiInspTool/AiInspTool.pro`；CMake、preset、CTest 都已移除，S02–S08 文件裡的那些指令是歷史紀錄，對照表在 ADR-018），執行檔叫 `AiInspTool.exe`（GUI 子系統），在 `<建置>/bin`。OpenCV 與 HALCON **預設編進去**（以前的 preset `release-halcon`）；關掉用 qmake 變數 `AOI_WITH_OPENCV=OFF`／`AOI_WITH_HALCON=OFF`。命令列：`scripts/dev/test.ps1`（建置＋測試；`-Config Debug|Profile`、`-NoOpenCv`、`-NoHalcon`、`-Perf`、`-Filter`、`-NoBuild`）；Qt Creator 開 `AiInspTool/AiInspTool.pro` 也能建置、執行與跑測試。**新增測試**：在 `AiInspTool/tests/<資料夾>/` 加一個 `.pro`（照同資料夾的寫法：`TARGET`、需要時 `AOI_LINK_EXTRA`、`include(<資料夾>_tests.pri)`、`SOURCES`），再列進 `AiInspTool/tests/tests.pro` 的 `AOI_TESTS`（效能量測列進 `AOI_PERF_TESTS`；只有某個 back end 才有的放進對應的 `equals(AOI_WITH_…, ON)` 區塊）。**新增原始碼**要加進對應的 `.pro`（不會自動納入）。S09 之前還有一個 session B（授權提醒的卡片、執行中切換 back end、Designer 的 `.ui`），開工時先看 `.ai/handoff.md`。before／after 用 `test.ps1 -Perf`（Release；`-NoBuild` 重跑不重建）。S02–S08 的基準線是 CMake 的建置量的；建置改 qmake 時在 qmake 的 Release 重量過一次全部效能量測（數字在 `docs/changelog-ai.md` 那一筆），旗標的最佳化相同（`-O2`、`NDEBUG`）。
+
 <!--STE-->
 ## Purpose
 This step makes the slowest parts faster. We change only the parts that the test shows as slow.

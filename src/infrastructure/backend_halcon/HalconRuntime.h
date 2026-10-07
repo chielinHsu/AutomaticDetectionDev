@@ -5,7 +5,7 @@
 
 // infrastructure/backend_halcon：執行時的 HALCON 程式庫（S08）。本檔不 include HALCON 的標頭，組裝根可以直接用。
 //
-// halconcpp.dll 是延遲載入的（cmake/FindHalconLocal.cmake 的 /DELAYLOAD）：沒有安裝 HALCON 的電腦，程式照樣啟動。
+// halconcpp.dll 是延遲載入的（AiInspTool/qmake/aoi_target.pri 的 /DELAYLOAD）：沒有安裝 HALCON 的電腦，程式照樣啟動。
 // 代價是「第一次呼叫 HALCON 時才載入」：DLL 不在、或版本不合（少了某個函式），延遲載入會丟出結構化例外，程式當掉。
 // 所以任何 HALCON 呼叫之前，先問 halconRuntimeProblem()：它在受保護的地方把 DLL 與所有匯入的函式一次載好。
 namespace aoi::infra {

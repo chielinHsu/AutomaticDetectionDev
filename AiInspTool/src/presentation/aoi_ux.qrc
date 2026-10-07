@@ -1,0 +1,6 @@
+<RCC>
+    <qresource prefix="/aoi/ux">
+        <file alias="tokens.json">../../../docs/ux/tokens.json</file>
+        <file alias="copy.json">../../../docs/ux/copy.json</file>
+    </qresource>
+</RCC>

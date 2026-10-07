@@ -24,6 +24,43 @@
 - 下一位 agent 需要知道的限制、否決的做法、不要還原的修改
 ```
 
+## 2026-10-08 — Claude Code (Claude Opus 5.5)（S09 之前的 session A：建置改成只用 qmake）
+
+### 完成
+- 使用者 2026-10-07 的決定：建置只用 qmake（`AiInspTool/AiInspTool.pro` 位置不變，包含所有程式庫、程式與所有 Qt Test）、移除 CMake、執行檔改叫 `AiInspTool.exe`、OpenCV 與 HALCON 預設編進去、Qt Creator 的 Debug／Release／Profile 都要能建置。session 中使用者決定：精靈產生的 `AiInspTool/main.cpp`、`mainwindow.*` **保留**；主目錄 `AiInspTool/` 的舊原地建置輸出與 `.qtcreator/AiInspTool.pro.user` 由 agent 在合併前刪除。分支 `build/qmake-only`（從 `main` 的 `bd4e285`），在 worktree 做。
+- 先用小範例驗證推論：subdirs 的子專案寫成 `../lib/lib.pro` 時，輸出跑到 `<建置>/../lib`（建置資料夾外面，三種組態共用）→ 所有 `.pro`／`.pri` 放在 `AiInspTool/` 底下對照 `src/`、`tests/`，原始碼用 `$$AOI_ROOT` 引用（ADR-018）。
+- qmake 專案：`AiInspTool.pro`（subdirs；qmake 時印出這次建置有哪些功能）、`.qmake.conf`、`qmake/`（`aoi_options`、`aoi_deps`＝依賴表、`aoi_opencv`、`aoi_halcon`、`aoi_target`、`aoi_lib`、`aoi_test`）、`src/src.pro`＋13 個程式庫＋`app/app.pro`（`AiInspTool.exe`，GUI 子系統）、`tests/tests.pro`（測試清單，qmake 時寫 `aoi-tests.txt`、`aoi-perf-tests.txt`）＋`test_support.pro`＋59 個測試的 `.pro`＋5 個資料夾的 `*_tests.pri`。檔案明確列出。`aoi_ux.qrc` 搬到 `AiInspTool/src/presentation/`，由用到 presentation 的程式內嵌；OpenCV 的 DLL 由 `backend_opencv.pro` 的 `COPIES` 複製到 `<建置>/bin`；`/IGNORE:4199`（LNK4199，連了組裝根但沒用到 HALCON 的測試，29 個）。
+- `tests/support/test_environment.cpp`：每個測試在 `main` 之前設 offscreen 與字型（不覆寫已有的設定），Qt Creator 直接執行測試也一樣。
+- `scripts/dev/test.ps1` 改寫：qmake → `jom qmake_all` → jom（和 Qt Creator 相同）；`-Config Release|Debug|Profile`、`-NoOpenCv`、`-NoHalcon`、`-Perf`、`-Filter`、`-NoBuild`、`-BuildDir`、`-TimeoutSec`、`-Jobs`；照清單跑、每項逾時、失敗印 log、列出通過數與「有跳過項目的測試」、4 個 node 檢查（`check_deps_catches_a_violation` 要失敗才算通過）。`env.ps1` 改成 MSVC＋qmake＋jom。兩個腳本都是 UTF-8 with BOM（PowerShell 5.1）。
+- `CompositionRoot.cpp` 的「沒有編進程式」訊息改成 qmake 的說法（保留 `AOI_WITH_OPENCV=ON`／`AOI_WITH_HALCON=ON` 字樣）；註解裡的 CMake／CTest／`aoi.exe`（`HalconRuntime.h`、`perf_halcon*.cpp`、`perf_opencv_real.cpp`、`tst_cli.cpp`、`tst_lattice_crosscheck.cpp`、`tst_lattice_explainer.cpp`、`tools/check-deps.mjs`）。
+- 證明等價之後移除 CMake：21 個 `CMakeLists.txt`、`cmake/`（2 個）、`CMakePresets.json`。`.gitignore`（根目錄與 `AiInspTool/`）改成 qmake 的輸出與 Qt Creator 的快取。
+- 文件：ADR-018（新）、ADR-003 與 ADR-017 的「後續」、`decisions.md`、`AI_CONTEXT.md`（技術棧、環境、目錄、建置與測試、VERIFIED、Context Routing）、`docs/architecture.md`（依賴改由 `aoi_deps.pri` 表達、模組表）、`README.md`、`docs/plan/S09`–`S12`（改掉 preset／label／CTest 的說法，加「建置改 qmake 之後的提醒」）、`docs/perf-test-plan.md`、`docs/00-master-plan.md`（一格）、`docs/current-status.md`。`docs/steps/S02`–`S08` 是歷史紀錄，不改（對照表在 ADR-018）。
+
+### 修改的檔案
+- 新增：`AiInspTool/.qmake.conf`、`AiInspTool/qmake/*.pri`（7 個）、`AiInspTool/src/**.pro`（15 個）、`AiInspTool/tests/**`（`tests.pro`、`support/test_support.pro`、59 個測試 `.pro`、5 個 `*_tests.pri`）、`tests/support/test_environment.cpp`、`docs/adr/018-qmake-only-build.md`
+- 搬移：`AiInspTool/aoi_ux.qrc` → `AiInspTool/src/presentation/aoi_ux.qrc`
+- 修改：`AiInspTool/AiInspTool.pro`、`AiInspTool/.gitignore`、`.gitignore`、`scripts/dev/env.ps1`、`scripts/dev/test.ps1`、`src/app/CompositionRoot.cpp`、上面列的註解、文件
+- 刪除：`CMakeLists.txt`、`CMakePresets.json`、`cmake/AoiTargets.cmake`、`cmake/FindHalconLocal.cmake`、`src/**/CMakeLists.txt`（13 個）、`tests/**/CMakeLists.txt`（7 個）
+
+### 驗證
+- 8 種組合（`test.ps1` 的 Release／Debug × 兩個都關／`-NoHalcon`／`-NoOpenCv`／預設）移除 CMake 前後各一輪，全部通過：45／50／48／53（Release 與 Debug 相同，和 CTest 時代的數量一樣）。第一輪 HALCON 的測試在 Release、Debug 都有跑（29／12／9 項，0 跳過）；第二輪 Release 也有跑，**第二輪 Debug 的 HALCON 測試因為讀不到 dongle（錯誤 2300）整組跳過**。
+- Qt Creator 的三種組態（Qt Creator 20 的 qmake 參數、建置資料夾 `AiInspTool/build/Desktop_Qt_6_12_0_MSVC2022_64bit_{Debug,Release,Profile}`）：建置成功、0 個警告、各 60 個執行檔與 OpenCV 的 DLL；旗標看過（Release／Profile 有 `-O2 -DNDEBUG`，Debug `-MDd` 沒有 `NDEBUG`）。Profile 跑全部測試：53／53（HALCON 的 3 個跳過，dongle）。
+- 實際啟動：Release 開使用者的 `0_0_B.tif`（16 bit LZW）成功（截圖確認影像、偵測 12 bit），`--backend halcon` 時 stderr 有授權提醒（2026-10-07，dongle 還讀得到時）；Qt Creator 模擬的 Release：`--backend opencv` 開同一張 TIFF 成功，`--backend halcon` 在讀不到 dongle 時結束碼 2、原因寫在 stderr。`--help`、參數錯誤經管線執行時照常寫到 stdout／stderr。
+- Qt Test 的純文字輸出不寫到被接走的 stdout，`-xml`、`-lightxml` 會寫（實測）。
+- qmake 的錯誤：`AOI_OPENCV_DIR`、`AOI_HALCON_SDK_DIR` 指錯、`AOI_WITH_HALCON=no` 都以結束碼 3 停下並說明。
+- `test.ps1 -Perf`（Release，單次）：10 項通過；T1 0.31、T2a 56.8、T4 29.0 ms、T6b 0.106 px、T3 0.48、U1b 3.9、U4-PNG 100、I1 6.9、U3 16.5（已知超標）、I3 25.9 ms，和 S05–S07 的文件同一個量級。`perf_halcon` 因為 dongle 跳過。預算沒有改。
+- `node tools/check-deps.mjs`（0 違規）、`node tools/ste-lint.mjs`（0 error）、`node tools/check-contrast.mjs`（0 失敗）、`scripts/ai/check-ai-structure.ps1`（OK）。
+
+### 未完成
+- **HALCON 讀不到 dongle（錯誤 2300）時的驗證**：重插 dongle 後補跑 `test.ps1 -Config Debug -Filter 'tst_halcon*'`、`test.ps1 -Perf -Filter 'perf_halcon'`。
+- 新的專案還沒有在 Qt Creator 的畫面裡打開過（只用命令列模擬同樣的步驟）。
+
+### 注意事項
+- 建置進行中不要改 `.pro`／`.pri`：Makefile 會觸發 qmake 重跑。
+- `scripts/**/*.ps1` 要存成 UTF-8 with BOM；bash 的 heredoc 會吃掉反斜線，改 `.pri`、JSON 用檔案寫入。
+- qmake 把 `#` 當成註解的開頭（引號裡也是）；`$$cat()` 的結果要先放進變數再 `for`。
+- 不要把 `/IGNORE:4199` 拿掉（理由在 `aoi_target.pri`）；不要把測試清單改成看 `bin/` 的檔案。
+
 ## 2026-10-07 — Claude Code (Claude Opus 5.5)（S08：HALCON back end）
 
 ### 完成

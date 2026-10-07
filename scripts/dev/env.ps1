@@ -1,12 +1,12 @@
-﻿# 開發環境：把 MSVC 2022 (vcvars64)、Qt、CMake、Ninja 放進目前這個 PowerShell session。
+﻿# 開發環境：把 MSVC 2022 (vcvars64)、Qt（qmake）與 jom 放進目前這個 PowerShell session。
 #
 # 用法（要用 dot-source，環境變數才會留在目前的 session）：
 #   . .\scripts\dev\env.ps1
 #
 # 路徑預設是本機實測的位置（見 AI_CONTEXT.md 的環境表）。換機器時用環境變數覆寫，不要改這個檔：
 #   AOI_QT_ROOT     Qt 的 msvc2022_64 資料夾   （預設 D:\Qt\6.12.0\msvc2022_64；S06 起。S02-S05 用 6.8.0）
-#   AOI_QT_TOOLS    Qt Tools 資料夾            （預設 D:\Qt\Tools）
-# VS 2022 用 vswhere 找，不寫死路徑。
+#   AOI_QT_TOOLS    Qt Tools 資料夾            （預設 D:\Qt\Tools；jom 在 QtCreator\bin\jom）
+# VS 2022 用 vswhere 找，不寫死路徑。建置只用 qmake（ADR-018）；CMake 與 Ninja 不再需要。
 
 $aoiPrevEap = $ErrorActionPreference   # dot-source 會改到呼叫端的設定，結尾還原
 $ErrorActionPreference = 'Stop'
@@ -32,9 +32,8 @@ foreach ($line in $dump) {
 }
 
 $extra = @(
-    (Join-Path $qtTools 'CMake_64\bin'),
-    (Join-Path $qtTools 'Ninja'),
-    (Join-Path $qtRoot 'bin')
+    (Join-Path $qtRoot 'bin'),
+    (Join-Path $qtTools 'QtCreator\bin\jom')
 )
 foreach ($p in $extra) {
     if (-not (Test-Path $p)) { throw "找不到路徑：$p" }
@@ -42,20 +41,17 @@ foreach ($p in $extra) {
 $env:PATH = ($extra -join ';') + ';' + $env:PATH
 $env:AOI_QT_ROOT = $qtRoot
 
-# cl.exe 的 /showIncludes 輸出是中文（這個 VS 只裝了 1028 繁中資源；實測 VSLANG=1033 沒有效果），
-# 它的編碼取決於主控台字碼頁。CMake 在 configure 時把當時的前綴（「注意: 包含檔案:」）寫進 build.ninja，
-# 之後 build 時字碼頁若不同（例如從 Git Bash 啟動 powershell.exe 就會），Ninja 認不得前綴，
-# 標頭檔的相依就沒有記錄：只改標頭檔不會重新編譯，輸出還會被亂碼洪水淹沒（實測發生過）。
-# 所以進入開發環境時，把主控台字碼頁固定成系統的 OEM 字碼頁；configure 與 build 都要在這個環境裡做。
+# 把主控台字碼頁固定成系統的 OEM 字碼頁（這台是繁中 Windows，cl.exe 的訊息是中文）。
+# CMake＋Ninja 時代這一步是必要的（Ninja 靠 /showIncludes 的中文前綴記錄標頭相依）；qmake 的 Makefile 自己掃 #include，
+# 不再依賴它，保留是為了讓 cl 的中文訊息在不同的啟動方式（例如從 Git Bash 啟動 powershell.exe）下一致。
 try {
     $oemCp = [Globalization.CultureInfo]::CurrentCulture.TextInfo.OEMCodePage
     if ([Console]::OutputEncoding.CodePage -ne $oemCp) { & chcp.com $oemCp | Out-Null }
 } catch { }
 
 Write-Host "MSVC  : $(cmd.exe /c "cl.exe 2>&1" | Select-Object -First 1)"
-Write-Host "CMake : $((& cmake.exe --version | Select-Object -First 1))"
-Write-Host "Ninja : $(& ninja.exe --version)"
-Write-Host "Qt    : $qtRoot"
+Write-Host "qmake : $((& qmake.exe -query QT_VERSION))（$qtRoot）"
+Write-Host "jom   : $((& jom.exe /VERSION | Select-Object -First 1))"
 
 $ErrorActionPreference = $aoiPrevEap
 Remove-Variable aoiPrevEap

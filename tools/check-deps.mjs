@@ -10,7 +10,7 @@
 // 只看 src/。tests/、AiInspTool/（qmake 專案，不在五層之內）、build/ 不掃。
 //
 // 限制（誠實說明）：
-//  - 只看 #include 文字，不展開巨集，也不看 CMake 的 target_link_libraries（兩者一起才完整；CMake 擋連結，本工具擋標頭）。
+//  - 只看 #include 文字，不展開巨集，也不看 qmake 的依賴表（AiInspTool/qmake/aoi_deps.pri；兩者一起才完整：依賴表擋連結與 Qt 的標頭，本工具擋 #include）。
 //  - 分不清 Qt Core 與 Qt Widgets 的裸標頭名（#include <QString>）時，用下面的 QT_CORE_HEADERS 白名單：
 //    只有列在白名單的才算 Core。新的 Core 標頭要加進白名單（寧可誤報、不要漏報）。
 //  - #if 0 區塊裡的 #include 仍會被掃到。

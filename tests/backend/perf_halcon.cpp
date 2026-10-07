@@ -1,5 +1,5 @@
 // S08 的效能量測（label perf）：HALCON back end。預算在 perf/budgets.json。和 perf_opencv 同一組情境（合成板子、參數一樣），
-// OpenCV 也編進程式時（preset release-halcon），同一個行程、同一組情境把 OpenCV 也量一次，id 加 "CV-" 前綴：並排比較。
+// OpenCV 也編進程式時（AOI_WITH_OPENCV=ON，預設），同一個行程、同一組情境把 OpenCV 也量一次，id 加 "CV-" 前綴：並排比較。
 //   L-*    HALCON 的程式庫載入與授權檢查（第一次在行程裡呼叫 HALCON 的成本，與之後每次 get_system 的成本）
 //   T1     範本建立（create_shape_model），64×32 的樣本、±5°；T1-360 是 ±180°
 //   T2b    種子搜尋（整張影像），5 MP（2592×1944）、64×32、±5°（預算 80 ms）
