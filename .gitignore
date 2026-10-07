@@ -24,6 +24,8 @@ qrc_*.cpp
 *.dll
 *.lib
 *.exp
+# S08：HALCON 的匯入程式庫要進版控（第三方 SDK 的複本，見 third_party/halcon/README.md）
+!third_party/halcon/lib/x64-win64/halconcpp.lib
 
 # Performance output (budgets and baselines ARE tracked, raw runs are not)
 perf/results/*
