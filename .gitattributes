@@ -17,5 +17,8 @@
 *.dll  binary
 *.lib  binary
 
+# Third-party SDK copies (S08: HALCON headers and import library): keep them byte for byte, no line-ending changes.
+third_party/halcon/** -text
+
 # Large test images: enable Git LFS later if real images enter the repository.
 # *.tif filter=lfs diff=lfs merge=lfs -text

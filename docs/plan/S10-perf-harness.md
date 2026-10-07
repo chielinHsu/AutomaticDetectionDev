@@ -19,6 +19,8 @@
 
 > **S07 完成後的提醒（2026-10-06）**：（1）`tests/backend/perf_opencv`（label `perf`）量 T1、T2a、T4、T6a／T6b、T7（樣本庫 N ＝ 1、10、100、1000）、角度範圍／影像大小（1–25 MP）／樣本大小的曲線、OpenCV 的執行緒數、use case 的各階段（`UC-*`）、峰值記憶體（背景執行緒每 1 ms 取樣 private bytes）；結果 `perf/results/opencv_*.json` 有 `curves` 一節（`explainer.html` 用它），基準線 `perf/baseline/casparhsu1-opencv.json`。（2）`perf/budgets.json` 的 T1、T2a、T4、T6a、T6b 已在 S07 校準（limit 沒有改）；T5 只有 use case 的部分（`UC-total`，沒有 UI），T7 的預算只是提案（`perf.md`，等使用者決定）。（3）`perf_opencv_real` 要設 `AOI_REAL_IMAGE_DIR` 才跑，沒有設就跳過（CTest 算通過）：回歸閘門不要依賴它。
 
+> **S08 完成後的提醒（2026-10-07）**：（1）`tests/backend/perf_halcon`（label `perf`，preset `release-halcon`）量 L（程式庫載入與授權檢查：第一次約 1.6 秒）、T1、T2b（預算 80 ms）、T2b-16（12 bit：換 8 bit 與原生 `uint2`）、T4、T6a／T6b、SUB-*（次像素的三種做法）、AS-*（角度步進與範圍餘量）、A／S／P／TH 曲線、UC-*、C-search（取消延遲）、MEM-*、T7（一次 `find_shape_models`、每個類型一次、OpenCV 三種）；OpenCV 也編進來時同一次量 `CV-*`。結果 `perf/results/halcon_*.json`，基準線 `perf/baseline/casparhsu1-halcon.json`。（2）`perf/budgets.json` 的 T2b 在 S08 校準（limit 沒有改）：3 次中 1 次（整台機器變慢的那次）p95 82.2 ms 超過 80，另外兩次與補跑的一次 29–35 ms；**HALCON 的時間在幾次之間差得比 OpenCV 多**。HALCON 的 T6b p95 0.48 px，**離預算 0.5 很近**。閘門要用多次執行的範圍，而且要能看出「整台機器變慢」（同一次的 OpenCV、UI 指標也一起變慢）。（3）`perf_halcon`、`tst_halcon_*` 在沒有 HALCON 授權的電腦會跳過（CTest 算通過）：回歸閘門要分辨「跳過」與「通過」。（4）授權檢查只在第一次建立 HALCON back end 時做（約 1.6 秒），T5（端到端）如果用 halcon，要決定算不算這一次。
+
 <!--STE-->
 ## Purpose
 This step builds the full performance test. It measures the search time, the screen update time and the interaction time.

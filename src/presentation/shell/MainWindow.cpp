@@ -16,6 +16,7 @@
 #include <QMenuBar>
 #include <QMimeData>
 #include <QSlider>
+#include <QStandardItemModel>
 #include <QStatusBar>
 #include <QToolBar>
 #include <QTreeView>
@@ -380,6 +381,7 @@ void MainWindow::retranslateUi() {
     themeSystem_->setText(qtTrId("ui.settings.theme.system"));
 
     backendLabel_->setText(qtTrId("ui.backend.label") + QStringLiteral(" "));
+    refreshBackends();
 
     libraryDock_->setWindowTitle(qtTrId("ui.library.title"));
     objectsDock_->setWindowTitle(qtTrId("ui.objects.title"));
@@ -453,10 +455,28 @@ void MainWindow::selectTool(ToolId id) {
     }
 }
 
-void MainWindow::setBackends(const QStringList& names, int current) {
+void MainWindow::setBackends(const QList<BackendChoice>& choices, int current) {
+    backends_ = choices;
+    currentBackend_ = current;
+    refreshBackends();
+}
+
+void MainWindow::refreshBackends() {
     backendCombo_->clear();
-    backendCombo_->addItems(names);
-    backendCombo_->setCurrentIndex(current);
+    QStringList tips;
+    auto* model = qobject_cast<QStandardItemModel*>(backendCombo_->model());
+    for (int i = 0; i < backends_.size(); ++i) {
+        const BackendChoice& c = backends_[i];
+        backendCombo_->addItem(c.available ? c.name : c.name + QStringLiteral(" ✕"));
+        if (QStandardItem* item = model != nullptr ? model->item(i) : nullptr) item->setEnabled(c.available);
+        QString tip = c.name;
+        if (!c.available) tip = uiText("ui.backend.unavailable", {{"name", c.name}, {"reason", c.note}});
+        else if (!c.note.isEmpty()) tip += QStringLiteral(": ") + c.note;
+        backendCombo_->setItemData(i, tip, Qt::ToolTipRole);
+        tips << tip;
+    }
+    backendCombo_->setCurrentIndex(currentBackend_);
+    backendCombo_->setToolTip(tips.join(QLatin1Char('\n')));
     backendCombo_->setEnabled(false);
 }
 

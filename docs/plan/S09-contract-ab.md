@@ -15,6 +15,8 @@
 
 > **S07 完成後的提醒（2026-10-06）**：（1）**契約測試的草稿**是 `tests/backend/tst_opencv_backend.cpp`（ITemplateBuilder／IPatternSearcher 的每一條契約，加上座標與角度的正負號）與 `tst_opencv_library_matcher.cpp`（ILibraryMatcher）；泛化時注意 OpenCV 與假 back end 的差別：OpenCV 搜尋的角度範圍要被範本的範圍涵蓋（否則 `InvalidArgument`），範本有一部分在影像外的元件找不到，平的樣本給 `sampleProblem` ＝ `LowContrast`。（2）A/B 的情境：`perf_opencv`（合成板子：T6 的 8 種情況、角度範圍、影像大小、樣本大小）與 `perf_opencv_real`（使用者的真實影像，`AOI_REAL_IMAGE_DIR`）。（3）真實影像上兩個值得比的現象：相似的別的東西（焊墊邊緣）的分數 0.70–0.85、在非矩形陣列的空槽裡補假缺格（S05 的已知失敗 #11）。（4）use case 的門檻（`seedMinScore` 0.70、預設的分數門檻 0.70）在真實影像上偏低：要不要改、改成多少，是使用者的決定（`docs/current-status.md`）。
 
+> **S08 完成後的提醒（2026-10-07）**：（1）**HALCON 的契約草稿**是 `tests/backend/tst_halcon_backend.cpp`、`tst_halcon_end_to_end.cpp`、`tst_halcon_library_matcher.cpp`，和 OpenCV 版同一組情境；泛化時用 `REQUIRE_HALCON()`（`BackendTestSupport.h`）讓沒有授權的電腦跳過。兩邊**刻意不同的門檻**：HALCON 在強雜訊的板子上角度最大約 0.9°（`tst_halcon_end_to_end` 改用「框的角落位移 ≤ 0.5 px」）；0° 附近 ±0.5° 的元件有一部分回報接近 0°（HALCON 本身的行為）。（2）**A/B 的現成數字**：`perf_halcon` 在 `release-halcon` 同一次量 HALCON 與 OpenCV（`CV-*`），`perf_halcon_real` 對使用者的真實影像兩邊並排；`docs/steps/S08-halcon/perf.md` 有並排表。合成板子上 HALCON 的種子搜尋較快、位置誤差 p95 較大（0.48 對 0.11 px；雜訊大時差最多，反光時 HALCON 較好）。**真實影像 HA 上 HALCON 用一根針腳當樣本只找到少數針腳**（`perf.md` §4，原因是推測），是 A/B 的重點之一。（3）**分數不是同一把尺**：HALCON 是邊緣方向的一致度，OpenCV 是 NCC；同一個 `minScore` 在兩邊意義不同，A/B 畫面要說明，門檻可能要依 back end 分開（使用者決定）。（4）流程 B：兩個 adapter 的「合併成元件」規則各抄一份（不能共用程式碼），契約測試要鎖住兩邊一致；HALCON 一次 `find_shape_models` 比每個類型分開快 1.1–2.0 倍（N ≥ 10）。（5）`tst_image_sources_agree` 沒有 HALCON 的欄位：**HALCON 的影像來源沒有做**（ADR-017，等使用者決定）。（6）ADR-010 的 HALCON 端已在 S08 實測並以測試鎖住（ADR-010 的「後續（S08）」）。
+
 <!--STE-->
 ## Purpose
 This step proves that the two back ends are interchangeable. It also shows their differences on the screen.

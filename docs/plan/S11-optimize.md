@@ -15,6 +15,8 @@
 
 > **S07 完成後的提醒（2026-10-06）**：OpenCV 搜尋的候選（數字在 `docs/steps/S07-opencv/perf.md`）：（1）頂層的 `matchTemplate` 約佔 5 MP 種子搜尋的一半；（2）頂層的候選約是元件數的 2 倍（`minScore − 0.2` 放進來的假峰，精修時淘汰）；（3）流程 B 每個類型約 9 ms、每次重建範本（ADR-006 §7.3 的快取沒有做）；（4）`Gray16` 每次搜尋都轉一次 8 bit（種子一次、視窗一次），24 MP 的真實影像種子搜尋約 170 ms；（5）S07 已經做過一次改寫（精修的小分數圖自己算：T2a 193 → 64 ms，ADR-016 的證據），before／after 的方法可以沿用。
 
+> **S08 完成後的提醒（2026-10-07）**：HALCON 的候選（數字在 `docs/steps/S08-halcon/perf.md`）：（1）`create_shape_model` 約 10 ms（OpenCV 的範本 0.4 ms），流程 B 每個類型都要建一次：在樣本庫載入時快取模型（ADR-006 §7.3）對 HALCON 的效果比對 OpenCV 大；（2）`Gray16` 換 8 bit 每次搜尋一次（查表，5 MP 約 8 ms），`nativeGray16`（原生 `uint2`，零複製）一樣準、更快，是不是預設要和 S09 的 A/B 一起決定；（3）S08 已經做過一次「先量再改」：Gray16 的轉換由逐像素 `lround`（5 MP 213 ms）改成查表（約 8 ms）。（4）授權第一次檢查約 1.6 秒（HALCON 的初始化），在建立 back end 時做；如果要在背景先暖機，要先有數字與 UI 的決定。
+
 <!--STE-->
 ## Purpose
 This step makes the slowest parts faster. We change only the parts that the test shows as slow.

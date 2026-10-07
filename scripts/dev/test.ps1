@@ -5,8 +5,9 @@
 #   .\scripts\dev\test.ps1 -Preset debug
 #   .\scripts\dev\test.ps1 -Perf           # 只跑 label=perf（效能基準線，要 release）
 #   .\scripts\dev\test.ps1 -Preset release-opencv   # with AOI_WITH_OPENCV=ON (S06); -Perf works with it too
+#   .\scripts\dev\test.ps1 -Preset release-halcon   # OpenCV + HALCON (S08); -Perf works with it too
 param(
-    [ValidateSet('debug', 'release', 'relwithdebinfo', 'debug-opencv', 'release-opencv')][string]$Preset = 'release',
+    [ValidateSet('debug', 'release', 'relwithdebinfo', 'debug-opencv', 'release-opencv', 'debug-halcon', 'release-halcon')][string]$Preset = 'release',
     [switch]$Perf
 )
 
@@ -19,7 +20,9 @@ try {
     cmake --build "build\$Preset"
     if ($LASTEXITCODE) { exit $LASTEXITCODE }
 
-    $testPreset = if ($Perf) { if ($Preset -eq 'release-opencv') { 'perf-opencv' } else { 'perf' } } else { $Preset }
+    $testPreset = if ($Perf) {
+        switch ($Preset) { 'release-opencv' { 'perf-opencv' } 'release-halcon' { 'perf-halcon' } default { 'perf' } }
+    } else { $Preset }
     ctest --preset $testPreset
     $code = $LASTEXITCODE
     if ($code) {

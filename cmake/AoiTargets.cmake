@@ -38,6 +38,10 @@ function(aoi_add_qt_test name)
   if(AOI_OPENCV_BIN_DIR)
     list(APPEND _aoi_path_mods "PATH=path_list_prepend:${AOI_OPENCV_BIN_DIR}")
   endif()
+  # AOI_WITH_HALCON=ON（S08）：HALCON 的 DLL（安裝程式通常已放進 PATH；這裡再加一次，不依賴系統設定）。
+  if(HALCON_RUNTIME_DIR)
+    list(APPEND _aoi_path_mods "PATH=path_list_append:${HALCON_RUNTIME_DIR}")
+  endif()
   set_tests_properties(${name} PROPERTIES
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QPA_FONTDIR=${AOI_FONT_DIR}"
     ENVIRONMENT_MODIFICATION "${_aoi_path_mods}"

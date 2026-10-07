@@ -12,6 +12,11 @@
 #include "infrastructure/backend_opencv/OpenCvBackend.h"
 #include "infrastructure/backend_opencv/OpenCvImageSource.h"
 #endif
+#ifdef AOI_WITH_HALCON
+#include "infrastructure/backend_halcon/HalconBackend.h"
+#include "infrastructure/backend_halcon/HalconLicense.h"
+#include "infrastructure/backend_halcon/HalconRuntime.h"
+#endif
 
 namespace aoi::app {
 
@@ -51,10 +56,42 @@ BackendRegistry makeBackendRegistry() {
                                        "The OpenCV back end is not built into this program. Rebuild with AOI_WITH_OPENCV=ON "
                                        "(preset release-opencv).");
 #endif
-    // S08 把下面這行換成真的 registerBackend(...)；只改這裡，use case 與 domain 不動。
+#ifdef AOI_WITH_HALCON
+    // S08：halconcpp.dll 是延遲載入的。列 back end 時只看 PATH 上找不找得到它（微秒級）；授權檢查（約 1 秒）等真的選了 halcon 才做，
+    // 失敗時工廠回 BackendUnavailable（原因寫清楚），程式不當掉。執行緒數和 JobRunner 的 worker 數相同（OpenCV 也是）。
+    if (infra::halconRuntimeOnPath()) {
+        (void)registry.registerBackend("halcon", "HALCON", [] {
+            Result<Backend> backend = infra::makeHalconBackend();
+            if (backend) infra::setHalconThreads(static_cast<int>(workerThreads()));
+            return backend;
+        });
+    } else {
+        (void)registry.registerUnavailable("halcon", "HALCON",
+                                           "The HALCON runtime (halconcpp.dll) is not installed or not on the PATH. Install HALCON " +
+                                               infra::halconSdkVersion() + " and its license, or use another back end.");
+    }
+#else
     (void)registry.registerUnavailable("halcon", "HALCON",
-                                       "The HALCON back end is not built into this program yet. It arrives in step S08.");
+                                       "The HALCON back end is not built into this program. Rebuild with AOI_WITH_HALCON=ON "
+                                       "(preset release-halcon).");
+#endif
     return registry;
+}
+
+std::vector<BackendNotice> backendNotices(std::string_view backendId) {
+    std::vector<BackendNotice> notices;
+#ifdef AOI_WITH_HALCON
+    if (backendId == infra::kHalconId) {
+        for (const infra::HalconLicenseNotice& n : infra::judgeHalconLicense(infra::halconLicense()).notices) {
+            if (n.kind == infra::HalconLicenseNoticeKind::SdkDongleMissing) {
+                notices.push_back({"ui.backend.halcon.sdkDongleMissing", {{"inUse", n.inUseId}, {"missing", n.missingId}}, n.message});
+            }
+        }
+    }
+#else
+    (void)backendId;
+#endif
+    return notices;
 }
 
 std::unique_ptr<IImageSource> makeImageSource() {

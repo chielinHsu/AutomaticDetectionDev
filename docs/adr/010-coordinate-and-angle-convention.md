@@ -2,7 +2,7 @@
 
 - 日期：2026-10-05
 - 決定者：Claude Code (Claude Sonnet 5.5) 提出並實作（S03）。ADR-006 把「角度的正負號」列為未決 #5 並建議「S03 在座標慣例中固定一種」，這份 ADR 就是那個固定。使用者沒有針對這份 ADR 另外表示意見。
-- 狀態：採用（OpenCV 端的正方向是由文件確認的；**HALCON 端的正負號未驗證**，S08 實測、S09 用旋轉過的合成影像鎖住）
+- 狀態：採用（OpenCV 端 S07 實測；**HALCON 端 S08 實測並以測試鎖住**，見文末「後續（S08）」；S09 的契約測試對兩個 back end 跑同一組）
 
 ## 背景
 
@@ -52,3 +52,12 @@
 - 每個 adapter 要自己轉換（座標偏移 0.5、HALCON 的軸順序與弧度），並用契約測試（S09）證明。
 - `Match::pose.angleDeg` 的契約：搜尋器回報的角度在 `SearchParams` 的範圍內且已正規化。
 - 之後若要改任何一條，要新增一份 ADR 取代這一份，並檢查 S05–S12 全部用到角度的地方。
+
+## 後續（S08，2026-10-07）：HALCON 端實測
+
+決定沒有改；上面「假設（未驗證）」裡 HALCON 的部分，S08 查了說明原文並用程式驗證（[ADR-017](017-halcon-shape-model-backend.md)、`src/infrastructure/backend_halcon/HalconPose.h`）：
+
+- **軸順序與單位**：`find_shape_model` 回 `(Row, Column, Angle)`，Row 向下，角度是弧度。像素中心在整數（`affine_trans_pixel` 的說明：「標準座標系的原點在左上角像素的中心」）。
+- **角度的正方向和本 ADR 相同**：`hom_mat2d_rotate` 的旋轉矩陣 `[[cos, −sin], [sin, cos]]` 作用在 (row, column) 上，展開後和 `rotate()` 一模一樣，所以 adapter 只換單位、不改正負號。實測：傾斜 ±3°、+4.5° 的合成板子，角度誤差 0.09–0.21°（正負號反了會差 6° 以上）。
+- **位置不是單純的 ±0.5**：說明寫 Row、Column 是「為了配 `vector_angle_to_rigid` 與 `affine_trans_pixel` 調過的值」。參考點真正的位置是 `(Row, Column) ＋ R(Angle)·(0.5, 0.5) − (0.5, 0.5)`，換成本 ADR：`x ＝ Column ＋ 0.5(sin ＋ cos)`、`y ＝ Row ＋ 0.5(cos − sin)`；角度 0 時就是 ＋0.5。實測（±30°，|傾斜| ≥ 20°）：修正後平均誤差 0.018 像素，只加 0.5 的是 0.303 像素。
+- 鎖住的測試：`tests/backend/tst_halcon_backend.cpp` 的 `poseConversionMatchesTheDocumentedFormula`、`theAngleSignFollowsTheConvention`、`everyAngleInTheRangeIsRecovered`、`theRotatedPoseCorrectionIsNeeded`。

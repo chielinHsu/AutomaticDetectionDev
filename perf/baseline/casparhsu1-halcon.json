@@ -1,0 +1,1611 @@
+{
+ "schema": 1,
+ "step": "S08",
+ "note": "HALCON back end baseline recorded in S08 (CV-* = OpenCV measured in the same process on the same boards). Numbers compare only on this machine. Each metric is the last of 3 runs of the same build (one session, back to back); medianRangeOf3Runs and p95RangeOf3Runs (p05 for T6a, higher is better) show the spread over all 3 runs. L-load and L-first have one sample per run (the first HALCON call in the process).",
+ "method": "perf_halcon: T1, T2b, T4 5 warm-up + 30 runs; T2b-16 3 + 20; SUB-* 2 + 10; AS-* 21 boards once each; curves 1 warm-up + 5 runs; threads 2 warm-up + 10 runs; use case 25 runs, first 5 dropped; cancel latency 10 runs; T7 10 runs (N = 100: 5, N = 1000: 3); peak memory 3 runs sampled every 1 ms. Median and p95. HALCON thread_num and OpenCV threads = cores - 1 (product policy) unless TH-*.",
+ "runs": {
+  "perf_halcon": [
+   "halcon_20261007-112306.json",
+   "halcon_20261007-113619.json",
+   "halcon_20261007-114714.json"
+  ]
+ },
+ "machine": {
+  "buildType": "Release",
+  "commit": "000aa36+uncommitted",
+  "compiler": "MSVC 194435229",
+  "cpu": "13th Gen Intel(R) Core(TM) i7-1360P",
+  "halcon": "24.11.2",
+  "halconLicense": "runtime 3-7614034 (Steady)",
+  "halconThreads": 15,
+  "logicalCores": 16,
+  "machineName": "CasparHsu1",
+  "measurementHygiene": "process priority HIGH; power throttling off; thread pinned to logical CPU 0 (efficiency class 1 of 2 classes)",
+  "opencv": "4.9.0",
+  "opencvThreads": 15,
+  "os": "Windows 11 Version 23H2 (kernel 10.0.22631)",
+  "qt": "6.12.0",
+  "ramGB": 63.6
+ },
+ "metrics": [
+  {
+   "id": "L-load",
+   "label": "load halconcpp.dll and bind its imports (first time in the process)",
+   "median": 17.293,
+   "n": 1,
+   "note": "1 sample",
+   "p95": 17.293,
+   "unit": "ms",
+   "medianRangeOf3Runs": [
+    14.194,
+    30.621
+   ],
+   "p95RangeOf3Runs": [
+    14.194,
+    30.621
+   ]
+  },
+  {
+   "id": "L-first",
+   "label": "first HALCON operator + license check + get_system queries",
+   "median": 1658.389,
+   "n": 1,
+   "note": "1 sample; runtime license 3-7614034",
+   "p95": 1658.389,
+   "unit": "ms",
+   "medianRangeOf3Runs": [
+    1553.326,
+    1869.903
+   ],
+   "p95RangeOf3Runs": [
+    1553.326,
+    1869.903
+   ]
+  },
+  {
+   "id": "L-again",
+   "label": "license probe again (HALCON already initialized)",
+   "median": 332.724,
+   "n": 10,
+   "note": "2 warm-up, 10 runs",
+   "p95": 350.018,
+   "unit": "ms",
+   "medianRangeOf3Runs": [
+    328.5,
+    395.007
+   ],
+   "p95RangeOf3Runs": [
+    344.51,
+    418.91
+   ]
+  },
+  {
+   "budget": 30,
+   "id": "T1",
+   "label": "template build (create_shape_model), 64x32 sample, +-5 deg",
+   "median": 7.425,
+   "n": 30,
+   "p95": 9.3,
+   "pass": true,
+   "unit": "ms",
+   "medianRangeOf3Runs": [
+    6.573,
+    19.225
+   ],
+   "p95RangeOf3Runs": [
+    6.955,
+    22.017
+   ],
+   "passInAll3Runs": true
+  },
+  {
+   "id": "T1-360",
+   "label": "template build, 64x32 sample, +-180 deg",
+   "median": 7.317,
+   "n": 10,
+   "note": "2 warm-up, 10 runs",
+   "p95": 8.196,
+   "unit": "ms",
+   "medianRangeOf3Runs": [
+    6.274,
+    19.522
+   ],
+   "p95RangeOf3Runs": [
+    6.888,
+    20.76
+   ]
+  },
+  {
+   "budget": 30,
+   "id": "CV-T1",
+   "label": "OpenCV template build, 64x32 sample, +-5 deg",
+   "median": 0.275,
+   "n": 30,
+   "p95": 0.448,
+   "pass": true,
+   "unit": "ms",
+   "medianRangeOf3Runs": [
+    0.237,
+    0.498
+   ],
+   "p95RangeOf3Runs": [
+    0.366,
+    0.689
+   ],
+   "passInAll3Runs": true
+  },
+  {
+   "budget": 80,
+   "id": "T2b",
+   "label": "seed search (find_shape_model), 5 MP, 64x32, +-5 deg, 841 parts",
+   "median": 28.537,
+   "n": 30,
+   "note": "last run: convert 0.03, find 26.17, nms 2.11 ms; 841 raw, 841 matches; 4 levels",
+   "p95": 35.417,
+   "pass": true,
+   "unit": "ms",
+   "medianRangeOf3Runs": [
+    22.289,
+    44.056
+   ],
+   "p95RangeOf3Runs": [
+    31.542,
+    82.158
+   ],
+   "passInAll3Runs": false
+  },
+  {
+   "budget": 150,
+   "id": "CV-T2a",
+   "label": "OpenCV seed search, same board",
+   "median": 72.236,
+   "n": 30,
+   "p95": 83.57,
+   "pass": true,
+   "unit": "ms",
+   "medianRangeOf3Runs": [
+    70.864,
+    72.899
+   ],
+   "p95RangeOf3Runs": [
+    80.759,
+    84.724
+   ],
+   "passInAll3Runs": true
+  },
+  {
+   "id": "T2b-16",
+   "label": "seed search, 5 MP 12 bit Gray16, scaled to 8 bit",
+   "median": 71.394,
+   "n": 20,
+   "note": "3 warm-up, 20 runs; convert 11.36, find 52.13 ms; 841 matches",
+   "p95": 85.847,
+   "unit": "ms",
+   "medianRangeOf3Runs": [
+    47.921,
+    71.394
+   ],
+   "p95RangeOf3Runs": [
+    59.082,
+    85.847
+   ]
+  },
+  {
+   "id": "T2b-16native",
+   "label": "seed search, 5 MP 12 bit Gray16, native uint2",
+   "median": 37.238,
+   "n": 20,
+   "note": "3 warm-up, 20 runs; convert 0.05, find 42.86 ms; 841 matches",
+   "p95": 46.801,
+   "unit": "ms",
+   "medianRangeOf3Runs": [
+    26.883,
+    37.238
+   ],
+   "p95RangeOf3Runs": [
+    28.957,
+    46.801
+   ]
+  },
+  {
+   "budget": 60,
+   "id": "T4",
+   "label": "windowed verify, 200 windows (1.5x template), floor 0.30",
+   "median": 30.392,
+   "n": 30,
+   "note": "588 matches; convert (domain) 1.49, find 28.76, nms 1.58 ms",
+   "p95": 37.47,
+   "pass": true,
+   "unit": "ms",
+   "medianRangeOf3Runs": [
+    23.621,
+    32.976
+   ],
+   "p95RangeOf3Runs": [
+    28.552,
+    46.605
+   ],
+   "passInAll3Runs": true
+  },
+  {
+   "budget": 60,
+   "id": "CV-T4",
+   "label": "OpenCV windowed verify, same windows",
+   "median": 34.091,
+   "n": 30,
+   "p95": 38.165,
+   "pass": true,
+   "unit": "ms",
+   "medianRangeOf3Runs": [
+    30.499,
+    34.091
+   ],
+   "p95RangeOf3Runs": [
+    34.825,
+    38.531
+   ],
+   "passInAll3Runs": true
+  },
+  {
+   "budget": 99,
+   "id": "T6a",
+   "label": "halcon recall on the synthetic set (8 boards, 5 MP)",
+   "median": 100,
+   "n": 1,
+   "note": "6673 of 6673 parts",
+   "p05": 100,
+   "pass": true,
+   "unit": "percent",
+   "medianRangeOf3Runs": [
+    100,
+    100
+   ],
+   "p05RangeOf3Runs": [
+    100,
+    100
+   ],
+   "passInAll3Runs": true
+  },
+  {
+   "budget": 0.5,
+   "id": "T6b",
+   "label": "halcon position error on the synthetic set",
+   "median": 0.04,
+   "n": 6673,
+   "note": "p95 of all found parts; median 0.040, max 1.360 px",
+   "p95": 0.485,
+   "pass": true,
+   "unit": "px",
+   "medianRangeOf3Runs": [
+    0.04,
+    0.04
+   ],
+   "p95RangeOf3Runs": [
+    0.485,
+    0.485
+   ],
+   "passInAll3Runs": true
+  },
+  {
+   "budget": 99,
+   "id": "CV-T6a",
+   "label": "opencv recall on the synthetic set (8 boards, 5 MP)",
+   "median": 100,
+   "n": 1,
+   "note": "6673 of 6673 parts",
+   "p05": 100,
+   "pass": true,
+   "unit": "percent",
+   "medianRangeOf3Runs": [
+    100,
+    100
+   ],
+   "p05RangeOf3Runs": [
+    100,
+    100
+   ],
+   "passInAll3Runs": true
+  },
+  {
+   "budget": 0.5,
+   "id": "CV-T6b",
+   "label": "opencv position error on the synthetic set",
+   "median": 0.01,
+   "n": 6673,
+   "note": "p95 of all found parts; median 0.010, max 0.503 px",
+   "p95": 0.106,
+   "pass": true,
+   "unit": "px",
+   "medianRangeOf3Runs": [
+    0.01,
+    0.01
+   ],
+   "p95RangeOf3Runs": [
+    0.106,
+    0.106
+   ],
+   "passInAll3Runs": true
+  },
+  {
+   "id": "SUB-interpolation",
+   "label": "seed search with SubPixel 'interpolation'",
+   "median": 17.748,
+   "n": 10,
+   "note": "2 warm-up, 10 runs; mean error 0.080 px, max 0.289 px, angle max 0.439 deg, 841/841 found",
+   "p95": 28.397,
+   "unit": "ms",
+   "medianRangeOf3Runs": [
+    15.563,
+    28.895
+   ],
+   "p95RangeOf3Runs": [
+    17.074,
+    44.151
+   ]
+  },
+  {
+   "id": "SUB-least_squares",
+   "label": "seed search with SubPixel 'least_squares'",
+   "median": 24.35,
+   "n": 10,
+   "note": "2 warm-up, 10 runs; mean error 0.037 px, max 0.099 px, angle max 0.257 deg, 841/841 found",
+   "p95": 26.306,
+   "unit": "ms",
+   "medianRangeOf3Runs": [
+    20.644,
+    58.305
+   ],
+   "p95RangeOf3Runs": [
+    22.853,
+    72.66
+   ]
+  },
+  {
+   "id": "SUB-least_squares_high",
+   "label": "seed search with SubPixel 'least_squares_high'",
+   "median": 32.057,
+   "n": 10,
+   "note": "2 warm-up, 10 runs; mean error 0.038 px, max 0.111 px, angle max 0.273 deg, 841/841 found",
+   "p95": 46.036,
+   "unit": "ms",
+   "medianRangeOf3Runs": [
+    31.475,
+    52.319
+   ],
+   "p95RangeOf3Runs": [
+    40.954,
+    63.028
+   ]
+  },
+  {
+   "id": "AS-auto-m0",
+   "label": "seed search on 21 boards tilted -5..5 deg, corner shift 0 px, margin 0 steps",
+   "median": 4.868,
+   "n": 21,
+   "note": "angle error max 0.307, mean 0.071 deg; position error max 0.224 px",
+   "p95": 5.999,
+   "unit": "ms",
+   "medianRangeOf3Runs": [
+    4.602,
+    38.579
+   ],
+   "p95RangeOf3Runs": [
+    5.999,
+    65.185
+   ]
+  },
+  {
+   "id": "AS-1.0-m0",
+   "label": "seed search on 21 boards tilted -5..5 deg, corner shift 1 px, margin 0 steps",
+   "median": 4.539,
+   "n": 21,
+   "note": "angle error max 1.000, mean 0.120 deg; position error max 0.151 px",
+   "p95": 6.037,
+   "unit": "ms",
+   "medianRangeOf3Runs": [
+    4.255,
+    37.807
+   ],
+   "p95RangeOf3Runs": [
+    6.037,
+    52.747
+   ]
+  },
+  {
+   "id": "AS-0.5-m0",
+   "label": "seed search on 21 boards tilted -5..5 deg, corner shift 0.5 px, margin 0 steps",
+   "median": 4.09,
+   "n": 21,
+   "note": "angle error max 0.500, mean 0.083 deg; position error max 0.151 px",
+   "p95": 6.001,
+   "unit": "ms",
+   "medianRangeOf3Runs": [
+    4.09,
+    28.895
+   ],
+   "p95RangeOf3Runs": [
+    6.001,
+    66.539
+   ]
+  },
+  {
+   "id": "AS-1.0-m2",
+   "label": "seed search on 21 boards tilted -5..5 deg, corner shift 1 px, margin 2 steps",
+   "median": 5.655,
+   "n": 21,
+   "note": "angle error max 0.323, mean 0.069 deg; position error max 0.134 px",
+   "p95": 7.892,
+   "unit": "ms",
+   "medianRangeOf3Runs": [
+    5.214,
+    27.813
+   ],
+   "p95RangeOf3Runs": [
+    7.884,
+    41
+   ]
+  },
+  {
+   "id": "AS-0.5-m2",
+   "label": "seed search on 21 boards tilted -5..5 deg, corner shift 0.5 px, margin 2 steps",
+   "median": 4.788,
+   "n": 21,
+   "note": "angle error max 0.326, mean 0.073 deg; position error max 0.128 px",
+   "p95": 7.051,
+   "unit": "ms",
+   "medianRangeOf3Runs": [
+    4.757,
+    23.829
+   ],
+   "p95RangeOf3Runs": [
+    6.632,
+    39.396
+   ]
+  },
+  {
+   "id": "AS-0.25-m2",
+   "label": "seed search on 21 boards tilted -5..5 deg, corner shift 0.25 px, margin 2 steps",
+   "median": 5.745,
+   "n": 21,
+   "note": "angle error max 1.655, mean 0.085 deg; position error max 0.131 px",
+   "p95": 8.124,
+   "unit": "ms",
+   "medianRangeOf3Runs": [
+    5.481,
+    24.684
+   ],
+   "p95RangeOf3Runs": [
+    6.951,
+    41.634
+   ]
+  },
+  {
+   "id": "A-0",
+   "label": "seed search, 5 MP, 64x32, +-0 deg",
+   "median": 17.849,
+   "n": 5,
+   "note": "1 warm-up, 5 runs; build 9.0 ms; 841 matches",
+   "p95": 18.339,
+   "unit": "ms",
+   "medianRangeOf3Runs": [
+    16.107,
+    45.73
+   ],
+   "p95RangeOf3Runs": [
+    16.535,
+    51.736
+   ]
+  },
+  {
+   "id": "A-2",
+   "label": "seed search, 5 MP, 64x32, +-2 deg",
+   "median": 24.27,
+   "n": 5,
+   "note": "1 warm-up, 5 runs; build 9.9 ms; 841 matches",
+   "p95": 32.167,
+   "unit": "ms",
+   "medianRangeOf3Runs": [
+    18.456,
+    47.685
+   ],
+   "p95RangeOf3Runs": [
+    20.071,
+    59.023
+   ]
+  },
+  {
+   "id": "A-5",
+   "label": "seed search, 5 MP, 64x32, +-5 deg",
+   "median": 24.977,
+   "n": 5,
+   "note": "1 warm-up, 5 runs; build 11.4 ms; 841 matches",
+   "p95": 29.061,
+   "unit": "ms",
+   "medianRangeOf3Runs": [
+    21.481,
+    47.2
+   ],
+   "p95RangeOf3Runs": [
+    22.59,
+    58.906
+   ]
+  },
+  {
+   "id": "A-10",
+   "label": "seed search, 5 MP, 64x32, +-10 deg",
+   "median": 34.1,
+   "n": 5,
+   "note": "1 warm-up, 5 runs; build 15.7 ms; 841 matches",
+   "p95": 35.327,
+   "unit": "ms",
+   "medianRangeOf3Runs": [
+    27.905,
+    55.841
+   ],
+   "p95RangeOf3Runs": [
+    29.897,
+    66.646
+   ]
+  },
+  {
+   "id": "A-20",
+   "label": "seed search, 5 MP, 64x32, +-20 deg",
+   "median": 53.81,
+   "n": 5,
+   "note": "1 warm-up, 5 runs; build 13.3 ms; 841 matches",
+   "p95": 55.04,
+   "unit": "ms",
+   "medianRangeOf3Runs": [
+    45.821,
+    70.961
+   ],
+   "p95RangeOf3Runs": [
+    49.673,
+    77.752
+   ]
+  },
+  {
+   "id": "A-45",
+   "label": "seed search, 5 MP, 64x32, +-45 deg",
+   "median": 52.868,
+   "n": 5,
+   "note": "1 warm-up, 5 runs; build 14.9 ms; 841 matches",
+   "p95": 54.85,
+   "unit": "ms",
+   "medianRangeOf3Runs": [
+    46.52,
+    70.712
+   ],
+   "p95RangeOf3Runs": [
+    53.199,
+    104.221
+   ]
+  },
+  {
+   "id": "A-90",
+   "label": "seed search, 5 MP, 64x32, +-90 deg",
+   "median": 59.422,
+   "n": 5,
+   "note": "1 warm-up, 5 runs; build 14.5 ms; 841 matches",
+   "p95": 61.725,
+   "unit": "ms",
+   "medianRangeOf3Runs": [
+    46.321,
+    74.243
+   ],
+   "p95RangeOf3Runs": [
+    47.529,
+    92.55
+   ]
+  },
+  {
+   "id": "A-180",
+   "label": "seed search, 5 MP, 64x32, +-180 deg",
+   "median": 88.25,
+   "n": 5,
+   "note": "1 warm-up, 5 runs; build 17.8 ms; 841 matches",
+   "p95": 102.378,
+   "unit": "ms",
+   "medianRangeOf3Runs": [
+    77.676,
+    112.354
+   ],
+   "p95RangeOf3Runs": [
+    87.012,
+    123.474
+   ]
+  },
+  {
+   "id": "S-1MP",
+   "label": "seed search, 1 MP (1280x800), 64x32, +-5 deg, 130 parts",
+   "median": 7.252,
+   "n": 5,
+   "note": "1 warm-up, 5 runs",
+   "p95": 9.255,
+   "unit": "ms",
+   "medianRangeOf3Runs": [
+    6.287,
+    9.182
+   ],
+   "p95RangeOf3Runs": [
+    6.872,
+    38.162
+   ]
+  },
+  {
+   "id": "S-5MP",
+   "label": "seed search, 5 MP (2592x1944), 64x32, +-5 deg, 841 parts",
+   "median": 41.4,
+   "n": 5,
+   "note": "1 warm-up, 5 runs",
+   "p95": 47.093,
+   "unit": "ms",
+   "medianRangeOf3Runs": [
+    20.223,
+    41.4
+   ],
+   "p95RangeOf3Runs": [
+    20.892,
+    49.508
+   ]
+  },
+  {
+   "id": "S-12MP",
+   "label": "seed search, 12 MP (4000x3000), 64x32, +-5 deg, 2115 parts",
+   "median": 63.624,
+   "n": 5,
+   "note": "1 warm-up, 5 runs",
+   "p95": 68.14,
+   "unit": "ms",
+   "medianRangeOf3Runs": [
+    50.73,
+    63.624
+   ],
+   "p95RangeOf3Runs": [
+    51.358,
+    81.961
+   ]
+  },
+  {
+   "id": "S-25MP",
+   "label": "seed search, 25 MP (5800x4350), 64x32, +-5 deg, 4623 parts",
+   "median": 145.481,
+   "n": 5,
+   "note": "1 warm-up, 5 runs",
+   "p95": 164.046,
+   "unit": "ms",
+   "medianRangeOf3Runs": [
+    136.164,
+    145.976
+   ],
+   "p95RangeOf3Runs": [
+    143.208,
+    164.046
+   ]
+  },
+  {
+   "id": "P-32x16",
+   "label": "seed search, 5 MP, 32x16 sample, +-5 deg, 870 parts",
+   "median": 16.062,
+   "n": 5,
+   "note": "1 warm-up, 5 runs; 3 levels, 870 matches",
+   "p95": 17.31,
+   "unit": "ms",
+   "medianRangeOf3Runs": [
+    13.742,
+    16.062
+   ],
+   "p95RangeOf3Runs": [
+    15.77,
+    17.31
+   ]
+  },
+  {
+   "id": "P-64x32",
+   "label": "seed search, 5 MP, 64x32 sample, +-5 deg, 841 parts",
+   "median": 22.759,
+   "n": 5,
+   "note": "1 warm-up, 5 runs; 4 levels, 841 matches",
+   "p95": 33.44,
+   "unit": "ms",
+   "medianRangeOf3Runs": [
+    18.639,
+    22.759
+   ],
+   "p95RangeOf3Runs": [
+    20.64,
+    33.44
+   ]
+  },
+  {
+   "id": "P-128x128",
+   "label": "seed search, 5 MP, 128x128 sample, +-5 deg, 98 parts",
+   "median": 12.805,
+   "n": 5,
+   "note": "1 warm-up, 5 runs; 5 levels, 98 matches",
+   "p95": 12.982,
+   "unit": "ms",
+   "medianRangeOf3Runs": [
+    12.182,
+    12.805
+   ],
+   "p95RangeOf3Runs": [
+    12.944,
+    13.114
+   ]
+  },
+  {
+   "id": "TH-1",
+   "label": "seed search, 5 MP, HALCON thread_num 1",
+   "median": 70.215,
+   "n": 10,
+   "note": "2 warm-up, 10 runs",
+   "p95": 73.802,
+   "unit": "ms",
+   "medianRangeOf3Runs": [
+    62.924,
+    74.039
+   ],
+   "p95RangeOf3Runs": [
+    67.56,
+    95.479
+   ]
+  },
+  {
+   "id": "TH-2",
+   "label": "seed search, 5 MP, HALCON thread_num 2",
+   "median": 42.333,
+   "n": 10,
+   "note": "2 warm-up, 10 runs",
+   "p95": 46.219,
+   "unit": "ms",
+   "medianRangeOf3Runs": [
+    37.462,
+    43.161
+   ],
+   "p95RangeOf3Runs": [
+    44.617,
+    57.38
+   ]
+  },
+  {
+   "id": "TH-4",
+   "label": "seed search, 5 MP, HALCON thread_num 4",
+   "median": 36.714,
+   "n": 10,
+   "note": "2 warm-up, 10 runs",
+   "p95": 46.736,
+   "unit": "ms",
+   "medianRangeOf3Runs": [
+    25.3,
+    36.714
+   ],
+   "p95RangeOf3Runs": [
+    32.984,
+    46.736
+   ]
+  },
+  {
+   "id": "TH-8",
+   "label": "seed search, 5 MP, HALCON thread_num 8",
+   "median": 30.341,
+   "n": 10,
+   "note": "2 warm-up, 10 runs",
+   "p95": 32.852,
+   "unit": "ms",
+   "medianRangeOf3Runs": [
+    30.157,
+    30.695
+   ],
+   "p95RangeOf3Runs": [
+    32.512,
+    36.534
+   ]
+  },
+  {
+   "id": "TH-15",
+   "label": "seed search, 5 MP, HALCON thread_num 15",
+   "median": 24.445,
+   "n": 10,
+   "note": "2 warm-up, 10 runs",
+   "p95": 29.625,
+   "unit": "ms",
+   "medianRangeOf3Runs": [
+    24.445,
+    27.599
+   ],
+   "p95RangeOf3Runs": [
+    29.625,
+    57.169
+   ]
+  },
+  {
+   "id": "UC-template",
+   "label": "use case stage 'template', 5 MP, 754 parts, 10% missing (87 holes verified)",
+   "median": 10.62,
+   "n": 20,
+   "note": "5 warm-up, 20 runs",
+   "p95": 14.459,
+   "unit": "ms",
+   "medianRangeOf3Runs": [
+    10.383,
+    14.615
+   ],
+   "p95RangeOf3Runs": [
+    12.44,
+    16.932
+   ]
+  },
+  {
+   "id": "UC-seed",
+   "label": "use case stage 'seed', 5 MP, 754 parts, 10% missing (87 holes verified)",
+   "median": 20.693,
+   "n": 20,
+   "note": "5 warm-up, 20 runs",
+   "p95": 25.861,
+   "unit": "ms",
+   "medianRangeOf3Runs": [
+    20.046,
+    30.488
+   ],
+   "p95RangeOf3Runs": [
+    21.754,
+    47.559
+   ]
+  },
+  {
+   "id": "UC-fit",
+   "label": "use case stage 'fit', 5 MP, 754 parts, 10% missing (87 holes verified)",
+   "median": 1.329,
+   "n": 20,
+   "note": "5 warm-up, 20 runs",
+   "p95": 1.48,
+   "unit": "ms",
+   "medianRangeOf3Runs": [
+    1.301,
+    1.987
+   ],
+   "p95RangeOf3Runs": [
+    1.462,
+    2.436
+   ]
+  },
+  {
+   "id": "UC-verify",
+   "label": "use case stage 'verify', 5 MP, 754 parts, 10% missing (87 holes verified)",
+   "median": 8.068,
+   "n": 20,
+   "note": "5 warm-up, 20 runs",
+   "p95": 9.467,
+   "unit": "ms",
+   "medianRangeOf3Runs": [
+    7.416,
+    10.195
+   ],
+   "p95RangeOf3Runs": [
+    8.237,
+    12.786
+   ]
+  },
+  {
+   "id": "UC-total",
+   "label": "use case stage 'total', 5 MP, 754 parts, 10% missing (87 holes verified)",
+   "median": 42.819,
+   "n": 20,
+   "note": "5 warm-up, 20 runs",
+   "p95": 50.364,
+   "unit": "ms",
+   "medianRangeOf3Runs": [
+    40.261,
+    57.587
+   ],
+   "p95RangeOf3Runs": [
+    42.994,
+    76.177
+   ]
+  },
+  {
+   "id": "C-search",
+   "label": "cancel latency during find_shape_model (12 MP, +-180 deg)",
+   "median": 17.432,
+   "n": 10,
+   "note": "10 runs; the full search takes 158.2 ms",
+   "p95": 18.915,
+   "unit": "ms",
+   "medianRangeOf3Runs": [
+    4.23,
+    17.432
+   ],
+   "p95RangeOf3Runs": [
+    18.797,
+    29.625
+   ]
+  },
+  {
+   "id": "MEM-5MP-Gray8",
+   "label": "peak extra memory of one seed search, 5MP Gray8 (image itself 4.8 MB)",
+   "median": 0.055,
+   "n": 3,
+   "note": "3 runs; sampled every 1 ms",
+   "p95": 1.617,
+   "unit": "MB",
+   "medianRangeOf3Runs": [
+    0.055,
+    0.059
+   ],
+   "p95RangeOf3Runs": [
+    0.184,
+    1.617
+   ]
+  },
+  {
+   "id": "MEM-5MP-Gray16",
+   "label": "peak extra memory of one seed search, 5MP Gray16 (image itself 9.6 MB)",
+   "median": 6.684,
+   "n": 3,
+   "note": "3 runs; sampled every 1 ms",
+   "p95": 7.129,
+   "unit": "MB",
+   "medianRangeOf3Runs": [
+    5.367,
+    6.684
+   ],
+   "p95RangeOf3Runs": [
+    5.684,
+    7.129
+   ]
+  },
+  {
+   "id": "MEM-25MP-Gray8",
+   "label": "peak extra memory of one seed search, 25MP Gray8 (image itself 24.1 MB)",
+   "median": 67.191,
+   "n": 3,
+   "note": "3 runs; sampled every 1 ms",
+   "p95": 77.527,
+   "unit": "MB",
+   "medianRangeOf3Runs": [
+    56.656,
+    74.789
+   ],
+   "p95RangeOf3Runs": [
+    59.59,
+    86.41
+   ]
+  },
+  {
+   "id": "MEM-25MP-Gray16",
+   "label": "peak extra memory of one seed search, 25MP Gray16 (image itself 48.1 MB)",
+   "median": 206.066,
+   "n": 3,
+   "note": "3 runs; sampled every 1 ms",
+   "p95": 215.086,
+   "unit": "MB",
+   "medianRangeOf3Runs": [
+    200.121,
+    206.066
+   ],
+   "p95RangeOf3Runs": [
+    211.895,
+    217.344
+   ]
+  },
+  {
+   "id": "T7-1",
+   "label": "library match, region 640x480, 1 candidate types",
+   "median": 11.034,
+   "n": 10,
+   "note": "1 warm-up, 10 runs; 64 components, 1 samples compared; 11.03 ms per type",
+   "p95": 13.364,
+   "unit": "ms",
+   "medianRangeOf3Runs": [
+    8.031,
+    17.335
+   ],
+   "p95RangeOf3Runs": [
+    13.364,
+    22.039
+   ]
+  },
+  {
+   "id": "T7-10",
+   "label": "library match, region 640x480, 10 candidate types",
+   "median": 40.077,
+   "n": 10,
+   "note": "1 warm-up, 10 runs; 64 components, 10 samples compared; 4.01 ms per type",
+   "p95": 46.046,
+   "unit": "ms",
+   "medianRangeOf3Runs": [
+    29.409,
+    82.284
+   ],
+   "p95RangeOf3Runs": [
+    31.213,
+    93.781
+   ]
+  },
+  {
+   "id": "T7-100",
+   "label": "library match, region 640x480, 100 candidate types",
+   "median": 387.311,
+   "n": 5,
+   "note": "1 warm-up, 5 runs; 64 components, 100 samples compared; 3.87 ms per type",
+   "p95": 462.734,
+   "unit": "ms",
+   "medianRangeOf3Runs": [
+    223.579,
+    697.356
+   ],
+   "p95RangeOf3Runs": [
+    234.267,
+    726.398
+   ]
+  },
+  {
+   "id": "T7-1000",
+   "label": "library match, region 640x480, 1000 candidate types",
+   "median": 3376.704,
+   "n": 3,
+   "note": "1 warm-up, 3 runs; 120 components, 1000 samples compared; 3.38 ms per type",
+   "p95": 3447.229,
+   "unit": "ms",
+   "medianRangeOf3Runs": [
+    2961.417,
+    6988.772
+   ],
+   "p95RangeOf3Runs": [
+    3321.684,
+    8680.599
+   ]
+  },
+  {
+   "id": "T7each-1",
+   "label": "library match, region 640x480, 1 candidate types",
+   "median": 8.26,
+   "n": 10,
+   "note": "1 warm-up, 10 runs; 64 components, 1 samples compared; 8.26 ms per type",
+   "p95": 10.394,
+   "unit": "ms",
+   "medianRangeOf3Runs": [
+    6.938,
+    14.135
+   ],
+   "p95RangeOf3Runs": [
+    7.919,
+    17.954
+   ]
+  },
+  {
+   "id": "T7each-10",
+   "label": "library match, region 640x480, 10 candidate types",
+   "median": 73.778,
+   "n": 10,
+   "note": "1 warm-up, 10 runs; 64 components, 10 samples compared; 7.38 ms per type",
+   "p95": 94.189,
+   "unit": "ms",
+   "medianRangeOf3Runs": [
+    51.003,
+    89.309
+   ],
+   "p95RangeOf3Runs": [
+    58.026,
+    96.444
+   ]
+  },
+  {
+   "id": "T7each-100",
+   "label": "library match, region 640x480, 100 candidate types",
+   "median": 506.24,
+   "n": 5,
+   "note": "1 warm-up, 5 runs; 64 components, 100 samples compared; 5.06 ms per type",
+   "p95": 560.739,
+   "unit": "ms",
+   "medianRangeOf3Runs": [
+    437.044,
+    1101.807
+   ],
+   "p95RangeOf3Runs": [
+    491.054,
+    1762.571
+   ]
+  },
+  {
+   "id": "T7each-1000",
+   "label": "library match, region 640x480, 1000 candidate types",
+   "median": 5057.717,
+   "n": 3,
+   "note": "1 warm-up, 3 runs; 120 components, 1000 samples compared; 5.06 ms per type",
+   "p95": 6875.399,
+   "unit": "ms",
+   "medianRangeOf3Runs": [
+    4177.348,
+    7023.444
+   ],
+   "p95RangeOf3Runs": [
+    4324.49,
+    8247.194
+   ]
+  },
+  {
+   "id": "CV-T7-1",
+   "label": "library match, region 640x480, 1 candidate types",
+   "median": 5.572,
+   "n": 10,
+   "note": "1 warm-up, 10 runs; 64 components, 1 samples compared; 5.57 ms per type",
+   "p95": 7.214,
+   "unit": "ms",
+   "medianRangeOf3Runs": [
+    5.02,
+    5.908
+   ],
+   "p95RangeOf3Runs": [
+    6.655,
+    7.704
+   ]
+  },
+  {
+   "id": "CV-T7-10",
+   "label": "library match, region 640x480, 10 candidate types",
+   "median": 97.701,
+   "n": 10,
+   "note": "1 warm-up, 10 runs; 64 components, 10 samples compared; 9.77 ms per type",
+   "p95": 114.32,
+   "unit": "ms",
+   "medianRangeOf3Runs": [
+    85.805,
+    98.877
+   ],
+   "p95RangeOf3Runs": [
+    99.919,
+    121.07
+   ]
+  },
+  {
+   "id": "CV-T7-100",
+   "label": "library match, region 640x480, 100 candidate types",
+   "median": 1088.358,
+   "n": 5,
+   "note": "1 warm-up, 5 runs; 120 components, 100 samples compared; 10.88 ms per type",
+   "p95": 1135.347,
+   "unit": "ms",
+   "medianRangeOf3Runs": [
+    1088.358,
+    1739.052
+   ],
+   "p95RangeOf3Runs": [
+    1135.347,
+    1804.98
+   ]
+  },
+  {
+   "id": "CV-T7-1000",
+   "label": "library match, region 640x480, 1000 candidate types",
+   "median": 10775.274,
+   "n": 3,
+   "note": "1 warm-up, 3 runs; 120 components, 1000 samples compared; 10.78 ms per type",
+   "p95": 10878.846,
+   "unit": "ms",
+   "medianRangeOf3Runs": [
+    10775.274,
+    16870.427
+   ],
+   "p95RangeOf3Runs": [
+    10878.846,
+    18014.35
+   ]
+  }
+ ],
+ "curves": {
+  "CV-t6Cases": [
+   {
+    "case": "clean",
+    "found": 841,
+    "maxErrorPx": 0,
+    "present": 841,
+    "totalMs": 50
+   },
+   {
+    "case": "noise 4, blur 1",
+    "found": 841,
+    "maxErrorPx": 0.021,
+    "present": 841,
+    "totalMs": 44
+   },
+   {
+    "case": "noise 12, blur 2",
+    "found": 841,
+    "maxErrorPx": 0.069,
+    "present": 841,
+    "totalMs": 46.4
+   },
+   {
+    "case": "5% missing",
+    "found": 793,
+    "maxErrorPx": 0.021,
+    "present": 793,
+    "totalMs": 44.6
+   },
+   {
+    "case": "10% glare",
+    "found": 841,
+    "maxErrorPx": 0.503,
+    "present": 841,
+    "totalMs": 45
+   },
+   {
+    "case": "tilt 3 deg",
+    "found": 834,
+    "maxErrorPx": 0.07,
+    "present": 834,
+    "totalMs": 44.8
+   },
+   {
+    "case": "jitter 3 px",
+    "found": 841,
+    "maxErrorPx": 0.193,
+    "present": 841,
+    "totalMs": 41.5
+   },
+   {
+    "case": "12 bit",
+    "found": 841,
+    "maxErrorPx": 0.021,
+    "present": 841,
+    "totalMs": 46.3
+   }
+  ],
+  "angleRange": [
+   {
+    "buildMs": 9,
+    "halfRangeDeg": 0,
+    "medianMs": 17.8
+   },
+   {
+    "buildMs": 9.9,
+    "halfRangeDeg": 2,
+    "medianMs": 24.3
+   },
+   {
+    "buildMs": 11.4,
+    "halfRangeDeg": 5,
+    "medianMs": 25
+   },
+   {
+    "buildMs": 15.7,
+    "halfRangeDeg": 10,
+    "medianMs": 34.1
+   },
+   {
+    "buildMs": 13.3,
+    "halfRangeDeg": 20,
+    "medianMs": 53.8
+   },
+   {
+    "buildMs": 14.9,
+    "halfRangeDeg": 45,
+    "medianMs": 52.9
+   },
+   {
+    "buildMs": 14.5,
+    "halfRangeDeg": 90,
+    "medianMs": 59.4
+   },
+   {
+    "buildMs": 17.8,
+    "halfRangeDeg": 180,
+    "medianMs": 88.3
+   }
+  ],
+  "angleSettings": [
+   {
+    "angleMaxDeg": 0.307,
+    "angleMeanDeg": 0.071,
+    "medianMs": 4.87,
+    "positionMaxPx": 0.224,
+    "setting": "auto-m0"
+   },
+   {
+    "angleMaxDeg": 1,
+    "angleMeanDeg": 0.12,
+    "medianMs": 4.54,
+    "positionMaxPx": 0.151,
+    "setting": "1.0-m0"
+   },
+   {
+    "angleMaxDeg": 0.5,
+    "angleMeanDeg": 0.083,
+    "medianMs": 4.09,
+    "positionMaxPx": 0.151,
+    "setting": "0.5-m0"
+   },
+   {
+    "angleMaxDeg": 0.323,
+    "angleMeanDeg": 0.069,
+    "medianMs": 5.66,
+    "positionMaxPx": 0.134,
+    "setting": "1.0-m2"
+   },
+   {
+    "angleMaxDeg": 0.326,
+    "angleMeanDeg": 0.073,
+    "medianMs": 4.79,
+    "positionMaxPx": 0.128,
+    "setting": "0.5-m2"
+   },
+   {
+    "angleMaxDeg": 1.655,
+    "angleMeanDeg": 0.085,
+    "medianMs": 5.75,
+    "positionMaxPx": 0.131,
+    "setting": "0.25-m2"
+   }
+  ],
+  "imageSize": [
+   {
+    "medianMs": 7.3,
+    "megapixels": 1,
+    "parts": 130
+   },
+   {
+    "medianMs": 41.4,
+    "megapixels": 5,
+    "parts": 841
+   },
+   {
+    "medianMs": 63.6,
+    "megapixels": 12,
+    "parts": 2115
+   },
+   {
+    "medianMs": 145.5,
+    "megapixels": 25.2,
+    "parts": 4623
+   }
+  ],
+  "libraryTypes-CV-T7": [
+   {
+    "medianMs": 5.6,
+    "types": 1
+   },
+   {
+    "medianMs": 97.7,
+    "types": 10
+   },
+   {
+    "medianMs": 1088.4,
+    "types": 100
+   },
+   {
+    "medianMs": 10775.3,
+    "types": 1000
+   }
+  ],
+  "libraryTypes-T7": [
+   {
+    "medianMs": 11,
+    "types": 1
+   },
+   {
+    "medianMs": 40.1,
+    "types": 10
+   },
+   {
+    "medianMs": 387.3,
+    "types": 100
+   },
+   {
+    "medianMs": 3376.7,
+    "types": 1000
+   }
+  ],
+  "libraryTypes-T7each": [
+   {
+    "medianMs": 8.3,
+    "types": 1
+   },
+   {
+    "medianMs": 73.8,
+    "types": 10
+   },
+   {
+    "medianMs": 506.2,
+    "types": 100
+   },
+   {
+    "medianMs": 5057.7,
+    "types": 1000
+   }
+  ],
+  "sampleSize": [
+   {
+    "levels": 3,
+    "matches": 870,
+    "medianMs": 16.1,
+    "parts": 870,
+    "sample": "32x16"
+   },
+   {
+    "levels": 4,
+    "matches": 841,
+    "medianMs": 22.8,
+    "parts": 841,
+    "sample": "64x32"
+   },
+   {
+    "levels": 5,
+    "matches": 98,
+    "medianMs": 12.8,
+    "parts": 98,
+    "sample": "128x128"
+   }
+  ],
+  "t6Cases": [
+   {
+    "case": "clean",
+    "found": 841,
+    "maxErrorPx": 0,
+    "present": 841,
+    "totalMs": 71.4
+   },
+   {
+    "case": "noise 4, blur 1",
+    "found": 841,
+    "maxErrorPx": 0.1,
+    "present": 841,
+    "totalMs": 41.5
+   },
+   {
+    "case": "noise 12, blur 2",
+    "found": 841,
+    "maxErrorPx": 1.36,
+    "present": 841,
+    "totalMs": 51.6
+   },
+   {
+    "case": "5% missing",
+    "found": 793,
+    "maxErrorPx": 0.1,
+    "present": 793,
+    "totalMs": 66.9
+   },
+   {
+    "case": "10% glare",
+    "found": 841,
+    "maxErrorPx": 0.142,
+    "present": 841,
+    "totalMs": 39.9
+   },
+   {
+    "case": "tilt 3 deg",
+    "found": 834,
+    "maxErrorPx": 0.138,
+    "present": 834,
+    "totalMs": 44.5
+   },
+   {
+    "case": "jitter 3 px",
+    "found": 841,
+    "maxErrorPx": 0.231,
+    "present": 841,
+    "totalMs": 36.9
+   },
+   {
+    "case": "12 bit",
+    "found": 841,
+    "maxErrorPx": 0.1,
+    "present": 841,
+    "totalMs": 51.2
+   }
+  ],
+  "threads": [
+   {
+    "medianMs": 70.2,
+    "threads": 1
+   },
+   {
+    "medianMs": 42.3,
+    "threads": 2
+   },
+   {
+    "medianMs": 36.7,
+    "threads": 4
+   },
+   {
+    "medianMs": 30.3,
+    "threads": 8
+   },
+   {
+    "medianMs": 24.4,
+    "threads": 15
+   }
+  ]
+ },
+ "realImages": {
+  "note": "perf_halcon_real (AOI_REAL_IMAGE_DIR): the user's two de-identified 12-bit images (5314 x 4594 Gray16, values 0..4095; not in the repository). Sample box (442, 444, 80, 30) = one pin. Both back ends through the use case of the composition root, same image, same sample. Counts are identical in all 3 runs. Times: use case total over 3 calls per run; runs 2 and 3 (run 1 was slower for every test on the machine: HALCON 683-1011 ms, OpenCV 578-813 ms).",
+  "HA": {
+   "halcon": {
+    "candidates": 207,
+    "sample": 1,
+    "seed": 199,
+    "verified": 7,
+    "predicted": 0,
+    "seedScores_0.70_0.75_0.80_0.85_0.90_0.95_1.00": [
+     84,
+     97,
+     18,
+     0,
+     0,
+     0
+    ],
+    "lattice": "1-D, 4 lattices, confidence 0.731, 7 holes",
+    "totalMsRuns2and3": [
+     65.4,
+     123.6
+    ]
+   },
+   "opencv": {
+    "candidates": 1264,
+    "sample": 1,
+    "seed": 1261,
+    "verified": 2,
+    "predicted": 0,
+    "seedScores_0.70_0.75_0.80_0.85_0.90_0.95_1.00": [
+     342,
+     113,
+     57,
+     152,
+     77,
+     520
+    ],
+    "lattice": "1-D, 1 lattice, confidence 0.281, 2 holes",
+    "totalMsRuns2and3": [
+     161.3,
+     211.5
+    ]
+   },
+   "observation": "HALCON boxes are on real pins, but most pins score below 0.70 (none at 0.85 or more); OpenCV finds most pins (>= 0.85) plus pad edges (0.70-0.85)."
+  },
+  "LA": {
+   "halcon": {
+    "candidates": 1054,
+    "sample": 1,
+    "seed": 799,
+    "verified": 48,
+    "predicted": 206,
+    "seedScores_0.70_0.75_0.80_0.85_0.90_0.95_1.00": [
+     3,
+     68,
+     180,
+     250,
+     289,
+     9
+    ],
+    "lattice": "2-D, u (1.23, 154.10), v (-134.14, -75.93), confidence 0.547, 254 holes",
+    "totalMsRuns2and3": [
+     101.8,
+     120.6
+    ]
+   },
+   "opencv": {
+    "candidates": 1202,
+    "sample": 1,
+    "seed": 1032,
+    "verified": 49,
+    "predicted": 120,
+    "seedScores_0.70_0.75_0.80_0.85_0.90_0.95_1.00": [
+     225,
+     10,
+     177,
+     28,
+     233,
+     359
+    ],
+    "lattice": "2-D, u (1.22, 154.10), v (-134.14, -75.93), confidence 0.516, 169 holes",
+    "totalMsRuns2and3": [
+     156.5,
+     216.3
+    ]
+   },
+   "observation": "Same lattice on both back ends. HALCON finds the pins of the right-hand region too; both predict false holes in the two empty slots (S05 known failure 11): 206 with HALCON, 120 with OpenCV."
+  }
+ }
+}

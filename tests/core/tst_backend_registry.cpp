@@ -3,6 +3,7 @@
 #include <atomic>
 #include <chrono>
 #include <thread>
+#include <vector>
 
 #include "CoreTestSupport.h"
 #include "app/CompositionRoot.h"
@@ -148,7 +149,13 @@ private slots:
         QVERIFY(list[1].unavailable.message.find("AOI_WITH_OPENCV=ON") != std::string::npos);
 #endif
         QCOMPARE(list[2].id, std::string("halcon"));
+#ifdef AOI_WITH_HALCON
+        // S08：編進程式時，PATH 上找得到 halconcpp.dll 就登記成可用（授權等到建立時才檢查）；找不到就是不可用、附原因。
+        if (!list[2].available) QVERIFY(list[2].unavailable.message.find("halconcpp.dll") != std::string::npos);
+#else
         QVERIFY(!list[2].available);
+        QVERIFY(list[2].unavailable.message.find("AOI_WITH_HALCON=ON") != std::string::npos);
+#endif
     }
 
 #ifdef AOI_WITH_OPENCV
@@ -175,11 +182,15 @@ private slots:
     // 對應 --backend=opencv、--backend=halcon：沒有編進程式的 back end 要明確失敗，而且訊息要說有哪些可用。
     void composingAnUnavailableBackendFailsWithAClearMessage() {
         const BackendRegistry registry = app::makeBackendRegistry();
-#ifdef AOI_WITH_OPENCV
-        for (const char* id : {"halcon"}) {
-#else
-        for (const char* id : {"opencv", "halcon"}) {
+        std::vector<const char*> ids;
+#ifndef AOI_WITH_OPENCV
+        ids.push_back("opencv");
 #endif
+#ifndef AOI_WITH_HALCON
+        ids.push_back("halcon");  // S08：編進程式時，可不可用看授權（tst_cli、tst_halcon_backend 驗證）
+#endif
+        if (ids.empty()) QSKIP("every back end is built into this program");
+        for (const char* id : ids) {
             const Result<app::CoreServices> core = app::composeCore(registry, id);
             QVERIFY(!core.ok());
             QVERIFY(core.error().code == ErrorCode::BackendUnavailable);
