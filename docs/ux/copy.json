@@ -263,6 +263,14 @@
       "zh_TW": "Back end",
       "en": "Back end"
     },
+    "ui.backend.unavailable": {
+      "zh_TW": "{name} 無法使用：{reason}",
+      "en": "{name} is not available: {reason}"
+    },
+    "ui.backend.halcon.sdkDongleMissing": {
+      "zh_TW": "HALCON 用的是 runtime 授權（{inUse}）。開發用的 SDK 授權要插 dongle {missing}，目前沒有插上。",
+      "en": "HALCON runs with the runtime license ({inUse}). The development (SDK) license needs the dongle {missing}, which is not attached."
+    },
     "ui.settings.theme.light": {
       "zh_TW": "淺色",
       "en": "Light"

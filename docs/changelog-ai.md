@@ -24,6 +24,46 @@
 - 下一位 agent 需要知道的限制、否決的做法、不要還原的修改
 ```
 
+## 2026-10-07 — Claude Code (Claude Opus 5.5)（S08：HALCON back end）
+
+### 完成
+- 依 Step Protocol 做 S08，在 worktree 的分支 `step/08-halcon`（從 `main` 的 `000aa36` 開出）。
+- 開工時實測授權並向使用者說明：runtime（RTL，`3-7614034`）可用、SDK（`3-7081033`）的 dongle 沒插、`%HALCONROOT%` 沒有開發檔。使用者指示從 CV_Algorithm 專案複製開發檔，並要求分辨兩種 dongle、授權錯了要提醒。
+- `third_party/halcon/`（24.11.2 的標頭＋`halconcpp.lib`，`-text`、`.gitignore` 例外、`README.md`）；`cmake/FindHalconLocal.cmake`（`Halcon::HalconCpp`、`/DELAYLOAD:halconcpp.dll`、`NOMINMAX`）；preset `release-halcon`／`debug-halcon`（OpenCV＋HALCON）；`test.ps1 -Preset release-halcon`。
+- HALCON back end（`src/infrastructure/backend_halcon/`，ADR-017）：範本建立器（`create_shape_model`）、搜尋器（`find_shape_model`，視窗清單 ＝ 一個聯集的區域）、樣本庫比對器（一次 `find_shape_models`）、`HalconImages`（緊密排列零複製）、`HalconPose`（位姿換算）、`HalconCancelWatch`（`interrupt_operator`）、`HalconRuntime`（延遲載入的保護、版本）、`HalconLicense`（探測、判斷、提醒）、`HalconErrors`、`HalconSearchSteps`、`HalconBackend`（工廠、`setHalconThreads`）。
+- 運算子的行為查 `%HALCONROOT%\help\operators_en_US.ref` 與執行時的 `get_operator_info`（`find_shape_model(s)` 可中斷、'no_restriction'；`create_shape_model` 不可中斷）。
+- 實測後改的：'auto' 的角度步進（48×28 給 5.2°，±5° 只剩三個角度）→ 角落每步 0.5 px＋模型範圍兩端多 2 步；位姿要用 `affine_trans_pixel` 的修正（測試證明）；`Gray16` 換 8 bit 由逐像素（213 ms）改查表（8–11 ms）；次像素預設 `least_squares`（試過 `_high`）。
+- 組裝根：halcon 的登記（PATH 上有 DLL 才可用、授權在工廠裡）、`backendNotices`；main：提醒寫 stderr（fflush）、吐司、選單提示；`MainWindow::setBackends` 改成 `BackendChoice`（不可用的停用、加 ✕、提示原因）；`copy.json` 新增 2 個 key。
+- 測試：`tst_halcon_backend`（29 項）、`tst_halcon_end_to_end`、`tst_halcon_library_matcher`、`perf_halcon`、`perf_halcon_real`；`tst_cli`（有授權啟動並提醒、沒有授權結束碼 2、沒有 DLL 時 fake 照常）、`tst_backend_registry`、`tst_shell`（選單）。
+- 文件：`docs/steps/S08-halcon/`（四種輸出＋`perf.md`）、ADR-017、ADR-010／014 的「後續（S08）」、`decisions.md`、`architecture.md`、`AI_CONTEXT.md`、`README.md`、`docs/plan/S09`–`S12` 的「S08 完成後的提醒」；`perf/budgets.json`（T2b calibrated、`searchCalibrationS08`，limit 沒改）、`perf/baseline/casparhsu1-halcon.json`。
+
+### 修改的檔案
+- 新增：`src/infrastructure/backend_halcon/`（24 個檔案）、`cmake/FindHalconLocal.cmake`、`third_party/halcon/`、`tests/backend/{tst_halcon_backend,tst_halcon_end_to_end,tst_halcon_library_matcher,perf_halcon,perf_halcon_real}.cpp`、`docs/steps/S08-halcon/`、`docs/adr/017-halcon-shape-model-backend.md`、`perf/baseline/casparhsu1-halcon.json`
+- 修改：`CMakeLists.txt`、`CMakePresets.json`、`cmake/AoiTargets.cmake`、`.gitattributes`、`.gitignore`、`scripts/dev/test.ps1`、`src/infrastructure/CMakeLists.txt`、`src/app/{CMakeLists.txt,CompositionRoot.h,CompositionRoot.cpp,main.cpp}`、`src/presentation/shell/MainWindow.{h,cpp}`、`tests/backend/{CMakeLists.txt,BackendTestSupport.h}`、`tests/core/{CMakeLists.txt,tst_backend_registry.cpp,tst_cli.cpp}`、`tests/ui/tst_shell.cpp`、`docs/ux/copy.json`（只新增 key）、`perf/budgets.json`、`AI_CONTEXT.md`、`README.md`、`docs/architecture.md`、`docs/decisions.md`、`docs/current-status.md`、`docs/adr/010-*`、`014-*`、`docs/plan/S09`–`S12`、`.ai/handoff.md`
+
+### 驗證
+- CTest：Release 45、Release＋OpenCV 50、**Release＋OpenCV＋HALCON 53**、**Debug＋OpenCV＋HALCON 53**、**只有 HALCON（`-DAOI_WITH_HALCON=ON -DAOI_WITH_OPENCV=OFF`）48** 個項目全過。三個 HALCON 組態是 dongle 恢復後、在最後的程式碼上跑的（HALCON 的測試 0 跳過：29／12／9 項），之後只改了兩處註解，重建並重跑 HALCON、`tst_cli`、`tst_backend_registry`、`tst_shell` 共 6 個項目。Release 與 Release＋OpenCV 是在授權探測與一個 HALCON 測試修改之前跑的：那兩個改動只在 HALCON 的組態編譯。
+- 降級（手動與 `tst_cli`）：`HALCONROOT` 指到空資料夾 → `--backend=halcon` 結束碼 2、錯誤 2036；PATH 上沒有 HALCON → halcon 登記成不可用、`--backend=fake` 照常啟動；有授權時 `--backend=halcon` 啟動，stderr 有「SDK 的 dongle 沒插」的提醒。
+- `node tools/check-deps.mjs`：0 違規；`--self-test` 15 個 fixture 全過。`node tools/ste-lint.mjs --strict`：0 錯誤、0 警告。`diagram.md` 8 張 Mermaid 用 mermaid 11（jsDelivr，瀏覽器窗格）解析全過，故意寫壞的一張被抓到。`explainer.html`：滑桿、勾選框、主題都操作過，0 個 console 訊息，375 px 寬沒有水平捲動。
+- 效能：`-Preset release-halcon -Perf` 連跑 3 次（`AOI_REAL_IMAGE_DIR` 有設）＋`perf_halcon` 補跑 1 次。T1、T4、T6a、T6b 3 次都在預算內；**T2b 3 次中 1 次超過**（p95 82.2 ms，那一次整台機器變慢：S02 的 U4-PNG 也超過、`perf_ui_baseline` 300 秒逾時；第 2、3、4 次 29–35 ms）。U3 仍超標（S04 起）。
+- 變異：12 個（角度正負號、沒有旋轉修正、沒有角度餘量、'auto' 步進、不用視窗過濾、拿掉 NMS、提醒規則反過來、Gray16 不計數、沒有取消監看、拿掉 Matching 檢查、視窗不往外擴、角度不夾回範圍），抓到 11 個。第一輪有 3 個因為 `/WX`（變數沒用到）編譯失敗，改成保留變數的寫法重跑；「不用視窗過濾」第一次存活，補了「元件中心在視窗外 1.5 像素」的測試後抓到；「拿掉 domain 的 NMS」存活：同一次 `find_shape_model` 裡 HALCON 自己的 MaxOverlap 已經去掉重複，測過的情境等價，NMS 留著當契約的防禦。
+- `AiInspTool.pro`：Qt 6.12.0 的 qmake ＋ jom（Release）建置成功；offscreen 下 `--backend=halcon` 結束碼 2、訊息說要用 `AOI_WITH_HALCON=ON`，`--demo 500` 啟動 4 秒仍在執行。**沒有在 Qt Creator 裡載入過。**
+- **真實的「讀不到 dongle」**：驗證途中（12:04）HALCON 突然讀不到**一直插著**的 RTL dongle（錯誤 2300；Windows 仍認得 `USB\VID_064F&PID_2AF9\000007614034`、狀態 OK；`hhostid` 看不到它；沒有行程載入 HALCON）。使用者重插後約 12:25 恢復，**原因不明**。那段期間 `--backend=halcon` 結束碼 2、原因寫清楚，HALCON 的 `tst_*` 跳過並說原因（不是失敗）。因此加了「沒有授權時自己讀 `%HALCONROOT%\license\*.dat`」，訊息寫出每個授權檔需要哪個 dongle。這台電腦另外裝了 HALCON 22.11（使用者的 AppData，授權是過期的試用版）；`HALCONROOT` 指 24.11，所以 22.11 的 HDevelop 讀 24.11 的授權檔，報 2041 Invalid host。
+
+### 未完成
+- HALCON 的影像來源（`read_image`）：沒有做，等使用者決定。`create_ncc_model` 的對照：沒有做（plan 寫「可選」）。
+- 流程 B 的 UI（使用者決定之後再接）；兩個 back end 的分數門檻要不要分開（S09 一起看）。
+- 契約測試的泛化（S09）。
+
+### 注意事項
+- **HALCON 的 'auto' 角度步進不能用在小樣本**；`HalconSearchOptions` 的 `cornerShiftPx`、`angleMarginSteps` 是實測定的（`perf.md` 的 AS-*）。
+- **位姿換算不是單純 ±0.5**（`HalconPose.h`、ADR-010 的 S08 後續）。
+- `halconcpp.dll` 延遲載入：任何 HALCON 呼叫之前要先過 `halconRuntimeProblem()`；組裝根只 include 不帶 HALCON 標頭的三個檔案。
+- **PowerShell 的 `Get-Content -Raw`／`Set-Content` 把 UTF-8 檔當 CP950 讀壞過一次**（`HalconSearchOptions.h`，立刻用編輯工具整份重寫）；改檔一律用編輯工具。
+- `QVERIFY2` 的訊息在通過時也會求值：`tst_cli` 一開始在訊息裡讀了 stderr，後面就讀不到了。
+- 量測前 Visual Studio 自己更新到 17.14.37710（`cl` 19.44.35229）；更新期間 `vswhere` 找不到 VS、`env.ps1` 會失敗。
+- 真實影像與疊圖不入版控；`.claude/launch.json`（瀏覽器窗格的暫時伺服器）已刪除。
+
 ## 2026-10-06 — Claude Code (Claude Opus 5.5)（S07：OpenCV back end）
 
 ### 完成

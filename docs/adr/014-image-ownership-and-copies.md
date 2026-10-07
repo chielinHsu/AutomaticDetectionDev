@@ -82,3 +82,13 @@
 - **誰讀它**：畫布轉 8 bit 顯示（`ImageItem`，右移 位元數 − 8）、use case 的對比檢查（`effectiveBits`）、OpenCV 搜尋器轉 8 bit（ADR-016）。三個地方都讀 view 的欄位，所以 Presenter 在開圖與改設定時把覆寫套到 view 上就夠了，use case 與搜尋器不必改。
 - **證據**：`tst_image_view`（決定的每一條規則、零複製）、`tst_document`（換影像沿用、不是 Command）、`tst_presenter`（暗的 12 bit 影像推測成 10 bit、畫布把 1000 畫成 250；選 12 bit 後畫成 62、下一張影像沿用、改回自動；選 10 bit 給推測 12 bit 的影像被拒絕）、`tst_opencv_end_to_end`（暗而對比低的 12 bit 板子：推測的 10 bit 讓對比放大 4 倍、檢查放行；覆寫成 12 bit 後判定「對比太低」。暗但對比夠的板子覆寫後全部找到）、`tst_opencv_backend`（搜尋器的換算依位元數：底色 15 在 10 bit 下變成 60）、`tst_recipe_store`（v2 往返、v1 遷移補 0）。
 - 上面「後果」的「有效位元數是推測的；配方或相機設定可以覆寫的介面還沒有做」由這一節解決；「相機設定」沒有獨立的設定檔，設定跟著板子（配方）走。
+
+## 後續（S08，2026-10-07）：HALCON 的轉換
+
+上面「後果」最後一條的預期，S08 查了說明（`gen_image1_extern`：「像素一列接一列」、「HALCON 不配置也不複製」、清理函式可以是空的）並實作（`src/infrastructure/backend_halcon/HalconImages.h`，[ADR-017](017-halcon-shape-model-backend.md)）：
+
+- **零複製**：`Gray8` 緊密排列（stride ＝ 寬）、而且用整張影像時，`gen_image1_extern` 直接指到 view 的像素；清理函式給空的，像素由 `HalconGray::keepAlive`（view 的 owner）留住，HALCON 的影像物件與它衍生的物件（`reduce_domain`）不可以活得比它久（成員順序保證）。`Gray16` 在 `nativeGray16` 選項下同樣零複製（`uint2`）。
+- **一次複製（計數）**：子影像（stride 比一列大）、只用一部分、`Gray16` 換成 8 bit（預設：和 OpenCV 同一個輸入；用查表，5 MP 約 8–11 ms）、彩色轉灰階（和 OpenCV 的 `cvtColor` 同一組定點係數）。彩色沒有轉成 HALCON 的分平面：搜尋器只用灰階。
+- **反方向**：HALCON 演算法產生的 `byte` 影像（例如流程 B 縮放過的參考影像）用 `viewOfHalconImage` 零複製交出（owner 持有一份 `HImage`）。
+- **證據**：`tst_halcon_backend` 的 `gray8IsSearchedWithoutCopiesAndGray16WithOne`（Gray8 搜尋 0 次複製、Gray16 1 次 1024×768 byte、`uint2` 0 次且一樣準）、`aSubViewIsSearchedLikeTheWholeImage`、`theGrayConversionUsesTheSignificantBits`、`colorToGrayUsesTheOpenCvCoefficients`、`allCanonicalFormatsGiveTheSameMatches`。
+- **沒有做**：HALCON 的影像來源（`read_image`）。理由與待決見 ADR-017 的「否決的替代方案」。

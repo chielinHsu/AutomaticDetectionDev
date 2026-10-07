@@ -59,3 +59,8 @@ if(AOI_WITH_OPENCV)
   target_compile_definitions(tst_cli PRIVATE AOI_WITH_OPENCV=1)
   target_compile_definitions(tst_backend_registry PRIVATE AOI_WITH_OPENCV=1)
 endif()
+# S08：HALCON 編進程式時，--backend=halcon 要能啟動（有授權時）；沒有授權、沒有 DLL 時要明確失敗（結束碼 2、原因）。
+if(AOI_WITH_HALCON)
+  target_compile_definitions(tst_cli PRIVATE AOI_WITH_HALCON=1)
+  target_compile_definitions(tst_backend_registry PRIVATE AOI_WITH_HALCON=1)
+endif()

@@ -1,7 +1,10 @@
 #pragma once
 
 #include <memory>
+#include <string>
 #include <string_view>
+#include <utility>
+#include <vector>
 
 #include "application/Result.h"
 #include "application/backend/BackendRegistry.h"
@@ -16,7 +19,8 @@
 // app 層：組裝根。這裡是整個程式唯一同時認識 application 與所有 adapter 的地方（依賴反轉：use case 只認識 port）。
 namespace aoi::app {
 
-// 背景工作的執行緒數：核心數 − 1（保留一個給 UI 執行緒），至少 1。JobRunner 的 worker 與 OpenCV 的平行迴圈都用它（ADR-016）。
+// 背景工作的執行緒數：核心數 − 1（保留一個給 UI 執行緒），至少 1。JobRunner 的 worker、OpenCV 的平行迴圈（ADR-016）
+// 與 HALCON 的自動平行化（S08，set_system('thread_num')）都用它。
 std::size_t workerThreads();
 
 // 註冊所有 back end：可用的與不可用的（附原因）。新增一個 back end ＝ 在這裡加一行，其他地方都不必改。
@@ -43,5 +47,16 @@ std::unique_ptr<IImageSource> makeImageSource();
 // 依 id 建立 back end 並接上 use case、JobRunner。id 不存在或不可用時回 Error（訊息說明原因與可用的 back end）。
 Result<CoreServices> composeCore(const BackendRegistry& registry, std::string_view backendId, bool perfEnabled = false,
                                  ExecutorKind executorKind = ExecutorKind::QtThreadPool);
+
+// back end 可以用、但使用者應該知道的事（S08）。例：HALCON 用的是 runtime 授權，開發（SDK）授權的 dongle 沒插。
+// 文案由 presentation 依 textId 從 copy.json 取（args 是 {名稱} 佔位字的值）；message 是英文說明（stderr、log、測試）。
+struct BackendNotice {
+    std::string textId;
+    std::vector<std::pair<std::string, std::string>> args;
+    std::string message;
+};
+
+// 已經建立成功的 back end（composeCore 之後）有哪些提醒。不認得的 id、沒有提醒的 back end 回空的清單。
+std::vector<BackendNotice> backendNotices(std::string_view backendId);
 
 }  // namespace aoi::app

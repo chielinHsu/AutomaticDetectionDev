@@ -13,6 +13,8 @@
 
 > **S07 完成後的提醒（2026-10-06）**：配方的 schema 升到 **v2**（`board.significantBits`：影像的有效位元數，0 ＝ 自動；ADR-015 的 S07 後續）。範例檔 `tests/infra/fixtures/recipe-v1.json`、`recipe-v2.json` 都要永遠讀得進來（不要改）。打包要帶 OpenCV 的 DLL（`opencv_world490.dll`，`aoi.exe` 建置後已複製到旁邊；只在 `*-opencv` 的 preset）。
 
+> **S08 完成後的提醒（2026-10-07）**：（1）**HALCON 不要打包進安裝程式**：`halconcpp.dll`、`halcon.dll` 與授權都屬於使用者電腦上的 HALCON 安裝（`%HALCONROOT%`），程式用延遲載入、找 PATH；沒有 HALCON 的電腦，halcon 在選單上停用並說原因。HALCON 的 runtime 授權（RTL）是部署用的，開發用 SDK 授權（程式在「用 runtime 授權、SDK 的 dongle 沒插」時提醒；只有 runtime 授權的電腦不提醒）。（2）開發檔在 `third_party/halcon/`（24.11.2）；打包的電腦上 HALCON 的主、次版本要和它相同（`HalconRuntime` 會檢查，不同就不可用）。（3）`copy.json` 新增 `ui.backend.unavailable`、`ui.backend.halcon.sdkDongleMissing`。
+
 <!--STE-->
 ## Purpose
 This step finishes the first release. It adds export, builds an installer and completes the user manual.

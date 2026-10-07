@@ -29,15 +29,8 @@ if(AOI_WITH_OPENCV)
   message(STATUS "OpenCV ${OpenCV_VERSION} (${OpenCV_DIR})")
 endif()
 if(AOI_WITH_HALCON)
-  if(NOT DEFINED ENV{HALCONROOT})
-    message(FATAL_ERROR "AOI_WITH_HALCON=ON needs the HALCONROOT environment variable")
-  endif()
-  if(NOT EXISTS "$ENV{HALCONROOT}/include/halconcpp/HalconCpp.h")
-    message(FATAL_ERROR
-      "AOI_WITH_HALCON=ON, but $ENV{HALCONROOT}/include/halconcpp/HalconCpp.h does not exist. "
-      "The HALCON C++ interface (headers and import libraries) is not installed.")
-  endif()
-  message(STATUS "HALCON $ENV{HALCONROOT}")
+  # S08：標頭與匯入程式庫在 third_party/halcon（或 AOI_HALCON_SDK_DIR），DLL 與授權在 %HALCONROOT%。
+  include(cmake/FindHalconLocal.cmake)
 endif()
 
 include(cmake/AoiTargets.cmake)

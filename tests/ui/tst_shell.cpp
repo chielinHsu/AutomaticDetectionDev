@@ -1,4 +1,5 @@
 #include <QApplication>
+#include <QComboBox>
 #include <QDir>
 #include <QDockWidget>
 #include <QDragEnterEvent>
@@ -8,6 +9,7 @@
 #include <QPushButton>
 #include <QSet>
 #include <QSignalSpy>
+#include <QStandardItemModel>
 #include <QStatusBar>
 #include <QTemporaryDir>
 #include <QTest>
@@ -98,6 +100,34 @@ private slots:
     }
 
     // ---- 空白與載入 ----
+    // S08：back end 選單。不可用的項目停用、名稱加「✕」、提示說原因；可用但有提醒的（HALCON 的授權）提醒也在提示裡。
+    // 整個選單仍是停用的（執行中不能切換，用 --backend）。語言切換後提示跟著換。
+    void theBackendMenuDisablesUnavailableItemsAndExplainsWhy() {
+        Fixture f;
+        f.window.setBackends({{QStringLiteral("Fake"), true, {}},
+                              {QStringLiteral("OpenCV"), false, QStringLiteral("not built in")},
+                              {QStringLiteral("HALCON"), true, QStringLiteral("runtime license")}},
+                             2);
+        QComboBox* combo = f.window.backendCombo();
+        QCOMPARE(combo->count(), 3);
+        QCOMPARE(combo->currentIndex(), 2);
+        QVERIFY(!combo->isEnabled());
+        QCOMPARE(combo->itemText(1), QStringLiteral("OpenCV ✕"));
+        auto* model = qobject_cast<QStandardItemModel*>(combo->model());
+        QVERIFY(model != nullptr);
+        QVERIFY(model->item(0)->isEnabled());
+        QVERIFY(!model->item(1)->isEnabled());
+        QCOMPARE(combo->itemData(1, Qt::ToolTipRole).toString(), QStringLiteral("OpenCV 無法使用：not built in"));
+        QCOMPARE(combo->itemData(2, Qt::ToolTipRole).toString(), QStringLiteral("HALCON: runtime license"));
+        QVERIFY(combo->toolTip().contains(QStringLiteral("OpenCV 無法使用：not built in")));
+        Translations::install(QStringLiteral("en"));
+        QCoreApplication::processEvents();  // LanguageChange 是排入佇列的（Qt 6.8 起）
+        QCOMPARE(combo->itemData(1, Qt::ToolTipRole).toString(), QStringLiteral("OpenCV is not available: not built in"));
+        QCOMPARE(combo->currentIndex(), 2);
+        Translations::install(QStringLiteral("zh_TW"));
+        QCoreApplication::processEvents();
+    }
+
     void startsEmptyWithDisabledToolsAndACenteredCard() {
         Fixture f;
         QVERIFY(!f.canvas()->hasImage());

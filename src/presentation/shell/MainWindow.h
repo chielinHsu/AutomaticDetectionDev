@@ -81,8 +81,14 @@ public:
     void setImage(const aoi::ImageView& image, const QString& name);
     // 工具列的工具換成 id（工具、按鈕、畫布一起換）。
     void selectTool(ToolId id);
-    // 上方 back end 選單：顯示目前用的與其他已註冊的。S04 不能在執行中切換（只有一個可用的 back end，S07 才有第二個），所以是停用的。
-    void setBackends(const QStringList& names, int current);
+    // 上方 back end 選單：顯示目前用的與其他已註冊的。還不能在執行中切換（用 --backend 選），所以整個選單是停用的。
+    // S08：不可用的項目停用、名稱後加「✕」，提示（tooltip）說原因；可用但有提醒的（例如 HALCON 的授權）也寫在提示裡。
+    struct BackendChoice {
+        QString name;
+        bool available = true;
+        QString note;  // 不可用的原因，或可用時的提醒；空 ＝ 沒有
+    };
+    void setBackends(const QList<BackendChoice>& choices, int current);
 
     // ---- IStatusView ----
     void showSummary(const QString& text) override;
@@ -121,6 +127,7 @@ private:
     void updateHistoryTips();
     void centerEmptyCard();
     void promptOpen();
+    void refreshBackends();
 
     ThemeManager& theme_;
     aoi::IImageSource* imageSource_ = nullptr;
@@ -175,6 +182,8 @@ private:
 
     QString imageName_;
     QString summaryText_;
+    QList<BackendChoice> backends_;
+    int currentBackend_ = 0;
     BusyLevel busyLevel_ = BusyLevel::None;
     double progress_ = 0.0;
     QString undoLabel_;

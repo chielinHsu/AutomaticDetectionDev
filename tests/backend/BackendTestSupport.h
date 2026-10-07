@@ -13,6 +13,15 @@
 #include "synthetic_board.h"
 
 // tests/backend 共用（S07）：合成板子的樣本框、與標準答案比對（召回率 T6a、位置誤差 T6b）。
+
+// S08：要 HALCON 的程式庫與授權的測試，開頭寫 REQUIRE_HALCON()。這台機器不能用 HALCON 時跳過並說原因（不是失敗、也不是通過）。
+// 是巨集而不是函式：QSKIP 只會從「呼叫它的那個函式」返回。用之前要 include infrastructure/backend_halcon/HalconLicense.h。
+#define REQUIRE_HALCON()                                                                                                     \
+    do {                                                                                                                     \
+        const aoi::infra::HalconLicenseVerdict verdict_ = aoi::infra::judgeHalconLicense(aoi::infra::halconLicense());     \
+        if (!verdict_.usable) QSKIP(qPrintable(QStringLiteral("HALCON is not usable here: ") + QString::fromStdString(verdict_.reason))); \
+    } while (0)
+
 namespace aoi::test {
 
 // 使用者框樣本的樣子：元件主體外加 margin 像素（範本含一圈背景）。用第 index 個「有元件」的格子。

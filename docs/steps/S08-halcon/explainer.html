@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S08 HALCON back end</title>
+<style>
+/* Tokens copied from docs/steps/S00-overview/explainer.html so every page looks the same. */
+:root{--bg:#f6f7f9;--panel:#fff;--ink:#18212b;--muted:#566273;--line:#d3d9e0;--accent:#1d4ed8;--accent-ink:#fff;
+  --sample:#1d4ed8;--found:#15803d;--infer:#b45309;--reject:#b91c1c;--pred:#6b7787;--cv:#7c3aed;--hal:#0f766e}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#0f141a;--panel:#18202a;--ink:#e7edf4;--muted:#9aa8b8;--line:#2c3846;
+  --accent:#7aa7ff;--accent-ink:#0b1220;--sample:#7aa7ff;--found:#4ade80;--infer:#fbbf24;--reject:#f87171;--pred:#8fa0b4;--cv:#c4b5fd;--hal:#5eead4}}
+:root[data-theme="dark"]{--bg:#0f141a;--panel:#18202a;--ink:#e7edf4;--muted:#9aa8b8;--line:#2c3846;
+  --accent:#7aa7ff;--accent-ink:#0b1220;--sample:#7aa7ff;--found:#4ade80;--infer:#fbbf24;--reject:#f87171;--pred:#8fa0b4;--cv:#c4b5fd;--hal:#5eead4}
+*{box-sizing:border-box} html{color-scheme:light dark}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 system-ui,"Segoe UI","Microsoft JhengHei",sans-serif}
+.wrap{max-width:1100px;margin:0 auto;padding:16px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;margin-top:14px}
+h1{font-size:22px;margin:0 0 4px} h2{font-size:17px;margin:0 0 8px}
+h3{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--accent);margin:12px 0 2px}
+.zh{color:var(--muted);font-size:13.5px} .muted{color:var(--muted);font-size:13px}
+.top{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}
+.btn{border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:8px;padding:6px 10px;font:inherit;cursor:pointer}
+.btn[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px}
+.canvasbox{text-align:center} .canvasbox canvas{width:100%;max-width:340px;image-rendering:pixelated;border:1px solid var(--line);border-radius:8px;background:#000}
+.ctl{display:grid;grid-template-columns:110px 1fr 54px;gap:8px;align-items:center;margin:6px 0}
+.ctl input{width:100%} .ctl output{text-align:right;font-variant-numeric:tabular-nums}
+.bar{height:16px;border-radius:6px;background:var(--line);overflow:hidden;margin:4px 0 10px}
+.bar>i{display:block;height:100%}
+.score{display:flex;justify-content:space-between;font-variant-numeric:tabular-nums}
+table{border-collapse:collapse;width:100%;font-size:13.5px;font-variant-numeric:tabular-nums}
+th,td{border-bottom:1px solid var(--line);padding:6px 4px;text-align:left;vertical-align:top}
+.tablebox{overflow-x:auto}
+.toggle{display:flex;align-items:center;gap:8px;margin:6px 0}
+.verdict{border-left:4px solid var(--accent);padding:8px 10px;margin-top:10px;border-radius:6px;background:color-mix(in srgb,var(--panel) 85%,var(--accent))}
+.verdict.bad{border-color:var(--reject)} .verdict.warn{border-color:var(--infer)} .verdict.ok{border-color:var(--found)}
+.legend span{display:inline-block;width:10px;height:10px;border-radius:2px;margin:0 4px 0 10px;vertical-align:middle}
+.chart{display:grid;grid-template-columns:120px 1fr;gap:4px 8px;align-items:center;font-size:13px}
+.chart .pair i{display:block;height:9px;border-radius:3px;margin:2px 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div>
+      <h1>S08 — HALCON back end：兩種找法的差別</h1>
+      <div class="muted">OpenCV 比灰階（NCC）；HALCON 的 shape model 比邊緣的方向。這頁的分數是示意的簡化版（沒有金字塔、沒有次像素），實測數字在下面的表。</div>
+    </div>
+    <div role="group" aria-label="主題">
+      <button class="btn" data-theme-set="system" aria-pressed="true">跟隨系統</button>
+      <button class="btn" data-theme-set="light" aria-pressed="false">淺色</button>
+      <button class="btn" data-theme-set="dark" aria-pressed="false">深色</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>1. 同一個元件，兩種「像不像」</h2>
+    <div class="grid">
+      <div class="canvasbox">
+        <canvas id="tpl" width="48" height="32" aria-label="樣本與邊緣點"></canvas>
+        <div class="muted">樣本：主體＋兩端電極。<span id="npts"></span></div>
+      </div>
+      <div class="canvasbox">
+        <canvas id="scene" width="48" height="32" aria-label="搜尋影像的同一個位置"></canvas>
+        <div class="muted">搜尋影像的同一個位置（套用下面的變化）</div>
+      </div>
+      <div>
+        <div class="ctl"><label for="gain">亮度倍數</label><input id="gain" type="range" min="0.2" max="1.6" step="0.05" value="1"><output id="gainOut"></output></div>
+        <div class="ctl"><label for="offset">亮度偏移</label><input id="offset" type="range" min="-60" max="60" step="1" value="0"><output id="offsetOut"></output></div>
+        <div class="ctl"><label for="noise">雜訊（灰階）</label><input id="noise" type="range" min="0" max="40" step="1" value="0"><output id="noiseOut"></output></div>
+        <div class="ctl"><label for="glare">反光（大小）</label><input id="glare" type="range" min="0" max="16" step="1" value="0"><output id="glareOut"></output></div>
+        <div class="ctl"><label for="angle">旋轉（度）</label><input id="angle" type="range" min="-10" max="10" step="0.5" value="0"><output id="angleOut"></output></div>
+        <button class="btn" id="reseed">換一組雜訊</button>
+      </div>
+    </div>
+    <div class="grid" style="margin-top:8px">
+      <div>
+        <div class="score"><b style="color:var(--cv)">OpenCV：灰階的正規化相關（NCC）</b><span id="nccOut"></span></div>
+        <div class="bar"><i id="nccBar" style="background:var(--cv)"></i></div>
+        <div class="score"><b style="color:var(--hal)">HALCON：邊緣方向的一致度（use_polarity）</b><span id="edgeOut"></span></div>
+        <div class="bar"><i id="edgeBar" style="background:var(--hal)"></i></div>
+      </div>
+      <div class="zh" id="story"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>2. 授權：插的是哪一個 dongle？</h2>
+    <div class="muted">和程式裡的 <code>judgeHalconLicense</code> 同一套規則（HalconLicense.h）。這台機器實測是第二種：RTL 插著、SDK 沒插。</div>
+    <div class="grid">
+      <div>
+        <label class="toggle"><input type="checkbox" id="dll" checked> PATH 上有 HALCON 的 DLL</label>
+        <label class="toggle"><input type="checkbox" id="rtl" checked> runtime（RTL）的 dongle 插著</label>
+        <label class="toggle"><input type="checkbox" id="sdkFile" checked> 有開發（SDK）的授權檔</label>
+        <label class="toggle"><input type="checkbox" id="sdk"> 開發（SDK）的 dongle 插著</label>
+        <label class="toggle"><input type="checkbox" id="matching" checked> 授權含 Matching 模組</label>
+      </div>
+      <div id="verdict" class="verdict" aria-live="polite"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>3. 實測並排（這台機器、Release、合成板子）</h2>
+    <div class="muted" id="numbersNote"></div>
+    <div class="legend muted"><span style="background:var(--hal)"></span>HALCON <span style="background:var(--cv)"></span>OpenCV（同一次執行、同一組板子）</div>
+    <div class="chart" id="chart" style="margin:10px 0"></div>
+    <div class="tablebox"><table id="numbers"></table></div>
+  </div>
+
+  <div class="card" id="text"></div>
+</div>
+
+<!-- Text for the page. Strings under the key "ste" are checked by tools/ste-lint.mjs. -->
+<script type="application/json" id="aoi-data">
+{
+  "sections": [
+    { "title": "Purpose",
+      "ste": { "text": "This step builds the HALCON back end. It uses the shape model to find similar parts." },
+      "zh": "做第二個 back end：HALCON 的 shape model。也檢查授權，插錯 dongle 時提醒。" },
+    { "title": "Two ways to compare",
+      "ste": { "text": "OpenCV compares gray values. HALCON compares the directions of edges. Both ignore a change in brightness. A high score does not always give an exact position." },
+      "zh": "NCC 對亮度的倍數與偏移不敏感；邊緣方向也是。上面的示範照每次算出來的分數說明誰掉得多。分數高不等於位置準：實測強雜訊時，HALCON 的分數仍高，位置與角度卻比 OpenCV 不準（次像素只靠邊緣點）。" },
+    { "title": "What we measured",
+      "ste": { "text": "On the synthetic boards, HALCON finds all parts. Its seed search is faster. OpenCV gives smaller position errors." },
+      "zh": "比較只對這組合成板子成立。真實影像：低角度光（LA）兩邊的晶格相同；高角度光（HA）上，用一根針腳當樣本，HALCON 只找到少數針腳。真實影像的 A/B 是 S09 的工作。" },
+    { "title": "The license",
+      "ste": { "text": "HALCON has a runtime dongle and a development dongle. HALCON runs with either one. The program tells you which one is in use." },
+      "zh": "HALCON 照樣能跑、不報錯，所以「插錯 dongle」要程式自己看出來：用 runtime 授權而 SDK 的授權檔在、dongle 不在時，程式提醒。" }
+  ],
+  "numbers": {
+    "note": "S08 三次正式執行的中位數範圍（perf.md），單位 ms；長條用第 2、3 次（正常狀態）的中位數。第 1 次整台機器變慢，T2b 的 p95 那一次超過預算 80。準確度另列。",
+    "rows": [
+      { "id": "T1", "label": "範本建立，64×32、±5°", "halcon": "6.6–19.2", "opencv": "0.24–0.50", "h": 7.0, "c": 0.26 },
+      { "id": "T2", "label": "種子搜尋，5 MP、841 個元件（T2b／T2a）", "halcon": "22.3–44.1（p95 31.5–82.2）", "opencv": "70.9–72.9（p95 80.8–84.7）", "h": 25.4, "c": 71.6 },
+      { "id": "T4", "label": "200 個視窗的驗證", "halcon": "23.6–33.0", "opencv": "30.5–34.1", "h": 27.0, "c": 33.1 },
+      { "id": "T7", "label": "流程 B，N ＝ 1000，每個候選類型", "halcon": "3.0–7.0（一次 find_shape_models）", "opencv": "10.8–16.9", "h": 3.2, "c": 11.0 },
+      { "id": "T6a", "label": "召回率（8 塊板子、6 673 個元件）", "halcon": "100%", "opencv": "100%" },
+      { "id": "T6b", "label": "位置誤差 p95（預算 0.5 px）", "halcon": "0.48 px（最大 1.36，雜訊 12＋模糊 2）", "opencv": "0.11 px（最大 0.50，反光）" },
+      { "id": "L", "label": "授權檢查（第一次，啟動 HALCON）", "halcon": "1 553–1 870", "opencv": "—" },
+      { "id": "C", "label": "取消延遲（12 MP、±180°）", "halcon": "4.2–17.4（p95 18.8–29.6）", "opencv": "—" }
+    ]
+  }
+}
+</script>
+<script>
+(() => {
+  const data = JSON.parse(document.getElementById('aoi-data').textContent);
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  document.getElementById('text').innerHTML = data.sections
+    .map((s) => `<h3>${esc(s.title)}</h3><p lang="en">${esc(s.ste.text)}</p><p class="zh" lang="zh-Hant">${esc(s.zh)}</p>`).join('');
+
+  // ---- theme ----
+  const themeButtons = document.querySelectorAll('[data-theme-set]');
+  themeButtons.forEach((b) => b.addEventListener('click', () => {
+    const mode = b.dataset.themeSet;
+    if (mode === 'system') document.documentElement.removeAttribute('data-theme');
+    else document.documentElement.setAttribute('data-theme', mode);
+    themeButtons.forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+    try { localStorage.setItem('aoi-theme', mode); } catch (e) { /* storage may be blocked */ }
+  }));
+
+  // ---- 1. a synthetic part and two scores ----
+  const W = 48, H = 32;
+  // Part: body 36×16 (gray 150), pads at both ends 8×16 (gray 225), background 60. Centre (24, 16). 4×4 supersampling.
+  function renderPart(angleDeg) {
+    const out = new Float32Array(W * H);
+    const a = angleDeg * Math.PI / 180, c = Math.cos(a), s = Math.sin(a);
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      let sum = 0;
+      for (let sy = 0; sy < 4; sy++) for (let sx = 0; sx < 4; sx++) {
+        const px = x + (sx + 0.5) / 4 - 24, py = y + (sy + 0.5) / 4 - 16;
+        // rotate back (screen counter-clockwise positive, ADR-010)
+        const u = px * c - py * s, v = px * s + py * c;
+        let g = 60;
+        if (Math.abs(u) <= 18 && Math.abs(v) <= 8) g = Math.abs(u) >= 10 ? 225 : 150;
+        sum += g;
+      }
+      out[y * W + x] = sum / 16;
+    }
+    return out;
+  }
+  let seed = 7;
+  let seedBase = 7;
+  const rand = () => { seed ^= seed << 13; seed ^= seed >>> 17; seed ^= seed << 5; return ((seed >>> 0) / 4294967296); };
+  const tplImg = renderPart(0);
+  function gradients(img) {
+    const gx = new Float32Array(W * H), gy = new Float32Array(W * H);
+    for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) {
+      const p = (dx, dy) => img[(y + dy) * W + x + dx];
+      gx[y * W + x] = (p(1, -1) + 2 * p(1, 0) + p(1, 1)) - (p(-1, -1) + 2 * p(-1, 0) + p(-1, 1));
+      gy[y * W + x] = (p(-1, 1) + 2 * p(0, 1) + p(1, 1)) - (p(-1, -1) + 2 * p(0, -1) + p(1, -1));
+    }
+    return { gx, gy };
+  }
+  const tg = gradients(tplImg);
+  const modelPoints = [];
+  for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) {
+    const i = y * W + x, m = Math.hypot(tg.gx[i], tg.gy[i]);
+    if (m > 120) modelPoints.push(i);  // "Contrast": strong edges only
+  }
+  document.getElementById('npts').textContent = `邊緣點 ${modelPoints.length} 個（青色）。`;
+
+  function scene() {
+    const gain = +document.getElementById('gain').value;
+    const offset = +document.getElementById('offset').value;
+    const noise = +document.getElementById('noise').value;
+    const glare = +document.getElementById('glare').value;
+    const angle = +document.getElementById('angle').value;
+    const img = renderPart(angle);
+    seed = seedBase;
+    for (let i = 0; i < img.length; i++) {
+      let v = img[i] * gain + offset + (rand() * 2 - 1) * noise;
+      const x = i % W, y = (i / W) | 0;
+      if (glare > 0 && x >= 30 - glare / 2 && x < 30 + glare / 2 && y >= 8 && y < 8 + glare) v = 255;  // a saturated spot
+      img[i] = Math.max(0, Math.min(255, v));
+    }
+    return img;
+  }
+  function ncc(a, b) {
+    let ma = 0, mb = 0;
+    for (let i = 0; i < a.length; i++) { ma += a[i]; mb += b[i]; }
+    ma /= a.length; mb /= b.length;
+    let sab = 0, saa = 0, sbb = 0;
+    for (let i = 0; i < a.length; i++) { const da = a[i] - ma, db = b[i] - mb; sab += da * db; saa += da * da; sbb += db * db; }
+    return saa > 0 && sbb > 0 ? sab / Math.sqrt(saa * sbb) : 0;
+  }
+  function edgeScore(img) {
+    const g = gradients(img);
+    let sum = 0;
+    for (const i of modelPoints) {
+      const mt = Math.hypot(tg.gx[i], tg.gy[i]), ms = Math.hypot(g.gx[i], g.gy[i]);
+      if (ms < 20) continue;  // "MinContrast": too weak = no edge (counts as 0)
+      sum += (tg.gx[i] * g.gx[i] + tg.gy[i] * g.gy[i]) / (mt * ms);  // use_polarity: signed cosine
+    }
+    return sum / modelPoints.length;
+  }
+  function paint(canvas, img, points) {
+    const ctx = canvas.getContext('2d');
+    const id = ctx.createImageData(W, H);
+    for (let i = 0; i < img.length; i++) { const v = img[i] | 0; id.data[4 * i] = v; id.data[4 * i + 1] = v; id.data[4 * i + 2] = v; id.data[4 * i + 3] = 255; }
+    ctx.putImageData(id, 0, 0);
+    if (points) {
+      ctx.fillStyle = '#22d3ee';
+      for (const i of points) ctx.fillRect(i % W, (i / W) | 0, 1, 1);
+    }
+  }
+  function setBar(id, v) {
+    document.getElementById(id).style.width = `${Math.max(0, Math.min(1, v)) * 100}%`;
+  }
+  function render() {
+    const s = scene();
+    paint(document.getElementById('tpl'), tplImg, modelPoints);
+    paint(document.getElementById('scene'), s, null);
+    const n = ncc(tplImg, s), e = edgeScore(s);
+    document.getElementById('nccOut').textContent = n.toFixed(3);
+    document.getElementById('edgeOut').textContent = e.toFixed(3);
+    setBar('nccBar', n);
+    setBar('edgeBar', e);
+    for (const k of ['gain', 'offset', 'noise', 'glare', 'angle']) document.getElementById(`${k}Out`).textContent = document.getElementById(k).value;
+    const noise = +document.getElementById('noise').value, glare = +document.getElementById('glare').value, angle = +document.getElementById('angle').value;
+    // 說明照這一次算出來的分數寫（誰掉得多），不預設結論。
+    const drop = (v) => (1 - v).toFixed(3);
+    const which = Math.abs(n - e) < 0.01 ? '兩種分數掉得差不多' : (n < e ? 'NCC 掉得比較多' : '邊緣分數掉得比較多');
+    const parts = [`這個設定下：NCC 少了 ${drop(n)}、邊緣分數少了 ${drop(e)}（${which}）。`];
+    if (glare === 0 && noise === 0 && angle === 0) parts.push('只改亮度的倍數與偏移時，兩種分數都不變：NCC 先扣平均、再除以標準差；邊緣只看方向。');
+    if (glare > 0) parts.push('反光：飽和的亮斑改了一塊灰階值，也在亮斑的邊界多出不屬於元件的邊緣、蓋掉電極的一段邊緣。');
+    if (noise > 0) parts.push('雜訊：元件的邊緣比雜訊強很多，所以邊緣方向的分數仍高。但分數高不等於位置準——實測強雜訊時 HALCON 的位置與角度誤差比 OpenCV 大（perf.md 的 T6、tst_halcon_end_to_end），因為次像素的位置只靠邊緣點，NCC 用整塊像素。');
+    if (angle !== 0) parts.push('旋轉：這裡沒有搜尋角度，所以兩種分數都掉；實際的搜尋器會比一系列角度（HALCON 的步進讓樣本角落每步移動 0.5 像素）。');
+    document.getElementById('story').textContent = parts.join('');
+  }
+  for (const k of ['gain', 'offset', 'noise', 'glare', 'angle']) document.getElementById(k).addEventListener('input', render);
+  document.getElementById('reseed').addEventListener('click', () => { seedBase = (seedBase * 48271) % 2147483647 || 7; render(); });
+
+  // ---- 2. license verdict (same rules as judgeHalconLicense) ----
+  function verdict() {
+    const v = (id) => document.getElementById(id).checked;
+    const box = document.getElementById('verdict');
+    let cls = 'ok', html = '';
+    if (!v('dll')) { cls = 'bad'; html = '<b>不可用</b>：沒有安裝 HALCON runtime（PATH 上找不到 halconcpp.dll）。選單上 HALCON 停用並說原因；其他 back end 照常（延遲載入）。'; }
+    else if (!v('rtl') && !(v('sdkFile') && v('sdk'))) { cls = 'bad'; html = '<b>不可用</b>：沒有有效的授權（HALCON 錯誤碼與訊息、找到的授權檔、這台電腦的 ID 都寫在原因裡）。<code>--backend=halcon</code> 以結束碼 2 結束，不當掉。'; }
+    else if (!v('matching')) { cls = 'bad'; html = '<b>不可用</b>：授權不含 shape-based matching（Matching 模組）。'; }
+    else if (v('sdkFile') && v('sdk')) { cls = 'ok'; html = '<b>可用，沒有提醒</b>：用開發（SDK）授權。'; }
+    else if (v('sdkFile') && !v('sdk')) { cls = 'warn'; html = '<b>可用，但提醒</b>：HALCON 用的是 runtime 授權；開發（SDK）的授權檔在，它的 dongle 沒插。提醒出現在 stderr、訊息列的吐司、back end 選單的提示。'; }
+    else { cls = 'ok'; html = '<b>可用，沒有提醒</b>：只有 runtime 授權（部署的電腦就是這樣）。'; }
+    box.className = `verdict ${cls}`;
+    box.innerHTML = html;
+  }
+  for (const id of ['dll', 'rtl', 'sdkFile', 'sdk', 'matching']) document.getElementById(id).addEventListener('change', verdict);
+
+  // ---- 3. measured numbers ----
+  const num = data.numbers;
+  document.getElementById('numbersNote').textContent = num.note;
+  document.getElementById('numbers').innerHTML = '<tr><th>項目</th><th>HALCON</th><th>OpenCV</th></tr>' +
+    num.rows.map((r) => `<tr><td>${esc(r.id)}　${esc(r.label)}</td><td>${esc(r.halcon)}</td><td>${esc(r.opencv)}</td></tr>`).join('');
+  const timed = num.rows.filter((r) => typeof r.h === 'number');
+  document.getElementById('chart').innerHTML = timed.map((r) => {
+    const max = Math.max(r.h, r.c);
+    return `<div>${esc(r.id)}（ms）</div><div class="pair" title="HALCON ${r.h} ms, OpenCV ${r.c} ms">` +
+      `<i style="width:${(r.h / max) * 100}%;background:var(--hal)"></i><i style="width:${(r.c / max) * 100}%;background:var(--cv)"></i></div>`;
+  }).join('');
+
+  render();
+  verdict();
+  try {
+    const saved = localStorage.getItem('aoi-theme');
+    const btn = saved && document.querySelector(`[data-theme-set="${saved}"]`);
+    if (btn) btn.click();
+  } catch (e) { /* storage may be blocked */ }
+})();
+</script>
+</body>
+</html>

@@ -43,6 +43,18 @@
       "displayName": "Release + OpenCV",
       "inherits": "release",
       "cacheVariables": { "AOI_WITH_OPENCV": "ON" }
+    },
+    {
+      "name": "debug-halcon",
+      "displayName": "Debug + OpenCV + HALCON",
+      "inherits": "debug",
+      "cacheVariables": { "AOI_WITH_OPENCV": "ON", "AOI_WITH_HALCON": "ON" }
+    },
+    {
+      "name": "release-halcon",
+      "displayName": "Release + OpenCV + HALCON",
+      "inherits": "release",
+      "cacheVariables": { "AOI_WITH_OPENCV": "ON", "AOI_WITH_HALCON": "ON" }
     }
   ],
   "buildPresets": [
@@ -50,7 +62,9 @@
     { "name": "release", "configurePreset": "release" },
     { "name": "relwithdebinfo", "configurePreset": "relwithdebinfo" },
     { "name": "debug-opencv", "configurePreset": "debug-opencv" },
-    { "name": "release-opencv", "configurePreset": "release-opencv" }
+    { "name": "release-opencv", "configurePreset": "release-opencv" },
+    { "name": "debug-halcon", "configurePreset": "debug-halcon" },
+    { "name": "release-halcon", "configurePreset": "release-halcon" }
   ],
   "testPresets": [
     {
@@ -90,6 +104,18 @@
       "filter": { "exclude": { "label": "perf" } }
     },
     {
+      "name": "debug-halcon",
+      "inherits": "base",
+      "configurePreset": "debug-halcon",
+      "filter": { "exclude": { "label": "perf" } }
+    },
+    {
+      "name": "release-halcon",
+      "inherits": "base",
+      "configurePreset": "release-halcon",
+      "filter": { "exclude": { "label": "perf" } }
+    },
+    {
       "name": "perf",
       "inherits": "base",
       "configurePreset": "release",
@@ -100,6 +126,13 @@
       "name": "perf-opencv",
       "inherits": "base",
       "configurePreset": "release-opencv",
+      "filter": { "include": { "label": "perf" } },
+      "output": { "outputOnFailure": true, "verbosity": "verbose" }
+    },
+    {
+      "name": "perf-halcon",
+      "inherits": "base",
+      "configurePreset": "release-halcon",
       "filter": { "include": { "label": "perf" } },
       "output": { "outputOnFailure": true, "verbosity": "verbose" }
     }
