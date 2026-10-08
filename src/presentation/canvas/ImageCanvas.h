@@ -31,6 +31,8 @@ public:
     // 目前的檢視是不是「適配」出來的：是的話，視窗大小改變時照同一種方式重新適配；使用者縮放或平移之後就是 None。
     enum class FitMode { None, Window, Width };
 
+    // Designer 的提升元件用這個（主視窗的 .ui 裡的佔位元件）：tokens 用內建的（程式只有這一份，ThemeTokens::builtin）。
+    explicit ImageCanvas(QWidget* parent = nullptr);
     explicit ImageCanvas(const ThemeTokens& tokens, QWidget* parent = nullptr);
     ~ImageCanvas() override;
 

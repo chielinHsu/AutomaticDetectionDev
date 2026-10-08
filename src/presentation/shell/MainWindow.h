@@ -3,6 +3,7 @@
 #include <QMainWindow>
 #include <QString>
 #include <QStringList>
+#include <memory>
 
 #include "application/ports/IImageSource.h"
 #include "presentation/canvas/ICanvasController.h"
@@ -30,7 +31,11 @@ class ObjectsPanel;
 class ParamsPanel;
 class ThemeManager;
 
-// 主視窗骨架（docs/ux/ux-spec.md 第 4 節）：上方工具列、左側工具、中央畫布與訊息列、
+namespace Ui {
+class MainWindow;
+}
+
+// 主視窗骨架（docs/ux/ux-spec.md 第 4 節；版面在 MainWindow.ui，用 Qt Designer 編輯）：上方工具列、左側工具、中央畫布與訊息列、
 // 右側三個 dock（樣本庫：S06 之前是空殼；物件樹；比對參數）、狀態列。
 // 這一層只負責組裝與事件接線，不含業務規則。S04 起它同時是 Presenter 的幾個 View：
 // 狀態列與提示（IStatusView）、訊息卡（IMessageView）、復原／重做按鈕（IHistoryView）、back end 的選單、標示與提醒卡片
@@ -136,6 +141,7 @@ private:
     void refreshBackends();
 
     ThemeManager& theme_;
+    std::unique_ptr<Ui::MainWindow> ui_;  // MainWindow.ui（Qt Designer）產生的外框；下面的指標都指到它建立的物件
     aoi::IImageSource* imageSource_ = nullptr;
     ImageCanvas* canvas_ = nullptr;
     MessageBar* messageBar_ = nullptr;

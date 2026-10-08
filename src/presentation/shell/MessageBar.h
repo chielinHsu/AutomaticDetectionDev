@@ -3,6 +3,7 @@
 #include <QFrame>
 #include <QString>
 #include <QStringList>
+#include <memory>
 
 #include "presentation/theme/ThemeTokens.h"
 
@@ -16,6 +17,10 @@ class QWidget;
 
 namespace aoi::ui {
 
+namespace Ui {
+class MessageBar;
+}
+
 // 畫布正下方的訊息列。所有要閱讀的訊息（提示、吐司、無匹配卡片、錯誤、back end 的提醒）都在這裡，不蓋在影像上：
 // 檢測員要看著料件才能判斷，蓋住的那一塊就是他要看的東西（docs/ux/ux-spec.md 第 5 節）。
 //
@@ -23,10 +28,15 @@ namespace aoi::ui {
 // 這樣不論訊息怎麼變，畫布大小都不變，板子不會被擠動。
 //
 // 同一時間只顯示一種內容，優先順序：進度列 > 卡片 > 提醒卡片 > 提示。吐司暫時蓋過提示（卡片上方也看得到）。
+//
+// 版面在 MessageBar.ui（Qt Designer）；文字都由呼叫端給（已翻譯），.ui 裡的文字只是佔位、不翻譯。
 class MessageBar : public QFrame {
     Q_OBJECT
 public:
+    // Designer 的提升元件用這個（主視窗的 .ui）：tokens 用內建的（程式只有這一份，ThemeTokens::builtin）。
+    explicit MessageBar(QWidget* parent = nullptr);
     explicit MessageBar(const ThemeTokens& tokens, QWidget* parent = nullptr);
+    ~MessageBar() override;
 
     // 常駐提示（例如「S 教一個新樣本 · R 框選區域…」）。空字串＝沒有提示。
     void setHint(const QString& text);
@@ -69,7 +79,6 @@ private:
         QLabel* advice = nullptr;
         QHBoxLayout* actions = nullptr;
     };
-    CardParts makeCard(QWidget* parent, const QString& objectName);
     void fillCard(CardParts& parts, const QString& title, const QString& body, const QStringList& advice,
                   const QStringList& actions, bool notice);
     void showHintLabel(const QString& text);
@@ -77,6 +86,7 @@ private:
     void showResting();
 
     const ThemeTokens& tokens_;
+    std::unique_ptr<Ui::MessageBar> ui_;
     QScrollArea* scroll_;
     QLabel* hint_;
     CardParts card_;

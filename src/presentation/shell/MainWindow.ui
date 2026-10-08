@@ -1,0 +1,374 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>aoi::ui::MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>1280</width>
+    <height>800</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string notr="true">AOI 教學工具</string>
+  </property>
+  <widget class="QWidget" name="central">
+   <layout class="QVBoxLayout" name="centralColumn" stretch="1,0">
+    <property name="spacing">
+     <number>0</number>
+    </property>
+    <property name="leftMargin">
+     <number>0</number>
+    </property>
+    <property name="topMargin">
+     <number>0</number>
+    </property>
+    <property name="rightMargin">
+     <number>0</number>
+    </property>
+    <property name="bottomMargin">
+     <number>0</number>
+    </property>
+    <item>
+     <widget class="aoi::ui::ImageCanvas" name="canvas"/>
+    </item>
+    <item>
+     <widget class="aoi::ui::MessageBar" name="messageBar"/>
+    </item>
+   </layout>
+  </widget>
+  <widget class="QMenuBar" name="menuBar">
+   <widget class="QMenu" name="fileMenu">
+    <property name="title">
+     <string notr="true">檔案</string>
+    </property>
+    <addaction name="actionOpen"/>
+    <addaction name="actionSave"/>
+    <addaction name="actionExport"/>
+    <addaction name="separator"/>
+    <addaction name="actionQuit"/>
+   </widget>
+   <widget class="QMenu" name="editMenu">
+    <property name="title">
+     <string notr="true">編輯</string>
+    </property>
+    <addaction name="actionUndo"/>
+    <addaction name="actionRedo"/>
+   </widget>
+   <widget class="QMenu" name="viewMenu">
+    <property name="title">
+     <string notr="true">檢視</string>
+    </property>
+    <widget class="QMenu" name="themeMenu">
+     <property name="title">
+      <string notr="true">主題</string>
+     </property>
+     <addaction name="actionThemeLight"/>
+     <addaction name="actionThemeDark"/>
+     <addaction name="actionThemeSystem"/>
+    </widget>
+    <widget class="QMenu" name="fontMenu">
+     <property name="title">
+      <string notr="true">字級縮放</string>
+     </property>
+    </widget>
+    <widget class="QMenu" name="languageMenu">
+     <property name="title">
+      <string notr="true">語言</string>
+     </property>
+     <addaction name="actionLangZh"/>
+     <addaction name="actionLangEn"/>
+    </widget>
+    <widget class="QMenu" name="panelsMenu">
+     <property name="title">
+      <string notr="true">面板</string>
+     </property>
+    </widget>
+    <addaction name="actionFit"/>
+    <addaction name="actionFitWidth"/>
+    <addaction name="separator"/>
+    <addaction name="themeMenu"/>
+    <addaction name="fontMenu"/>
+    <addaction name="languageMenu"/>
+    <addaction name="panelsMenu"/>
+   </widget>
+   <addaction name="fileMenu"/>
+   <addaction name="editMenu"/>
+   <addaction name="viewMenu"/>
+  </widget>
+  <widget class="QToolBar" name="topBar">
+   <property name="movable">
+    <bool>false</bool>
+   </property>
+   <property name="toolButtonStyle">
+    <enum>Qt::ToolButtonStyle::ToolButtonTextOnly</enum>
+   </property>
+   <attribute name="toolBarArea">
+    <enum>TopToolBarArea</enum>
+   </attribute>
+   <attribute name="toolBarBreak">
+    <bool>false</bool>
+   </attribute>
+   <addaction name="actionOpen"/>
+   <addaction name="actionSave"/>
+   <addaction name="separator"/>
+   <addaction name="actionUndo"/>
+   <addaction name="actionRedo"/>
+   <addaction name="actionFit"/>
+   <addaction name="actionFitWidth"/>
+   <addaction name="actionExport"/>
+  </widget>
+  <widget class="QToolBar" name="toolRail">
+   <property name="movable">
+    <bool>false</bool>
+   </property>
+   <property name="orientation">
+    <enum>Qt::Orientation::Vertical</enum>
+   </property>
+   <property name="toolButtonStyle">
+    <enum>Qt::ToolButtonStyle::ToolButtonTextOnly</enum>
+   </property>
+   <attribute name="toolBarArea">
+    <enum>LeftToolBarArea</enum>
+   </attribute>
+   <attribute name="toolBarBreak">
+    <bool>false</bool>
+   </attribute>
+   <addaction name="actionToolSelect"/>
+   <addaction name="actionToolSample"/>
+   <addaction name="actionToolRegion"/>
+   <addaction name="actionToolAdd"/>
+  </widget>
+  <widget class="QStatusBar" name="statusBar">
+   <property name="sizeGripEnabled">
+    <bool>false</bool>
+   </property>
+  </widget>
+  <widget class="QDockWidget" name="libraryDock">
+   <property name="windowTitle">
+    <string notr="true">樣本庫</string>
+   </property>
+   <attribute name="dockWidgetArea">
+    <number>2</number>
+   </attribute>
+   <widget class="QWidget" name="libraryBody">
+    <layout class="QVBoxLayout" name="libraryColumn" stretch="0,1">
+     <property name="leftMargin">
+      <number>8</number>
+     </property>
+     <property name="topMargin">
+      <number>8</number>
+     </property>
+     <property name="rightMargin">
+      <number>8</number>
+     </property>
+     <property name="bottomMargin">
+      <number>8</number>
+     </property>
+     <item>
+      <widget class="QLineEdit" name="libraryFilter">
+       <property name="enabled">
+        <bool>false</bool>
+       </property>
+       <property name="placeholderText">
+        <string notr="true">篩選（佔位）</string>
+       </property>
+       <property name="clearButtonEnabled">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLabel" name="libraryEmpty">
+       <property name="text">
+        <string notr="true">樣本庫是空的（佔位）</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignmentFlag::AlignLeading|Qt::AlignmentFlag::AlignLeft|Qt::AlignmentFlag::AlignTop</set>
+       </property>
+       <property name="wordWrap">
+        <bool>true</bool>
+       </property>
+       <property name="margin">
+        <number>12</number>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </widget>
+  </widget>
+  <widget class="QDockWidget" name="objectsDock">
+   <property name="windowTitle">
+    <string notr="true">物件</string>
+   </property>
+   <attribute name="dockWidgetArea">
+    <number>2</number>
+   </attribute>
+   <widget class="aoi::ui::ObjectsPanel" name="objectsPanel"/>
+  </widget>
+  <widget class="QDockWidget" name="paramsDock">
+   <property name="windowTitle">
+    <string notr="true">比對參數</string>
+   </property>
+   <attribute name="dockWidgetArea">
+    <number>2</number>
+   </attribute>
+   <widget class="aoi::ui::ParamsPanel" name="paramsPanel"/>
+  </widget>
+  <action name="actionOpen">
+   <property name="text">
+    <string notr="true">開啟</string>
+   </property>
+  </action>
+  <action name="actionSave">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string notr="true">儲存</string>
+   </property>
+  </action>
+  <action name="actionExport">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string notr="true">匯出</string>
+   </property>
+  </action>
+  <action name="actionQuit">
+   <property name="text">
+    <string notr="true">結束</string>
+   </property>
+  </action>
+  <action name="actionUndo">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string notr="true">↶ 復原</string>
+   </property>
+  </action>
+  <action name="actionRedo">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string notr="true">↷ 重做</string>
+   </property>
+  </action>
+  <action name="actionFit">
+   <property name="text">
+    <string notr="true">⤢ 適配視窗</string>
+   </property>
+  </action>
+  <action name="actionFitWidth">
+   <property name="text">
+    <string notr="true">↔ 適配寬度</string>
+   </property>
+  </action>
+  <action name="actionToolSelect">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string notr="true">V</string>
+   </property>
+  </action>
+  <action name="actionToolSample">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string notr="true">S</string>
+   </property>
+  </action>
+  <action name="actionToolRegion">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string notr="true">R</string>
+   </property>
+  </action>
+  <action name="actionToolAdd">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string notr="true">＋</string>
+   </property>
+  </action>
+  <action name="actionThemeLight">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string notr="true">淺色</string>
+   </property>
+  </action>
+  <action name="actionThemeDark">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string notr="true">深色</string>
+   </property>
+  </action>
+  <action name="actionThemeSystem">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string notr="true">跟隨系統</string>
+   </property>
+  </action>
+  <action name="actionLangZh">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string notr="true">繁體中文</string>
+   </property>
+  </action>
+  <action name="actionLangEn">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string notr="true">English</string>
+   </property>
+  </action>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>aoi::ui::ImageCanvas</class>
+   <extends>QGraphicsView</extends>
+   <header>presentation/canvas/ImageCanvas.h</header>
+  </customwidget>
+  <customwidget>
+   <class>aoi::ui::MessageBar</class>
+   <extends>QFrame</extends>
+   <header>presentation/shell/MessageBar.h</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>aoi::ui::ObjectsPanel</class>
+   <extends>QWidget</extends>
+   <header>presentation/objects/ObjectsPanel.h</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>aoi::ui::ParamsPanel</class>
+   <extends>QWidget</extends>
+   <header>presentation/params/ParamsPanel.h</header>
+   <container>1</container>
+  </customwidget>
+ </customwidgets>
+ <resources/>
+ <connections/>
+</ui>

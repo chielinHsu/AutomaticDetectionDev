@@ -6,68 +6,42 @@
 #include <QPushButton>
 #include <QScrollArea>
 #include <QTimer>
-#include <QVBoxLayout>
 #include <algorithm>
 #include <cmath>
 
+#include "ui_MessageBar.h"
+
 namespace aoi::ui {
 
-MessageBar::MessageBar(const ThemeTokens& tokens, QWidget* parent) : QFrame(parent), tokens_(tokens) {
+MessageBar::MessageBar(QWidget* parent) : MessageBar(ThemeTokens::builtin(), parent) {}
+
+MessageBar::~MessageBar() = default;
+
+MessageBar::MessageBar(const ThemeTokens& tokens, QWidget* parent)
+    : QFrame(parent), tokens_(tokens), ui_(std::make_unique<Ui::MessageBar>()) {
+    // 版面在 MessageBar.ui（Qt Designer）：可捲動的一欄，依序是提示、卡片、提醒卡片（back end 的提醒、切換失敗；和卡片同樣的樣子，
+    // 但優先順序低一級，showResting）、進度列（「搜尋中… 62%」＋進度條＋〔取消 (Esc)〕，搜尋超過 1 s 才出現，ux-spec 第 9 節）。
+    // 卡片的按鈕依內容在執行時建立（fillCard）；高度與吐司的時間來自 tokens.json。
+    ui_->setupUi(this);
     setObjectName(QStringLiteral("messageBar"));
-    setFrameShape(QFrame::NoFrame);
     setFixedHeight(tokens.sizes.messageBarHeight);
-    setAutoFillBackground(true);
     setBackgroundRole(QPalette::Base);
-
-    auto* outer = new QVBoxLayout(this);
-    outer->setContentsMargins(0, 0, 0, 0);
-    outer->setSpacing(0);
-    scroll_ = new QScrollArea(this);
-    scroll_->setFrameShape(QFrame::NoFrame);
-    scroll_->setWidgetResizable(true);
-    scroll_->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    scroll_ = ui_->scroll;
     scroll_->setBackgroundRole(QPalette::Base);
-    outer->addWidget(scroll_);
+    ui_->content->setBackgroundRole(QPalette::Base);
 
-    auto* content = new QWidget;
-    content->setBackgroundRole(QPalette::Base);
-    auto* column = new QVBoxLayout(content);
-    column->setContentsMargins(12, 6, 12, 6);
-    column->setSpacing(4);
-
-    hint_ = new QLabel(content);
-    hint_->setWordWrap(true);
+    hint_ = ui_->messageHint;
     hint_->setForegroundRole(QPalette::Text);
-    hint_->setObjectName(QStringLiteral("messageHint"));
-    column->addWidget(hint_);
+    card_ = CardParts{ui_->messageCard, ui_->cardTitle, ui_->cardBody, ui_->cardAdvice, ui_->cardActions};
+    notice_ = CardParts{ui_->messageNotice, ui_->noticeTitle, ui_->noticeBody, ui_->noticeAdvice, ui_->noticeActions};
 
-    card_ = makeCard(content, QStringLiteral("messageCard"));
-    column->addWidget(card_.box);
-    // 提醒卡片（back end 的提醒、切換失敗）：和卡片同樣的樣子，但優先順序低一級（showResting）。
-    notice_ = makeCard(content, QStringLiteral("messageNotice"));
-    column->addWidget(notice_.box);
-
-    // 進度列：「搜尋中… 62%」＋進度條＋〔取消 (Esc)〕。搜尋超過 1 s 才出現（ux-spec 第 9 節）。
-    progress_ = new QWidget(content);
-    progress_->setObjectName(QStringLiteral("messageProgress"));
-    auto* progressRow = new QHBoxLayout(progress_);
-    progressRow->setContentsMargins(0, 0, 0, 0);
-    progressRow->setSpacing(8);
-    progressText_ = new QLabel(progress_);
-    progressBar_ = new QProgressBar(progress_);
-    progressBar_->setRange(0, 100);
-    progressBar_->setTextVisible(false);
-    progressBar_->setFixedHeight(10);
-    cancelButton_ = new QPushButton(progress_);
-    cancelButton_->setObjectName(QStringLiteral("messageCancel"));
+    progress_ = ui_->messageProgress;
+    progressText_ = ui_->progressText;
+    progressBar_ = ui_->progressBar;
+    cancelButton_ = ui_->messageCancel;
     connect(cancelButton_, &QPushButton::clicked, this, &MessageBar::cancelRequested);
-    progressRow->addWidget(progressText_);
-    progressRow->addWidget(progressBar_, 1);
-    progressRow->addWidget(cancelButton_);
-    column->addWidget(progress_);
 
-    column->addStretch(1);
-    scroll_->setWidget(content);
+    hint_->clear();
     card_.box->hide();
     notice_.box->hide();
     progress_->hide();
@@ -79,34 +53,6 @@ MessageBar::MessageBar(const ThemeTokens& tokens, QWidget* parent) : QFrame(pare
         if (cardVisible() || progressVisible()) hint_->hide();
         else showResting();
     });
-}
-
-MessageBar::CardParts MessageBar::makeCard(QWidget* parent, const QString& objectName) {
-    CardParts parts;
-    parts.box = new QWidget(parent);
-    parts.box->setObjectName(objectName);
-    auto* cardColumn = new QVBoxLayout(parts.box);
-    cardColumn->setContentsMargins(0, 0, 0, 0);
-    cardColumn->setSpacing(2);
-    parts.title = new QLabel(parts.box);
-    QFont bold = parts.title->font();
-    bold.setBold(true);
-    parts.title->setFont(bold);
-    parts.title->setWordWrap(true);
-    parts.body = new QLabel(parts.box);
-    parts.body->setWordWrap(true);
-    parts.advice = new QLabel(parts.box);
-    parts.advice->setWordWrap(true);
-    auto* actionRow = new QWidget(parts.box);
-    parts.actions = new QHBoxLayout(actionRow);
-    parts.actions->setContentsMargins(0, 2, 0, 0);
-    parts.actions->setSpacing(8);
-    parts.actions->addStretch(1);
-    cardColumn->addWidget(parts.title);
-    cardColumn->addWidget(parts.body);
-    cardColumn->addWidget(parts.advice);
-    cardColumn->addWidget(actionRow);
-    return parts;
 }
 
 void MessageBar::fillCard(CardParts& parts, const QString& title, const QString& body, const QStringList& advice,

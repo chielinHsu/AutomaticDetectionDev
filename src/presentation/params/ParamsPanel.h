@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QWidget>
+#include <memory>
 
 #include "presentation/presenters/ViewInterfaces.h"
 
@@ -12,16 +13,24 @@ class QSlider;
 
 namespace aoi::ui {
 
+namespace Ui {
+class ParamsPanel;
+}
+
 // 右側「比對參數」dock 的內容（ux-spec 第 4、8 節）。簡易模式只有分數門檻與比對範圍；打開「進階」多出角度範圍。
 // S07 加「影像位元數」：自動（看最大值推測）或 8／10／12／14／16 bit；只有 16 bit 灰階的影像可以設定，其他停用。
 // 實作 IParamsView；使用者的操作以訊號發出，MainWindow 轉給 IParamsController（View 不認識 Presenter）。
 //
 // 分數門檻的滑桿在拖曳中就發出訊號（不是放開才發）：U3 量的就是「滑桿變動到重繪」，
 // 它只是對快取的候選重新過濾，所以可以每個滑鼠移動事件都做；防抖只用在需要重新搜尋的參數（角度範圍）。
+//
+// 版面在 ParamsPanel.ui（Qt Designer）；文字由 retranslate 從 copy.json 設定（.ui 裡的文字只是佔位、不翻譯），
+// 影像位元數的項目（data ＝ 位元數）與訊號的接線在程式碼裡。
 class ParamsPanel : public QWidget, public IParamsView {
     Q_OBJECT
 public:
     explicit ParamsPanel(QWidget* parent = nullptr);
+    ~ParamsPanel() override;
 
     // ---- IParamsView ----
     void setParams(const ParamsState& params) override;
@@ -49,6 +58,7 @@ private:
     void updateScoreLabel();
     void updateBitsTexts();
 
+    std::unique_ptr<Ui::ParamsPanel> ui_;
     QLabel* scoreLabel_;
     QSlider* scoreSlider_;
     QLabel* scoreValue_;

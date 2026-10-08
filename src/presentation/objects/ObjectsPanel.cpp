@@ -2,17 +2,16 @@
 
 #include <QEvent>
 #include <QFontMetrics>
-#include <QHBoxLayout>
 #include <QHeaderView>
 #include <QItemSelection>
 #include <QItemSelectionModel>
 #include <QLabel>
 #include <QToolButton>
 #include <QTreeView>
-#include <QVBoxLayout>
 #include <algorithm>
 
 #include "presentation/i18n/Translations.h"
+#include "ui_ObjectsPanel.h"
 
 namespace aoi::ui {
 
@@ -30,50 +29,25 @@ const char* stateKey(OverlayState s) {
 
 }  // namespace
 
-ObjectsPanel::ObjectsPanel(QWidget* parent) : QWidget(parent) {
-    auto* column = new QVBoxLayout(this);
-    column->setContentsMargins(8, 8, 8, 8);
-    column->setSpacing(6);
+ObjectsPanel::ObjectsPanel(QWidget* parent) : QWidget(parent), ui_(std::make_unique<Ui::ObjectsPanel>()) {
+    // 版面在 ObjectsPanel.ui。晶片 stateChip0..3 依 OverlayState 的順序（Sample、Found、Inferred、Rejected），
+    // 可勾選、預設勾選、只顯示文字（狀態名稱＋數量，不只靠顏色）。樹：uniformRowHeights（5 000 列時 View 不必逐列量高度）、
+    // 多選、整列選取、不能編輯。
+    ui_->setupUi(this);
+    chips_ = {ui_->stateChip0, ui_->stateChip1, ui_->stateChip2, ui_->stateChip3};
+    for (QToolButton* b : chips_) connect(b, &QToolButton::toggled, this, [this] { onChipToggled(); });
 
-    // 狀態篩選晶片：文字（狀態名稱＋數量）而不是只靠顏色。
-    auto* chipRow = new QHBoxLayout;
-    chipRow->setSpacing(4);
-    for (OverlayState s : {OverlayState::Sample, OverlayState::Found, OverlayState::Inferred, OverlayState::Rejected}) {
-        auto* b = new QToolButton(this);
-        b->setCheckable(true);
-        b->setChecked(true);
-        b->setToolButtonStyle(Qt::ToolButtonTextOnly);
-        b->setAutoRaise(false);
-        b->setObjectName(QStringLiteral("stateChip%1").arg(stateIndex(s)));
-        connect(b, &QToolButton::toggled, this, [this] { onChipToggled(); });
-        chips_[static_cast<std::size_t>(stateIndex(s))] = b;
-        chipRow->addWidget(b);
-    }
-    chipRow->addStretch(1);
-    column->addLayout(chipRow);
-
-    tree_ = new QTreeView(this);
+    tree_ = ui_->tree;
     tree_->setModel(&model_);
-    tree_->setUniformRowHeights(true);  // 5 000 列時 View 不必逐列量高度
-    tree_->setSelectionMode(QAbstractItemView::ExtendedSelection);
-    tree_->setSelectionBehavior(QAbstractItemView::SelectRows);
-    tree_->setEditTriggers(QAbstractItemView::NoEditTriggers);
-    tree_->setAlternatingRowColors(false);
-    tree_->setRootIsDecorated(true);
     tree_->header()->setStretchLastSection(false);
     tree_->header()->setSectionResizeMode(ObjectsModel::NameColumn, QHeaderView::Stretch);
     // 狀態與分數欄用固定寬度（由字型量出來，resizeColumns），不用 ResizeToContents：後者每次資料變動都要掃描上千列的文字寬度，
     // 5 000 列時光這一項就花掉整個重繪預算（實測，見 docs/steps/S04-presenter/perf.md）。
     tree_->header()->setSectionResizeMode(ObjectsModel::StateColumn, QHeaderView::Fixed);
     tree_->header()->setSectionResizeMode(ObjectsModel::ScoreColumn, QHeaderView::Fixed);
-    column->addWidget(tree_, 1);
 
-    empty_ = new QLabel(this);
-    empty_->setWordWrap(true);
-    empty_->setAlignment(Qt::AlignTop | Qt::AlignLeft);
+    empty_ = ui_->empty;
     empty_->setForegroundRole(QPalette::PlaceholderText);
-    empty_->setMargin(4);
-    column->addWidget(empty_);
 
     connect(tree_->selectionModel(), &QItemSelectionModel::selectionChanged, this, [this] {
         if (syncing_) return;
@@ -82,6 +56,8 @@ ObjectsPanel::ObjectsPanel(QWidget* parent) : QWidget(parent) {
     retranslate();
     updateChips();
 }
+
+ObjectsPanel::~ObjectsPanel() = default;
 
 void ObjectsPanel::resizeColumns() {
     const QFontMetrics fm(tree_->font());

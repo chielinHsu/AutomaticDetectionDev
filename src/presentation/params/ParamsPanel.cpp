@@ -3,8 +3,6 @@
 #include <QCheckBox>
 #include <QComboBox>
 #include <QDoubleSpinBox>
-#include <QFormLayout>
-#include <QHBoxLayout>
 #include <QLabel>
 #include <QSignalBlocker>
 #include <QSlider>
@@ -13,62 +11,32 @@
 
 #include "domain/image_depth.h"
 #include "presentation/i18n/Translations.h"
+#include "ui_ParamsPanel.h"
 
 namespace aoi::ui {
 
-ParamsPanel::ParamsPanel(QWidget* parent) : QWidget(parent) {
-    auto* form = new QFormLayout(this);
-    form->setContentsMargins(12, 8, 12, 8);
+ParamsPanel::ParamsPanel(QWidget* parent) : QWidget(parent), ui_(std::make_unique<Ui::ParamsPanel>()) {
+    // 版面在 ParamsPanel.ui：分數門檻 30..99（百分之一為單位；搜尋下限 0.30，上限 0.99，InspectionSession::Config）、
+    // 角度 −180..180°、一位小數、keyboardTracking 關（打字時不要每個字元都觸發重新搜尋，按 Enter 或離開才算）。
+    ui_->setupUi(this);
+    scoreLabel_ = ui_->scoreLabel;
+    scoreSlider_ = ui_->scoreSlider;
+    scoreValue_ = ui_->scoreValue;
+    advanced_ = ui_->advanced;
+    angleLabel_ = ui_->angleLabel;
+    angleRow_ = ui_->angleRow;
+    angleMin_ = ui_->angleMin;
+    angleMax_ = ui_->angleMax;
+    scopeLabel_ = ui_->scopeLabel;
+    scope_ = ui_->scope;
+    bitsLabel_ = ui_->bitsLabel;
+    bits_ = ui_->bits;
 
-    scoreLabel_ = new QLabel(this);
-    scoreSlider_ = new QSlider(Qt::Horizontal, this);
-    scoreSlider_->setRange(30, 99);  // 百分之一為單位；搜尋下限 0.30，上限 0.99（InspectionSession::Config）
-    scoreSlider_->setValue(70);
-    scoreValue_ = new QLabel(this);
     scoreValue_->setMinimumWidth(fontMetrics().horizontalAdvance(QStringLiteral("0.00")) + 4);
-    auto* scoreRow = new QWidget(this);
-    auto* scoreLayout = new QHBoxLayout(scoreRow);
-    scoreLayout->setContentsMargins(0, 0, 0, 0);
-    scoreLayout->addWidget(scoreSlider_, 1);
-    scoreLayout->addWidget(scoreValue_);
-    form->addRow(scoreLabel_, scoreRow);
-
-    advanced_ = new QCheckBox(this);
-    form->addRow(QString(), advanced_);
-
-    angleLabel_ = new QLabel(this);
-    angleRow_ = new QWidget(this);
-    auto* angleLayout = new QHBoxLayout(angleRow_);
-    angleLayout->setContentsMargins(0, 0, 0, 0);
-    angleMin_ = new QDoubleSpinBox(angleRow_);
-    angleMax_ = new QDoubleSpinBox(angleRow_);
-    for (QDoubleSpinBox* box : {angleMin_, angleMax_}) {
-        box->setRange(-180.0, 180.0);
-        box->setDecimals(1);
-        box->setSingleStep(1.0);
-        box->setSuffix(QStringLiteral("°"));
-        box->setKeyboardTracking(false);  // 打字時不要每個字元都觸發重新搜尋，按 Enter 或離開才算
-    }
-    angleMin_->setValue(-5.0);
-    angleMax_->setValue(5.0);
-    angleLayout->addWidget(angleMin_, 1);
-    angleLayout->addWidget(new QLabel(QStringLiteral("~"), angleRow_));
-    angleLayout->addWidget(angleMax_, 1);
-    form->addRow(angleLabel_, angleRow_);
-    angleLabel_->setVisible(false);
+    angleLabel_->setVisible(false);  // 「進階」打開才看得到
     angleRow_->setVisible(false);
-
-    scopeLabel_ = new QLabel(this);
-    scope_ = new QComboBox(this);
-    for (int i = 0; i < 3; ++i) scope_->addItem(QString());
-    form->addRow(scopeLabel_, scope_);
-
-    bitsLabel_ = new QLabel(this);
-    bits_ = new QComboBox(this);
     bits_->addItem(QString(), 0);
     for (const int b : aoi::kSignificantBitsChoices) bits_->addItem(QString(), b);
-    bits_->setEnabled(false);
-    form->addRow(bitsLabel_, bits_);
 
     connect(scoreSlider_, &QSlider::valueChanged, this, [this](int v) {
         updateScoreLabel();
@@ -96,6 +64,8 @@ ParamsPanel::ParamsPanel(QWidget* parent) : QWidget(parent) {
 
     retranslate();
 }
+
+ParamsPanel::~ParamsPanel() = default;
 
 bool ParamsPanel::angleRowVisible() const { return angleRow_->isVisibleTo(this); }
 
