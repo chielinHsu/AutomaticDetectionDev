@@ -54,4 +54,5 @@ S02–S08 的版面全部寫在程式碼裡（`MainWindow::build*`、各面板�
   | 4（只量 `perf_ui_baseline`） | 3.49 → 3.39 | 8.55 → 6.60 | 9.15 → 7.52 | — |
 
   I1 與 U3 每一輪都沒有變差。U1 在第 3 輪偏高（中位數也從 1.4 變成 3.3 ms），同一輪改之前的 U3 也異常（32.9）：那段時間機器有別的負載；第 4 輪補量，改之後比較好。U1 量的是畫布本身（測試直接建 `ImageCanvas`），這次畫布只多了一個建構子，表單碰不到量測的路徑。預算：U1a 33、U1b 50、I1 16.7 都通過；U3 照舊超過 16（S04 起的已知問題，ADR-009 與 `docs/current-status.md`）。
-- Qt Creator 的 Designer：見 `docs/changelog-ai.md` 的這一筆（請使用者實際打開確認）。
+- 其他組態：`-Config Debug` 54／54、`-Config Profile` 54／54、`-NoOpenCv -NoHalcon` 46／46（表單在每一種組態都由 uic 編譯）。
+- Qt Creator 的 Designer：使用者 2026-10-09 打開五個表單，都打得開、版面正常（沒有存檔）。

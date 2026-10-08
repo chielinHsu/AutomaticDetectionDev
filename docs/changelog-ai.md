@@ -24,6 +24,36 @@
 - 下一位 agent 需要知道的限制、否決的做法、不要還原的修改
 ```
 
+## 2026-10-08 — Claude Code (Claude Opus 5.5)（S09 之前的 session B：授權提醒的卡片、執行中切換 back end、Designer 的 .ui）
+
+### 完成
+- 第 1 件（`60197d3`）：HALCON 授權的提醒改成訊息列的**提醒卡片**（按〔關閉〕才收起；被預覽、無匹配、錯誤的卡片或進度列蓋過之後再出現）＋**狀態列最左邊的 back end 標示**（「HALCON · runtime 授權」，滑鼠移上去看完整說明）；4 秒的吐司拿掉，stderr 那一行保留。提醒跟著 back end 交出去（`Backend::notices`），`app::backendNotices()` 移除；新的 `BackendPresenter`、`IBackendView`；摘要不再重複 back end 名稱。
+- 第 2 件（`65109a2`）：back end 選單可以在**執行中切換**（ADR-021）。`SearchEngine`（back end ＋ use case，`shared_ptr` 共用）、`BackendSwitch`（規則，沒有 Qt）、`planStartupBackend`；背景執行緒建立；搜尋中先作廢、換好之後依狀態重搜同一個區域；失敗時回到原本的並在訊息列顯示 `ui.error.backend.*`；**啟動時用上次用的**（`QSettings` 的 INI）。`CoreServices` 的 `backend`、`generateObjects` 合成 `engine`。
+- 第 3 件（`c2f6be0`）：主視窗外框、訊息列、空白卡片、物件面板、參數面板的版面改用 **Qt Designer 的 `.ui`**（ADR-022），畫布與兩個面板、訊息列是提升元件。
+- 開工時 `main` 已前進到 `75c6b3a`（模型路由，ADR-019、020），分支從那裡開；本 session 的 ADR 因此是 **021、022**（交接 prompt 寫的「下一個是 019」已過期）。
+
+### 修改的檔案
+- 新增：`src/application/backend/SearchEngine.*`、`BackendSwitch.*`、`src/presentation/presenters/BackendPresenter.*`、`src/presentation/shell/MainWindow.ui`、`MessageBar.ui`、`EmptyCard.ui`、`src/presentation/objects/ObjectsPanel.ui`、`src/presentation/params/ParamsPanel.ui`、`tests/core/tst_backend_switch.cpp`、`AiInspTool/tests/core/tst_backend_switch.pro`、`docs/adr/021-runtime-backend-switching.md`、`docs/adr/022-designer-forms.md`
+- 修改：`src/app/CompositionRoot.*`、`main.cpp`、`src/application/backend/BackendRegistry.h`、presentation 的 `AppPresenters`、`AutoRoiPresenter`、`ControllerInterfaces.h`、`ViewInterfaces.h`、`MainWindow`、`MessageBar`、`EmptyCard`、`ObjectsPanel`、`ParamsPanel`、`ImageCanvas`；`AiInspTool/src/application/application.pro`、`presentation/presentation.pro`、`tests/tests.pro`；測試 `tst_shell`、`tst_presenter`、`PresenterRig.h`、`tst_cli`、`tst_backend_registry`、`tests/backend/` 的 6 個（`engine` 的改名）；`docs/ux/copy.json`（新增 7 個 key）、`ux-spec.md`、`architecture.md`、`decisions.md`、`current-status.md`、`plan/S09-contract-ab.md`、ADR-017、`AI_CONTEXT.md`、`.ai/handoff.md`
+
+### 驗證
+- 每個 commit 都跑 `scripts/dev/test.ps1`（Release＋OpenCV＋HALCON）：第 1 件 53／53、第 2 件 54／54、第 3 件 54／54；HALCON 的 3 個測試都是 29／12／9 項、0 跳過；其餘跳過是原本就有的（截圖、EXR、全部編進程式）。
+- 第 2 件（`65109a2`，另一個 worktree 實際建置）：`-NoHalcon` 51／51、`-NoOpenCv` 49／49、`-NoOpenCv -NoHalcon` 46／46、`-Config Debug` 54／54（HALCON 0 跳過）。
+- 第 3 件（`c2f6be0`）：（另一個 worktree 實際建置）`-Config Debug` 54／54、`-Config Profile` 54／54（Qt Creator 的第三種組態）、`-NoOpenCv -NoHalcon` 46／46；HALCON 0 跳過。五個表單在每一種組態都由 uic 編譯，`/W4 /WX` 沒有警告。
+- 真的 HALCON：背景切換總共 1 289／1 342 ms，`selectBackend` 0 ms 返回，UI 事件迴圈最長停頓 12 ms（`tst_presenter`，Release；Debug 也通過 200 ms 的門檻）。真的程式記住 halcon 啟動：stderr 依序是開始換、換成功、授權提醒。
+- UI 效能（`test.ps1 -Perf -Filter 'perf_ui*'`，前後交替 4 輪，表在 ADR-022）：I1、U3 沒有變差；U1 有一輪兩邊都受機器負載干擾，補量的一輪改之後較好；U3 照舊超過預算（已知）。
+- `ste-lint` 0 errors、`check-contrast` 0 failures、`check-deps` 0 violations、`check-ai-structure` OK。
+- Qt Creator 的 Designer：使用者 2026-10-09 在 Qt Creator 用 Designer 打開五個表單：都打得開、版面正常（沒有存檔）。
+
+### 未完成
+- 搜尋時 back end 無法使用的錯誤卡片（S08 的 `errorCard`）標題沿用把錯誤訊息當名稱的寫法，沒有改。
+- HALCON 的授權探測整個程式只做一次（插上 dongle 後要重新啟動）；`SESSIONS=1` 下從 HALCON 換走會不會佔住授權沒有驗證。
+
+### 注意事項
+- 換 back end 的規則在 `application/backend/BackendSwitch`，presentation 只透過 `IBackendController`、`IBackendView`、`ISearchEngineSink`；別在 Presenter 裡加規則。
+- 表單的字串一律 `notr`，文案由各類別的 `retranslate` 從 `copy.json` 設定；Designer 新增元件要給 objectName。
+- UI 的效能數字受機器負載影響很大，比較時要前後交替量。
+
 ## 2026-10-08 — Claude Code (Claude Opus 5.5)（模型與推理強度路由，ADR-020）
 
 ### 完成
