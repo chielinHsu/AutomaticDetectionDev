@@ -101,17 +101,18 @@ private slots:
 
     // ---- 空白與載入 ----
     // S08：back end 選單。不可用的項目停用、名稱加「✕」、提示說原因；可用但有提醒的（HALCON 的授權）提醒也在提示裡。
-    // 整個選單仍是停用的（執行中不能切換，用 --backend）。語言切換後提示跟著換。
+    // ADR-021 起選單可以用（執行中切換）；切換中整個停用。語言切換後提示跟著換。
     void theBackendMenuDisablesUnavailableItemsAndExplainsWhy() {
         Fixture f;
-        f.window.setBackends({{QStringLiteral("Fake"), true, {}},
-                              {QStringLiteral("OpenCV"), false, QStringLiteral("not built in")},
-                              {QStringLiteral("HALCON"), true, QStringLiteral("runtime license")}},
-                             2);
+        f.window.setBackends({{QStringLiteral("Fake"), true, {}, QStringLiteral("fake")},
+                              {QStringLiteral("OpenCV"), false, QStringLiteral("not built in"), QStringLiteral("opencv")},
+                              {QStringLiteral("HALCON"), true, QStringLiteral("runtime license"), QStringLiteral("halcon")}},
+                             2, false);
         QComboBox* combo = f.window.backendCombo();
         QCOMPARE(combo->count(), 3);
         QCOMPARE(combo->currentIndex(), 2);
-        QVERIFY(!combo->isEnabled());
+        QVERIFY(combo->isEnabled());
+        QCOMPARE(combo->itemData(2).toString(), QStringLiteral("halcon"));
         QCOMPARE(combo->itemText(1), QStringLiteral("OpenCV ✕"));
         auto* model = qobject_cast<QStandardItemModel*>(combo->model());
         QVERIFY(model != nullptr);
@@ -126,6 +127,37 @@ private slots:
         QCOMPARE(combo->currentIndex(), 2);
         Translations::install(QStringLiteral("zh_TW"));
         QCoreApplication::processEvents();
+        // 切換中：整個選單停用
+        f.window.setBackends({{QStringLiteral("Fake"), true, {}, QStringLiteral("fake")},
+                              {QStringLiteral("HALCON"), true, {}, QStringLiteral("halcon")}},
+                             1, true);
+        QVERIFY(!combo->isEnabled());
+        QCOMPARE(combo->currentIndex(), 1);
+    }
+
+    // 選單選了一項 → IBackendController::selectBackend(id)；程式自己設定選單（setBackends）不會回報。
+    void choosingABackendInTheMenuAsksTheController() {
+        struct Recorder final : IBackendController {
+            std::vector<std::string> selected;
+            std::vector<aoi::BackendInfo> availableBackends() const override { return {}; }
+            void selectBackend(const std::string& id) override { selected.push_back(id); }
+            void applyNoticeAction(int) override {}
+        } recorder;
+        Fixture f;
+        MainWindow::Controllers controllers;
+        controllers.backend = &recorder;
+        f.window.setControllers(controllers);
+        f.window.setBackends({{QStringLiteral("Fake"), true, {}, QStringLiteral("fake")},
+                              {QStringLiteral("OpenCV"), true, {}, QStringLiteral("opencv")}},
+                             0, false);
+        QVERIFY(recorder.selected.empty());
+        QComboBox* combo = f.window.backendCombo();
+        // 像使用者一樣：打開清單、往下一項、Enter
+        combo->setFocus();
+        QTest::keyClick(combo, Qt::Key_Down);
+        QCoreApplication::processEvents();
+        QCOMPARE(recorder.selected, (std::vector<std::string>{"opencv"}));
+        f.window.setControllers({});
     }
 
     void startsEmptyWithDisabledToolsAndACenteredCard() {

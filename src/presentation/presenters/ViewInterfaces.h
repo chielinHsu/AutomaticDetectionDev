@@ -54,11 +54,12 @@ struct BackendChoice {
 
 // back end 這一塊畫面（BackendPresenter）：上方的選單、狀態列最左邊的標示、訊息列的提醒卡片。
 // 提醒卡片比 IMessageView 的卡片低一級：那些卡片或進度列顯示時它讓位，收起之後再出現，直到 hideNotice。
-// 按鈕被按下時，View 把索引交給 IBackendController::applyNoticeAction。
+// 按鈕被按下時，View 把索引交給 IBackendController::applyNoticeAction；選單選了一項時交給 selectBackend。
 class IBackendView {
 public:
     virtual ~IBackendView() = default;
-    virtual void setBackends(const QList<BackendChoice>& choices, int current) = 0;
+    // switching ＝ 正在換（選單停用）；current 是選單上顯示為選取的那一項。
+    virtual void setBackends(const QList<BackendChoice>& choices, int current, bool switching) = 0;
     // 狀態列：「HALCON · runtime 授權」；detail 是滑鼠移上去看的完整說明。
     virtual void setBackendStatus(const QString& text, const QString& detail) = 0;
     virtual void showNotice(const MessageCard& card) = 0;

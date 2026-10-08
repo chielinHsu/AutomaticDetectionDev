@@ -8,6 +8,7 @@
 
 #include "application/Result.h"
 #include "application/backend/BackendRegistry.h"
+#include "application/backend/SearchEngine.h"
 #include "application/jobs/JobRunner.h"
 #include "application/usecases/GenerateObjectsFromSample.h"
 #include "infrastructure/perf/PerfProbe.h"
@@ -27,16 +28,17 @@ std::size_t workerThreads();
 // 不可用的 back end 也要登記，這樣 --backend=halcon 與 UI 的選單才能給出明確的訊息。
 BackendRegistry makeBackendRegistry();
 
-// 組裝好的核心。成員的宣告順序就是建立順序，解構從最後一個往前：
-// runner 先停（等進行中的工作結束），再來是 use case、back end、executor、probe。
 // 工作用哪一種執行緒池。兩個都滿足 IExecutor 的契約；UI 程式用 QThreadPool（S04），純標準庫的測試可以用 std::thread 版。
 enum class ExecutorKind { QtThreadPool, StdThreads };
 
+// 組裝好的核心。成員的宣告順序就是建立順序，解構從最後一個往前：
+// runner 先停（等進行中的工作結束），再來是 engine（back end ＋ use case）、executor（排著的工作做完）、probe。
+// 執行中切換 back end（ADR-021）只換 engine：executor、JobRunner、probe 不重建。engine 是共用的：Presenter 與每個搜尋工作
+// 各持有一份，所以這裡的 engine 只是「啟動時的那一個」，換過之後它可能已經不是目前的 back end。
 struct CoreServices {
     std::unique_ptr<infra::PerfProbe> probe;  // 預設關閉
     std::unique_ptr<IExecutor> executor;
-    Backend backend;
-    std::unique_ptr<GenerateObjectsFromSample> generateObjects;
+    SearchEnginePtr engine;  // engine->backend（id、adapter、提醒）、engine->generate（流程 A 的 use case）
     std::unique_ptr<JobRunner> runner;
 };
 
@@ -45,7 +47,8 @@ struct CoreServices {
 std::unique_ptr<IImageSource> makeImageSource();
 
 // 依 id 建立 back end 並接上 use case、JobRunner。id 不存在或不可用時回 Error（訊息說明原因與可用的 back end）。
-// back end 的提醒（例如 HALCON 用的是 runtime 授權）在 backend.notices（工廠填，application/backend/BackendRegistry.h）。
+// back end 的提醒（例如 HALCON 用的是 runtime 授權）在 engine->backend.notices（工廠填，application/backend/BackendRegistry.h）。
+// 執行中要換成別的 back end 時用 makeSearchEngine（application/backend/SearchEngine.h），在背景執行緒建立。
 Result<CoreServices> composeCore(const BackendRegistry& registry, std::string_view backendId, bool perfEnabled = false,
                                  ExecutorKind executorKind = ExecutorKind::QtThreadPool);
 

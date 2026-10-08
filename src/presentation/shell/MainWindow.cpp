@@ -278,7 +278,13 @@ void MainWindow::buildToolbars() {
     topBar_->addSeparator();
     backendLabel_ = new QLabel(topBar_);
     backendCombo_ = new QComboBox(topBar_);
-    backendCombo_->setEnabled(false);  // 執行中切換 back end 要等 S07（現在只有一個可用的）；清單由 setBackends 填
+    backendCombo_->setObjectName(QStringLiteral("backendCombo"));
+    // 使用者選了一項（程式設定的不算：activated 只在使用者操作時發出）→ 執行中切換（ADR-021）。清單由 setBackends 填。
+    connect(backendCombo_, &QComboBox::activated, this, [this](int index) {
+        const QString id = backendCombo_->itemData(index).toString();
+        if (controllers_.backend && !id.isEmpty()) controllers_.backend->selectBackend(id.toStdString());
+        canvas_->setFocus(Qt::OtherFocusReason);
+    });
     topBar_->addWidget(backendLabel_);
     topBar_->addWidget(backendCombo_);
     auto* spacer = new QWidget(topBar_);
@@ -464,9 +470,10 @@ void MainWindow::selectTool(ToolId id) {
     }
 }
 
-void MainWindow::setBackends(const QList<BackendChoice>& choices, int current) {
+void MainWindow::setBackends(const QList<BackendChoice>& choices, int current, bool switching) {
     backends_ = choices;
     currentBackend_ = current;
+    backendSwitching_ = switching;
     refreshBackends();
 }
 
@@ -486,7 +493,8 @@ void MainWindow::refreshBackends() {
     }
     backendCombo_->setCurrentIndex(currentBackend_);
     backendCombo_->setToolTip(tips.join(QLatin1Char('\n')));
-    backendCombo_->setEnabled(false);
+    // 切換中停用；只有一個 back end 時也沒什麼可選。
+    backendCombo_->setEnabled(!backendSwitching_ && backends_.size() > 1);
 }
 
 void MainWindow::setBackendStatus(const QString& text, const QString& detail) {

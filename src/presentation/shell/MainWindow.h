@@ -85,10 +85,11 @@ public:
     // 工具列的工具換成 id（工具、按鈕、畫布一起換）。
     void selectTool(ToolId id);
     // ---- IBackendView（BackendPresenter）----
-    // 上方 back end 選單：顯示目前用的與其他已註冊的。還不能在執行中切換（用 --backend 選），所以整個選單是停用的。
-    // S08：不可用的項目停用、名稱後加「✕」，提示（tooltip）說原因；可用但有提醒的（例如 HALCON 的授權）也寫在提示裡。
+    // 上方 back end 選單：目前用的與其他已註冊的；選了別的就在執行中切換（ADR-021，交給 IBackendController::selectBackend）。
+    // 切換中（switching）整個選單停用。S08：不可用的項目停用、名稱後加「✕」，提示（tooltip）說原因；
+    // 可用但有提醒的（例如 HALCON 的授權）也寫在提示裡。
     using BackendChoice = aoi::ui::BackendChoice;
-    void setBackends(const QList<BackendChoice>& choices, int current) override;
+    void setBackends(const QList<BackendChoice>& choices, int current, bool switching) override;
     // 狀態列最左邊的 back end 標示（「HALCON · runtime 授權」），滑鼠移上去看 detail。
     void setBackendStatus(const QString& text, const QString& detail) override;
     // 訊息列的提醒卡片（MessageBar::showNotice）：比搜尋的卡片低一級，按鈕交給 IBackendController::applyNoticeAction。
@@ -190,6 +191,7 @@ private:
     QString summaryText_;
     QList<BackendChoice> backends_;
     int currentBackend_ = 0;
+    bool backendSwitching_ = false;
     BusyLevel busyLevel_ = BusyLevel::None;
     double progress_ = 0.0;
     QString undoLabel_;

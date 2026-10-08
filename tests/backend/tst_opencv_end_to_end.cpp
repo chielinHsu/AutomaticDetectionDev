@@ -116,7 +116,7 @@ private:
         SampleRequest request;
         request.image = image;
         request.sample = sampleBoxAround(board, middlePresentIndex(board));
-        return core_.generateObjects->run(request, CancelToken());
+        return core_.engine->generate->run(request, CancelToken());
     }
 
 private slots:
@@ -130,7 +130,7 @@ private slots:
         Result<app::CoreServices> core = app::composeCore(registry, "opencv", false, app::ExecutorKind::StdThreads);
         QVERIFY2(core.ok(), core.ok() ? "" : core.error().message.c_str());
         core_ = std::move(core.value());
-        QCOMPARE(core_.backend.id, std::string("opencv"));
+        QCOMPARE(core_.engine->backend.id, std::string("opencv"));
     }
 
     void syntheticBoards_data() {

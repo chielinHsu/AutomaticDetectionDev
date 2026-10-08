@@ -1,8 +1,12 @@
 // 命令列：AiInspTool.exe 的 --backend 參數（組裝根的行為，從外面用真的行程驗證）。
 // 沒有編進程式的 back end 要「明確失敗」：結束碼 2、stderr 有原因與可用的 back end；預設與 fake 要能啟動。
+// ADR-021：沒給 --backend 時用記住的那一個（使用者的設定檔；測試用 AOI_SETTINGS_DIR 指到暫存資料夾，不碰使用者的設定）。
 #include <QtTest>
+#include <QDir>
+#include <QElapsedTimer>
 #include <QProcess>
 #include <QProcessEnvironment>
+#include <QSettings>
 #include <QTemporaryDir>
 
 #ifdef AOI_WITH_HALCON
@@ -11,11 +15,46 @@
 
 namespace {
 
-QProcessEnvironment offscreen() {
+// 設定檔放在 settingsDir（空 ＝ 每次一個新的空資料夾）：程式不讀、不寫使用者真正的設定，前一次啟動記住的也不影響下一次。
+QProcessEnvironment offscreen(const QString& settingsDir = QString()) {
+    static QTemporaryDir root;
+    static int launches = 0;
     QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
     env.insert(QStringLiteral("QT_QPA_PLATFORM"), QStringLiteral("offscreen"));
     env.insert(QStringLiteral("QT_QPA_FONTDIR"), QStringLiteral(AOI_FONT_DIR));
+    env.insert(QStringLiteral("AOI_SETTINGS_DIR"),
+               settingsDir.isEmpty() ? root.filePath(QString::number(++launches)) : settingsDir);
     return env;
+}
+
+// 程式的設定檔（QSettings 的 INI、使用者範圍：<資料夾>/<組織>/<程式>.ini）。
+QString settingsFile(const QTemporaryDir& dir) { return dir.filePath(QStringLiteral("AOI/AutoCadCreated.ini")); }
+
+void remember(const QTemporaryDir& dir, const QString& backend) {
+    QSettings settings(settingsFile(dir), QSettings::IniFormat);
+    settings.setValue(QStringLiteral("backend/last"), backend);
+    settings.sync();
+}
+
+QString remembered(const QTemporaryDir& dir) {
+    return QSettings(settingsFile(dir), QSettings::IniFormat).value(QStringLiteral("backend/last")).toString();
+}
+
+// 程式一直在跑（視窗）時讀 stderr，直到出現 text 或逾時；回傳讀到的全部。
+QString stderrUntil(QProcess& process, const QString& text, int timeoutMs = 15000) {
+    QString err;
+    QElapsedTimer clock;
+    clock.start();
+    while (!err.contains(text) && clock.elapsed() < timeoutMs && process.state() == QProcess::Running) {
+        process.waitForReadyRead(200);
+        err += QString::fromUtf8(process.readAllStandardError());
+    }
+    return err;
+}
+
+void stop(QProcess& process) {
+    process.kill();
+    process.waitForFinished(10000);
 }
 
 }  // namespace
@@ -145,6 +184,58 @@ private slots:
         QCOMPARE(process.exitCode(), 2);
         QVERIFY(QString::fromUtf8(process.readAllStandardError()).contains(QStringLiteral("Unknown theme 'neon'")));
     }
+
+    // ---- ADR-021：記住上次用的 back end（使用者 2026-10-08 決定）----
+
+    // 命令列指定、而且啟動成功的，記下來（下次沒給 --backend 時用它）。
+    void anExplicitBackendIsRemembered() {
+        QTemporaryDir settings;
+        QVERIFY(settings.isValid());
+        QProcess process;
+        process.setProcessEnvironment(offscreen(settings.path()));
+        process.start(QStringLiteral(AOI_EXE_PATH), {QStringLiteral("--backend=fake")});
+        QVERIFY(process.waitForStarted(20000));
+        QVERIFY2(!process.waitForFinished(2500), "the program keeps running");
+        stop(process);
+        QCOMPARE(remembered(settings), QStringLiteral("fake"));
+    }
+
+    // 記住的不能用（例如 dongle 沒插、或 id 過期）：不結束程式，留在 fake，原因寫到 stderr；記住的值不被改掉。
+    void aRememberedBackendThatCannotStartLeavesTheProgramRunningOnFake() {
+        QTemporaryDir settings;
+        QVERIFY(settings.isValid());
+        remember(settings, QStringLiteral("turbo"));
+        QProcess process;
+        process.setProcessEnvironment(offscreen(settings.path()));
+        process.start(QStringLiteral(AOI_EXE_PATH), QStringList{});
+        QVERIFY(process.waitForStarted(20000));
+        const QString err = stderrUntil(process, QStringLiteral("Still using 'fake'"));
+        const bool running = process.state() == QProcess::Running;
+        stop(process);
+        QVERIFY2(running, qPrintable(QStringLiteral("the program must keep running; stderr: ") + err));
+        QVERIFY2(err.contains(QStringLiteral("Switching to the remembered back end 'turbo'")), qPrintable(err));
+        QVERIFY2(err.contains(QStringLiteral("Cannot switch to the 'turbo' back end")), qPrintable(err));
+        QCOMPARE(remembered(settings), QStringLiteral("turbo"));
+    }
+
+#ifdef AOI_WITH_OPENCV
+    // 沒給 --backend：視窗出現之後在背景換成記住的那一個。
+    void theRememberedBackendIsUsedWhenNoneIsGiven() {
+        QTemporaryDir settings;
+        QVERIFY(settings.isValid());
+        remember(settings, QStringLiteral("opencv"));
+        QProcess process;
+        process.setProcessEnvironment(offscreen(settings.path()));
+        process.start(QStringLiteral(AOI_EXE_PATH), QStringList{});
+        QVERIFY(process.waitForStarted(20000));
+        const QString err = stderrUntil(process, QStringLiteral("Switched to the 'opencv' back end."));
+        const bool running = process.state() == QProcess::Running;
+        stop(process);
+        QVERIFY2(running, qPrintable(err));
+        QVERIFY2(err.contains(QStringLiteral("Switched to the 'opencv' back end.")), qPrintable(err));
+        QCOMPARE(remembered(settings), QStringLiteral("opencv"));
+    }
+#endif
 
     void availableBackendsStartAndKeepRunning_data() {
         QTest::addColumn<QStringList>("arguments");

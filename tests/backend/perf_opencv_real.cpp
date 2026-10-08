@@ -110,7 +110,7 @@ private slots:
         SampleProposal last;
         std::vector<double> totals;
         for (int run = 0; run < 3; ++run) {
-            const Result<SampleProposal> r = core_.generateObjects->run(request, CancelToken());
+            const Result<SampleProposal> r = core_.engine->generate->run(request, CancelToken());
             QVERIFY2(r.ok(), r.ok() ? "" : r.error().message.c_str());
             last = r.value();
             totals.push_back(last.timings.totalMs);

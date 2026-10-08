@@ -20,6 +20,7 @@ AOI_TESTS = \
     core/tst_generate_objects \
     core/tst_fake_backend \
     core/tst_backend_registry \
+    core/tst_backend_switch \
     core/tst_perf_probe \
     core/tst_undo_stack \
     core/tst_state_machine \

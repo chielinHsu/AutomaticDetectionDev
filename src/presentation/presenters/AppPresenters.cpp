@@ -6,13 +6,13 @@
 
 namespace aoi::ui {
 
-AppPresenters::AppPresenters(MainWindow& window, PresenterServices services, BackendSetup backend, const ThemeTokens& tokens)
+AppPresenters::AppPresenters(MainWindow& window, PresenterServices services, BackendServices backend, const ThemeTokens& tokens)
     : window_(window) {
     ImageCanvas* canvas = window.canvas();
     PresenterViews views{*canvas, *canvas, window, window, window, *window.objectsPanel(), *window.paramsPanel()};
     autoRoi_ = std::make_unique<AutoRoiPresenter>(views, std::move(services), PresenterSettings::fromTokens(tokens));
     params_ = std::make_unique<ParamsPresenter>(*autoRoi_, tokens.timing.paramDebounce);
-    backend_ = std::make_unique<BackendPresenter>(window, std::move(backend));
+    backend_ = std::make_unique<BackendPresenter>(window, *autoRoi_, std::move(backend));
 
     MainWindow::Controllers controllers;
     controllers.canvas = autoRoi_.get();

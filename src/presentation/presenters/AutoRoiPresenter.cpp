@@ -381,10 +381,30 @@ void AutoRoiPresenter::applySearchParams(const SearchParams& params) {
     searchParams_ = params;
     views_.params.setParams(currentParams());
     // 需要重新搜尋的參數：Searching、Preview、NoMatch 才有上次的區域可以重搜；其餘狀態只記下數值。
-    if (session_.restartSearch()) {
-        if (session_.lastSearch()->mode == RegionMode::Region) finishRegionScan();
-        else startSearch();
-    }
+    researchSameRegion();
+}
+
+// ---- ISearchEngineSink（執行中切換 back end，ADR-021）---------------------------------------------------
+
+void AutoRoiPresenter::pauseSearch() {
+    if (state() != InteractionState::Searching) return;
+    // 世代換掉、取消旗標升起：舊 back end 的結果回來時被丟掉。狀態留在 Searching、忙碌標示照舊——
+    // 換好之後 BackendPresenter 會要求用新的（失敗時用原來的）back end 搜尋同一個區域；使用者按 Esc 照樣回到 Idle。
+    ++generation_;
+    services_.runner.cancel();
+}
+
+void AutoRoiPresenter::useSearchEngine(std::shared_ptr<const GenerateObjectsFromSample> useCase,
+                                       const QString& fallbackBackendName) {
+    if (!useCase) return;
+    services_.generate = std::move(useCase);  // 舊的：進行中的工作還拿著一份
+    services_.fallbackBackendName = fallbackBackendName;
+}
+
+void AutoRoiPresenter::researchSameRegion() {
+    if (!session_.restartSearch()) return;
+    if (session_.lastSearch()->mode == RegionMode::Region) finishRegionScan();
+    else startSearch();
 }
 
 void AutoRoiPresenter::applyScanScope(int scopeIndex) {
@@ -437,12 +457,13 @@ void AutoRoiPresenter::startSearch() {
 
     auto outcome = std::make_shared<JobOutcome>();
     auto bridge = std::make_shared<ProgressBridge>(poster_, this, generation);
-    const GenerateObjectsFromSample* useCase = &services_.generate;
+    // 工作持有 use case（和它的 back end）的一份：執行中換 back end 時，舊的 adapter 等這個工作結束才釋放（ADR-021）。
+    std::shared_ptr<const GenerateObjectsFromSample> useCase = services_.generate;
 
     beginBusy();
-    // work 與 done 都在 worker 上跑，只捕獲「自己的」資料（請求的複本、結果盒、橋）；不捕獲 this 的可變狀態。
+    // work 與 done 都在 worker 上跑，只捕獲「自己的」資料（請求的複本、結果盒、橋、use case）；不捕獲 this 的可變狀態。
     services_.runner.submit(
-        [request, useCase, outcome, bridge](const CancelToken& cancel) {
+        [request, useCase = std::move(useCase), outcome, bridge](const CancelToken& cancel) {
             outcome->result.emplace(useCase->run(request, cancel, bridge.get()));
         },
         [poster = poster_, this, generation, outcome](const JobReport& report) {

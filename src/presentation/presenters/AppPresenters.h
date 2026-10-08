@@ -17,7 +17,7 @@ namespace aoi::ui {
 // main.cpp 的區域變數：核心 → 視窗 → 這個物件，解構時反過來）。解構時先把視窗的 Controller 清掉，視窗就不會再呼叫已死的 Presenter。
 class AppPresenters {
 public:
-    AppPresenters(MainWindow& window, PresenterServices services, BackendSetup backend, const ThemeTokens& tokens);
+    AppPresenters(MainWindow& window, PresenterServices services, BackendServices backend, const ThemeTokens& tokens);
     ~AppPresenters();
     AppPresenters(const AppPresenters&) = delete;
     AppPresenters& operator=(const AppPresenters&) = delete;

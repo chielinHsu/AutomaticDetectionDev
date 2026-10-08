@@ -469,7 +469,7 @@ private slots:
                 SyntheticBoardSpec spec = boardSpec(2592, 1944);
                 c.tweak(spec);
                 const SyntheticBoard board = makeSyntheticBoard(spec);
-                const T6Outcome o = runT6(*core.value().generateObjects, board, &errors);
+                const T6Outcome o = runT6(*core.value().engine->generate, board, &errors);
                 present += o.present;
                 found += o.found;
                 qInfo("T6 %s %-16s present %zu found %zu max error %.3f px, total %.1f ms", qPrintable(id), c.name, o.present, o.found,
@@ -676,7 +676,7 @@ private slots:
         std::vector<double> stage[5];
         std::size_t holes = 0;
         for (int k = 0; k < 25; ++k) {
-            const Result<SampleProposal> r = core.value().generateObjects->run(request, CancelToken());
+            const Result<SampleProposal> r = core.value().engine->generate->run(request, CancelToken());
             QVERIFY(r.ok());
             if (k < 5) continue;
             const StageTimings& s = r.value().timings;

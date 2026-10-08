@@ -48,7 +48,8 @@ struct BackendInfo {
 // 契約：registerBackend 與 registerUnavailable 在 id 重複時回 ErrorCode::InvalidArgument（不靜默覆蓋）。
 // create 在 id 不存在時回 ErrorCode::NotFound；id 是「不可用」的 back end 時回它註冊時的 Error；
 // 工廠失敗時回工廠的 Error。每次 create 都建一份新的 Backend（執行緒之間不共享 adapter）。
-// 不是執行緒安全的：只在啟動時（主執行緒）註冊與建立。
+// 執行緒：註冊只在啟動時（主執行緒），註冊完之後不再改。之後 list 與 create 可以從任何執行緒呼叫
+// （執行中切換 back end 時，create 在 worker 上跑，ADR-021），所以工廠本身要能在任何執行緒執行。
 class BackendRegistry {
 public:
     using Factory = std::function<Result<Backend>()>;

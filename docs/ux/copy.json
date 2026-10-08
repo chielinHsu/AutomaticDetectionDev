@@ -291,6 +291,14 @@
       "zh_TW": "目前的 back end：{backend}",
       "en": "Current back end: {backend}"
     },
+    "ui.backend.switching": {
+      "zh_TW": "切換到 {backend}…",
+      "en": "Switching to {backend}…"
+    },
+    "ui.backend.reverted": {
+      "zh_TW": "仍使用 {backend}。",
+      "en": "Still using {backend}."
+    },
     "ui.settings.theme.light": {
       "zh_TW": "淺色",
       "en": "Light"

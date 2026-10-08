@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QApplication>
+#include <QComboBox>
 #include <QDoubleSpinBox>
 #include <QLabel>
 #include <QSlider>
@@ -45,6 +46,12 @@ struct BackendProbe {
     std::atomic<bool> gateWindows{false};
     std::atomic<int> windowEntered{0};
     std::atomic<int> windowReleased{0};
+    // 建立 back end 的閘門（模擬 HALCON 約 1.5 秒的授權檢查）：開著的時候，工廠等 createReleased 才返回。
+    std::atomic<bool> gateCreate{false};
+    std::atomic<bool> createEntered{false};
+    std::atomic<bool> createReleased{false};
+    std::atomic<int> creates{0};
+    std::atomic<bool> createdOnUiThread{false};
 };
 
 class ProbedBuilder final : public aoi::ITemplateBuilder {
@@ -97,8 +104,18 @@ inline aoi::fake::FakeSpec defaultWorld() {
     return spec;
 }
 
+// 執行中切換的對象（ADR-021）：Rig 的 registry 除了 fake 還有這三個。
+//   other  「Other (test)」：同樣的假世界，自己的探針（otherProbe），建立可以卡在閘門上；有一個提醒（像 HALCON 的 runtime 授權）
+//   broken 「Broken (test)」：登記成可用，但工廠失敗（像授權檢查失敗）
+//   off    「Off (test)」：登記成不可用（像沒編進程式）
+inline aoi::BackendNotice otherNotice() {
+    return {"ui.backend.halcon.sdkDongleMissing", "ui.backend.halcon.runtimeLicense",
+            {{"inUse", "3-7614034"}, {"missing", "3-7081033"}}, "Other runs with the runtime license."};
+}
+
 struct Rig {
     std::shared_ptr<BackendProbe> probe = std::make_shared<BackendProbe>();
+    std::shared_ptr<BackendProbe> otherProbe = std::make_shared<BackendProbe>();
     aoi::ui::ThemeManager theme{*qApp, aoi::ui::ThemeTokens::builtin()};
     aoi::BackendRegistry registry;
     aoi::Result<aoi::app::CoreServices> core;
@@ -111,14 +128,19 @@ struct Rig {
     explicit Rig(aoi::fake::FakeSpec world = defaultWorld(), bool fastTimings = true,
                  aoi::app::ExecutorKind executor = aoi::app::ExecutorKind::QtThreadPool,
                  std::vector<aoi::BackendNotice> notices = {})
-        : core(makeCore(registry, probe, std::move(world), executor)), window(theme) {
+        : core(makeCore(registry, probe, otherProbe, std::move(world), executor, std::move(notices))), window(theme) {
         aoi::ui::Translations::install(QStringLiteral("zh_TW"));
         window.setImageSource(&imageSource);
         aoi::app::CoreServices& services = core.value();
-        aoi::ui::PresenterServices presenterServices{*services.generateObjects, *services.runner, services.probe.get(),
+        aoi::ui::PresenterServices presenterServices{aoi::useCaseOf(services.engine), *services.runner, services.probe.get(),
                                                      QStringLiteral("OpenCV")};
-        aoi::ui::BackendSetup backendSetup{registry.list(), "fake", std::move(notices)};
-        presenters = std::make_unique<aoi::ui::AppPresenters>(window, presenterServices, std::move(backendSetup),
+        // 和產品一樣：切換在 core 的執行緒池上建立（main.cpp）。
+        aoi::ui::BackendServices backendServices;
+        backendServices.backends = registry.list();
+        backendServices.current = services.engine;
+        backendServices.create = [this](const std::string& id) { return aoi::makeSearchEngine(registry, id); };
+        backendServices.executor = services.executor.get();
+        presenters = std::make_unique<aoi::ui::AppPresenters>(window, presenterServices, std::move(backendServices),
                                                               aoi::ui::ThemeTokens::builtin());
         if (fastTimings) {
             aoi::ui::PresenterSettings s = presenter().settings();
@@ -132,22 +154,52 @@ struct Rig {
     }
 
     ~Rig() {
-        // 先停掉進行中的工作，再解構（JobRunner 解構會等工作結束）。
+        // 先停掉進行中的工作，再解構（JobRunner 解構會等工作結束）。建立中的 back end 放行，執行緒池解構時不必等到逾時。
         presenter().cancelSearch();
+        otherProbe->createReleased = true;
+        probe->windowReleased = 1 << 20;
+        otherProbe->windowReleased = 1 << 20;
     }
 
     static aoi::Result<aoi::app::CoreServices> makeCore(aoi::BackendRegistry& registry, const std::shared_ptr<BackendProbe>& probe,
-                                                         aoi::fake::FakeSpec world, aoi::app::ExecutorKind executor) {
-        (void)registry.registerBackend("fake", "Fake (test)", [probe, world]() -> aoi::Result<aoi::Backend> {
+                                                         const std::shared_ptr<BackendProbe>& otherProbe, aoi::fake::FakeSpec world,
+                                                         aoi::app::ExecutorKind executor, std::vector<aoi::BackendNotice> notices) {
+        (void)registry.registerBackend("fake", "Fake (test)", [probe, world, notices]() -> aoi::Result<aoi::Backend> {
             aoi::Backend backend;
             backend.id = "fake";
             backend.displayName = "Fake (test)";
             backend.templateBuilder = std::make_unique<ProbedBuilder>(probe, world);
             backend.searcher = std::make_unique<ProbedSearcher>(probe, world);
+            backend.notices = notices;
             return aoi::Result<aoi::Backend>(std::move(backend));
         });
+        const std::thread::id uiThread = std::this_thread::get_id();
+        (void)registry.registerBackend("other", "Other (test)", [otherProbe, world, uiThread]() -> aoi::Result<aoi::Backend> {
+            ++otherProbe->creates;
+            otherProbe->createdOnUiThread = std::this_thread::get_id() == uiThread;
+            otherProbe->createEntered = true;
+            const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
+            while (otherProbe->gateCreate && !otherProbe->createReleased && std::chrono::steady_clock::now() < deadline)
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            aoi::Backend backend;
+            backend.id = "other";
+            backend.displayName = "Other (test)";
+            backend.templateBuilder = std::make_unique<ProbedBuilder>(otherProbe, world);
+            backend.searcher = std::make_unique<ProbedSearcher>(otherProbe, world);
+            backend.notices = {otherNotice()};
+            return aoi::Result<aoi::Backend>(std::move(backend));
+        });
+        (void)registry.registerBackend("broken", "Broken (test)", []() -> aoi::Result<aoi::Backend> {
+            return aoi::makeError(aoi::ErrorCode::BackendUnavailable, "no license (test)");
+        });
+        (void)registry.registerUnavailable("off", "Off (test)", "not built in (test)");
         return aoi::app::composeCore(registry, "fake", false, executor);
     }
+
+    // 選單上 id 那一項的索引（-1 ＝ 沒有）。
+    int comboIndex(const QString& id) { return window.backendCombo()->findData(id); }
+    // 像使用者一樣在選單上選一項（activated 只在使用者操作時發出）。
+    void chooseBackend(const QString& id) { emit window.backendCombo()->activated(comboIndex(id)); }
 
     aoi::ui::AutoRoiPresenter& presenter() { return presenters->autoRoi(); }
     aoi::ui::ImageCanvas* canvas() { return window.canvas(); }
