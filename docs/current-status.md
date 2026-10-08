@@ -60,7 +60,7 @@
 - **做了什麼**（[ADR-018](adr/018-qmake-only-build.md)）：`.pro`／`.pri` 都在 `AiInspTool/` 底下對照 `src/`、`tests/`（實測：放在原始碼旁邊時輸出會跑到建置資料夾外面）；依賴表 `AiInspTool/qmake/aoi_deps.pri`（分層規則的機器可讀版，沒有 Qt 模組的程式庫 `CONFIG -= qt`）；檔案明確列出；OpenCV／HALCON 找不到時 qmake 報錯；`AiInspTool.exe` 是 GUI 子系統；測試的環境（offscreen、字型）編進每個測試；測試清單在 `AiInspTool/tests/tests.pro`；`scripts/dev/test.ps1` 改寫（qmake＋jom，`-Config`、`-NoOpenCv`、`-NoHalcon`、`-Perf`、`-Filter`、`-NoBuild`、`-BuildDir`）。CMake 全部移除。
 - **驗證**：8 種組合（Release／Debug × 兩個都關／OpenCV／HALCON／兩者）全部通過，數量和 CTest 時代相同（45／50／48／53）；Qt Creator 的三種組態（同樣的 qmake 參數與建置資料夾名稱）建置成功、0 個警告，Profile 跑全部測試 53／53；Release 開使用者的 TIFF 成功、`--backend halcon` 時 stderr 有授權提醒；效能 10 項通過、和 CMake 時代同一個量級（數字在 ADR-018 的「驗證」）。 Qt Creator 的三種組態用命令列模擬過（同樣的 qmake 參數與建置資料夾名稱），**還沒有在 Qt Creator 的畫面裡實際打開過**新的專案：請使用者打開一次確認（專案樹、執行設定選 `AiInspTool`、測試面板）。精靈產生的 `AiInspTool/main.cpp`、`mainwindow.*` 沒有使用，使用者決定保留。
 - **Qt Creator 版現在有的功能**：讀 TIFF 與 16 bit 影像（OpenCV 的影像來源）、`fake`／`opencv`／`halcon` 三個 back end（選單與 `--backend`）、HALCON 的授權提醒（stderr、吐司、選單提示）、`--demo`、所有 Qt Test（測試面板）。
-- **HALCON 的 dongle**：2026-10-07 15:06 起 HALCON 又讀不到插著的 runtime dongle（錯誤 2300），之後的 HALCON 驗證（第二輪 Debug、Profile 的 HALCON 測試、`perf_halcon`）都是「跳過」，不是通過；重插 dongle 後要補跑 `test.ps1 -Config Debug -Filter 'tst_halcon*'` 與 `test.ps1 -Perf -Filter 'perf_halcon'`。
+- **HALCON 的授權（錯誤 2300）**：2026-10-07 15:06 到 2026-10-08 13:20 HALCON 拿不到授權（Windows 看得到 dongle）；重插、換埠、插電腦本體、重新啟動都沒恢復，使用者在另一個專案 `Algo_SkewInspect` 拔插測試之後恢復，**原因不明**。恢復後補跑 Debug、Profile 的全部測試與 `perf_halcon`，都通過。`hhostid` 在這台與另一台都不列出這個 dongle，不能拿來判斷；判斷用 `test.ps1 -Filter 'tst_halcon_backend'`（log 的 Totals 0 skipped）。授權檔寫 `SESSIONS=1`：別的 HALCON 程式同時在跑會不會讓我們拿不到授權，沒有驗證。
 
 ## 預算校準狀態
 

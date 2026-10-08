@@ -21,7 +21,7 @@
 ## 已完成（session A）
 
 - qmake 專案（`.qmake.conf`、`qmake/*.pri`、15 個 `src` 的 `.pro`、`tests.pro`＋60 個測試與 support 的 `.pro`）、`tests/support/test_environment.cpp`、`test.ps1`／`env.ps1` 改寫、`CompositionRoot.cpp` 的訊息、移除 CMake、`.gitignore`。
-- 驗證：8 種組合 45／50／48／53 全過（Release、Debug）；Qt Creator 的三種組態模擬建置成功（0 個警告），Profile 跑全部測試 53／53；Release 開使用者的 TIFF 成功、`--backend halcon` 有授權提醒；效能 10 項通過、和 CMake 時代同一個量級（ADR-018「驗證」）。
+- 驗證：8 種組合 45／50／48／53 全過（Release、Debug；HALCON 拿不到授權那段跳過的部分已在 2026-10-08 補跑通過）；Qt Creator 的三種組態模擬建置成功（0 個警告），Profile 跑全部測試 53／53；Release 開使用者的 TIFF 成功、`--backend halcon` 有授權提醒；效能 10 項通過、和 CMake 時代同一個量級（ADR-018「驗證」）。
 - 文件：ADR-018、ADR-003／017 的後續、`decisions.md`、`AI_CONTEXT.md`、`architecture.md`、`README.md`、`docs/plan/S09`–`S12`、`perf-test-plan.md`、`current-status.md`。
 
 ## 下一步
@@ -40,7 +40,7 @@ session B：使用者 2026-10-07 給的 prompt（agent A 用 `spawn_task` 開的
 
 ## 已知問題與風險
 
-- **HALCON 的 dongle**：2026-10-07 15:06 起又讀不到插著的 runtime dongle（錯誤 2300），HALCON 的測試與 `perf_halcon` 會「跳過」（`test.ps1` 列在「有跳過項目的測試」，**不是通過**）。重插後補跑 `test.ps1 -Config Debug -Filter 'tst_halcon*'`、`test.ps1 -Perf -Filter 'perf_halcon'`（數字和 `docs/steps/S08-halcon/perf.md` 比）。
+- **HALCON 的授權（錯誤 2300）**：2026-10-07 15:06 到 2026-10-08 13:20 拿不到授權，期間 HALCON 的測試與 `perf_halcon` 是「跳過」（`test.ps1` 列在「有跳過項目的測試」，**不是通過**）。重插、換埠、重新啟動都沒恢復，使用者在另一個專案 `Algo_SkewInspect` 拔插之後恢復，原因不明；恢復後已補跑並通過。**`hhostid` 在這台不列出這個 dongle，不能拿來判斷**；用 `test.ps1 -Filter 'tst_halcon_backend'`。授權 `SESSIONS=1`：別的 HALCON 程式同時在跑的影響沒有驗證。
 - 新的專案只用命令列模擬過 Qt Creator 的步驟，還沒有在 Qt Creator 的畫面裡打開過。Qt Creator 的「執行」設定會列出所有測試，要選 `AiInspTool`。
 - 建置進行中不要改 `.pro`／`.pri`（Makefile 會觸發 qmake 重跑）。`scripts/**/*.ps1` 要 UTF-8 with BOM；PowerShell 的 `Get-Content -Raw`／`Set-Content` 會把 UTF-8 當 CP950，改檔用編輯工具；qmake 的 `#` 在引號裡也是註解。
 - HALCON：強雜訊時比 OpenCV 不穩（T6b p95 0.48）；T2b 偶爾超過預算；HA 真實影像只找到少數針腳；授權第一次約 1.6 秒；影像來源沒有做。流程 B 的 UI 沒有接。

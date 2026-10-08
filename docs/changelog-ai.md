@@ -24,6 +24,28 @@
 - 下一位 agent 需要知道的限制、否決的做法、不要還原的修改
 ```
 
+## 2026-10-08 — Claude Code (Claude Opus 5.5)（session A 的後續：HALCON 授權恢復後補驗證）
+
+### 完成
+- 2026-10-07 15:06 起 HALCON 拿不到授權（錯誤 2300）。2026-10-08 依序試過：重插、換 USB 埠（原本經過 Genesys Logic 的 Hub）、插電腦本體、真正重新啟動（開機時間 12:47:40），都沒恢復；授權檔、runtime、環境變數、系統更新都沒有變化。使用者在另一台電腦跑 `hhostid` 也看不到這個 dongle，而且使用者自己的專案（`D:\AOI_Project\SType\AlgoParamFineTune\BnSDKLibsController\CV_Algorithm\Algo\Algo_SkewInspect`，呼叫 HALCON 的 API）插著 dongle 時能檢測、拔掉時報 2041 Invalid host。13:20 起我們的程式又拿得到授權，原因不明。
+- **更正**：之前說「`hhostid` 看不到 dongle 就代表 HALCON 讀不到」是錯的——`hhostid`（24.11 與 22.11）在這台與另一台都不列出這個 dongle。之前說「沒有別的行程佔著 dongle」也不完整：只用名稱找了本專案的程式與 HDevelop（13:20 時改用「載入 HALCON DLL 的行程」查，沒有）。
+- 補跑 HALCON 的驗證並更新 ADR-018 的「驗證」、`current-status.md`、`.ai/handoff.md`、`AI_CONTEXT.md` 的 HALCON 那一列。
+
+### 修改的檔案
+- `docs/adr/018-qmake-only-build.md`、`docs/current-status.md`、`.ai/handoff.md`、`AI_CONTEXT.md`、`docs/changelog-ai.md`
+
+### 驗證
+- `test.ps1 -NoBuild -Config Debug`：53／53，`tst_halcon_backend` 29、`tst_halcon_end_to_end` 12、`tst_halcon_library_matcher` 9 項通過、0 跳過；`tst_cli` 通過。
+- `test.ps1 -NoBuild -Config Profile -BuildDir AiInspTool\build\Desktop_Qt_6_12_0_MSVC2022_64bit_Profile`：53／53，HALCON 同上。
+- `test.ps1 -NoBuild -Perf -Filter 'perf_halcon'`（Release）：通過；T1 p95 5.3 ms、T2b 22.5、T4 26.5、T6a 100%、T6b 0.485 px、授權第一次檢查 1.45 s、取消延遲 p95 19.2 ms（S08：7.0–22.0、31.5–82.2、28.6–46.6、100%、0.48、1.55–1.87、19–30）。預算沒有改。
+- Qt Creator 模擬的 Release：`AiInspTool.exe --backend halcon <0_0_B.tif>` 開圖成功，訊息列與 stderr 都有授權提醒（截圖確認）。
+
+### 未完成
+- 錯誤 2300 的原因不明。授權 `SESSIONS=1`：別的 HALCON 程式同時在跑會不會讓我們拿不到授權，沒有驗證。
+
+### 注意事項
+- 判斷 HALCON 能不能用：`test.ps1 -Filter 'tst_halcon_backend'`，看 log 的 Totals 是不是 0 skipped；不要用 `hhostid`。
+
 ## 2026-10-08 — Claude Code (Claude Opus 5.5)（S09 之前的 session A：建置改成只用 qmake）
 
 ### 完成
