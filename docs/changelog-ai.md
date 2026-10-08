@@ -24,6 +24,34 @@
 - 下一位 agent 需要知道的限制、否決的做法、不要還原的修改
 ```
 
+## 2026-10-08 — Claude Code (Claude Sonnet 5.5，中途換成 Claude Opus 5.5)（模型路由）
+
+### 完成
+- 依使用者提供的 ChatGPT 討論與其中的設定 prompt，建立模型路由（[ADR-019](adr/019-model-routing.md)）：根目錄的 `MODEL_ROUTING.md`（`CLAUDE.md` 匯入）；`.claude/agents/` 的 `fast-worker`（haiku，唯讀）、`developer`（sonnet，不能再委派）、`architect`（opus，唯讀，輸出修改計畫）；`UserPromptSubmit` hook `.claude/hooks/model_router.mjs`（Node，關鍵字分類，只注入提示）；驗證腳本 `scripts/ai/check-model-routing.mjs`。
+- 第一版只寫規則（`.claude/model-routing.md`，沒有 hook 與 subagent）；使用者接著貼上完整的設定 prompt，規則搬到根目錄並加上 subagent 與 hook。session 中途主模型由 Sonnet 5.5 換成 Opus 5.5。
+- 使用者同意後在分支 `chore/model-routing` commit（`1c4f264`），再以 `--no-ff` 合併到 `main`（沒有 tag、沒有 push）。
+
+### 修改的檔案
+- 新增：`MODEL_ROUTING.md`、`.claude/agents/fast-worker.md`、`.claude/agents/developer.md`、`.claude/agents/architect.md`、`.claude/hooks/model_router.mjs`、`scripts/ai/check-model-routing.mjs`、`docs/adr/019-model-routing.md`
+- 修改：`.claude/settings.json`（只加 `hooks`，`permissions` 沒動）、`CLAUDE.md`、`AI_CONTEXT.md`、`docs/decisions.md`、`docs/adr/000-ai-agent-structure.md`、`docs/changelog-ai.md`、`docs/current-status.md`、`.ai/handoff.md`
+
+### 驗證
+- `node scripts/ai/check-model-routing.mjs`：44 項通過（含用 Git Bash 跑 `settings.json` 的實際指令字串）。
+- 檢查腳本本身：在 scratchpad 的複本故意改壞 9 處（model 寫版本號、唯讀的加 Edit、拿掉 `disallowedTools`、刪一條權限、`bypassPermissions`、`PowerShell(*)`、hook 的 Opus 分支失效、`CLAUDE.md` 不匯入），每一處都報 FAIL。
+- headless 實測 `claude -p … --model haiku --output-format stream-json --verbose`（Claude Code 2.1.292）：hook 有執行（context 的提示與 hook 的輸出相同）；`system/init` 列出三個 subagent；三個同時委派、回報回到主 session；實際模型 `fast-worker` → `claude-haiku-4-5-20251001`、`developer` → `claude-sonnet-5-5`、`architect` → `claude-opus-5-5`。這次測試 US$0.59（API 計價）。
+- 互動式 session（桌面 app 的 Code 分頁）：改完 `settings.json` 之後，這個 session 的下一則使用者訊息的 context 就有「[模型路由提示]」，不必重新開 session。
+- `check-ai-structure.ps1`、`node tools/ste-lint.mjs`（0 errors）、`git diff --check`：通過。
+- 沒有建置、沒有跑 `scripts/dev/test.ps1`（沒有改產品程式碼）。
+
+### 未完成
+- 沒有 Git Bash 的電腦（Claude Code 改用 PowerShell 執行 hook）沒有驗證。
+
+### 注意事項
+- **`haiku` 別名在 Claude Code 2.1.292 對應 Haiku 4.5，不是 5.5**；照使用者的要求仍用別名。
+- 每個 subagent 啟動時載入 `CLAUDE.md` 與匯入的文件（48K–68K tokens）：委派有固定成本（Sonnet 約 US$0.17、Opus 約 US$0.24 起跳）。
+- hook 只注入提示，不切換主 session 的模型；`AOI_MODEL_ROUTER=off` 可以關掉。
+- ChatGPT 分享頁的程式碼區塊抓不到；hook 與 subagent 依使用者貼上的 prompt 與官方文件（經 `claude-code-guide` 查證）寫，不是照抄來源的範例。來源範例的 Python 在這台機器不能用（`python.exe` 是 Store 捷徑），所以改 Node。
+
 ## 2026-10-08 — Claude Code (Claude Opus 5.5)（session A 的後續：HALCON 授權恢復後補驗證）
 
 ### 完成

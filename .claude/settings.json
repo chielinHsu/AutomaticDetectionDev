@@ -26,5 +26,18 @@
       "PowerShell(git add .)",
       "PowerShell(git add . *)"
     ]
+  },
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PROJECT_DIR}/.claude/hooks/model_router.mjs\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
   }
 }
