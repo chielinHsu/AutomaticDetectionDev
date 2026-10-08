@@ -24,6 +24,37 @@
 - 下一位 agent 需要知道的限制、否決的做法、不要還原的修改
 ```
 
+## 2026-10-08 — Claude Code (Claude Opus 5.5)（模型與推理強度路由，ADR-020）
+
+### 完成
+- 依使用者的第二份設定 prompt，把模型路由升級成同時決定 model 與 effort（[ADR-020](adr/020-adaptive-model-effort-routing.md)，部分取代 ADR-019）：複雜度、風險、推理深度、不確定性 1–5 分加上判準，範圍與驗證成本；五個 subagent（新增 `developer-deep` sonnet/high、`architect-deep` opus/xhigh，原本三個加上 `effort`）；兩次失敗升一級、解決後降級、最高一級仍失敗就停下來問使用者。
+- hook 改寫：回傳 `recommended_agent`／`model`／`effort`、四個分數、`scope`、`verification_cost`、`routing_reason`、失敗與升級的次數、主 session 目前的 effort；狀態存在 `%TEMP%\claude-model-router\`；agent 與背景工作的通知不處理（實測它們也會觸發 `UserPromptSubmit`）。
+- 新增 `scripts/ai/bench-model-routing.mjs`（`verify`：從 session 紀錄讀實際的 model 與 effort；`bench`：同一組任務在五個 agent 上比較），沒有 `--yes` 不花額度。
+- 查證官方文件（`claude-code-guide`）並實測：frontmatter 的 `effort` 會套用；`claude --agent` 不套用 effort；Haiku 4.5 不支援 effort（紀錄沒有 `effort` 欄位）；`haiku` 別名 2.1.292 是 Haiku 4.5、2.1.293 起是 Haiku 5.5（CLI 在 session 期間自動從 2.1.292 更新到 2.1.294）。更正 ADR-019 與第一版文件的「`haiku` 對應 Haiku 4.5」。
+- 使用者同意後在分支 `chore/model-effort-routing` commit，以 `--no-ff` 合併到 `main`（沒有 tag、沒有 push）。
+
+### 修改的檔案
+- 新增：`.claude/agents/developer-deep.md`、`.claude/agents/architect-deep.md`、`scripts/ai/bench-model-routing.mjs`、`docs/adr/020-adaptive-model-effort-routing.md`
+- 修改：`.claude/hooks/model_router.mjs`、`.claude/agents/fast-worker.md`、`developer.md`、`architect.md`、`scripts/ai/check-model-routing.mjs`、`MODEL_ROUTING.md`、`CLAUDE.md`、`AI_CONTEXT.md`、`docs/adr/019-model-routing.md`、`docs/decisions.md`、`docs/changelog-ai.md`、`docs/current-status.md`、`.ai/handoff.md`
+
+### 驗證
+- `node scripts/ai/check-model-routing.mjs`：68 項通過（第一次跑有一項沒過：已在最高一級時，短的失敗回覆不輸出「停下來」的提示；已修正）。
+- `bench-model-routing.mjs verify --yes`（Claude Code 2.1.294）：五個 subagent 實際的 model 與 effort 都照設定（haiku-5-5/low、sonnet-5-5/medium、sonnet-5-5/high、opus-5-5/high、opus-5-5/xhigh），US$0.86。
+- `bench-model-routing.mjs bench --yes`：3 題 × 5 個 agent，15 次全對、effort 都照設定；費用合計 US$3.73，幾乎都是啟動時的快取寫入。題目太簡單，正確率分不出高下（`MODEL_ROUTING.md` 第 9 節）。
+- 費用都是 Claude Code 回報的 `total_cost_usd`；這次升級共約 US$4.7。
+- 互動式（桌面 app）：改版前 subagent 的回報會觸發 hook、被當成長需求打分；改版後開一個背景 agent 測試，它的回報沒有再帶出路由提示。使用者下一則訊息的 context 是新的 JSON 格式，但沒有 `main_session_effort`：`UserPromptSubmit` 的 hook 拿不到 `CLAUDE_EFFORT`（同一個 session 的 Bash 工具拿得到 `max`），文件已改成「拿不到就沒有」。
+- `check-ai-structure.ps1`、`ste-lint`（0 errors）、`git diff --check`：通過。沒有改產品程式碼，沒有建置、沒有跑 `test.ps1`。
+
+### 未完成
+- 要比出正確率的差異，需要更難、答案能自動判斷的任務（每次多花數美元），沒有做。
+- 沒有 Git Bash 的電腦（hook 改由 PowerShell 執行）沒有驗證。
+- 這個 session 開始時沒有 `.claude/agents/`，五個 subagent 要新的 session 才看得到（官方文件；`verify` 用 headless 的新 session 驗證過）。
+
+### 注意事項
+- 使用者的 prompt 寫 `model_router.py`；沿用 ADR-019 的 Node（`python.exe` 是 Store 捷徑）。
+- 環境變數 `CLAUDE_CODE_EFFORT_LEVEL` 會蓋過所有 subagent 的 effort；檢查腳本在它有設定時警告。
+- 2.1.292 以前的 Claude Code 上 `fast-worker` 的 effort 不會生效（Haiku 4.5 不支援），`verify` 會報降級。
+
 ## 2026-10-08 — Claude Code (Claude Sonnet 5.5，中途換成 Claude Opus 5.5)（模型路由）
 
 ### 完成
