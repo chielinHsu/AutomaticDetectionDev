@@ -57,7 +57,7 @@ flowchart TB
 | **O** 開放封閉 | 新 back end、新工具、新匯出格式＝新增類別＋註冊，不改既有 use case | 新增 back end 的變更不得出現在 `application/`、`domain/` |
 | **L** 里氏替換 | 所有 `IPatternSearcher` 遵守同一份契約（座標原點、角度方向、分數 0..1、排序、空結果行為、取消） | S09 契約測試對每個 back end 跑同一組 |
 | **I** 介面隔離 | `ITemplateBuilder`、`IPatternSearcher`、`IRecipeStore`、`IProgressSink`、`IPerfProbe`、`IExecutor` 分開；View 只看窄介面 | 介面 ≤ 5 個方法 |
-| **D** 依賴反轉 | use case 只依賴 port；具體 adapter 只在 `app/` 組裝 | `tools/check-deps.mjs`＋CMake link 可見性 |
+| **D** 依賴反轉 | use case 只依賴 port；具體 adapter 只在 `app/` 組裝 | `tools/check-deps.mjs`＋qmake 的依賴表（`AiInspTool/qmake/aoi_deps.pri`，ADR-018） |
 
 ## 4. 介面與 UX 原則
 

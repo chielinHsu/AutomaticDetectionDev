@@ -31,7 +31,7 @@ Each step has a number to compare with a budget. A slow change fails a test befo
 ## 量測方法（所有類別共用）
 
 1. **熱機**：丟掉前 5 次；**正式量 30 次**；回報**中位數與 p95**（平均值會被離群值拉動）。
-2. **機器指紋**：每份結果記錄 CPU、核心數、RAM、GPU、OS、Qt / OpenCV / HALCON 版本、編譯器與 build type（必須是 Release 或 RelWithDebInfo）、commit hash。
+2. **機器指紋**：每份結果記錄 CPU、核心數、RAM、GPU、OS、Qt / OpenCV / HALCON 版本、編譯器與 build type（必須是 Release 或 Profile；CMake 時代叫 RelWithDebInfo，2026-10-07 起建置只用 qmake，ADR-018）、commit hash。
 3. **不同機器的數字不互相比較**；基準線（baseline）存在 `perf/baseline/<machine-id>.json`。
 4. **回歸閘門**：與 baseline 相比慢超過 15%（`regressionLimitPercent`）或超過預算 → 測試失敗。
 5. **準確度與速度一起量**：只快不準沒有意義（T6）。
@@ -89,6 +89,7 @@ Each step has a number to compare with a budget. A slow change fails a test befo
   - 真機視窗模式：量 GPU 與實際顯示相關的指標（I1、I5），結果另外標示。
 - 計時：`std::chrono::steady_clock`；UI 端用 `QElapsedTimer`。`PerfProbe` 關閉時成本應可忽略（S03 驗證，目標 < 1 µs／次）。
 - 回歸比較：`tools/perf-compare.mjs`（S10）。
+- 建置與執行（2026-10-07 起，[ADR-018](adr/018-qmake-only-build.md)）：`scripts/dev/test.ps1 -Perf` 在 qmake 的 Release 建置（OpenCV＋HALCON 預設開）跑 `AiInspTool/tests/tests.pro` 的 `AOI_PERF_TESTS`；新的效能量測執行檔要加 `.pro` 並列進那份清單。`offscreen` 由編進每個測試的 `tests/support/test_environment.cpp` 設定（已經有設定時不覆寫，所以真機視窗模式先設 `QT_QPA_PLATFORM=windows`）。
 
 ## 每一步要量什麼
 

@@ -1,5 +1,5 @@
 // 真實影像（S07）：使用者提供的去識別化板子影像（不入版控）。環境變數 AOI_REAL_IMAGE_DIR 指到影像的資料夾才執行，
-// 沒有就跳過（QSKIP）。label perf：只在效能量測時跑（scripts/dev/test.ps1 -Preset release-opencv -Perf）。
+// 沒有就跳過（QSKIP）。效能量測：只在 scripts/dev/test.ps1 -Perf 時跑（AiInspTool/tests/tests.pro 的 AOI_PERF_TESTS）。
 //
 // 沒有標準答案，所以這裡只記錄：找到幾個（依來源）、晶格、各階段的時間；另外畫一張縮小的疊圖
 // （<建置目錄>/real-<檔名>-overlay.png）給人看。結果寫進 docs/steps/S07-opencv/perf.md。

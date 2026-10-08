@@ -1,4 +1,4 @@
-// 命令列：aoi.exe 的 --backend 參數（組裝根的行為，從外面用真的行程驗證）。
+// 命令列：AiInspTool.exe 的 --backend 參數（組裝根的行為，從外面用真的行程驗證）。
 // 沒有編進程式的 back end 要「明確失敗」：結束碼 2、stderr 有原因與可用的 back end；預設與 fake 要能啟動。
 #include <QtTest>
 #include <QProcess>

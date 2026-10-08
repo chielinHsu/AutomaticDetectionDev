@@ -2,7 +2,7 @@
 
 - 日期：2026-10-05
 - 決定者：Claude Code (Claude Sonnet 5.5) 依 `docs/plan/S03-core.md` 第 9 項（預定的決策，計畫經使用者於 S00 核准）提出並實作；S02 已先用於 UI 測試，S03 擴及核心。使用者沒有針對這份 ADR 另外表示意見。
-- 狀態：採用
+- 狀態：採用；「經 CTest 執行」的部分由 [ADR-018](018-qmake-only-build.md) 取代（2026-10-07，見文末「後續」）
 
 ## 背景
 
@@ -47,3 +47,13 @@
 - 沒有 mock 框架：新的 port 要附一個「記錄呼叫」的 spy，放在 `tests/core/CoreTestSupport.h`。
 - 跨執行緒的斷言要在測試執行緒做（callback 只記錄、不斷言）。
 - 之後若需要 death test 或自動 mock，要新增一份 ADR 取代這一份。
+
+## 後續（2026-10-07）：改由 qmake 建置、`scripts/dev/test.ps1` 執行（ADR-018）
+
+建置改成只用 qmake、移除 CMake（[ADR-018](018-qmake-only-build.md)），所以「經 CTest 執行」這一部分被取代；「統一用 Qt Test、一個測試類別一個執行檔、效能量測自己計時、不用 `QBENCHMARK`」不變。
+
+- **建置**：每個測試一個 `.pro`（`AiInspTool/tests/<資料夾>/<名稱>.pro`），清單在 `AiInspTool/tests/tests.pro`（`AOI_TESTS`、`AOI_PERF_TESTS`）。被測的 domain、application 等程式庫照舊不連 Qt（`CONFIG -= qt`，依賴表 `AiInspTool/qmake/aoi_deps.pri`）。
+- **執行**：`scripts/dev/test.ps1` 照 qmake 寫出的清單執行（offscreen 平台、每項逾時 300 秒、`-o <log>,txt`），再加 4 個 node 的檢查；`-Perf` 只跑效能量測（原本的 label `perf`）。Qt Creator 的測試面板也能直接執行（它用 Qt Test 的 XML 輸出）。
+- **環境**：原本由 CTest 設的 `QT_QPA_PLATFORM=offscreen` 與 `QT_QPA_FONTDIR`，改由編進每個測試的 `tests/support/test_environment.cpp` 在 `main` 之前設定（已經有設定時不覆寫），所以 Qt Creator 直接執行測試也一樣。
+- **證據的補充**：「Qt Test 不把結果寫到 stdout」更精確的說法是：**純文字**的 logger 在 stdout 被接走時不寫；`-xml`、`-lightxml` 會寫（2026-10-07 用 `System.Diagnostics.Process` 實測）。
+- 數量和 CTest 時代相同：Release＋OpenCV＋HALCON 53 項（49 個測試執行檔＋4 個 node 檢查），只有 OpenCV 50、只有 HALCON 48、兩個都沒有 45；Debug 相同。

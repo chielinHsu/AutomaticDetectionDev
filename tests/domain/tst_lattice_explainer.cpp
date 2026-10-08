@@ -1,7 +1,7 @@
 // S05 說明頁（docs/steps/S05-lattice/explainer.html）的資料：由 C++ 的晶格估計真的算出來，不是頁面自己算的。
 //
 // 兩種用法：
-//   平常（CTest）：重新算一遍，和頁面裡 <script id="lattice-data"> 的內容比對；不一樣就失敗
+//   平常（test.ps1）：重新算一遍，和頁面裡 <script id="lattice-data"> 的內容比對；不一樣就失敗
 //                  （演算法改了而頁面沒更新）。座標四捨五入到 0.1 像素，比對時容許 0.11 的差（Debug／Release 的最後一位可能不同）。
 //   更新頁面：     設環境變數 AOI_EXPORT_EXPLAINER=1 再執行，把新的資料寫進頁面。
 #include <QtTest>

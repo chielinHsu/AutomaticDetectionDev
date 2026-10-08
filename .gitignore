@@ -1,10 +1,12 @@
-# Build output
+# Build output（qmake：命令列的建置在 build/qmake-*，Qt Creator 預設在 AiInspTool/build/；ADR-018）
 build/
 out/
-cmake-build-*/
-CMakeUserPresets.json
-CMakeLists.txt.user*
 *.user
+
+# Qt Creator 的專案設定與程式碼模型快取（每台機器不同）
+.qtcreator/
+.qtc_clangd/
+*.pro.user*
 .vs/
 .vscode/
 .idea/

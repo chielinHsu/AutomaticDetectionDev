@@ -54,7 +54,7 @@ BackendRegistry makeBackendRegistry() {
 #else
     (void)registry.registerUnavailable("opencv", "OpenCV",
                                        "The OpenCV back end is not built into this program. Rebuild with AOI_WITH_OPENCV=ON "
-                                       "(preset release-opencv).");
+                                       "(qmake AiInspTool.pro; it is on by default).");
 #endif
 #ifdef AOI_WITH_HALCON
     // S08：halconcpp.dll 是延遲載入的。列 back end 時只看 PATH 上找不找得到它（微秒級）；授權檢查（約 1 秒）等真的選了 halcon 才做，
@@ -73,7 +73,7 @@ BackendRegistry makeBackendRegistry() {
 #else
     (void)registry.registerUnavailable("halcon", "HALCON",
                                        "The HALCON back end is not built into this program. Rebuild with AOI_WITH_HALCON=ON "
-                                       "(preset release-halcon).");
+                                       "(qmake AiInspTool.pro; it is on by default).");
 #endif
     return registry;
 }

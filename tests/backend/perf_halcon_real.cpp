@@ -1,10 +1,10 @@
 // 真實影像（S08）：使用者提供的去識別化板子影像（不入版控）。環境變數 AOI_REAL_IMAGE_DIR 指到影像的資料夾才執行，
-// 沒有就跳過（QSKIP）。label perf：只在效能量測時跑（scripts/dev/test.ps1 -Preset release-halcon -Perf）。
+// 沒有就跳過（QSKIP）。效能量測：只在 scripts/dev/test.ps1 -Perf 時跑（AiInspTool/tests/tests.pro 的 AOI_PERF_TESTS）。
 //
 // 和 perf_opencv_real 同一張影像、同一個樣本框，HALCON 與 OpenCV 的 use case 各跑一次並排：找到幾個（依來源）、
 // 種子分數的分布、晶格、各階段的時間；另外畫一張縮小的疊圖（<建置目錄>/real-<檔名>-halcon-overlay.png）給人看。
 // 讀檔用 OpenCV 的影像來源（這台機器的 Qt 沒有 TIFF；HALCON 的影像來源沒有做，見 docs/steps/S08-halcon/spec.md），
-// 所以只在 OpenCV 也編進來時建置（tests/backend/CMakeLists.txt）。
+// 所以只在 OpenCV 也編進來時建置（AiInspTool/tests/tests.pro）。
 //
 // 樣本框預設是 0_0_HA.tif 的一根針腳（影像像素 x 442、y 444、寬 80、高 30）；AOI_REAL_SAMPLE="x,y,w,h" 可以換。
 #include <QDir>

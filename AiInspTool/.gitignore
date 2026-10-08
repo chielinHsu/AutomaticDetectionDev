@@ -82,3 +82,13 @@ CMakeLists.txt.user*
 .uic/
 /build*/
 /.qtcreator/
+
+# AOI（ADR-018）：原地建置時的輸出（影子建置時在建置資料夾裡）、qmake 寫的測試清單、Qt Creator 的快取；
+# /debug/、/release/ 是 2026-10-07 以前單一 .pro 原地建置留下的
+/bin/
+/lib/
+/debug/
+/release/
+aoi-tests.txt
+aoi-perf-tests.txt
+.qtc_clangd/

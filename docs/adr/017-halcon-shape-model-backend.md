@@ -60,3 +60,7 @@ S08 要做第二個 back end（`docs/plan/S08-halcon.md`）。開工時的事實
 - `AOI_WITH_HALCON=ON` 的建置需要 `third_party/halcon`（已在 repo），執行需要 `%HALCONROOT%` 的 runtime 與授權；沒有時 halcon 不可用、程式照常。
 - `Backend` 結構沒有改（沒有 `libraryMatcher` 欄位，流程 B 的 UI 等使用者決定），application、domain 沒有為了 HALCON 改（開放封閉）。presentation 改了 back end 選單（不可用的項目停用、提示原因）；`copy.json` 新增兩個 key。
 - 換 HALCON 版本：換掉 `third_party/halcon` 整份、更新 `README.md` 與 `AI_CONTEXT.md`，重跑 `tst_halcon_*` 與 `perf_halcon`。
+
+## 後續（2026-10-07）：建置改 qmake
+
+決定 1 的 `cmake/FindHalconLocal.cmake`（`Halcon::HalconCpp`）隨 CMake 一起移除（[ADR-018](018-qmake-only-build.md)）。同樣的工作改由 `AiInspTool/qmake/aoi_halcon.pri`（找標頭與 `halconcpp.lib`，預設 `third_party/halcon`，`AOI_HALCON_SDK_DIR` 可以換；讀標頭與 runtime 的版本，主、次版本不同或找不到 runtime 時 qmake 印警告）與 `aoi_target.pri`（`NOMINMAX`、`halconcpp.lib delayimp.lib version.lib`、`/DELAYLOAD:halconcpp.dll`）負責。HALCON **預設編進去**（`AOI_WITH_HALCON=OFF` 才關）；`tst_halcon_*`、`tst_cli` 在 qmake 的建置上照樣全部通過。
