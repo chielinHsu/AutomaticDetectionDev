@@ -29,6 +29,7 @@
 ### 完成
 - 依使用者提供的 ChatGPT 討論與其中的設定 prompt，建立模型路由（[ADR-019](adr/019-model-routing.md)）：根目錄的 `MODEL_ROUTING.md`（`CLAUDE.md` 匯入）；`.claude/agents/` 的 `fast-worker`（haiku，唯讀）、`developer`（sonnet，不能再委派）、`architect`（opus，唯讀，輸出修改計畫）；`UserPromptSubmit` hook `.claude/hooks/model_router.mjs`（Node，關鍵字分類，只注入提示）；驗證腳本 `scripts/ai/check-model-routing.mjs`。
 - 第一版只寫規則（`.claude/model-routing.md`，沒有 hook 與 subagent）；使用者接著貼上完整的設定 prompt，規則搬到根目錄並加上 subagent 與 hook。session 中途主模型由 Sonnet 5.5 換成 Opus 5.5。
+- 使用者同意後在分支 `chore/model-routing` commit（`1c4f264`），再以 `--no-ff` 合併到 `main`（沒有 tag、沒有 push）。
 
 ### 修改的檔案
 - 新增：`MODEL_ROUTING.md`、`.claude/agents/fast-worker.md`、`.claude/agents/developer.md`、`.claude/agents/architect.md`、`.claude/hooks/model_router.mjs`、`scripts/ai/check-model-routing.mjs`、`docs/adr/019-model-routing.md`
@@ -44,7 +45,6 @@
 
 ### 未完成
 - 沒有 Git Bash 的電腦（Claude Code 改用 PowerShell 執行 hook）沒有驗證。
-- commit 在分支 `chore/model-routing`，沒有合併到 `main`、沒有 push（合併等使用者要求）。
 
 ### 注意事項
 - **`haiku` 別名在 Claude Code 2.1.292 對應 Haiku 4.5，不是 5.5**；照使用者的要求仍用別名。

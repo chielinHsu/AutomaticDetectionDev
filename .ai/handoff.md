@@ -6,7 +6,7 @@
 - 最後一位 agent：Claude Code (Claude Sonnet 5.5，中途換成 Claude Opus 5.5)（只做了模型路由；下面 session A 的內容是之前的 Claude Opus 5.5 寫的）
 - 日期：2026-10-08
 
-## 新增（2026-10-08）：模型路由（ADR-019；分支 `chore/model-routing`，**沒有合併到 `main`**、沒有 push）
+## 新增（2026-10-08）：模型路由（ADR-019；分支 `chore/model-routing` 以 `--no-ff` 合併到 `main`，沒有 push）
 
 `MODEL_ROUTING.md`（`CLAUDE.md` 匯入）、`.claude/agents/`（`fast-worker`／`developer`／`architect`）、`.claude/hooks/model_router.mjs`（`settings.json` 的 `UserPromptSubmit`；只注入提示、不切換主模型、失敗不擋；`AOI_MODEL_ROUTER=off` 關掉）。改這些檔案後跑 `node scripts/ai/check-model-routing.mjs`。`haiku` 別名目前對應 Haiku 4.5。
 
