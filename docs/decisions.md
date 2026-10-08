@@ -3,10 +3,11 @@
 > 本專案一檔一決策：每個決策是 `docs/adr/NNN-slug.md`，本檔只是索引，新的放最上方。內容只寫在 ADR 檔，不要在這裡複製。
 > 已記錄的決定，沒有新證據不推翻；要推翻就新增一筆，並在新舊兩筆都標明取代關係。
 
-預定的 ADR（004、005）列在各步驟的 plan 檔（`docs/plan/Sxx-*.md`），寫成後再加進下表。S02 新增 007、008、009；S03 寫成預定的 003，並新增 010（座標與角度慣例）；S04 新增 011、012；S05 新增 013；S06 新增 014、015；S07 新增 016，並在 014、015 加了「後續（S07）」一節；S08 新增 017，並在 010、014 加了「後續（S08）」一節。2026-10-07 建置改 qmake，新增 018，並在 003、017 加了「後續」一節。編號 004（S09）、005 仍預留。
+預定的 ADR（004、005）列在各步驟的 plan 檔（`docs/plan/Sxx-*.md`），寫成後再加進下表。S02 新增 007、008、009；S03 寫成預定的 003，並新增 010（座標與角度慣例）；S04 新增 011、012；S05 新增 013；S06 新增 014、015；S07 新增 016，並在 014、015 加了「後續（S07）」一節；S08 新增 017，並在 010、014 加了「後續（S08）」一節。2026-10-07 建置改 qmake，新增 018，並在 003、017 加了「後續」一節。2026-10-08 模型路由，新增 019，並在 000 加了「後續」。編號 004（S09）、005 仍預留。
 
 | 編號 | 標題 | 狀態 | 日期 |
 |---|---|---|---|
+| [ADR-019](adr/019-model-routing.md) | 模型路由（Claude Code 專用）：根目錄的 `MODEL_ROUTING.md`（`CLAUDE.md` 匯入）、`.claude/agents/` 的 `fast-worker`（haiku，唯讀）、`developer`（sonnet）、`architect`（opus，唯讀）、`UserPromptSubmit` hook（Node，關鍵字分類，只注入提示、不切換主模型、失敗不擋）、`scripts/ai/check-model-routing.mjs` | 採用（要求由使用者提出；判準、Node、唯讀、驗證腳本是 Claude Code 的提案） | 2026-10-08 |
 | [ADR-018](adr/018-qmake-only-build.md) | 建置只用 qmake：`AiInspTool/AiInspTool.pro` 包含所有程式庫、程式與測試，移除 CMake；`.pro` 對照 `src/`、`tests/` 放在 `AiInspTool/` 底下、依賴表 `aoi_deps.pri`、OpenCV 與 HALCON 預設開（找不到就報錯）、執行檔 `AiInspTool.exe`（GUI 子系統）、測試的環境編進執行檔、測試清單在 `tests.pro`（`test.ps1` 照清單跑） | 採用（建置方式、執行檔名、預設編進 OpenCV 與 HALCON 由使用者決定）；取代 ADR-003 的「經 CTest 執行」 | 2026-10-07 |
 | [ADR-017](adr/017-halcon-shape-model-backend.md) | HALCON back end：shape model（角度步進自己算、模型範圍兩端多 2 步、least_squares）、`halconcpp.dll` 延遲載入、授權的判斷與「runtime 授權、SDK 的 dongle 沒插」的提醒、位姿換算（`affine_trans_pixel` 的修正）、`interrupt_operator` 取消、流程 B 一次 `find_shape_models`；開發檔放 `third_party/halcon` | 採用（調整參數是起點；比 OpenCV 好不好由 S09 判斷）；建置設定改由 qmake（ADR-017 的後續、ADR-018） | 2026-10-07 |
 | [ADR-016](adr/016-opencv-coarse-to-fine-search.md) | OpenCV 搜尋：由粗到細的 NCC（頂層全部角度、往下逐層精修、爬坡、拋物線內插）、小的分數圖自己算（積分影像）、OpenCV 與 JobRunner 共用執行緒數（核心數 − 1）；流程 B 每個類型建一次範本 | 採用（調整參數是起點） | 2026-10-06 |

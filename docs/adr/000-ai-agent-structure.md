@@ -41,3 +41,4 @@
 - 後續（2026-10-05）：commit 訊息格式由原本的 Conventional Commits 改為使用者的 `[作者]屬性:` 格式，見 `project-rules.md`「Commit 訊息」；Step Protocol 第 5 步同步調整。
 - 分層規則原本每個 Claude session 都會載入（在 `CLAUDE.md`）。搬到 `docs/architecture.md` 後，為了維持這個行為，`CLAUDE.md` 額外匯入它，`AGENTS.md` 也把它列入必讀。這是本專案相對於範本預設的唯一增加。
 - Codex 端沒有在本機端到端測過（該機器的 Codex CLI 無法執行 `codex exec`）；Claude Code 端已實測匯入有載入。
+- 後續（2026-10-08）：新增 Claude 專用的模型路由（[ADR-019](019-model-routing.md)）：根目錄的 `MODEL_ROUTING.md` 由 `CLAUDE.md` 匯入（第六份），另有 `.claude/agents/` 的三個 subagent、`.claude/hooks/` 的 `UserPromptSubmit` hook、`scripts/ai/check-model-routing.mjs`。`AGENTS.md` 的必讀清單與 `check-ai-structure.ps1` 沒有改，Codex 不讀；`ai-project-template/` 沒有改。
