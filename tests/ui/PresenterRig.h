@@ -107,15 +107,19 @@ struct Rig {
     std::unique_ptr<aoi::ui::AppPresenters> presenters;
     aoi::dev::FakeBoard board;
 
+    // notices：假 back end 的提醒（例如 HALCON 的授權；BackendPresenter 的卡片與狀態列標示）。
     explicit Rig(aoi::fake::FakeSpec world = defaultWorld(), bool fastTimings = true,
-                 aoi::app::ExecutorKind executor = aoi::app::ExecutorKind::QtThreadPool)
+                 aoi::app::ExecutorKind executor = aoi::app::ExecutorKind::QtThreadPool,
+                 std::vector<aoi::BackendNotice> notices = {})
         : core(makeCore(registry, probe, std::move(world), executor)), window(theme) {
         aoi::ui::Translations::install(QStringLiteral("zh_TW"));
         window.setImageSource(&imageSource);
         aoi::app::CoreServices& services = core.value();
         aoi::ui::PresenterServices presenterServices{*services.generateObjects, *services.runner, services.probe.get(),
-                                                     QStringLiteral("Fake (test)"), QStringLiteral("OpenCV")};
-        presenters = std::make_unique<aoi::ui::AppPresenters>(window, presenterServices, aoi::ui::ThemeTokens::builtin());
+                                                     QStringLiteral("OpenCV")};
+        aoi::ui::BackendSetup backendSetup{registry.list(), "fake", std::move(notices)};
+        presenters = std::make_unique<aoi::ui::AppPresenters>(window, presenterServices, std::move(backendSetup),
+                                                              aoi::ui::ThemeTokens::builtin());
         if (fastTimings) {
             aoi::ui::PresenterSettings s = presenter().settings();
             s.busyAfterMs = 40;
@@ -182,6 +186,7 @@ struct Rig {
     }
 
     QString summary() { return window.summaryLabel()->text(); }
+    QString backendStatus() { return window.backendStatusLabel()->text(); }
     QString hint() { return window.messageBar()->hintText(); }
     const aoi::ui::Scene& scene() { return presenter().lastScene(); }
     int boxCount() { return canvas()->layerItem()->boxCount(); }

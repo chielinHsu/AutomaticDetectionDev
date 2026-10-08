@@ -45,18 +45,8 @@ struct CoreServices {
 std::unique_ptr<IImageSource> makeImageSource();
 
 // 依 id 建立 back end 並接上 use case、JobRunner。id 不存在或不可用時回 Error（訊息說明原因與可用的 back end）。
+// back end 的提醒（例如 HALCON 用的是 runtime 授權）在 backend.notices（工廠填，application/backend/BackendRegistry.h）。
 Result<CoreServices> composeCore(const BackendRegistry& registry, std::string_view backendId, bool perfEnabled = false,
                                  ExecutorKind executorKind = ExecutorKind::QtThreadPool);
-
-// back end 可以用、但使用者應該知道的事（S08）。例：HALCON 用的是 runtime 授權，開發（SDK）授權的 dongle 沒插。
-// 文案由 presentation 依 textId 從 copy.json 取（args 是 {名稱} 佔位字的值）；message 是英文說明（stderr、log、測試）。
-struct BackendNotice {
-    std::string textId;
-    std::vector<std::pair<std::string, std::string>> args;
-    std::string message;
-};
-
-// 已經建立成功的 back end（composeCore 之後）有哪些提醒。不認得的 id、沒有提醒的 back end 回空的清單。
-std::vector<BackendNotice> backendNotices(std::string_view backendId);
 
 }  // namespace aoi::app

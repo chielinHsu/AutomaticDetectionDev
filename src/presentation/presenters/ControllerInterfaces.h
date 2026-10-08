@@ -1,5 +1,8 @@
 #pragma once
 
+#include <vector>
+
+#include "application/backend/BackendRegistry.h"
 #include "domain/search_params.h"
 
 // View 呼叫的 Controller（docs/ux/ux-spec.md 第 12.3 節）；由 Presenter 實作。每個介面 ≤ 5 個方法。
@@ -40,6 +43,15 @@ public:
     virtual void setScanScope(int scopeIndex) = 0;
     // 影像的有效位元數（S07）：0 ＝ 自動，8..16 ＝ 指定。立刻生效（不搜尋）。
     virtual void setSignificantBits(int bits) = 0;
+};
+
+// back end（ux-spec 第 12.3 節的 IBackendController）。availableBackends 是選單的內容（註冊順序，含不可用的）；
+// applyNoticeAction 是訊息列提醒卡片上的按鈕（索引是 View 顯示的順序）。
+class IBackendController {
+public:
+    virtual ~IBackendController() = default;
+    virtual std::vector<aoi::BackendInfo> availableBackends() const = 0;
+    virtual void applyNoticeAction(int actionIndex) = 0;
 };
 
 // ParamsPresenter 對 AutoRoiPresenter 的窄介面：它只需要「改門檻」與「改搜尋參數」。

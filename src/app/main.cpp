@@ -92,43 +92,28 @@ int main(int argc, char* argv[]) {
     // 視窗、Presenter 的建立順序＝解構順序的反面：核心活得最久，然後是視窗，最後才是 Presenter（它解構時先解除視窗的 Controller）。
     aoi::ui::MainWindow window(theme);
     window.setImageSource(imageSource.get());
-    // back end 的提醒（S08：例如 HALCON 用的是 runtime 授權、SDK 的 dongle 沒插）：stderr 一行、訊息列一個吐司、選單的提示。
-    QStringList noticeTexts;
-    for (const aoi::app::BackendNotice& notice : aoi::app::backendNotices(core.value().backend.id)) {
+    aoi::app::CoreServices& services = core.value();
+    // back end 的提醒（S08：例如 HALCON 用的是 runtime 授權、SDK 的 dongle 沒插）：stderr 一行；畫面上是訊息列的提醒卡片
+    // （按〔關閉〕才收起）與狀態列 back end 名稱後面的標示（BackendPresenter）。
+    for (const aoi::BackendNotice& notice : services.backend.notices) {
         std::fprintf(stderr, "%s\n", notice.message.c_str());
         std::fflush(stderr);  // 程式之後會一直跑（視窗）：被管線接走時，不 flush 就要等結束才看得到
-        QString text = qtTrId(notice.textId.c_str());
-        for (const auto& [name, value] : notice.args) text = aoi::ui::formatNamed(text, {{name.c_str(), QString::fromStdString(value)}});
-        noticeTexts << text;
     }
 
-    QList<aoi::ui::MainWindow::BackendChoice> backendChoices;
-    int currentBackend = 0;
+    // 錯誤橫幅（搜尋時 back end 無法使用）建議改用的：目前以外、可用的第一個。
     QString fallbackBackend = QStringLiteral("OpenCV");
     for (const aoi::BackendInfo& info : registry.list()) {
-        aoi::ui::MainWindow::BackendChoice choice;
-        choice.name = QString::fromStdString(info.displayName);
-        choice.available = info.available;
-        if (!info.available) choice.note = QString::fromStdString(info.unavailable.message);
-        if (info.id == core.value().backend.id) {
-            currentBackend = static_cast<int>(backendChoices.size());
-            choice.note = noticeTexts.join(QLatin1Char(' '));
-        } else if (info.available && fallbackBackend == QLatin1String("OpenCV")) {
-            fallbackBackend = choice.name;
+        if (info.available && info.id != services.backend.id) {
+            fallbackBackend = QString::fromStdString(info.displayName);
+            break;
         }
-        backendChoices << choice;
     }
-    window.setBackends(backendChoices, currentBackend);
 
-    aoi::app::CoreServices& services = core.value();
-    aoi::ui::PresenterServices presenterServices{*services.generateObjects,
-                                                 *services.runner,
-                                                 services.probe.get(),
-                                                 QString::fromStdString(services.backend.displayName),
+    aoi::ui::PresenterServices presenterServices{*services.generateObjects, *services.runner, services.probe.get(),
                                                  fallbackBackend};
-    aoi::ui::AppPresenters presenters(window, presenterServices, tokens);
+    aoi::ui::BackendSetup backendSetup{registry.list(), services.backend.id, services.backend.notices};
+    aoi::ui::AppPresenters presenters(window, presenterServices, std::move(backendSetup), tokens);
     window.show();
-    for (const QString& text : noticeTexts) window.showToast(text);
 
     const QStringList args = parser.positionalArguments();
     if (!args.isEmpty()) window.openImage(args.first());

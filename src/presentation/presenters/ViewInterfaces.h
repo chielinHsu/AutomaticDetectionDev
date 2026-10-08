@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QList>
 #include <QString>
 #include <QStringList>
 #include <vector>
@@ -41,6 +42,27 @@ public:
     virtual ~IMessageView() = default;
     virtual void showCard(const MessageCard& card) = 0;
     virtual void hideCard() = 0;
+};
+
+// back end 選單的一項。
+struct BackendChoice {
+    QString name;
+    bool available = true;
+    QString note;  // 不可用的原因，或可用時的提醒；空 ＝ 沒有
+    QString id;    // BackendRegistry 的 id（選單選了它時交給 IBackendController）
+};
+
+// back end 這一塊畫面（BackendPresenter）：上方的選單、狀態列最左邊的標示、訊息列的提醒卡片。
+// 提醒卡片比 IMessageView 的卡片低一級：那些卡片或進度列顯示時它讓位，收起之後再出現，直到 hideNotice。
+// 按鈕被按下時，View 把索引交給 IBackendController::applyNoticeAction。
+class IBackendView {
+public:
+    virtual ~IBackendView() = default;
+    virtual void setBackends(const QList<BackendChoice>& choices, int current) = 0;
+    // 狀態列：「HALCON · runtime 授權」；detail 是滑鼠移上去看的完整說明。
+    virtual void setBackendStatus(const QString& text, const QString& detail) = 0;
+    virtual void showNotice(const MessageCard& card) = 0;
+    virtual void hideNotice() = 0;
 };
 
 // 復原、重做按鈕。label 是「刪除 12 個元件」之類的說明，空字串 ＝ 沒有可做的。

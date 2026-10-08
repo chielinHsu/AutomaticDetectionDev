@@ -4,6 +4,7 @@
 #include <memory>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include "application/Result.h"
@@ -17,12 +18,24 @@
 // 這樣 --backend=halcon 與 UI 的 back end 選單都能給出明確的訊息，而不是找不到 id 就當沒這回事。
 namespace aoi {
 
+// back end 可以用、但使用者應該知道的事（S08）。例：HALCON 用的是 runtime 授權，開發（SDK）授權的 dongle 沒插。
+// 文案由 presentation 依 key 從 copy.json 取（args 是 {名稱} 佔位字的值）：textId 是完整說明（訊息列的提醒卡片、
+// 狀態列的提示），markId 是狀態列 back end 名稱後面的短標示（「runtime 授權」，可以是空的）。
+// message 是英文說明（stderr、log、測試）。
+struct BackendNotice {
+    std::string textId;
+    std::string markId;
+    std::vector<std::pair<std::string, std::string>> args;
+    std::string message;
+};
+
 // 一個可用的 back end：一組互相配套的 adapter（範本與搜尋器要同一家，它們可以共用快取等內部狀態）。
 struct Backend {
     std::string id;
     std::string displayName;
     std::unique_ptr<ITemplateBuilder> templateBuilder;
     std::unique_ptr<IPatternSearcher> searcher;
+    std::vector<BackendNotice> notices;  // 建立時發現的提醒（工廠填）；沒有 ＝ 空
 };
 
 struct BackendInfo {

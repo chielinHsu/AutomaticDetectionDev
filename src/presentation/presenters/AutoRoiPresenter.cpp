@@ -603,14 +603,13 @@ QString AutoRoiPresenter::hintText() const {
     }
 }
 
+// 「耗時 · 數量」。back end 的名稱在它左邊另一個標示（BackendPresenter），搜尋中也看得到。
 QString AutoRoiPresenter::summaryText() const {
-    const QString backend = services_.backendName;
-    if (scene_.counts.components == 0) return uiText("ui.status.none", {{"backend", backend}});
+    if (scene_.counts.components == 0) return uiText("ui.status.noObjects");
     const QString ms = lastMs_ >= 0.0 ? QString::number(qRound(lastMs_)) : QStringLiteral("—");
-    return uiText("ui.status.summary", {{"backend", backend},
-                                         {"ms", ms},
-                                         {"found", QString::number(scene_.counts.found)},
-                                         {"inferred", QString::number(scene_.counts.inferred)}}) +
+    return uiText("ui.status.counts", {{"ms", ms},
+                                        {"found", QString::number(scene_.counts.found)},
+                                        {"inferred", QString::number(scene_.counts.inferred)}}) +
            QStringLiteral(" · ") + uiText("ui.status.boxes", {{"boxes", QString::number(scene_.counts.boxes)}});
 }
 

@@ -47,7 +47,8 @@ private slots:
     void startsEmptyWithTheEmptySummaryAndNoHint() {
         Rig r;
         QCOMPARE_STATE(r.state(), S::Empty);
-        QCOMPARE(r.summary(), zh("ui.status.none", {{"backend", "Fake (test)"}}));
+        QCOMPARE(r.summary(), zh("ui.status.noObjects"));
+        QCOMPARE(r.backendStatus(), QStringLiteral("Fake (test)"));  // back end 在狀態列最左邊，摘要不再重複
         QVERIFY(r.hint().isEmpty());
         QVERIFY(!r.window.toolAction(ToolId::Sample)->isEnabled());
         QVERIFY(!r.window.undoAction()->isEnabled());
@@ -185,8 +186,8 @@ private slots:
         QCOMPARE(r.treeRows(), r.componentCount());
         // 狀態列的摘要要等「搜尋中…」收起來：搜尋超過忙碌門檻（測試台 40 ms；Debug 常接近）時，標示至少停留
         // busyMinShowMs 才換成摘要（theBusyLabelStaysForItsMinimumTimeAfterAQuickResult）。所以等最終的狀態，不讀當下。
-        QTRY_VERIFY2(r.summary().contains(QStringLiteral("Fake (test)")), qPrintable(r.summary()));
-        QVERIFY2(r.summary().contains(QStringLiteral("找到")), qPrintable(r.summary()));
+        QTRY_VERIFY2(r.summary().contains(QStringLiteral("找到")), qPrintable(r.summary()));
+        QCOMPARE(r.backendStatus(), QStringLiteral("Fake (test)"));
         QVERIFY(r.canvas()->draftItem()->isVisible());  // 預覽時留著掃過的區域
         QVERIFY(r.window.objectsPanel()->model()->rows()->proposal);
     }
@@ -941,6 +942,85 @@ private slots:
         QVERIFY(Translations::install(QStringLiteral("zh_TW")));
         QCoreApplication::processEvents();
         QCoreApplication::processEvents();
+    }
+
+    // ---- back end 的提醒（使用者 2026-10-07、2026-10-08 決定：卡片按〔關閉〕才收起；被搜尋的卡片蓋過之後再出現；
+    //      狀態列的 back end 名稱後面一直標示，滑鼠移上去看完整說明）----
+    static std::vector<aoi::BackendNotice> runtimeLicenseNotice() {
+        return {{"ui.backend.halcon.sdkDongleMissing", "ui.backend.halcon.runtimeLicense",
+                 {{"inUse", "3-7614034"}, {"missing", "3-7081033"}}, "HALCON runs with the runtime license."}};
+    }
+
+    void aBackendNoticeShowsACardThatStaysUntilClosed() {
+        Rig r(defaultWorld(), true, aoi::app::ExecutorKind::QtThreadPool, runtimeLicenseNotice());
+        MessageBar* bar = r.window.messageBar();
+        QVERIFY(bar->noticeVisible());
+        QCOMPARE(bar->noticeTitle(), zh("ui.backend.notice.title", {{"backend", "Fake (test)"}}));
+        const QString detail = zh("ui.backend.halcon.sdkDongleMissing", {{"inUse", "3-7614034"}, {"missing", "3-7081033"}});
+        QVERIFY(bar->findChild<QWidget*>(QStringLiteral("messageNotice"))->findChildren<QLabel*>().size() >= 2);
+        // 狀態列：名稱 · 標示，滑鼠移上去是完整說明
+        QCOMPARE(r.backendStatus(), QStringLiteral("Fake (test) · ") + zh("ui.backend.halcon.runtimeLicense"));
+        QCOMPARE(r.window.backendStatusLabel()->toolTip(), detail);
+        // 不是吐司：過了吐司的時間還在
+        QTest::qWait(ThemeTokens::builtin().timing.toast + 300);
+        QVERIFY(bar->noticeVisible());
+
+        // 搜尋的卡片優先：預覽時讓位，接受之後再出現
+        r.open();
+        QVERIFY(r.teachSample());
+        QVERIFY(bar->cardVisible());
+        QVERIFY(!bar->noticeVisible());
+        r.key(Qt::Key_Return);
+        QCOMPARE_STATE(r.state(), S::Idle);
+        QVERIFY(!bar->cardVisible());
+        QVERIFY(bar->noticeVisible());
+        QTRY_VERIFY(!r.summary().isEmpty());
+        QVERIFY2(r.backendStatus().contains(zh("ui.backend.halcon.runtimeLicense")), qPrintable(r.backendStatus()));
+
+        // 〔關閉〕才收起；之後的卡片收起時也不再出現
+        const auto buttons = bar->findChild<QWidget*>(QStringLiteral("messageNotice"))->findChildren<QPushButton*>();
+        QCOMPARE(buttons.size(), 1);
+        QCOMPARE(buttons.first()->text(), zh("action.dismiss"));
+        buttons.first()->click();
+        QVERIFY(!bar->noticeVisible());
+        QVERIFY(!r.presenters->backend().noticePending());
+        // 提示回來（接受時的吐司還在的話，等它結束）
+        QTRY_COMPARE_WITH_TIMEOUT(r.hint(), zh("ui.idle.hint"), ThemeTokens::builtin().timing.toast + 1000);
+        QVERIFY(r.teachSample());
+        r.key(Qt::Key_Escape);
+        r.key(Qt::Key_Escape);
+        QVERIFY(!bar->noticeVisible());
+        // 狀態列的標示一直都在
+        QVERIFY(r.backendStatus().contains(zh("ui.backend.halcon.runtimeLicense")));
+    }
+
+    void aClosedNoticeStaysClosedAfterALanguageSwitchAndTheMarkIsRetranslated() {
+        Rig r(defaultWorld(), true, aoi::app::ExecutorKind::QtThreadPool, runtimeLicenseNotice());
+        MessageBar* bar = r.window.messageBar();
+        QVERIFY(Translations::install(QStringLiteral("en")));
+        QCoreApplication::processEvents();
+        QCoreApplication::processEvents();
+        QCOMPARE(bar->noticeTitle(), QStringLiteral("Note about Fake (test)"));
+        QCOMPARE(r.backendStatus(), QStringLiteral("Fake (test) · runtime license"));
+        QVERIFY(r.window.backendStatusLabel()->toolTip().startsWith(QStringLiteral("HALCON runs with the runtime license")));
+        r.presenters->backend().applyNoticeAction(0);
+        QVERIFY(!bar->noticePending());
+        QVERIFY(Translations::install(QStringLiteral("zh_TW")));
+        QCoreApplication::processEvents();
+        QCoreApplication::processEvents();
+        QVERIFY(!bar->noticePending());
+        QVERIFY(!bar->noticeVisible());
+        QCOMPARE(r.backendStatus(), QStringLiteral("Fake (test) · runtime 授權"));
+    }
+
+    void withoutANoticeThereIsNoCardAndNoMark() {
+        Rig r;
+        QVERIFY(!r.window.messageBar()->noticePending());
+        QCOMPARE(r.backendStatus(), QStringLiteral("Fake (test)"));
+        QCOMPARE(r.window.backendStatusLabel()->toolTip(), zh("ui.backend.status.tip", {{"backend", "Fake (test)"}}));
+        r.presenters->backend().applyNoticeAction(0);  // 沒有提醒時按鈕不存在；呼叫了也不會怎樣
+        QVERIFY(!r.window.messageBar()->noticePending());
+        QCOMPARE(r.presenters->backend().availableBackends().size(), std::size_t{1});
     }
 
     // ---- 其他 ----

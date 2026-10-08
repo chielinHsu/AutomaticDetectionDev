@@ -39,11 +39,11 @@ struct PresenterViews {
 };
 
 // Presenter 用到的核心（都是 application 層的型別；具體的 back end 在組裝根接好，這裡不認識）。
+// back end 的名稱不在這裡：狀態列最左邊的 back end 標示歸 BackendPresenter。
 struct PresenterServices {
     const GenerateObjectsFromSample& generate;
     JobRunner& runner;
     IPerfProbe* probe = nullptr;
-    QString backendName;          // 狀態列顯示：「Fake (synthetic grid)」
     QString fallbackBackendName;  // back end 無法使用時，錯誤橫幅建議改用的那一個
 };
 

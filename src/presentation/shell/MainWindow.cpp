@@ -90,6 +90,10 @@ MainWindow::MainWindow(ThemeManager& theme, QWidget* parent) : QMainWindow(paren
         if (controllers_.message) controllers_.message->applyAdvice(i);
         canvas_->setFocus(Qt::OtherFocusReason);
     });
+    connect(messageBar_, &MessageBar::noticeActionTriggered, this, [this](int i) {
+        if (controllers_.backend) controllers_.backend->applyNoticeAction(i);
+        canvas_->setFocus(Qt::OtherFocusReason);
+    });
     connect(messageBar_, &MessageBar::cancelRequested, this, [this] {
         if (controllers_.proposal) controllers_.proposal->cancelSearch();
         canvas_->setFocus(Qt::OtherFocusReason);
@@ -336,13 +340,18 @@ void MainWindow::buildDocks() {
 }
 
 void MainWindow::buildStatusBar() {
+    // 最左邊是 back end（「HALCON · runtime 授權」，一直看得到，搜尋中也是），接著是摘要（耗時、數量；搜尋中換成「搜尋中…」）。
+    backendStatus_ = new QLabel(this);
+    backendStatus_->setObjectName(QStringLiteral("backendStatus"));
     summaryLabel_ = new QLabel(this);
+    summaryLabel_->setObjectName(QStringLiteral("statusSummary"));
     cursorLabel_ = new QLabel(this);
     cursorLabel_->setMinimumWidth(110);
     zoomLabel_ = new QLabel(this);
     zoomLabel_->setMinimumWidth(90);
     zoomLabel_->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
     statusBar()->setSizeGripEnabled(false);
+    statusBar()->addWidget(backendStatus_, 0);
     statusBar()->addWidget(summaryLabel_, 1);
     statusBar()->addPermanentWidget(cursorLabel_);
     statusBar()->addPermanentWidget(zoomLabel_);
@@ -467,7 +476,7 @@ void MainWindow::refreshBackends() {
     auto* model = qobject_cast<QStandardItemModel*>(backendCombo_->model());
     for (int i = 0; i < backends_.size(); ++i) {
         const BackendChoice& c = backends_[i];
-        backendCombo_->addItem(c.available ? c.name : c.name + QStringLiteral(" ✕"));
+        backendCombo_->addItem(c.available ? c.name : c.name + QStringLiteral(" ✕"), c.id);
         if (QStandardItem* item = model != nullptr ? model->item(i) : nullptr) item->setEnabled(c.available);
         QString tip = c.name;
         if (!c.available) tip = uiText("ui.backend.unavailable", {{"name", c.name}, {"reason", c.note}});
@@ -479,6 +488,17 @@ void MainWindow::refreshBackends() {
     backendCombo_->setToolTip(tips.join(QLatin1Char('\n')));
     backendCombo_->setEnabled(false);
 }
+
+void MainWindow::setBackendStatus(const QString& text, const QString& detail) {
+    backendStatus_->setText(text);
+    backendStatus_->setToolTip(detail);
+}
+
+void MainWindow::showNotice(const MessageCard& card) {
+    messageBar_->showNotice(card.title, card.body, card.advice, card.actions);
+}
+
+void MainWindow::hideNotice() { messageBar_->clearNotice(); }
 
 // ---- IStatusView ---------------------------------------------------------------------------------------
 

@@ -22,6 +22,20 @@ namespace aoi::app {
 
 namespace {
 
+#ifdef AOI_WITH_HALCON
+// HALCON 能用、但授權種類要提醒的事（S08 的規則，judgeHalconLicense）→ 給畫面與 stderr 的提醒。
+std::vector<BackendNotice> halconNotices() {
+    std::vector<BackendNotice> notices;
+    for (const infra::HalconLicenseNotice& n : infra::judgeHalconLicense(infra::halconLicense()).notices) {
+        if (n.kind == infra::HalconLicenseNoticeKind::SdkDongleMissing) {
+            notices.push_back({"ui.backend.halcon.sdkDongleMissing", "ui.backend.halcon.runtimeLicense",
+                               {{"inUse", n.inUseId}, {"missing", n.missingId}}, n.message});
+        }
+    }
+    return notices;
+}
+#endif
+
 std::string availableList(const BackendRegistry& registry) {
     std::string list;
     for (const BackendInfo& info : registry.list()) {
@@ -59,10 +73,14 @@ BackendRegistry makeBackendRegistry() {
 #ifdef AOI_WITH_HALCON
     // S08：halconcpp.dll 是延遲載入的。列 back end 時只看 PATH 上找不找得到它（微秒級）；授權檢查（約 1 秒）等真的選了 halcon 才做，
     // 失敗時工廠回 BackendUnavailable（原因寫清楚），程式不當掉。執行緒數和 JobRunner 的 worker 數相同（OpenCV 也是）。
+    // 授權要提醒的事（runtime 授權、SDK 的 dongle 沒插）跟著 back end 交出去（Backend::notices）。
     if (infra::halconRuntimeOnPath()) {
         (void)registry.registerBackend("halcon", "HALCON", [] {
             Result<Backend> backend = infra::makeHalconBackend();
-            if (backend) infra::setHalconThreads(static_cast<int>(workerThreads()));
+            if (backend) {
+                infra::setHalconThreads(static_cast<int>(workerThreads()));
+                backend.value().notices = halconNotices();
+            }
             return backend;
         });
     } else {
@@ -76,22 +94,6 @@ BackendRegistry makeBackendRegistry() {
                                        "(qmake AiInspTool.pro; it is on by default).");
 #endif
     return registry;
-}
-
-std::vector<BackendNotice> backendNotices(std::string_view backendId) {
-    std::vector<BackendNotice> notices;
-#ifdef AOI_WITH_HALCON
-    if (backendId == infra::kHalconId) {
-        for (const infra::HalconLicenseNotice& n : infra::judgeHalconLicense(infra::halconLicense()).notices) {
-            if (n.kind == infra::HalconLicenseNoticeKind::SdkDongleMissing) {
-                notices.push_back({"ui.backend.halcon.sdkDongleMissing", {{"inUse", n.inUseId}, {"missing", n.missingId}}, n.message});
-            }
-        }
-    }
-#else
-    (void)backendId;
-#endif
-    return notices;
 }
 
 std::unique_ptr<IImageSource> makeImageSource() {

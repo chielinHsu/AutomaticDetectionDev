@@ -231,6 +231,14 @@
       "zh_TW": "{backend} · — ms · 0 個物件",
       "en": "{backend} · — ms · 0 objects"
     },
+    "ui.status.counts": {
+      "zh_TW": "{ms} ms · 找到 {found} · 推算 {inferred}",
+      "en": "{ms} ms · Found {found} · Inferred {inferred}"
+    },
+    "ui.status.noObjects": {
+      "zh_TW": "— ms · 0 個物件",
+      "en": "— ms · 0 objects"
+    },
     "ui.status.zoom": {
       "zh_TW": "縮放 {percent}%",
       "en": "Zoom {percent}%"
@@ -270,6 +278,18 @@
     "ui.backend.halcon.sdkDongleMissing": {
       "zh_TW": "HALCON 用的是 runtime 授權（{inUse}）。開發用的 SDK 授權要插 dongle {missing}，目前沒有插上。",
       "en": "HALCON runs with the runtime license ({inUse}). The development (SDK) license needs the dongle {missing}, which is not attached."
+    },
+    "ui.backend.halcon.runtimeLicense": {
+      "zh_TW": "runtime 授權",
+      "en": "runtime license"
+    },
+    "ui.backend.notice.title": {
+      "zh_TW": "使用 {backend} 要注意",
+      "en": "Note about {backend}"
+    },
+    "ui.backend.status.tip": {
+      "zh_TW": "目前的 back end：{backend}",
+      "en": "Current back end: {backend}"
     },
     "ui.settings.theme.light": {
       "zh_TW": "淺色",

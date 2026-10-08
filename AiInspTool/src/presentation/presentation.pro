@@ -19,6 +19,7 @@ SOURCES += \
     $$DIR/params/ParamsPanel.cpp \
     $$DIR/presenters/AppPresenters.cpp \
     $$DIR/presenters/AutoRoiPresenter.cpp \
+    $$DIR/presenters/BackendPresenter.cpp \
     $$DIR/presenters/MessageTexts.cpp \
     $$DIR/presenters/ParamsPresenter.cpp \
     $$DIR/presenters/SceneBuilder.cpp \
@@ -49,6 +50,7 @@ HEADERS += \
     $$DIR/params/ParamsPanel.h \
     $$DIR/presenters/AppPresenters.h \
     $$DIR/presenters/AutoRoiPresenter.h \
+    $$DIR/presenters/BackendPresenter.h \
     $$DIR/presenters/ControllerInterfaces.h \
     $$DIR/presenters/MessageTexts.h \
     $$DIR/presenters/ParamsPresenter.h \
