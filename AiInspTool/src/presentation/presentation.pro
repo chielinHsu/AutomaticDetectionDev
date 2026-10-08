@@ -19,6 +19,7 @@ SOURCES += \
     $$DIR/params/ParamsPanel.cpp \
     $$DIR/presenters/AppPresenters.cpp \
     $$DIR/presenters/AutoRoiPresenter.cpp \
+    $$DIR/presenters/BackendPresenter.cpp \
     $$DIR/presenters/MessageTexts.cpp \
     $$DIR/presenters/ParamsPresenter.cpp \
     $$DIR/presenters/SceneBuilder.cpp \
@@ -49,6 +50,7 @@ HEADERS += \
     $$DIR/params/ParamsPanel.h \
     $$DIR/presenters/AppPresenters.h \
     $$DIR/presenters/AutoRoiPresenter.h \
+    $$DIR/presenters/BackendPresenter.h \
     $$DIR/presenters/ControllerInterfaces.h \
     $$DIR/presenters/MessageTexts.h \
     $$DIR/presenters/ParamsPresenter.h \
@@ -64,3 +66,12 @@ HEADERS += \
     $$DIR/tools/ToolId.h \
     $$DIR/tools/ToolRegistry.h \
     $$DIR/tools/Tools.h
+
+# Qt Designer 的表單（session B，ADR-022）：和類別放在一起。uic 的輸出在建置資料夾（.uic/aoi_presentation），qmake 會加進 include 路徑。
+# 表單裡的文字只是佔位（notr，不翻譯）：執行時由各類別的 retranslate 從 copy.json 設定。提升的佔位元件：ImageCanvas、MessageBar、ObjectsPanel、ParamsPanel。
+FORMS += \
+    $$DIR/objects/ObjectsPanel.ui \
+    $$DIR/params/ParamsPanel.ui \
+    $$DIR/shell/EmptyCard.ui \
+    $$DIR/shell/MainWindow.ui \
+    $$DIR/shell/MessageBar.ui

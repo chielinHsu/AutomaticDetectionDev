@@ -3,6 +3,7 @@
 #include <QMainWindow>
 #include <QString>
 #include <QStringList>
+#include <memory>
 
 #include "application/ports/IImageSource.h"
 #include "presentation/canvas/ICanvasController.h"
@@ -30,12 +31,17 @@ class ObjectsPanel;
 class ParamsPanel;
 class ThemeManager;
 
-// 主視窗骨架（docs/ux/ux-spec.md 第 4 節）：上方工具列、左側工具、中央畫布與訊息列、
+namespace Ui {
+class MainWindow;
+}
+
+// 主視窗骨架（docs/ux/ux-spec.md 第 4 節；版面在 MainWindow.ui，用 Qt Designer 編輯）：上方工具列、左側工具、中央畫布與訊息列、
 // 右側三個 dock（樣本庫：S06 之前是空殼；物件樹；比對參數）、狀態列。
-// 這一層只負責組裝與事件接線，不含業務規則。S04 起它同時是 Presenter 的三個 View：
-// 狀態列與提示（IStatusView）、訊息卡（IMessageView）、復原／重做按鈕（IHistoryView）；Presenter 只看到這些窄介面。
+// 這一層只負責組裝與事件接線，不含業務規則。S04 起它同時是 Presenter 的幾個 View：
+// 狀態列與提示（IStatusView）、訊息卡（IMessageView）、復原／重做按鈕（IHistoryView）、back end 的選單、標示與提醒卡片
+// （IBackendView）；Presenter 只看到這些窄介面。
 // 使用者的操作經 setControllers 交進來的 Controller 介面送出，這個類別不認識 Presenter。
-class MainWindow : public QMainWindow, public IStatusView, public IMessageView, public IHistoryView {
+class MainWindow : public QMainWindow, public IStatusView, public IMessageView, public IHistoryView, public IBackendView {
     Q_OBJECT
 public:
     explicit MainWindow(ThemeManager& theme, QWidget* parent = nullptr);
@@ -50,6 +56,7 @@ public:
         IMessageController* message = nullptr;
         IHistoryController* history = nullptr;
         IParamsController* params = nullptr;
+        IBackendController* backend = nullptr;
     };
     void setControllers(const Controllers& controllers);
 
@@ -71,6 +78,7 @@ public:
     QLabel* zoomLabel() const { return zoomLabel_; }
     QLabel* cursorLabel() const { return cursorLabel_; }
     QLabel* summaryLabel() const { return summaryLabel_; }
+    QLabel* backendStatusLabel() const { return backendStatus_; }
 
     // 影像從哪裡來（S06：IImageSource，由 app 組裝；不歸視窗所有，要活得比視窗久）。沒有設定時 openImage 一律失敗。
     void setImageSource(aoi::IImageSource* source) { imageSource_ = source; }
@@ -81,14 +89,17 @@ public:
     void setImage(const aoi::ImageView& image, const QString& name);
     // 工具列的工具換成 id（工具、按鈕、畫布一起換）。
     void selectTool(ToolId id);
-    // 上方 back end 選單：顯示目前用的與其他已註冊的。還不能在執行中切換（用 --backend 選），所以整個選單是停用的。
-    // S08：不可用的項目停用、名稱後加「✕」，提示（tooltip）說原因；可用但有提醒的（例如 HALCON 的授權）也寫在提示裡。
-    struct BackendChoice {
-        QString name;
-        bool available = true;
-        QString note;  // 不可用的原因，或可用時的提醒；空 ＝ 沒有
-    };
-    void setBackends(const QList<BackendChoice>& choices, int current);
+    // ---- IBackendView（BackendPresenter）----
+    // 上方 back end 選單：目前用的與其他已註冊的；選了別的就在執行中切換（ADR-021，交給 IBackendController::selectBackend）。
+    // 切換中（switching）整個選單停用。S08：不可用的項目停用、名稱後加「✕」，提示（tooltip）說原因；
+    // 可用但有提醒的（例如 HALCON 的授權）也寫在提示裡。
+    using BackendChoice = aoi::ui::BackendChoice;
+    void setBackends(const QList<BackendChoice>& choices, int current, bool switching) override;
+    // 狀態列最左邊的 back end 標示（「HALCON · runtime 授權」），滑鼠移上去看 detail。
+    void setBackendStatus(const QString& text, const QString& detail) override;
+    // 訊息列的提醒卡片（MessageBar::showNotice）：比搜尋的卡片低一級，按鈕交給 IBackendController::applyNoticeAction。
+    void showNotice(const MessageCard& card) override;
+    void hideNotice() override;
 
     // ---- IStatusView ----
     void showSummary(const QString& text) override;
@@ -130,6 +141,7 @@ private:
     void refreshBackends();
 
     ThemeManager& theme_;
+    std::unique_ptr<Ui::MainWindow> ui_;  // MainWindow.ui（Qt Designer）產生的外框；下面的指標都指到它建立的物件
     aoi::IImageSource* imageSource_ = nullptr;
     ImageCanvas* canvas_ = nullptr;
     MessageBar* messageBar_ = nullptr;
@@ -176,6 +188,7 @@ private:
     QLabel* libraryEmpty_ = nullptr;
     QLineEdit* libraryFilter_ = nullptr;
 
+    QLabel* backendStatus_ = nullptr;
     QLabel* summaryLabel_ = nullptr;
     QLabel* cursorLabel_ = nullptr;
     QLabel* zoomLabel_ = nullptr;
@@ -184,6 +197,7 @@ private:
     QString summaryText_;
     QList<BackendChoice> backends_;
     int currentBackend_ = 0;
+    bool backendSwitching_ = false;
     BusyLevel busyLevel_ = BusyLevel::None;
     double progress_ = 0.0;
     QString undoLabel_;

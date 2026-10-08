@@ -312,7 +312,7 @@ private slots:
             SampleRequest request;
             request.image = board.image;
             request.sample = sampleBoxAround(board, middlePresentIndex(board));
-            const Result<SampleProposal> r = core.value().generateObjects->run(request, CancelToken());
+            const Result<SampleProposal> r = core.value().engine->generate->run(request, CancelToken());
             QVERIFY(r.ok());
             // 參考點：樣本框的中心（見 tst_opencv_end_to_end 的 sampleOffset）。
             const Candidate& s = r.value().candidates.front();
@@ -457,7 +457,7 @@ private slots:
         std::vector<double> stage[5];
         std::size_t holes = 0;
         for (int k = 0; k < 25; ++k) {
-            const Result<SampleProposal> r = core.value().generateObjects->run(request, CancelToken());
+            const Result<SampleProposal> r = core.value().engine->generate->run(request, CancelToken());
             QVERIFY(r.ok());
             if (k < 5) continue;
             const StageTimings& s = r.value().timings;

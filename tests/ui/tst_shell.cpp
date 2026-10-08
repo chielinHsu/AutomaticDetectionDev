@@ -101,17 +101,18 @@ private slots:
 
     // ---- 空白與載入 ----
     // S08：back end 選單。不可用的項目停用、名稱加「✕」、提示說原因；可用但有提醒的（HALCON 的授權）提醒也在提示裡。
-    // 整個選單仍是停用的（執行中不能切換，用 --backend）。語言切換後提示跟著換。
+    // ADR-021 起選單可以用（執行中切換）；切換中整個停用。語言切換後提示跟著換。
     void theBackendMenuDisablesUnavailableItemsAndExplainsWhy() {
         Fixture f;
-        f.window.setBackends({{QStringLiteral("Fake"), true, {}},
-                              {QStringLiteral("OpenCV"), false, QStringLiteral("not built in")},
-                              {QStringLiteral("HALCON"), true, QStringLiteral("runtime license")}},
-                             2);
+        f.window.setBackends({{QStringLiteral("Fake"), true, {}, QStringLiteral("fake")},
+                              {QStringLiteral("OpenCV"), false, QStringLiteral("not built in"), QStringLiteral("opencv")},
+                              {QStringLiteral("HALCON"), true, QStringLiteral("runtime license"), QStringLiteral("halcon")}},
+                             2, false);
         QComboBox* combo = f.window.backendCombo();
         QCOMPARE(combo->count(), 3);
         QCOMPARE(combo->currentIndex(), 2);
-        QVERIFY(!combo->isEnabled());
+        QVERIFY(combo->isEnabled());
+        QCOMPARE(combo->itemData(2).toString(), QStringLiteral("halcon"));
         QCOMPARE(combo->itemText(1), QStringLiteral("OpenCV ✕"));
         auto* model = qobject_cast<QStandardItemModel*>(combo->model());
         QVERIFY(model != nullptr);
@@ -126,6 +127,37 @@ private slots:
         QCOMPARE(combo->currentIndex(), 2);
         Translations::install(QStringLiteral("zh_TW"));
         QCoreApplication::processEvents();
+        // 切換中：整個選單停用
+        f.window.setBackends({{QStringLiteral("Fake"), true, {}, QStringLiteral("fake")},
+                              {QStringLiteral("HALCON"), true, {}, QStringLiteral("halcon")}},
+                             1, true);
+        QVERIFY(!combo->isEnabled());
+        QCOMPARE(combo->currentIndex(), 1);
+    }
+
+    // 選單選了一項 → IBackendController::selectBackend(id)；程式自己設定選單（setBackends）不會回報。
+    void choosingABackendInTheMenuAsksTheController() {
+        struct Recorder final : IBackendController {
+            std::vector<std::string> selected;
+            std::vector<aoi::BackendInfo> availableBackends() const override { return {}; }
+            void selectBackend(const std::string& id) override { selected.push_back(id); }
+            void applyNoticeAction(int) override {}
+        } recorder;
+        Fixture f;
+        MainWindow::Controllers controllers;
+        controllers.backend = &recorder;
+        f.window.setControllers(controllers);
+        f.window.setBackends({{QStringLiteral("Fake"), true, {}, QStringLiteral("fake")},
+                              {QStringLiteral("OpenCV"), true, {}, QStringLiteral("opencv")}},
+                             0, false);
+        QVERIFY(recorder.selected.empty());
+        QComboBox* combo = f.window.backendCombo();
+        // 像使用者一樣：打開清單、往下一項、Enter
+        combo->setFocus();
+        QTest::keyClick(combo, Qt::Key_Down);
+        QCoreApplication::processEvents();
+        QCOMPARE(recorder.selected, (std::vector<std::string>{"opencv"}));
+        f.window.setControllers({});
     }
 
     void startsEmptyWithDisabledToolsAndACenteredCard() {
@@ -292,6 +324,85 @@ private slots:
         QCOMPARE(labels, (QSet<QString>{QStringLiteral("A"), QStringLiteral("B")}));
         bar->showCard(QStringLiteral("t"), QStringLiteral("b"), {}, {QStringLiteral("只有一個")});
         QCOMPARE(static_cast<int>(bar->findChild<QWidget*>(QStringLiteral("messageCard"))->findChildren<QPushButton*>().size()), 1);
+    }
+
+    // ---- 提醒卡片（back end 的提醒；使用者 2026-10-07、2026-10-08 決定）----
+    // 不會自己消失；卡片與進度列優先，它們收起之後再出現；clearNotice 才真的收起，提示回來。
+    void aNoticeStaysUntilClearedAndYieldsToCardsAndProgress() {
+        Fixture f(true);
+        MessageBar* bar = f.window.messageBar();
+        QSignalSpy clicked(bar, &MessageBar::noticeActionTriggered);
+        bar->setHint(QStringLiteral("hint"));
+        bar->showNotice(QStringLiteral("提醒"), QStringLiteral("說明"), {}, {QStringLiteral("關閉")});
+        QVERIFY(bar->noticeVisible());
+        QVERIFY(bar->noticePending());
+        QCOMPARE(bar->noticeTitle(), QStringLiteral("提醒"));
+        QVERIFY(!bar->findChild<QLabel*>(QStringLiteral("messageHint"))->isVisibleTo(bar));  // 提醒卡片佔住提示的位置
+        bar->setHint(QStringLiteral("newer hint"));  // 提醒卡片顯示時，提示不出現
+        QVERIFY(bar->noticeVisible());
+        QTest::qWait(tokens().timing.toast + 300);
+        QVERIFY2(bar->noticeVisible(), "not a toast: it does not go away by itself");
+
+        bar->showCard(QStringLiteral("找到 10 個"), QString(), {}, {QStringLiteral("接受")});
+        QVERIFY(bar->cardVisible());
+        QVERIFY(!bar->noticeVisible());
+        QVERIFY(bar->noticePending());
+        bar->clearCard();
+        QVERIFY(bar->noticeVisible());  // 卡片收起：提醒卡片回來
+
+        bar->showProgress(QStringLiteral("搜尋中…"), 0.3, QStringLiteral("取消"));
+        QVERIFY(!bar->noticeVisible());
+        bar->clearProgress();
+        QVERIFY(bar->noticeVisible());
+
+        const auto buttons = bar->findChild<QWidget*>(QStringLiteral("messageNotice"))->findChildren<QPushButton*>();
+        QCOMPARE(static_cast<int>(buttons.size()), 1);
+        buttons.first()->click();
+        QCOMPARE(clicked.count(), 1);
+        QCOMPARE(clicked.first().first().toInt(), 0);
+        QVERIFY2(bar->noticeVisible(), "the presenter decides whether a click closes it");
+        bar->clearNotice();
+        QVERIFY(!bar->noticeVisible());
+        QVERIFY(!bar->noticePending());
+        QCOMPARE(bar->hintText(), QStringLiteral("newer hint"));  // 收起之後還原成最新的提示
+        bar->showCard(QStringLiteral("t"), QString(), {}, {QStringLiteral("A")});
+        bar->clearCard();
+        QVERIFY(!bar->noticeVisible());  // 收起之後就不再出現
+    }
+
+    void aNoticeShownUnderACardWaitsForTheCard() {
+        Fixture f(true);
+        MessageBar* bar = f.window.messageBar();
+        bar->showCard(QStringLiteral("找到 10 個"), QString(), {}, {QStringLiteral("接受")});
+        bar->showNotice(QStringLiteral("提醒"), QStringLiteral("說明"), {}, {QStringLiteral("關閉")});
+        QVERIFY(bar->cardVisible());
+        QVERIFY(!bar->noticeVisible());
+        bar->clearCard();
+        QVERIFY(bar->noticeVisible());
+        // 卡片的按鈕與提醒卡片的按鈕各自回報
+        QSignalSpy card(bar, &MessageBar::actionTriggered);
+        QSignalSpy notice(bar, &MessageBar::noticeActionTriggered);
+        bar->findChild<QWidget*>(QStringLiteral("messageNotice"))->findChild<QPushButton*>()->click();
+        QCOMPARE(card.count(), 0);
+        QCOMPARE(notice.count(), 1);
+    }
+
+    void theBackendStatusIsTheFirstThingInTheStatusBarWithItsDetailAsTooltip() {
+        Fixture f;
+        f.window.setBackendStatus(QStringLiteral("HALCON · runtime 授權"), QStringLiteral("完整說明"));
+        QLabel* label = f.window.findChild<QLabel*>(QStringLiteral("backendStatus"));
+        QVERIFY(label != nullptr);
+        QCOMPARE(label, f.window.backendStatusLabel());
+        QCOMPARE(label->text(), QStringLiteral("HALCON · runtime 授權"));
+        QCOMPARE(label->toolTip(), QStringLiteral("完整說明"));
+        QVERIFY(label->isVisible());
+        // 在摘要的左邊
+        QVERIFY(label->mapTo(&f.window, QPoint(0, 0)).x() < f.window.summaryLabel()->mapTo(&f.window, QPoint(0, 0)).x());
+        // View 的提醒卡片接到訊息列
+        f.window.showNotice(MessageCard{QStringLiteral("t"), QStringLiteral("b"), {}, {QStringLiteral("關閉")}});
+        QVERIFY(f.window.messageBar()->noticeVisible());
+        f.window.hideNotice();
+        QVERIFY(!f.window.messageBar()->noticePending());
     }
 
     void toastReturnsToTheLatestHintAfterItsTime() {

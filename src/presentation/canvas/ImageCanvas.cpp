@@ -11,6 +11,8 @@
 
 namespace aoi::ui {
 
+ImageCanvas::ImageCanvas(QWidget* parent) : ImageCanvas(ThemeTokens::builtin(), parent) {}
+
 ImageCanvas::ImageCanvas(const ThemeTokens& tokens, QWidget* parent)
     : QGraphicsView(parent),
       tokens_(tokens),

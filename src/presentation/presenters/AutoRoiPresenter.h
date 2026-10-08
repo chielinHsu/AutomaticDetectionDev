@@ -39,11 +39,13 @@ struct PresenterViews {
 };
 
 // Presenter 用到的核心（都是 application 層的型別；具體的 back end 在組裝根接好，這裡不認識）。
+// back end 的名稱不在這裡：狀態列最左邊的 back end 標示歸 BackendPresenter。
+// generate 和它的 back end 共用擁有權（application/backend/SearchEngine.h 的 useCaseOf）：執行中換 back end 時
+// Presenter 換掉這一份，進行中的工作還拿著舊的，舊的 adapter 等工作結束才釋放（ADR-021）。
 struct PresenterServices {
-    const GenerateObjectsFromSample& generate;
+    std::shared_ptr<const GenerateObjectsFromSample> generate;
     JobRunner& runner;
     IPerfProbe* probe = nullptr;
-    QString backendName;          // 狀態列顯示：「Fake (synthetic grid)」
     QString fallbackBackendName;  // back end 無法使用時，錯誤橫幅建議改用的那一個
 };
 
@@ -73,7 +75,8 @@ class AutoRoiPresenter : public QObject,
                          public IProposalController,
                          public IMessageController,
                          public IHistoryController,
-                         public IParamsSink {
+                         public IParamsSink,
+                         public ISearchEngineSink {
     Q_OBJECT
 public:
     AutoRoiPresenter(PresenterViews views, PresenterServices services, PresenterSettings settings, QObject* parent = nullptr);
@@ -123,6 +126,12 @@ public:
     void applySearchParams(const SearchParams& params) override;
     void applyScanScope(int scopeIndex) override;
     void applySignificantBits(int bits) override;
+
+    // ---- ISearchEngineSink（BackendPresenter：執行中切換 back end，ADR-021）----
+    aoi::InteractionState interactionState() const override { return state(); }
+    void pauseSearch() override;
+    void useSearchEngine(std::shared_ptr<const GenerateObjectsFromSample> useCase, const QString& fallbackBackendName) override;
+    void researchSameRegion() override;
 
     // 目前用的影像（套過有效位元數的設定）。測試用。
     const aoi::ImageView& image() const { return image_; }

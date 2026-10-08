@@ -1,5 +1,13 @@
 #pragma once
 
+#include <QString>
+#include <memory>
+#include <string>
+#include <vector>
+
+#include "application/backend/BackendRegistry.h"
+#include "application/interaction/InteractionStateMachine.h"
+#include "application/usecases/GenerateObjectsFromSample.h"
 #include "domain/search_params.h"
 
 // View 呼叫的 Controller（docs/ux/ux-spec.md 第 12.3 節）；由 Presenter 實作。每個介面 ≤ 5 個方法。
@@ -40,6 +48,31 @@ public:
     virtual void setScanScope(int scopeIndex) = 0;
     // 影像的有效位元數（S07）：0 ＝ 自動，8..16 ＝ 指定。立刻生效（不搜尋）。
     virtual void setSignificantBits(int bits) = 0;
+};
+
+// back end（ux-spec 第 12.3 節的 IBackendController）。availableBackends 是選單的內容（註冊順序，含不可用的）；
+// selectBackend 是選單選了一項（執行中切換，ADR-021）；applyNoticeAction 是訊息列提醒卡片上的按鈕（索引是 View 顯示的順序）。
+class IBackendController {
+public:
+    virtual ~IBackendController() = default;
+    virtual std::vector<aoi::BackendInfo> availableBackends() const = 0;
+    virtual void selectBackend(const std::string& id) = 0;
+    virtual void applyNoticeAction(int actionIndex) = 0;
+};
+
+// BackendPresenter 對 AutoRoiPresenter 的窄介面（像 IParamsSink）：換 back end 時，搜尋那一側要做的事。
+// 什麼時候做什麼由 application 的 BackendSwitch 決定（pausesSearch、researchAfter）；這裡只是執行。
+class ISearchEngineSink {
+public:
+    virtual ~ISearchEngineSink() = default;
+    virtual aoi::InteractionState interactionState() const = 0;
+    // 作廢進行中的搜尋（latest-wins：不等它停下，它的結果回來時被丟掉）。狀態留在 Searching，忙碌標示照舊。
+    virtual void pauseSearch() = 0;
+    // 之後的搜尋用這個 use case（它和它的 back end 共用擁有權）；fallbackBackendName 是搜尋時 back end 無法使用的錯誤卡片建議改用的。
+    virtual void useSearchEngine(std::shared_ptr<const aoi::GenerateObjectsFromSample> useCase,
+                                 const QString& fallbackBackendName) = 0;
+    // 同一個區域重新搜尋（Searching、Preview、NoMatch；其餘狀態不動）。
+    virtual void researchSameRegion() = 0;
 };
 
 // ParamsPresenter 對 AutoRoiPresenter 的窄介面：它只需要「改門檻」與「改搜尋參數」。

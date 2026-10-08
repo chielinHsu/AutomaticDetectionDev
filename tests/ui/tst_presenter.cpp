@@ -2,7 +2,10 @@
 // 用產品的接線（core → MainWindow → AppPresenters）加上假 back end，在 offscreen 平台跑真的 QThreadPool。
 #include <QComboBox>
 #include <QDir>
+#include <QElapsedTimer>
 #include <QThread>
+#include <QTimer>
+#include <algorithm>
 #include <QtTest>
 
 #include "PresenterRig.h"
@@ -47,7 +50,8 @@ private slots:
     void startsEmptyWithTheEmptySummaryAndNoHint() {
         Rig r;
         QCOMPARE_STATE(r.state(), S::Empty);
-        QCOMPARE(r.summary(), zh("ui.status.none", {{"backend", "Fake (test)"}}));
+        QCOMPARE(r.summary(), zh("ui.status.noObjects"));
+        QCOMPARE(r.backendStatus(), QStringLiteral("Fake (test)"));  // back end 在狀態列最左邊，摘要不再重複
         QVERIFY(r.hint().isEmpty());
         QVERIFY(!r.window.toolAction(ToolId::Sample)->isEnabled());
         QVERIFY(!r.window.undoAction()->isEnabled());
@@ -185,8 +189,8 @@ private slots:
         QCOMPARE(r.treeRows(), r.componentCount());
         // 狀態列的摘要要等「搜尋中…」收起來：搜尋超過忙碌門檻（測試台 40 ms；Debug 常接近）時，標示至少停留
         // busyMinShowMs 才換成摘要（theBusyLabelStaysForItsMinimumTimeAfterAQuickResult）。所以等最終的狀態，不讀當下。
-        QTRY_VERIFY2(r.summary().contains(QStringLiteral("Fake (test)")), qPrintable(r.summary()));
-        QVERIFY2(r.summary().contains(QStringLiteral("找到")), qPrintable(r.summary()));
+        QTRY_VERIFY2(r.summary().contains(QStringLiteral("找到")), qPrintable(r.summary()));
+        QCOMPARE(r.backendStatus(), QStringLiteral("Fake (test)"));
         QVERIFY(r.canvas()->draftItem()->isVisible());  // 預覽時留著掃過的區域
         QVERIFY(r.window.objectsPanel()->model()->rows()->proposal);
     }
@@ -942,6 +946,316 @@ private slots:
         QCoreApplication::processEvents();
         QCoreApplication::processEvents();
     }
+
+    // ---- back end 的提醒（使用者 2026-10-07、2026-10-08 決定：卡片按〔關閉〕才收起；被搜尋的卡片蓋過之後再出現；
+    //      狀態列的 back end 名稱後面一直標示，滑鼠移上去看完整說明）----
+    static std::vector<aoi::BackendNotice> runtimeLicenseNotice() {
+        return {{"ui.backend.halcon.sdkDongleMissing", "ui.backend.halcon.runtimeLicense",
+                 {{"inUse", "3-7614034"}, {"missing", "3-7081033"}}, "HALCON runs with the runtime license."}};
+    }
+
+    void aBackendNoticeShowsACardThatStaysUntilClosed() {
+        Rig r(defaultWorld(), true, aoi::app::ExecutorKind::QtThreadPool, runtimeLicenseNotice());
+        MessageBar* bar = r.window.messageBar();
+        QVERIFY(bar->noticeVisible());
+        QCOMPARE(bar->noticeTitle(), zh("ui.backend.notice.title", {{"backend", "Fake (test)"}}));
+        const QString detail = zh("ui.backend.halcon.sdkDongleMissing", {{"inUse", "3-7614034"}, {"missing", "3-7081033"}});
+        QVERIFY(bar->findChild<QWidget*>(QStringLiteral("messageNotice"))->findChildren<QLabel*>().size() >= 2);
+        // 狀態列：名稱 · 標示，滑鼠移上去是完整說明
+        QCOMPARE(r.backendStatus(), QStringLiteral("Fake (test) · ") + zh("ui.backend.halcon.runtimeLicense"));
+        QCOMPARE(r.window.backendStatusLabel()->toolTip(), detail);
+        // 不是吐司：過了吐司的時間還在
+        QTest::qWait(ThemeTokens::builtin().timing.toast + 300);
+        QVERIFY(bar->noticeVisible());
+
+        // 搜尋的卡片優先：預覽時讓位，接受之後再出現
+        r.open();
+        QVERIFY(r.teachSample());
+        QVERIFY(bar->cardVisible());
+        QVERIFY(!bar->noticeVisible());
+        r.key(Qt::Key_Return);
+        QCOMPARE_STATE(r.state(), S::Idle);
+        QVERIFY(!bar->cardVisible());
+        QVERIFY(bar->noticeVisible());
+        QTRY_VERIFY(!r.summary().isEmpty());
+        QVERIFY2(r.backendStatus().contains(zh("ui.backend.halcon.runtimeLicense")), qPrintable(r.backendStatus()));
+
+        // 〔關閉〕才收起；之後的卡片收起時也不再出現
+        const auto buttons = bar->findChild<QWidget*>(QStringLiteral("messageNotice"))->findChildren<QPushButton*>();
+        QCOMPARE(buttons.size(), 1);
+        QCOMPARE(buttons.first()->text(), zh("action.dismiss"));
+        buttons.first()->click();
+        QVERIFY(!bar->noticeVisible());
+        QVERIFY(!r.presenters->backend().noticePending());
+        // 提示回來（接受時的吐司還在的話，等它結束）
+        QTRY_COMPARE_WITH_TIMEOUT(r.hint(), zh("ui.idle.hint"), ThemeTokens::builtin().timing.toast + 1000);
+        QVERIFY(r.teachSample());
+        r.key(Qt::Key_Escape);
+        r.key(Qt::Key_Escape);
+        QVERIFY(!bar->noticeVisible());
+        // 狀態列的標示一直都在
+        QVERIFY(r.backendStatus().contains(zh("ui.backend.halcon.runtimeLicense")));
+    }
+
+    void aClosedNoticeStaysClosedAfterALanguageSwitchAndTheMarkIsRetranslated() {
+        Rig r(defaultWorld(), true, aoi::app::ExecutorKind::QtThreadPool, runtimeLicenseNotice());
+        MessageBar* bar = r.window.messageBar();
+        QVERIFY(Translations::install(QStringLiteral("en")));
+        QCoreApplication::processEvents();
+        QCoreApplication::processEvents();
+        QCOMPARE(bar->noticeTitle(), QStringLiteral("Note about Fake (test)"));
+        QCOMPARE(r.backendStatus(), QStringLiteral("Fake (test) · runtime license"));
+        QVERIFY(r.window.backendStatusLabel()->toolTip().startsWith(QStringLiteral("HALCON runs with the runtime license")));
+        r.presenters->backend().applyNoticeAction(0);
+        QVERIFY(!bar->noticePending());
+        QVERIFY(Translations::install(QStringLiteral("zh_TW")));
+        QCoreApplication::processEvents();
+        QCoreApplication::processEvents();
+        QVERIFY(!bar->noticePending());
+        QVERIFY(!bar->noticeVisible());
+        QCOMPARE(r.backendStatus(), QStringLiteral("Fake (test) · runtime 授權"));
+    }
+
+    void withoutANoticeThereIsNoCardAndNoMark() {
+        Rig r;
+        QVERIFY(!r.window.messageBar()->noticePending());
+        QCOMPARE(r.backendStatus(), QStringLiteral("Fake (test)"));
+        QCOMPARE(r.window.backendStatusLabel()->toolTip(), zh("ui.backend.status.tip", {{"backend", "Fake (test)"}}));
+        r.presenters->backend().applyNoticeAction(0);  // 沒有提醒時按鈕不存在；呼叫了也不會怎樣
+        QVERIFY(!r.window.messageBar()->noticePending());
+        QCOMPARE(r.presenters->backend().availableBackends().size(), std::size_t{4});  // fake、other、broken、off
+    }
+
+    // ---- 執行中切換 back end（ADR-021；規則在 application 的 BackendSwitch，tst_backend_switch）----
+    static bool waitSwitch(QSignalSpy& finished, int count = 1) {
+        return QTest::qWaitFor([&] { return finished.count() >= count; }, 8000);
+    }
+
+    // 建立在背景執行緒，UI 不會卡住：切換中選單停用、狀態列「切換到 …」，事件迴圈照常跑。成功後之後的搜尋用新的。
+    void switchingBuildsTheNewBackendInTheBackgroundAndThenUsesIt() {
+        Rig r;
+        r.open();
+        QSignalSpy finished(&r.presenters->backend(), &BackendPresenter::switchFinished);
+        QSignalSpy changed(&r.presenters->backend(), &BackendPresenter::backendChanged);
+        QVERIFY(r.window.backendCombo()->isEnabled());
+        r.otherProbe->gateCreate = true;
+        r.chooseBackend(QStringLiteral("other"));
+        QVERIFY(QTest::qWaitFor([&] { return r.otherProbe->createEntered.load(); }, 5000));
+        // 工廠卡在閘門上（像 HALCON 的授權檢查），UI 執行緒仍在處理事件
+        QTest::qWait(150);
+        QVERIFY(r.presenters->backend().switching());
+        QVERIFY(!r.window.backendCombo()->isEnabled());
+        QCOMPARE(r.window.backendCombo()->currentIndex(), r.comboIndex(QStringLiteral("other")));
+        QCOMPARE(r.backendStatus(), zh("ui.backend.switching", {{"backend", "Other (test)"}}));
+        QVERIFY2(!r.otherProbe->createdOnUiThread, "the back end must be built off the UI thread");
+        QCOMPARE(finished.count(), 0);
+
+        r.otherProbe->createReleased = true;
+        QVERIFY(waitSwitch(finished));
+        QCOMPARE(finished.first().first().toBool(), true);
+        QCOMPARE(r.presenters->backend().current(), std::string("other"));
+        QVERIFY(r.window.backendCombo()->isEnabled());
+        QCOMPARE(changed.count(), 1);
+        QCOMPARE(changed.first().at(0).toString(), QStringLiteral("other"));  // 組裝根記住它
+        QCOMPARE(changed.first().at(1).toStringList(), QStringList{QStringLiteral("Other runs with the runtime license.")});
+        // 新的 back end 有提醒：卡片與狀態列的標示（第 1 件）
+        QVERIFY(r.window.messageBar()->noticeVisible());
+        QCOMPARE(r.backendStatus(), QStringLiteral("Other (test) · ") + zh("ui.backend.halcon.runtimeLicense"));
+
+        const int fakeBuilds = r.probe->builds;
+        QVERIFY(r.teachSample());
+        QVERIFY(r.otherProbe->builds >= 1);
+        QCOMPARE(r.probe->builds.load(), fakeBuilds);  // 舊的不再被用到
+
+        // 換回 fake：沒有提醒，卡片收起、標示拿掉
+        r.key(Qt::Key_Return);
+        r.chooseBackend(QStringLiteral("fake"));
+        QVERIFY(waitSwitch(finished, 2));
+        QCOMPARE(r.presenters->backend().current(), std::string("fake"));
+        QVERIFY(!r.window.messageBar()->noticePending());
+        QCOMPARE(r.backendStatus(), QStringLiteral("Fake (test)"));
+    }
+
+    // 使用者 2026-10-08 決定：畫面上有提案時，用新的 back end 對同一個區域重新搜尋（舊的提案留著，直到新結果取代它）。
+    void switchingWithAProposalSearchesTheSameRegionAgainWithTheNewBackend() {
+        Rig r;
+        r.open();
+        QVERIFY(r.teachSample(QRectF(560, 360, 60, 32)));
+        QCOMPARE_STATE(r.state(), S::Preview);
+        const Rect region = r.presenter().session().lastSearch()->region;
+        QSignalSpy finished(&r.presenters->backend(), &BackendPresenter::switchFinished);
+        QSignalSpy applied(&r.presenter(), &AutoRoiPresenter::searchApplied);
+        r.chooseBackend(QStringLiteral("other"));
+        QVERIFY(waitSwitch(finished));
+        QVERIFY(QTest::qWaitFor([&] { return applied.count() >= 1; }, 8000));
+        QCOMPARE_STATE(r.state(), S::Preview);
+        QVERIFY(r.otherProbe->builds >= 1);
+        QCOMPARE(r.presenter().session().lastSearch()->region.x, region.x);
+        QCOMPARE(r.presenter().session().lastSearch()->region.w, region.w);
+        QCOMPARE(r.document().components().size(), std::size_t{0});  // 沒有自動接受
+    }
+
+    // 搜尋中切換：舊的搜尋先作廢（不等它停下，它的結果被丟掉），換好之後用新的 back end 搜尋同一個區域。
+    void switchingDuringASearchDropsItsResultAndSearchesAgainWithTheNewBackend() {
+        Rig r;
+        r.open();
+        r.probe->gateWindows = true;  // fake 的搜尋卡在最後一步（不可中斷的函式庫呼叫）
+        QSignalSpy applied(&r.presenter(), &AutoRoiPresenter::searchApplied);
+        r.drag(ToolId::Sample, QRectF(560, 360, 60, 32));
+        QVERIFY(QTest::qWaitFor([&] { return r.probe->windowEntered >= 1; }, 5000));
+        QCOMPARE_STATE(r.state(), S::Searching);
+
+        QSignalSpy finished(&r.presenters->backend(), &BackendPresenter::switchFinished);
+        r.chooseBackend(QStringLiteral("other"));
+        QCOMPARE_STATE(r.state(), S::Searching);  // 暫停，不回 Idle
+        QVERIFY(waitSwitch(finished));
+        QVERIFY(QTest::qWaitFor([&] { return applied.count() >= 1; }, 8000));  // other 的結果
+        QCOMPARE_STATE(r.state(), S::Preview);
+        QVERIFY(r.otherProbe->builds >= 1);
+        const quint64 generation = r.presenter().generation();
+
+        r.probe->windowReleased = 1 << 20;  // 舊的搜尋做完：它的結果回來時被丟掉
+        QTest::qWait(300);
+        QCOMPARE(applied.count(), 1);
+        QCOMPARE(r.presenter().generation(), generation);
+        QCOMPARE_STATE(r.state(), S::Preview);
+    }
+
+    // 失敗：留在原本的 back end，訊息列的卡片說原因（ui.error.backend.*），按〔關閉〕才收起；提案不動、不重新搜尋。
+    void aFailedSwitchKeepsTheOldBackendAndExplainsWhy() {
+        Rig r;
+        r.open();
+        QVERIFY(r.teachSample());
+        const int builds = r.probe->builds;
+        QSignalSpy finished(&r.presenters->backend(), &BackendPresenter::switchFinished);
+        QSignalSpy failed(&r.presenters->backend(), &BackendPresenter::switchFailed);
+        r.chooseBackend(QStringLiteral("broken"));
+        QVERIFY(waitSwitch(finished));
+        QCOMPARE(finished.first().first().toBool(), false);
+        QCOMPARE(failed.count(), 1);
+        QCOMPARE(failed.first().at(1).toString(), QStringLiteral("no license (test)"));
+        QCOMPARE(r.presenters->backend().current(), std::string("fake"));
+        QCOMPARE(r.window.backendCombo()->currentIndex(), r.comboIndex(QStringLiteral("fake")));  // 選單回到原本的
+        QVERIFY(r.window.backendCombo()->isEnabled());
+        QCOMPARE(r.backendStatus(), QStringLiteral("Fake (test)"));
+        QCOMPARE_STATE(r.state(), S::Preview);
+        QCOMPARE(r.probe->builds.load(), builds);  // 沒有重新搜尋
+
+        // 卡片讓位給預覽；預覽收起之後出現
+        MessageBar* bar = r.window.messageBar();
+        QVERIFY(bar->noticePending());
+        QVERIFY(!bar->noticeVisible());
+        r.key(Qt::Key_Return);
+        QVERIFY(bar->noticeVisible());
+        QCOMPARE(bar->noticeTitle(), zh("ui.error.backend.title", {{"backend", "Broken (test)"}}));
+        QWidget* notice = bar->findChild<QWidget*>(QStringLiteral("messageNotice"));
+        QStringList texts;
+        for (const QLabel* label : notice->findChildren<QLabel*>()) texts << label->text();
+        const QString all = texts.join(QLatin1Char('\n'));
+        QVERIFY2(all.contains(QStringLiteral("no license (test)")), qPrintable(all));
+        QVERIFY2(all.contains(zh("ui.backend.reverted", {{"backend", "Fake (test)"}})), qPrintable(all));
+        QVERIFY2(all.contains(zh("ui.error.backend.body", {{"fallback", "Fake (test)"}})), qPrintable(all));
+        notice->findChild<QPushButton*>()->click();
+        QVERIFY(!bar->noticePending());
+
+        // 之後的搜尋照舊用 fake
+        QVERIFY(r.teachSample());
+        QVERIFY(r.probe->builds > builds);
+    }
+
+    void anUnavailableBackendIsRefusedAtOnceWithItsReason() {
+        Rig r;
+        QSignalSpy finished(&r.presenters->backend(), &BackendPresenter::switchFinished);
+        r.presenters->backend().selectBackend("off");  // 選單上停用；從介面呼叫也一樣不會嘗試
+        QCOMPARE(finished.count(), 1);
+        QVERIFY(!r.presenters->backend().switching());
+        QCOMPARE(r.presenters->backend().current(), std::string("fake"));
+        QVERIFY(r.window.messageBar()->noticeVisible());
+        QCOMPARE(r.window.messageBar()->noticeTitle(), zh("ui.error.backend.title", {{"backend", "Off (test)"}}));
+        r.presenters->backend().selectBackend("turbo");  // 沒有這個 id（例如記住的值過期了）
+        QCOMPARE(finished.count(), 2);
+        QCOMPARE(r.window.messageBar()->noticeTitle(), zh("ui.error.backend.title", {{"backend", "turbo"}}));
+        QCOMPARE(r.presenters->backend().current(), std::string("fake"));
+    }
+
+    void selectingTheCurrentBackendOrSelectingWhileSwitchingDoesNothing() {
+        Rig r;
+        QSignalSpy finished(&r.presenters->backend(), &BackendPresenter::switchFinished);
+        r.chooseBackend(QStringLiteral("fake"));
+        QCoreApplication::processEvents();
+        QCOMPARE(finished.count(), 0);
+        QVERIFY(!r.presenters->backend().switching());
+        r.otherProbe->gateCreate = true;
+        r.chooseBackend(QStringLiteral("other"));
+        r.presenters->backend().selectBackend("broken");  // 換的期間不收
+        QCOMPARE(r.presenters->backend().switching(), true);
+        r.otherProbe->createReleased = true;
+        QVERIFY(waitSwitch(finished));
+        QCOMPARE(finished.count(), 1);
+        QCOMPARE(r.presenters->backend().current(), std::string("other"));
+    }
+
+#ifdef AOI_WITH_HALCON
+    // 真的 HALCON：第一次建立約 1.5 秒（載入 DLL、授權檢查，ADR-017），要在背景執行緒，UI 執行緒的事件迴圈不能停住。
+    // 這台機器拿不到授權時跳過並說原因（跳過不是通過）。
+    void switchingToTheRealHalconKeepsTheUiThreadResponsive() {
+        struct NullView final : IBackendView {
+            void setBackends(const QList<BackendChoice>&, int, bool) override {}
+            void setBackendStatus(const QString&, const QString&) override {}
+            void showNotice(const MessageCard&) override {}
+            void hideNotice() override {}
+        } view;
+        struct RecordingSink final : ISearchEngineSink {
+            std::shared_ptr<const GenerateObjectsFromSample> used;
+            InteractionState interactionState() const override { return InteractionState::Idle; }
+            void pauseSearch() override {}
+            void useSearchEngine(std::shared_ptr<const GenerateObjectsFromSample> useCase, const QString&) override {
+                used = std::move(useCase);
+            }
+            void researchSameRegion() override {}
+        } sink;
+        const BackendRegistry registry = app::makeBackendRegistry();
+        bool listed = false;
+        for (const BackendInfo& info : registry.list()) listed = listed || (info.id == "halcon" && info.available);
+        if (!listed) QSKIP("HALCON is not on the PATH here (halconcpp.dll)");
+        Result<app::CoreServices> core = app::composeCore(registry, "fake");
+        QVERIFY(core.ok());
+        BackendServices services;
+        services.backends = registry.list();
+        services.current = core.value().engine;
+        services.create = [&registry](const std::string& id) { return makeSearchEngine(registry, id); };
+        services.executor = core.value().executor.get();
+        BackendPresenter presenter(view, sink, services);
+        QSignalSpy finished(&presenter, &BackendPresenter::switchFinished);
+        QSignalSpy failed(&presenter, &BackendPresenter::switchFailed);
+
+        QElapsedTimer clock;
+        qint64 last = 0;
+        qint64 worstGap = 0;
+        QTimer ticker;
+        ticker.setInterval(5);
+        connect(&ticker, &QTimer::timeout, [&] {
+            const qint64 now = clock.elapsed();
+            worstGap = std::max(worstGap, now - last);
+            last = now;
+        });
+        clock.start();
+        ticker.start();
+        presenter.selectBackend("halcon");
+        const qint64 returnedAfter = clock.elapsed();
+        QVERIFY(QTest::qWaitFor([&] { return finished.count() >= 1; }, 30000));
+        const qint64 total = clock.elapsed();
+        ticker.stop();
+        if (!finished.first().first().toBool())
+            QSKIP(qPrintable(QStringLiteral("HALCON cannot be used on this machine: ") + failed.first().at(1).toString()));
+        qInfo("switch to HALCON: %lld ms in total, selectBackend returned after %lld ms, longest event-loop gap %lld ms",
+              static_cast<long long>(total), static_cast<long long>(returnedAfter), static_cast<long long>(worstGap));
+        QCOMPARE(presenter.current(), std::string("halcon"));
+        QVERIFY(sink.used != nullptr);
+        QVERIFY2(returnedAfter < 100, qPrintable(QString::number(returnedAfter)));
+        QVERIFY2(worstGap < 200, qPrintable(QStringLiteral("the UI thread stalled for %1 ms").arg(worstGap)));
+    }
+#endif
 
     // ---- 其他 ----
     void theTypeEditorIsNotAvailableYetAndSaysSo() {

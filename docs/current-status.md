@@ -2,8 +2,8 @@
 
 新 session 開工前先讀這份，再讀 `docs/plan/Sxx-*.md`。步驟完成後由該步驟的 session 更新。原檔名 `STATUS.md`，2026-10-05 更名為本檔以符合共用結構（見 `docs/adr/000-ai-agent-structure.md`）。各步驟的完整內容在 `docs/steps/Sxx-*/` 與 `docs/changelog-ai.md`，本檔只留重點。
 
-- 更新日期：2026-10-07
-- 階段：S00–S08 完成；**2026-10-07 建置改成只用 qmake**（S09 之前的 session A，[ADR-018](adr/018-qmake-only-build.md)；分支 `build/qmake-only` 以 `--no-ff` 合併到 `main`，沒有 tag）。下一個是 session B（授權提醒改卡片、執行中切換 back end、Designer 的 `.ui`），S09 在 B 之後。S01–S08 都已用 `--no-ff` 合併到 `main` 並打 tag（`step-01-done`…`step-08-done`）；AI 共用結構、commit 格式規則與 S04 之後的〔適配寬度〕也已合併到 `main`（全部只在本機，**沒有 push**）。S06 起用 Qt 6.12.0。**等使用者決定的事**：（1）[ADR-009](adr/009-ui-toolkit-review-after-s02.md)：I1 在預算邊緣、真實視窗超標；（2）**U3 超出預算**（S04）；（3）T3 要不要涵蓋散佈的點（S05）；（4）**存檔／開啟配方的 UI 放進哪一步**（S06；分層樣本庫各層的檔案位置、流程 B 的 UI 也在那一步一起定）；（5）S06 的指標（開圖、存檔）要不要有預算；（6）S07：真實影像上 use case 的種子門檻與預設的分數門檻（0.70）偏低、晶格在空槽補假缺格、T7（流程 B）的預算（見「S07 的產出與發現」）；（7）**S08 新增**：HALCON 的影像來源（`read_image`）要不要做、授權提醒的規則是否符合期待、兩個 back end 的分數門檻要不要分開（見「S08 的產出與發現」）
+- 更新日期：2026-10-08
+- 階段：S00–S08 完成；**2026-10-07 建置改成只用 qmake**（S09 之前的 session A，[ADR-018](adr/018-qmake-only-build.md)；分支 `build/qmake-only` 以 `--no-ff` 合併到 `main`，沒有 tag）。**2026-10-08 S09 之前的 session B 完成**（授權提醒改成卡片＋狀態列的標示、back end 選單可以在執行中切換、介面的版面改用 Designer 的 `.ui`；[ADR-021](adr/021-runtime-backend-switching.md)、[ADR-022](adr/022-designer-forms.md)；分支 `feat/backend-switch-ui-forms` 以 `--no-ff` 合併到 `main`，沒有 tag）。**下一個是 S09**。S01–S08 都已用 `--no-ff` 合併到 `main` 並打 tag（`step-01-done`…`step-08-done`）；AI 共用結構、commit 格式規則與 S04 之後的〔適配寬度〕也已合併到 `main`（全部只在本機，**沒有 push**）。S06 起用 Qt 6.12.0。**等使用者決定的事**：（1）[ADR-009](adr/009-ui-toolkit-review-after-s02.md)：I1 在預算邊緣、真實視窗超標；（2）**U3 超出預算**（S04）；（3）T3 要不要涵蓋散佈的點（S05）；（4）**存檔／開啟配方的 UI 放進哪一步**（S06；分層樣本庫各層的檔案位置、流程 B 的 UI 也在那一步一起定）；（5）S06 的指標（開圖、存檔）要不要有預算；（6）S07：真實影像上 use case 的種子門檻與預設的分數門檻（0.70）偏低、晶格在空槽補假缺格、T7（流程 B）的預算（見「S07 的產出與發現」）；（7）**S08 新增**：HALCON 的影像來源（`read_image`）要不要做、授權提醒的規則是否符合期待、兩個 back end 的分數門檻要不要分開（見「S08 的產出與發現」）
 
 | 步驟 | 層級 | 主題 | 狀態 | 分支 | tag |
 |---|---|---|---|---|---|
@@ -16,7 +16,7 @@
 | S06 | 底層 | 影像緩衝、轉接器、Recipe 儲存 | ✅ 完成 | `step/06-image-storage` | `step-06-done` |
 | S07 | 底層 | OpenCV back end | ✅ 完成（⚠ 真實影像的門檻與晶格待使用者決定） | `step/07-opencv` | `step-07-done` |
 | S08 | 底層 | HALCON back end | ✅ 完成（⚠ 影像來源與授權提醒的規則待使用者確認） | `step/08-halcon` | `step-08-done` |
-| S09 | 底層 | 契約測試與 A/B 比較 | ⏳ 在 session B 之後 | `step/09-contract-ab` | |
+| S09 | 底層 | 契約測試與 A/B 比較 | ⏳ 下一個 | `step/09-contract-ab` | |
 | S10 | 驗證 | 效能測試 harness 與回歸閘門 | ⬜ | `step/10-perf-harness` | |
 | S11 | 驗證 | 效能優化（先量再改） | ⬜ | `step/11-optimize` | |
 | S12 | 發行 | 匯出、打包、最終文件 | ⬜ | `step/12-release` | |
@@ -54,13 +54,13 @@
 - **效能與準確度（3 次，細節見 `docs/steps/S08-halcon/perf.md`；同一次也量了 OpenCV）**：T1 p95 7.0–22.0 ms（預算 30）、T4 p95 28.6–46.6 ms（預算 60）、**T6a 召回率 100%**、**T6b p95 0.48 px**（預算 0.5，很接近；OpenCV 0.11）——都通過。**T2b**（5 MP 種子搜尋，預算 80）p95 31.5、35.4 ms，**第 1 次 82.2 ms 超過**：那一次整台機器變慢（HALCON 的 T1、T7 與 OpenCV 的 T7 慢 1.5–2.4 倍，S02 的 U4-PNG 也超過、`perf_ui_baseline` 逾時）；補跑的第 4 次 29.2 ms。同一次的 OpenCV T2a p95 80.8–84.7 ms：HALCON 的種子搜尋快 2–3 倍，但時間比較不穩。流程 B 一次 `find_shape_models` 每個類型 3.0–7.0 ms（N ＝ 1000），OpenCV 10.8–16.9。授權第一次檢查 1.55–1.87 秒；取消延遲 p95 19–30 ms。**limit 一個都沒改**，T2b 標 `calibrated`。**真實影像**：LA 兩邊的晶格相同（都在空槽補了假缺格）；**HA 上 HALCON 用一根針腳當樣本只找到少數針腳**（分數 < 0.70；推測是樣本裡周圍焊墊的輪廓），OpenCV 找到大部分（也框到焊墊邊緣）——S09 的 A/B 重點。U3 仍超標（S04 起）。
 - **已知限制**：強雜訊時 HALCON 的位置與角度比 OpenCV 不穩（shape model 只看邊緣點）；建模型約 10 ms、不能中斷；授權第一次檢查約 1.6 秒（在建立 back end 時）；範本有一部分在影像外的元件找不到；**HALCON 的影像來源沒有做**（只有 HALCON 沒有 OpenCV 的建置讀不了 TIFF）；`create_ncc_model` 的對照沒有做。 **新增設計決定**：ADR-017（HALCON back end）；ADR-010、ADR-014 各加「後續（S08）」一節。`docs/plan/S09`–`S12` 開頭各加了「S08 完成後的提醒」。
 
-## 建置改 qmake（2026-10-07／08，S09 之前的 session A）
+## S09 之前的 session A 與 B（2026-10-07／08）
 
-- **使用者的決定**：建置只用 qmake（`AiInspTool/AiInspTool.pro` 位置不變，包含所有程式庫、程式與 Qt Test）、移除 CMake、執行檔改叫 `AiInspTool.exe`、OpenCV 與 HALCON 預設編進去、Qt Creator 的 Debug／Release／Profile 都要能建置；精靈產生的 `AiInspTool/main.cpp`、`mainwindow.*` 保留（沒有使用）。原因：使用者在 Qt Creator 用的舊 `.pro` 沒有 OpenCV、HALCON，讀不了 TIFF、看不到授權提醒，之前沒有人說明。
-- **做了什麼**（[ADR-018](adr/018-qmake-only-build.md)）：`.pro`／`.pri` 都在 `AiInspTool/` 底下對照 `src/`、`tests/`（實測：放在原始碼旁邊時輸出會跑到建置資料夾外面）；依賴表 `AiInspTool/qmake/aoi_deps.pri`（分層規則的機器可讀版，沒有 Qt 模組的程式庫 `CONFIG -= qt`）；檔案明確列出；OpenCV／HALCON 找不到時 qmake 報錯；`AiInspTool.exe` 是 GUI 子系統；測試的環境（offscreen、字型）編進每個測試；測試清單在 `AiInspTool/tests/tests.pro`；`scripts/dev/test.ps1` 改寫（qmake＋jom，`-Config`、`-NoOpenCv`、`-NoHalcon`、`-Perf`、`-Filter`、`-NoBuild`、`-BuildDir`）。CMake 全部移除。
-- **驗證**：8 種組合（Release／Debug × 兩個都關／OpenCV／HALCON／兩者）全部通過，數量和 CTest 時代相同（45／50／48／53）；Qt Creator 的三種組態（同樣的 qmake 參數與建置資料夾名稱）建置成功、0 個警告，Profile 跑全部測試 53／53；Release 開使用者的 TIFF 成功、`--backend halcon` 時 stderr 有授權提醒；效能 10 項通過、和 CMake 時代同一個量級（數字在 ADR-018 的「驗證」）。 Qt Creator 的三種組態用命令列模擬過（同樣的 qmake 參數與建置資料夾名稱），**還沒有在 Qt Creator 的畫面裡實際打開過**新的專案：請使用者打開一次確認（專案樹、執行設定選 `AiInspTool`、測試面板）。精靈產生的 `AiInspTool/main.cpp`、`mainwindow.*` 沒有使用，使用者決定保留。
-- **Qt Creator 版現在有的功能**：讀 TIFF 與 16 bit 影像（OpenCV 的影像來源）、`fake`／`opencv`／`halcon` 三個 back end（選單與 `--backend`）、HALCON 的授權提醒（stderr、吐司、選單提示）、`--demo`、所有 Qt Test（測試面板）。
-- **HALCON 的授權（錯誤 2300）**：2026-10-07 15:06 到 2026-10-08 13:20 HALCON 拿不到授權（Windows 看得到 dongle）；重插、換埠、插電腦本體、重新啟動都沒恢復，使用者在另一個專案 `Algo_SkewInspect` 拔插測試之後恢復，**原因不明**。恢復後補跑 Debug、Profile 的全部測試與 `perf_halcon`，都通過。`hhostid` 在這台與另一台都不列出這個 dongle，不能拿來判斷；判斷用 `test.ps1 -Filter 'tst_halcon_backend'`（log 的 Totals 0 skipped）。授權檔寫 `SESSIONS=1`：別的 HALCON 程式同時在跑會不會讓我們拿不到授權，沒有驗證。
+- **session A：建置只用 qmake**（[ADR-018](adr/018-qmake-only-build.md)，使用者的決定）：Qt Creator 開 `AiInspTool/AiInspTool.pro`（所有程式庫、程式與 Qt Test），CMake 移除，執行檔 `AiInspTool.exe`，OpenCV 與 HALCON 預設編進去；8 種組合與 Qt Creator 的三種組態都驗證過（數字在 ADR-018 與 `docs/changelog-ai.md`）。HALCON 曾在 2026-10-07 15:06 到 10-08 13:20 拿不到授權（錯誤 2300，原因不明）；判斷用 `test.ps1 -Filter 'tst_halcon_backend'`，不要用 `hhostid`。
+- **session B 的使用者決定**：（1）HALCON 授權的提醒改成**訊息列的卡片**（按〔關閉〕才收起；被預覽、無匹配、錯誤的卡片蓋過之後再出現）＋**狀態列最左邊一直標示**（「HALCON · runtime 授權」，滑鼠移上去看完整說明）；（2）**啟動時用上次用的 back end**（沒有記錄時 fake；`--backend` 照舊優先而且嚴格）；（3）畫面上有提案時切換 back end，**用新的重新搜尋同一個區域**；（4）Designer 的 `.ui` 的範圍：主視窗外框、樣本庫面板、物件面板、比對參數面板、空白卡片、訊息列（畫布與物件表的 model 維持程式碼）。
+- **做了什麼**：第 1 件——`Backend::notices`（提醒跟著 back end 交出去）、`BackendPresenter`、`IBackendView`、`MessageBar` 的提醒卡片（優先順序：進度列 ＞ 卡片 ＞ 提醒卡片 ＞ 提示），狀態列的摘要不再重複 back end 名稱（ADR-017 的「後續（2026-10-08）」）。第 2 件——application 的 `SearchEngine`（back end ＋ use case，`shared_ptr` 共用：搜尋工作持有一份，舊的 adapter 等工作結束才釋放）與 `BackendSwitch`（規則，沒有 Qt），背景執行緒建立、切換中選單停用與「切換到 …」、失敗時訊息列的卡片並回到原本的、`QSettings` 的 INI 記住上次（`%APPDATA%AOIAutoCadCreated.ini`，`AOI_SETTINGS_DIR` 可以換；ADR-021）。第 3 件——五個表單（`shell/MainWindow.ui`、`MessageBar.ui`、`EmptyCard.ui`、`objects/ObjectsPanel.ui`、`params/ParamsPanel.ui`），畫布、訊息列、兩個面板是提升元件，文字一律不翻譯的佔位（ADR-022）。
+- **驗證**：預設的建置 54／54（新增 `tst_backend_switch`；之前 53），`-NoHalcon` 51、`-NoOpenCv` 49、兩個都關 46、Debug 54、Profile 54；HALCON 的測試都沒有跳過。使用者在 Qt Creator 的 Designer 打開五個表單確認過。真的 HALCON 背景切換：總共 1.3 秒，`selectBackend` 0 ms 返回，UI 事件迴圈最長停頓 12 ms。UI 效能前後交替量 4 輪：I1、U3 沒有變差，U1 有一輪受機器負載干擾（ADR-022 的表）。數字與 Designer 的確認見 `docs/changelog-ai.md`。
+- **已知限制**：HALCON 的授權探測整個程式只做一次——第一次切到 HALCON 失敗（dongle 沒插）之後，插上再切仍然失敗，要重新啟動程式；從 HALCON 換走之後它仍在這個行程裡初始化著，`SESSIONS=1` 的授權會不會被佔住沒有驗證；搜尋時 back end 無法使用的錯誤卡片標題沿用 S08 的寫法（把錯誤訊息當成名稱），沒有改。
 
 ## 預算校準狀態
 

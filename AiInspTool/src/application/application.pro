@@ -6,6 +6,8 @@ include($$AOI_QMAKE/aoi_lib.pri)
 DIR = $$AOI_ROOT/src/application
 SOURCES += \
     $$DIR/backend/BackendRegistry.cpp \
+    $$DIR/backend/BackendSwitch.cpp \
+    $$DIR/backend/SearchEngine.cpp \
     $$DIR/document/InspectionDocument.cpp \
     $$DIR/document/ProposalSession.cpp \
     $$DIR/document/RecipeSaver.cpp \
@@ -21,6 +23,8 @@ HEADERS += \
     $$DIR/Error.h \
     $$DIR/Result.h \
     $$DIR/backend/BackendRegistry.h \
+    $$DIR/backend/BackendSwitch.h \
+    $$DIR/backend/SearchEngine.h \
     $$DIR/document/InspectionDocument.h \
     $$DIR/document/ProposalSession.h \
     $$DIR/document/RecipeSaver.h \

@@ -163,9 +163,9 @@ private slots:
         const BackendRegistry registry = app::makeBackendRegistry();
         Result<app::CoreServices> core = app::composeCore(registry, "opencv");
         QVERIFY2(core.ok(), core.ok() ? "" : core.error().message.c_str());
-        QCOMPARE(core.value().backend.id, std::string("opencv"));
-        QVERIFY(core.value().backend.templateBuilder->backendId() == "opencv");
-        QVERIFY(core.value().backend.searcher->backendId() == "opencv");
+        QCOMPARE(core.value().engine->backend.id, std::string("opencv"));
+        QVERIFY(core.value().engine->backend.templateBuilder->backendId() == "opencv");
+        QVERIFY(core.value().engine->backend.searcher->backendId() == "opencv");
     }
 #endif
 
@@ -174,7 +174,7 @@ private slots:
         Result<app::CoreServices> core = app::composeCore(registry, "fake");
         QVERIFY2(core.ok(), core.ok() ? "" : core.error().message.c_str());
         QVERIFY(core.value().runner != nullptr);
-        QVERIFY(core.value().generateObjects != nullptr);
+        QVERIFY(core.value().engine->generate != nullptr);
         QVERIFY(core.value().executor->concurrency() >= 1);
         QVERIFY2(!core.value().probe->enabled(), "the probe is off unless asked for");
     }
@@ -214,14 +214,14 @@ private slots:
 
         Result<app::CoreServices> core = app::composeCore(registry, "scripted");
         QVERIFY(core.ok());
-        QCOMPARE(core.value().backend.id, std::string("scripted"));
+        QCOMPARE(core.value().engine->backend.id, std::string("scripted"));
 
         const TestImage image(800, 600);
         const SampleRequest request = makeRequest(image, {380.0, 285.0, 40.0, 30.0});
         std::atomic<bool> finished{false};
         std::atomic<bool> usable{false};
         Result<SampleProposal> outcome = makeError(ErrorCode::Internal, "not run");
-        const GenerateObjectsFromSample* useCase = core.value().generateObjects.get();
+        const GenerateObjectsFromSample* useCase = core.value().engine->generate.get();
         core.value().runner->submit(
             [&](const CancelToken& token) { outcome = useCase->run(request, token); },
             [&](const JobReport& report) {

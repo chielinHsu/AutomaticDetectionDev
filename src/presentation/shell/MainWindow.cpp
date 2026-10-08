@@ -8,20 +8,17 @@
 #include <QDropEvent>
 #include <QFileDialog>
 #include <QFileInfo>
-#include <QFormLayout>
 #include <QKeyEvent>
 #include <QLabel>
 #include <QLineEdit>
 #include <QMenu>
 #include <QMenuBar>
 #include <QMimeData>
-#include <QSlider>
 #include <QStandardItemModel>
 #include <QStatusBar>
 #include <QToolBar>
 #include <QTreeView>
 #include <QUrl>
-#include <QVBoxLayout>
 #include <string>
 
 #include "presentation/canvas/ImageCanvas.h"
@@ -31,6 +28,7 @@
 #include "presentation/params/ParamsPanel.h"
 #include "presentation/shell/MessageBar.h"
 #include "presentation/theme/ThemeManager.h"
+#include "ui_MainWindow.h"
 
 namespace aoi::ui {
 namespace {
@@ -41,22 +39,22 @@ QString withShortcut(const QString& name, const QString& keys) { return QStringL
 
 }  // namespace
 
-MainWindow::MainWindow(ThemeManager& theme, QWidget* parent) : QMainWindow(parent), theme_(theme) {
+MainWindow::MainWindow(ThemeManager& theme, QWidget* parent)
+    : QMainWindow(parent), theme_(theme), ui_(std::make_unique<Ui::MainWindow>()) {
+    // 外框在 MainWindow.ui（Qt Designer）：選單、上方工具列、左側的工具、右側三個 dock 的配置、中央的畫布與訊息列
+    // （畫布、訊息列、物件樹與參數面板是提升元件：Designer 裡是佔位，執行時是這些類別）。中央：畫布在上，訊息列在下
+    // （固定高度，所以畫布大小不會因訊息而變）。.ui 裡的文字只是佔位、不翻譯，retranslateUi 從 copy.json 設定；
+    // Designer 放不了的（快捷鍵、互斥的動作群組、工具列上的 back end 選單、狀態列的標籤、字級選單、dock 的開關）在 build* 裡。
+    ui_->setupUi(this);
     const ThemeTokens& tokens = theme.tokens();
     setMinimumSize(tokens.sizes.windowMin);
     resize(1280, 800);
     setAcceptDrops(true);
 
-    // 中央：畫布在上，訊息列在下（固定高度，所以畫布大小不會因訊息而變）。
-    auto* central = new QWidget(this);
-    auto* column = new QVBoxLayout(central);
-    column->setContentsMargins(0, 0, 0, 0);
-    column->setSpacing(0);
-    canvas_ = new ImageCanvas(tokens, central);
-    messageBar_ = new MessageBar(tokens, central);
-    column->addWidget(canvas_, 1);
-    column->addWidget(messageBar_, 0);
-    setCentralWidget(central);
+    canvas_ = ui_->canvas;
+    messageBar_ = ui_->messageBar;
+    objectsPanel_ = ui_->objectsPanel;
+    paramsPanel_ = ui_->paramsPanel;
 
     emptyCard_ = new EmptyCard(canvas_->viewport());
     canvas_->viewport()->installEventFilter(this);
@@ -88,6 +86,10 @@ MainWindow::MainWindow(ThemeManager& theme, QWidget* parent) : QMainWindow(paren
     // 按過訊息卡上的按鈕之後，鍵盤焦點還給畫布：Del、方向鍵、Esc 不必再點一下畫布才有用。
     connect(messageBar_, &MessageBar::actionTriggered, this, [this](int i) {
         if (controllers_.message) controllers_.message->applyAdvice(i);
+        canvas_->setFocus(Qt::OtherFocusReason);
+    });
+    connect(messageBar_, &MessageBar::noticeActionTriggered, this, [this](int i) {
+        if (controllers_.backend) controllers_.backend->applyNoticeAction(i);
         canvas_->setFocus(Qt::OtherFocusReason);
     });
     connect(messageBar_, &MessageBar::cancelRequested, this, [this] {
@@ -145,51 +147,49 @@ QAction* MainWindow::toolAction(ToolId id) const {
 // ---- 組裝 ----------------------------------------------------------------------------------------------
 
 void MainWindow::buildActions() {
-    openAction_ = new QAction(this);
+    // 動作本身（名稱、可勾選、預設停用）在 MainWindow.ui；快捷鍵與行為在這裡（標準快捷鍵跟著平台、重做有兩個快捷鍵，Designer 表達不了）。
+    openAction_ = ui_->actionOpen;
     openAction_->setShortcut(QKeySequence::Open);
     connect(openAction_, &QAction::triggered, this, &MainWindow::promptOpen);
-    saveAction_ = new QAction(this);
+    saveAction_ = ui_->actionSave;
     saveAction_->setShortcut(QKeySequence::Save);
-    saveAction_->setEnabled(false);  // 配方的儲存層在 S06（infrastructure/storage）；存檔與開啟配方的 UI 還沒排進任何一步（docs/current-status.md）
-    exportAction_ = new QAction(this);
-    exportAction_->setEnabled(false);  // 匯出在 S12
-    quitAction_ = new QAction(this);
+    // 〔儲存〕停用（.ui）：配方的儲存層在 S06（infrastructure/storage）；存檔與開啟配方的 UI 還沒排進任何一步（docs/current-status.md）
+    exportAction_ = ui_->actionExport;  // 停用（.ui）：匯出在 S12
+    quitAction_ = ui_->actionQuit;
     quitAction_->setShortcut(QKeySequence::Quit);
     connect(quitAction_, &QAction::triggered, this, &QWidget::close);
 
-    undoAction_ = new QAction(this);
+    undoAction_ = ui_->actionUndo;  // 停用（.ui）：Presenter 依歷史堆疊的狀態啟用（IHistoryView）
     undoAction_->setShortcut(QKeySequence::Undo);
-    undoAction_->setEnabled(false);  // Presenter 依歷史堆疊的狀態啟用（IHistoryView）
     connect(undoAction_, &QAction::triggered, this, [this] {
         if (controllers_.history) controllers_.history->undo();
     });
-    redoAction_ = new QAction(this);
+    redoAction_ = ui_->actionRedo;
     redoAction_->setShortcuts({QKeySequence(Qt::CTRL | Qt::Key_Y), QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_Z)});
-    redoAction_->setEnabled(false);
     connect(redoAction_, &QAction::triggered, this, [this] {
         if (controllers_.history) controllers_.history->redo();
     });
 
-    fitAction_ = new QAction(this);
+    fitAction_ = ui_->actionFit;
     fitAction_->setShortcut(Qt::Key_F);
     connect(fitAction_, &QAction::triggered, this, [this] { canvas_->fit(); });
-    fitWidthAction_ = new QAction(this);
+    fitWidthAction_ = ui_->actionFitWidth;
     fitWidthAction_->setShortcut(Qt::Key_W);
     connect(fitWidthAction_, &QAction::triggered, this, [this] { canvas_->fitWidth(); });
 
+    // 左側的工具（V、S、R、＋；.ui 裡是可勾選的動作，選取工具預設勾選）：同一時間只有一個。
     toolGroup_ = new QActionGroup(this);
     toolGroup_->setExclusive(true);
     const struct {
         QAction** action;
+        QAction* fromUi;
         ToolId id;
-        const char* glyph;
-    } tools[] = {{&toolSelect_, ToolId::Select, "V"},
-                 {&toolSample_, ToolId::Sample, "S"},
-                 {&toolRegion_, ToolId::Region, "R"},
-                 {&toolAdd_, ToolId::Add, "＋"}};
+    } tools[] = {{&toolSelect_, ui_->actionToolSelect, ToolId::Select},
+                 {&toolSample_, ui_->actionToolSample, ToolId::Sample},
+                 {&toolRegion_, ui_->actionToolRegion, ToolId::Region},
+                 {&toolAdd_, ui_->actionToolAdd, ToolId::Add}};
     for (const auto& t : tools) {
-        QAction* a = new QAction(QString::fromUtf8(t.glyph), this);
-        a->setCheckable(true);
+        QAction* a = t.fromUi;
         toolGroup_->addAction(a);
         const ToolId id = t.id;
         connect(a, &QAction::triggered, this, [this, id] { canvas_->setInteraction(id); });
@@ -203,40 +203,32 @@ void MainWindow::buildActions() {
 }
 
 void MainWindow::buildMenus() {
-    fileMenu_ = menuBar()->addMenu(QString());
-    fileMenu_->addAction(openAction_);
-    fileMenu_->addAction(saveAction_);
-    fileMenu_->addAction(exportAction_);
-    fileMenu_->addSeparator();
-    fileMenu_->addAction(quitAction_);
+    // 選單的結構在 MainWindow.ui；互斥的群組、目前的設定與字級的選項（來自 tokens.json）在這裡。
+    fileMenu_ = ui_->fileMenu;
+    editMenu_ = ui_->editMenu;
+    viewMenu_ = ui_->viewMenu;
+    themeMenu_ = ui_->themeMenu;
+    fontMenu_ = ui_->fontMenu;
+    languageMenu_ = ui_->languageMenu;
+    panelsMenu_ = ui_->panelsMenu;  // dock 的開關在 buildDocks 加入
 
-    editMenu_ = menuBar()->addMenu(QString());
-    editMenu_->addAction(undoAction_);
-    editMenu_->addAction(redoAction_);
-
-    viewMenu_ = menuBar()->addMenu(QString());
-    viewMenu_->addAction(fitAction_);
-    viewMenu_->addAction(fitWidthAction_);
-    viewMenu_->addSeparator();
-
-    themeMenu_ = viewMenu_->addMenu(QString());
     auto* themeGroup = new QActionGroup(this);
     const struct {
         QAction** action;
+        QAction* fromUi;
         ThemeMode mode;
-    } themes[] = {{&themeLight_, ThemeMode::Light}, {&themeDark_, ThemeMode::Dark}, {&themeSystem_, ThemeMode::System}};
+    } themes[] = {{&themeLight_, ui_->actionThemeLight, ThemeMode::Light},
+                  {&themeDark_, ui_->actionThemeDark, ThemeMode::Dark},
+                  {&themeSystem_, ui_->actionThemeSystem, ThemeMode::System}};
     for (const auto& t : themes) {
-        QAction* a = new QAction(this);
-        a->setCheckable(true);
+        QAction* a = t.fromUi;
         a->setChecked(theme_.mode() == t.mode);
         themeGroup->addAction(a);
-        themeMenu_->addAction(a);
         const ThemeMode mode = t.mode;
         connect(a, &QAction::triggered, this, [this, mode] { theme_.setMode(mode); });
         *t.action = a;
     }
 
-    fontMenu_ = viewMenu_->addMenu(QString());
     auto* fontGroup = new QActionGroup(this);
     for (double scale : theme_.tokens().fontScaleOptions) {
         QAction* a = new QAction(QStringLiteral("%1%").arg(qRound(scale * 100)), this);
@@ -247,102 +239,68 @@ void MainWindow::buildMenus() {
         connect(a, &QAction::triggered, this, [this, scale] { theme_.setFontScale(scale); });
     }
 
-    languageMenu_ = viewMenu_->addMenu(QString());
+    // 語言名稱用該語言自己的寫法，不翻譯（.ui 裡就是最後的文字）。
     auto* langGroup = new QActionGroup(this);
-    langZh_ = new QAction(QStringLiteral("繁體中文"), this);  // 語言名稱用該語言自己的寫法，不翻譯
-    langEn_ = new QAction(QStringLiteral("English"), this);
-    for (QAction* a : {langZh_, langEn_}) {
-        a->setCheckable(true);
-        langGroup->addAction(a);
-        languageMenu_->addAction(a);
-    }
+    langZh_ = ui_->actionLangZh;
+    langEn_ = ui_->actionLangEn;
+    for (QAction* a : {langZh_, langEn_}) langGroup->addAction(a);
     langZh_->setChecked(Translations::current() == QLatin1String("zh_TW"));
     langEn_->setChecked(Translations::current() == QLatin1String("en"));
     connect(langZh_, &QAction::triggered, this, [] { Translations::install(QStringLiteral("zh_TW")); });
     connect(langEn_, &QAction::triggered, this, [] { Translations::install(QStringLiteral("en")); });
-
-    panelsMenu_ = viewMenu_->addMenu(QString());  // dock 的開關在 buildDocks 之後加入
 }
 
 void MainWindow::buildToolbars() {
-    topBar_ = addToolBar(QString());
-    topBar_->setObjectName(QStringLiteral("topBar"));
-    topBar_->setMovable(false);
-    topBar_->setToolButtonStyle(Qt::ToolButtonTextOnly);
-    topBar_->addAction(openAction_);
-    topBar_->addAction(saveAction_);
-    topBar_->addSeparator();
+    // 兩條工具列與上面的動作在 MainWindow.ui。back end 的標籤與選單、把右半邊推到右邊的彈性空間是工具列上的 widget，
+    // Designer 放不進工具列，所以在這裡插在〔復原〕前面：開啟、儲存 | Back end [選單] ⟷ 復原、重做、適配、匯出。
+    topBar_ = ui_->topBar;
+    toolRail_ = ui_->toolRail;
     backendLabel_ = new QLabel(topBar_);
     backendCombo_ = new QComboBox(topBar_);
-    backendCombo_->setEnabled(false);  // 執行中切換 back end 要等 S07（現在只有一個可用的）；清單由 setBackends 填
-    topBar_->addWidget(backendLabel_);
-    topBar_->addWidget(backendCombo_);
+    backendCombo_->setObjectName(QStringLiteral("backendCombo"));
+    // 使用者選了一項（程式設定的不算：activated 只在使用者操作時發出）→ 執行中切換（ADR-021）。清單由 setBackends 填。
+    connect(backendCombo_, &QComboBox::activated, this, [this](int index) {
+        const QString id = backendCombo_->itemData(index).toString();
+        if (controllers_.backend && !id.isEmpty()) controllers_.backend->selectBackend(id.toStdString());
+        canvas_->setFocus(Qt::OtherFocusReason);
+    });
     auto* spacer = new QWidget(topBar_);
     spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
-    topBar_->addWidget(spacer);
-    topBar_->addAction(undoAction_);
-    topBar_->addAction(redoAction_);
-    topBar_->addAction(fitAction_);
-    topBar_->addAction(fitWidthAction_);
-    topBar_->addAction(exportAction_);
-
-    toolRail_ = new QToolBar(this);
-    toolRail_->setObjectName(QStringLiteral("toolRail"));
-    toolRail_->setOrientation(Qt::Vertical);
-    toolRail_->setMovable(false);
-    toolRail_->setToolButtonStyle(Qt::ToolButtonTextOnly);
-    addToolBar(Qt::LeftToolBarArea, toolRail_);
-    for (QAction* a : {toolSelect_, toolSample_, toolRegion_, toolAdd_}) toolRail_->addAction(a);
+    topBar_->insertWidget(undoAction_, backendLabel_);
+    topBar_->insertWidget(undoAction_, backendCombo_);
+    topBar_->insertWidget(undoAction_, spacer);
 }
 
 void MainWindow::buildDocks() {
+    // 三個 dock 的配置（右側，由上而下：樣本庫、物件樹、比對參數）在 MainWindow.ui；最小寬度來自 tokens.json。
+    //  - 樣本庫（空殼：篩選欄與空狀態文字）。清單與縮圖還沒有。
+    //  - 物件樹：Board › Component › 框群組，可依狀態篩選，與畫布雙向選取同步（S04）。
+    //  - 比對參數：分數門檻（拖動即時重新過濾）、進階的角度範圍（防抖後重新搜尋）、比對範圍、影像位元數。
+    libraryDock_ = ui_->libraryDock;
+    objectsDock_ = ui_->objectsDock;
+    paramsDock_ = ui_->paramsDock;
+    libraryFilter_ = ui_->libraryFilter;
+    libraryEmpty_ = ui_->libraryEmpty;
+    libraryEmpty_->setForegroundRole(QPalette::PlaceholderText);
     const int minWidth = theme_.tokens().sizes.dockMinWidth;
-    auto makeDock = [&](const char* name, QWidget* content) {
-        auto* dock = new QDockWidget(this);
-        dock->setObjectName(QLatin1String(name));
+    for (QDockWidget* dock : {libraryDock_, objectsDock_, paramsDock_}) {
         dock->setMinimumWidth(minWidth);
-        dock->setWidget(content);
-        addDockWidget(Qt::RightDockWidgetArea, dock);
         panelsMenu_->addAction(dock->toggleViewAction());
-        return dock;
-    };
-    auto placeholder = [](QLabel*& label, QWidget* parent) {
-        label = new QLabel(parent);
-        label->setWordWrap(true);
-        label->setAlignment(Qt::AlignTop | Qt::AlignLeft);
-        label->setForegroundRole(QPalette::PlaceholderText);
-        label->setMargin(12);
-    };
-
-    // 樣本庫（空殼：篩選欄與空狀態文字）。清單與縮圖在 S06／S04。
-    auto* libraryBody = new QWidget(this);
-    auto* libraryColumn = new QVBoxLayout(libraryBody);
-    libraryColumn->setContentsMargins(8, 8, 8, 8);
-    libraryFilter_ = new QLineEdit(libraryBody);
-    libraryFilter_->setEnabled(false);
-    libraryFilter_->setClearButtonEnabled(true);
-    placeholder(libraryEmpty_, libraryBody);
-    libraryColumn->addWidget(libraryFilter_);
-    libraryColumn->addWidget(libraryEmpty_, 1);
-    libraryDock_ = makeDock("libraryDock", libraryBody);
-
-    // 物件樹：Board › Component › 框群組，可依狀態篩選，與畫布雙向選取同步（S04）。
-    objectsPanel_ = new ObjectsPanel(this);
-    objectsDock_ = makeDock("objectsDock", objectsPanel_);
-
-    // 比對參數：分數門檻（拖動即時重新過濾）、進階的角度範圍（防抖後重新搜尋）、比對範圍。
-    paramsPanel_ = new ParamsPanel(this);
-    paramsDock_ = makeDock("paramsDock", paramsPanel_);
+    }
 }
 
 void MainWindow::buildStatusBar() {
+    // 最左邊是 back end（「HALCON · runtime 授權」，一直看得到，搜尋中也是），接著是摘要（耗時、數量；搜尋中換成「搜尋中…」）。
+    backendStatus_ = new QLabel(this);
+    backendStatus_->setObjectName(QStringLiteral("backendStatus"));
     summaryLabel_ = new QLabel(this);
+    summaryLabel_->setObjectName(QStringLiteral("statusSummary"));
     cursorLabel_ = new QLabel(this);
     cursorLabel_->setMinimumWidth(110);
     zoomLabel_ = new QLabel(this);
     zoomLabel_->setMinimumWidth(90);
     zoomLabel_->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
-    statusBar()->setSizeGripEnabled(false);
+    statusBar()->addWidget(backendStatus_, 0);
     statusBar()->addWidget(summaryLabel_, 1);
     statusBar()->addPermanentWidget(cursorLabel_);
     statusBar()->addPermanentWidget(zoomLabel_);
@@ -455,9 +413,10 @@ void MainWindow::selectTool(ToolId id) {
     }
 }
 
-void MainWindow::setBackends(const QList<BackendChoice>& choices, int current) {
+void MainWindow::setBackends(const QList<BackendChoice>& choices, int current, bool switching) {
     backends_ = choices;
     currentBackend_ = current;
+    backendSwitching_ = switching;
     refreshBackends();
 }
 
@@ -467,7 +426,7 @@ void MainWindow::refreshBackends() {
     auto* model = qobject_cast<QStandardItemModel*>(backendCombo_->model());
     for (int i = 0; i < backends_.size(); ++i) {
         const BackendChoice& c = backends_[i];
-        backendCombo_->addItem(c.available ? c.name : c.name + QStringLiteral(" ✕"));
+        backendCombo_->addItem(c.available ? c.name : c.name + QStringLiteral(" ✕"), c.id);
         if (QStandardItem* item = model != nullptr ? model->item(i) : nullptr) item->setEnabled(c.available);
         QString tip = c.name;
         if (!c.available) tip = uiText("ui.backend.unavailable", {{"name", c.name}, {"reason", c.note}});
@@ -477,8 +436,20 @@ void MainWindow::refreshBackends() {
     }
     backendCombo_->setCurrentIndex(currentBackend_);
     backendCombo_->setToolTip(tips.join(QLatin1Char('\n')));
-    backendCombo_->setEnabled(false);
+    // 切換中停用；只有一個 back end 時也沒什麼可選。
+    backendCombo_->setEnabled(!backendSwitching_ && backends_.size() > 1);
 }
+
+void MainWindow::setBackendStatus(const QString& text, const QString& detail) {
+    backendStatus_->setText(text);
+    backendStatus_->setToolTip(detail);
+}
+
+void MainWindow::showNotice(const MessageCard& card) {
+    messageBar_->showNotice(card.title, card.body, card.advice, card.actions);
+}
+
+void MainWindow::hideNotice() { messageBar_->clearNotice(); }
 
 // ---- IStatusView ---------------------------------------------------------------------------------------
 

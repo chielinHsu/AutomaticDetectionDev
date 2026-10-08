@@ -9,6 +9,8 @@
 
 | 日期 | 修改者 | 說明 |
 |---|---|---|
+| 2026-10-08 | Claude Code (Claude Opus 5.5) | 使用者決定（S09 之前的 session B，第 2 件）：上方的 back end 選單可以在執行中切換（[ADR-021](../adr/021-runtime-backend-switching.md)）。切換在背景建立（HALCON 第一次約 1.5 秒），期間選單停用、狀態列「切換到 HALCON…」；搜尋中先取消；**畫面上有提案時用新的 back end 重新搜尋同一個區域**；失敗時回到原本的 back end，訊息列的卡片（`ui.error.backend.*`＋原因＋「仍使用 …」）按〔關閉〕才收起。**啟動時用上次用的**（沒有記錄時 fake；`--backend` 照舊優先）。第 12.3 節的 `IBackendController::selectBackend` 實作了；`copy.json` 新增 `ui.backend.switching`、`ui.backend.reverted`。換 back end 不進復原堆疊（ADR-002 規則 6） |
+| 2026-10-08 | Claude Code (Claude Opus 5.5) | 使用者決定（S09 之前的 session B，第 1 件）：back end 的提醒（例如 HALCON 用的是 runtime 授權）改成訊息列的**提醒卡片**（不會自己消失，按〔關閉〕才收起；搜尋的卡片與進度列優先，它們收起之後再出現）與**狀態列最左邊的 back end 標示**（「HALCON · runtime 授權」，滑鼠移上去看完整說明，搜尋中也看得到）；原本的 4 秒吐司拿掉，stderr 那一行保留（第 5、9 節）。狀態列的摘要因此不再重複 back end 名稱。`copy.json` 新增 5 個 key（`ui.backend.halcon.runtimeLicense`、`ui.backend.notice.title`、`ui.backend.status.tip`、`ui.status.counts`、`ui.status.noObjects`）；`ui.status.summary`、`ui.status.none` 不再使用（只新增 key，沒有刪）。第 12.2 節多了 `IBackendView`；第 12.3 節的 `IBackendController` 由新的 `BackendPresenter` 實作（第 12.4 節原本放在 `ParamsPresenter`），多一個 `applyNoticeAction`（提醒卡片上的按鈕） |
 | 2026-10-06 | Claude Code (Claude Opus 5.5) | 使用者要求：新增〔適配寬度〕（`W`，「檢視」選單與上方工具列），規則見第 8 節；`copy.json` 新增 `action.fitWidth`。載入影像的預設仍是適配視窗 |
 | 2026-10-06 | Claude Code (Claude Sonnet 5.5) | S04 實作回饋：`copy.json` 新增 12 個 key（`ui.history.*`、`ui.preview.nothingToAccept`、`ui.editor.unavailable`、`ui.objects.col.*`），移除 5 個 S02 的暫代 key（`ui.shell.regionDrawn`、`addRequested`、`openEditor`、`deleteRequested`、`backendNone`）。第 12.2、12.3 節的介面名單與實作不同之處：卡片統一成 `IMessageView::showCard／hideCard`（預覽的動作列、無匹配、錯誤是同一種卡片，沒有 `showEmpty`）；多了 `ICanvasInputGate`（搜尋中畫布暫停）與 `IKeyboardController`；沒有 `IBackendController`（S04 只有一個可用的 back end，執行中不能切換）；第 12.4 節的六個 Presenter 在 S04 只做 `AutoRoiPresenter` 與 `ParamsPresenter`（[ADR-011](../adr/011-interaction-logic-in-application-layer.md)）。第 9 節「忙碌標示一旦出現至少停留 400 ms」只適用於**結果回來**；使用者自己取消時標示馬上收起（否則 Idle 的畫面上會留著「搜尋中…」）。第 7 節的虛線與點線改用整數像素的填色矩形畫（[ADR-012](../adr/012-dashed-frames-as-fill-rects.md)，外觀不變，快約 17 倍）。第 8 節「拖曳元件」與方向鍵微調（S02 沒做的兩項）在 S04 做了 |
 | 2026-10-05 | Claude Code (Claude Sonnet 5.5) | S02 實作回饋：訊息列改為**固定高度**（`tokens.json` 新增 `sizes.messageBarHeight` ＝ 96 px，放不下在列內捲動），否則「畫布大小不變」在桌面程式做不到（第 5 節；[ADR-008](../adr/008-message-bar-fixed-height.md)）。`copy.json` 新增殼層用的 key（`menu.*`、`action.quit`、`ui.shell.*`、`ui.status.cursor`；[ADR-007](../adr/007-copy-json-as-translation-source.md)）。框的粗細在整數像素下取整：Pin 的「狀態寬度 − 0.5」在畫面上是狀態寬度向下取整（Found：主體 2、Pin 1、窗 1），第 7 節的寬度是設計值（`docs/steps/S02-ui-shell/spec.md`） |
@@ -123,6 +125,8 @@ ComponentType 元件類型（= 樣本庫條目）   料號 8371、別名、名�
 ```
 
 **訊息位置規則**（使用者回饋後新增）：所有需要閱讀的訊息——提示、進度與取消、無匹配、錯誤、吐司——都放在畫布**下方的訊息列**，**不蓋在影像上**。理由：檢測員要看著料件才能判斷，訊息蓋住的那一塊就是他要看的東西。訊息列的高度會隨內容變化，但**畫布大小不變**，所以板子不會被擠動。原型驗證：每個狀態的畫布大小都相同；所有無匹配原因、錯誤橫幅、進度條與吐司的方塊都不與畫布相交；無匹配時畫布四角與中心點上的元素都是畫布本身。唯一留在畫布中央的是「空白」卡片，因為那時畫布上沒有東西可擋。
+
+**提醒卡片**（2026-10-08，使用者決定）：back end 可以用、但使用者應該知道的事（例如 HALCON 用的是 runtime 授權、SDK 的 dongle 沒插）也在訊息列，是一張不會自己消失的卡片，按〔關閉〕才收起。訊息列同一時間只顯示一種內容，優先順序：進度列 ＞ 搜尋的卡片（預覽、無匹配、錯誤）＞ 提醒卡片 ＞ 提示；搜尋的卡片收起之後，還沒關掉的提醒卡片再出現。狀態列最左邊一直標示目前的 back end 與提醒的短標示（「HALCON · runtime 授權」），滑鼠移上去看完整說明。
 
 ## 6. 互動狀態機（修訂 S00 `diagram.md` §4）
 
