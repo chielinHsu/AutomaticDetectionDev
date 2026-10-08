@@ -73,7 +73,7 @@ AOI 教學工具：使用者在影像上框一個樣本 ROI → 程式找出相�
 | `docs/ux/` | UX 規格（`ux-spec.md`）、狀態語言 token（`tokens.json`）、文案（`copy.json`）；S02 的 QPalette／QSS 與 i18n 以此為來源 |
 | `tools/` | Node 工具：`ste-lint.mjs`、`check-contrast.mjs`；`check-deps.mjs` 在 S03 建立；`s00-demo-fixture.mjs`（S05：執行 S00 示範頁原本的 JavaScript，產生交叉驗證的 fixture；`--check` 比對是否過期） |
 | `ai-project-template/` | 與本產品無關的 AI 結構範本（Codex 與 Claude Code 共用）：`New-AiProject.ps1` 把結構套到新資料夾，設計說明見其 `README.md`。已納入版控；除非使用者要求，不要修改 |
-| `.agents/`、`.claude/`、`.ai/`、`scripts/ai/` | AI agent 的規範、skill、交接單與檢查腳本，各檔職責見 `.agents/harness/engineering-workflow.md` 第 0 節。模型路由（Claude 專用，[ADR-019](docs/adr/019-model-routing.md)）：根目錄的 `MODEL_ROUTING.md`、`.claude/agents/`（`fast-worker`、`developer`、`architect`）、`.claude/hooks/model_router.mjs`（`settings.json` 的 `UserPromptSubmit`） |
+| `.agents/`、`.claude/`、`.ai/`、`scripts/ai/` | AI agent 的規範、skill、交接單與檢查腳本，各檔職責見 `.agents/harness/engineering-workflow.md` 第 0 節。模型與推理強度路由（Claude 專用，[ADR-019](docs/adr/019-model-routing.md)、[ADR-020](docs/adr/020-adaptive-model-effort-routing.md)）：根目錄的 `MODEL_ROUTING.md`、`.claude/agents/`（`fast-worker`、`developer`、`developer-deep`、`architect`、`architect-deep`，frontmatter 有 `model` 與 `effort`）、`.claude/hooks/model_router.mjs`（`settings.json` 的 `UserPromptSubmit`） |
 
 ## 建置與測試
 
@@ -90,7 +90,8 @@ AOI 教學工具：使用者在影像上框一個樣本 ROI → 程式找出相�
 | 顏色對比檢查 | `node tools/check-contrast.mjs` | S01 起可用；驗算 `docs/ux/tokens.json`（文字 ≥ 4.5、圖形 ≥ 3）並檢查四種狀態線型不重複；改過顏色後加 `--write` 更新結果 |
 | 效能 | S10 的 harness（新的執行檔照 ADR-018 加 `.pro` 並列進 `tests.pro`） | 預算在 `perf/budgets.json` |
 | AI 結構檢查 | `powershell -ExecutionPolicy Bypass -File scripts/ai/check-ai-structure.ps1` | 改過入口檔或 skill 後執行 |
-| 模型路由檢查 | `node scripts/ai/check-model-routing.mjs` | 改過 `MODEL_ROUTING.md`、`.claude/agents/`、`.claude/hooks/` 或 `.claude/settings.json` 後執行；Claude Code 是否真的載入要另外看（`MODEL_ROUTING.md` 第 8 節） |
+| 模型路由檢查 | `node scripts/ai/check-model-routing.mjs` | 改過 `MODEL_ROUTING.md`、`.claude/agents/`、`.claude/hooks/` 或 `.claude/settings.json` 後執行；不花額度 |
+| 模型路由實測 | `node scripts/ai/bench-model-routing.mjs verify --yes`、`… bench --yes` | **會呼叫 Claude、花額度**（verify 約 US$1）；verify 從 session 紀錄驗證五個 subagent 實際的 model 與 effort（換 Claude Code 版本或帳號後跑），bench 比較同一組任務在五個 agent 上的正確率、時間、tokens；沒有 `--yes` 只印計畫，結果在 `perf/results/model-routing-*.json`（`MODEL_ROUTING.md` 第 8 節） |
 
 `VERIFIED` 的定義（取自 Step Protocol 第 3 步）：建置通過、單元與契約測試通過（`scripts/dev/test.ps1` 的預設建置 Release＋OpenCV＋HALCON 全部通過，含 `check-deps` 的 3 項；動到 Debug 才有的行為或選項時也跑 `-Config Debug` 與關掉選項的組合）、`ste-lint` 無 error，且本步驟的效能指標已量測（`test.ps1 -Perf`）並與 `perf/budgets.json` 比對。HALCON 的測試「跳過」不算通過（看 `test.ps1` 最後列的「有跳過項目的測試」）。失敗就如實回報，不要宣稱完成。
 

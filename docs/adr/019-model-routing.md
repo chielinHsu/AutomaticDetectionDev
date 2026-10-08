@@ -2,7 +2,8 @@
 
 - 日期：2026-10-08
 - 決定者：使用者 2026-10-08 要求建立「Intelligent Model Routing System」（ChatGPT 討論裡的設定 prompt）：`MODEL_ROUTING.md`、`.claude/agents/` 的三個 subagent（`fast-worker`／`developer`／`architect`，`haiku`／`sonnet`／`opus` 別名）、`UserPromptSubmit` hook、`settings.json` 保留既有設定、`CLAUDE.md` 引用、驗證流程。分級的判準、hook 改用 Node、兩個 subagent 唯讀、驗證腳本是 Claude Code（Claude Sonnet 5.5 開始，Claude Opus 5.5 完成）的提案並實作。
-- 狀態：採用（Claude Code 專用；Codex 沒有對應機制）
+- 狀態：採用（Claude Code 專用；Codex 沒有對應機制）。部分被 [ADR-020](020-adaptive-model-effort-routing.md) 取代：判準改成 1–5 分加上判準、subagent 由三個改成五個並加上 `effort`。
+- 更正（2026-10-08）：下面「後果與驗證」寫的「`haiku` 別名對應 Haiku 4.5」只對 Claude Code 2.1.292 成立；2.1.293 起對應 Haiku 5.5（官方文件與實測，見 ADR-020）。
 
 ## 背景
 
