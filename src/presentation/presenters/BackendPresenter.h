@@ -64,6 +64,8 @@ public:
     bool switching() const { return switch_.switching(); }
     // 提醒卡片要不要顯示（有提醒或切換失敗、而且還沒按〔關閉〕）。被搜尋的卡片蓋過時仍是 true。
     bool noticePending() const { return noticePending_; }
+    // 目前的 back end 與錯誤卡片建議改用的那一個（可用、不是目前的第一個；BackendSwitch::fallback）。
+    BackendLabels labels() const;
 
 signals:
     // 換成功（id 是新的 back end）；noticeMessages 是它的提醒的英文說明（stderr）。
@@ -82,7 +84,9 @@ protected:
 
 private:
     void onCreated(const std::string& id, Result<SearchEnginePtr> result);
-    void fail(const std::string& id, const Error& error);
+    // retryable：再試一次可能會成功（工廠失敗，例如授權檢查失敗；插上 dongle 之後再試就會成功）。
+    // 登記成不可用、或沒有這個 id 的，再試也一樣，卡片上就沒有〔再試一次〕。
+    void fail(const std::string& id, const Error& error, bool retryable);
     void publish();
     QString displayName(const std::string& id) const;
 
@@ -94,7 +98,11 @@ private:
     struct Failure {
         std::string id;
         Error error;
+        bool retryable = false;
     };
+    // 提醒卡片上的按鈕（publish 依內容排，applyNoticeAction 依索引找回來）。
+    enum class NoticeAction { Retry, Close };
+    std::vector<NoticeAction> noticeActions_;
     std::optional<Failure> failure_;  // 最近一次切換失敗（卡片顯示它，直到按〔關閉〕或下一次切換）
     bool noticePending_ = false;
     std::shared_ptr<UiPoster> poster_;

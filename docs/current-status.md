@@ -2,7 +2,7 @@
 
 新 session 開工前先讀這份，再讀 `docs/plan/Sxx-*.md`。步驟完成後由該步驟的 session 更新。原檔名 `STATUS.md`，2026-10-05 更名為本檔以符合共用結構（見 `docs/adr/000-ai-agent-structure.md`）。各步驟的完整內容在 `docs/steps/Sxx-*/` 與 `docs/changelog-ai.md`，本檔只留重點。
 
-- 更新日期：2026-10-08
+- 更新日期：2026-10-09
 - 階段：S00–S08 完成；**2026-10-07 建置改成只用 qmake**（S09 之前的 session A，[ADR-018](adr/018-qmake-only-build.md)；分支 `build/qmake-only` 以 `--no-ff` 合併到 `main`，沒有 tag）。**2026-10-08 S09 之前的 session B 完成**（授權提醒改成卡片＋狀態列的標示、back end 選單可以在執行中切換、介面的版面改用 Designer 的 `.ui`；[ADR-021](adr/021-runtime-backend-switching.md)、[ADR-022](adr/022-designer-forms.md)；分支 `feat/backend-switch-ui-forms` 以 `--no-ff` 合併到 `main`，沒有 tag）。**下一個是 S09**。S01–S08 都已用 `--no-ff` 合併到 `main` 並打 tag（`step-01-done`…`step-08-done`）；AI 共用結構、commit 格式規則與 S04 之後的〔適配寬度〕也已合併到 `main`（全部只在本機，**沒有 push**）。S06 起用 Qt 6.12.0。**等使用者決定的事**：（1）[ADR-009](adr/009-ui-toolkit-review-after-s02.md)：I1 在預算邊緣、真實視窗超標；（2）**U3 超出預算**（S04）；（3）T3 要不要涵蓋散佈的點（S05）；（4）**存檔／開啟配方的 UI 放進哪一步**（S06；分層樣本庫各層的檔案位置、流程 B 的 UI 也在那一步一起定）；（5）S06 的指標（開圖、存檔）要不要有預算；（6）S07：真實影像上 use case 的種子門檻與預設的分數門檻（0.70）偏低、晶格在空槽補假缺格、T7（流程 B）的預算（見「S07 的產出與發現」）；（7）**S08 新增**：HALCON 的影像來源（`read_image`）要不要做、授權提醒的規則是否符合期待、兩個 back end 的分數門檻要不要分開（見「S08 的產出與發現」）
 
 | 步驟 | 層級 | 主題 | 狀態 | 分支 | tag |
@@ -60,7 +60,7 @@
 - **session B 的使用者決定**：（1）HALCON 授權的提醒改成**訊息列的卡片**（按〔關閉〕才收起；被預覽、無匹配、錯誤的卡片蓋過之後再出現）＋**狀態列最左邊一直標示**（「HALCON · runtime 授權」，滑鼠移上去看完整說明）；（2）**啟動時用上次用的 back end**（沒有記錄時 fake；`--backend` 照舊優先而且嚴格）；（3）畫面上有提案時切換 back end，**用新的重新搜尋同一個區域**；（4）Designer 的 `.ui` 的範圍：主視窗外框、樣本庫面板、物件面板、比對參數面板、空白卡片、訊息列（畫布與物件表的 model 維持程式碼）。
 - **做了什麼**：第 1 件——`Backend::notices`（提醒跟著 back end 交出去）、`BackendPresenter`、`IBackendView`、`MessageBar` 的提醒卡片（優先順序：進度列 ＞ 卡片 ＞ 提醒卡片 ＞ 提示），狀態列的摘要不再重複 back end 名稱（ADR-017 的「後續（2026-10-08）」）。第 2 件——application 的 `SearchEngine`（back end ＋ use case，`shared_ptr` 共用：搜尋工作持有一份，舊的 adapter 等工作結束才釋放）與 `BackendSwitch`（規則，沒有 Qt），背景執行緒建立、切換中選單停用與「切換到 …」、失敗時訊息列的卡片並回到原本的、`QSettings` 的 INI 記住上次（`%APPDATA%AOIAutoCadCreated.ini`，`AOI_SETTINGS_DIR` 可以換；ADR-021）。第 3 件——五個表單（`shell/MainWindow.ui`、`MessageBar.ui`、`EmptyCard.ui`、`objects/ObjectsPanel.ui`、`params/ParamsPanel.ui`），畫布、訊息列、兩個面板是提升元件，文字一律不翻譯的佔位（ADR-022）。
 - **驗證**：預設的建置 54／54（新增 `tst_backend_switch`；之前 53），`-NoHalcon` 51、`-NoOpenCv` 49、兩個都關 46、Debug 54、Profile 54；HALCON 的測試都沒有跳過。使用者在 Qt Creator 的 Designer 打開五個表單確認過。真的 HALCON 背景切換：總共 1.3 秒，`selectBackend` 0 ms 返回，UI 事件迴圈最長停頓 12 ms。UI 效能前後交替量 4 輪：I1、U3 沒有變差，U1 有一輪受機器負載干擾（ADR-022 的表）。數字與 Designer 的確認見 `docs/changelog-ai.md`。
-- **已知限制**：HALCON 的授權探測整個程式只做一次——第一次切到 HALCON 失敗（dongle 沒插）之後，插上再切仍然失敗，要重新啟動程式；從 HALCON 換走之後它仍在這個行程裡初始化著，`SESSIONS=1` 的授權會不會被佔住沒有驗證；搜尋時 back end 無法使用的錯誤卡片標題沿用 S08 的寫法（把錯誤訊息當成名稱），沒有改。
+- **2026-10-09 修掉 session B 的四個已知問題**（使用者要求，ADR-021 的「後續」）：HALCON 授權失敗之後不必重新啟動（授權「能用才記住」；HALCON 自己會記住第一次的失敗，所以碰 HALCON 之前先用另一個行程檢查，第一次切到 HALCON 從約 1.3 秒變成 2.8 秒）；`SESSIONS=1` 驗證過不會擋住別的程式；錯誤卡片的標題改成 back end 名稱，加〔改用 …〕（建議 OpenCV 而不是 fake）；`copy.json` 刪掉兩個不再使用的 key。2026-10-09 早上 HALCON 讀不到 dongle（錯誤 2300），沒有拔插、之後自己恢復，原因不明。
 
 ## 預算校準狀態
 

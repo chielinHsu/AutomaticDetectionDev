@@ -1,6 +1,11 @@
 #include "app/CompositionRoot.h"
 
+#include <QCoreApplication>
+#include <QFileInfo>
+#include <QProcess>
+#include <QStringList>
 #include <algorithm>
+#include <cstdio>
 #include <mutex>
 #include <string>
 #include <thread>
@@ -81,7 +86,9 @@ BackendRegistry makeBackendRegistry() {
     // （同 OpenCV 的理由；set_system 是獨占設定，會等其他執行緒的運算子）。
     if (infra::halconRuntimeOnPath()) {
         (void)registry.registerBackend("halcon", "HALCON", [] {
-            Result<Backend> backend = infra::makeHalconBackend();
+            // 碰這個行程的 HALCON 之前先用另一個行程確認授權（失敗過的 HALCON 可能不會再讀授權，見 createHalconBackendSafely）。
+            Result<Backend> backend =
+                createHalconBackendSafely(checkHalconLicenseInSeparateProcess, infra::halconProbedInProcess, [] { return infra::makeHalconBackend(); });
             if (backend) {
                 static std::once_flag threadsSet;
                 std::call_once(threadsSet, [] { infra::setHalconThreads(static_cast<int>(workerThreads())); });
@@ -100,6 +107,61 @@ BackendRegistry makeBackendRegistry() {
                                        "(qmake AiInspTool.pro; it is on by default).");
 #endif
     return registry;
+}
+
+HalconLicenseCheck checkHalconLicenseInSeparateProcess() {
+    HalconLicenseCheck check;
+    if (QCoreApplication::instance() == nullptr) return check;
+    const QString exe = QCoreApplication::applicationDirPath() + QStringLiteral("/AiInspTool.exe");
+    if (!QFileInfo::exists(exe)) return check;
+    QProcess process;
+    process.start(exe, {QString::fromLatin1(kProbeHalconLicenseOption)});
+    if (!process.waitForFinished(30000)) {
+        process.kill();
+        process.waitForFinished(5000);
+        return check;
+    }
+    if (process.exitStatus() != QProcess::NormalExit) return check;
+    const QStringList lines = QString::fromUtf8(process.readAllStandardOutput()).split(QLatin1Char('\n'), Qt::SkipEmptyParts);
+    if (lines.isEmpty()) return check;
+    const QString verdict = lines.first().trimmed();
+    if (verdict != QLatin1String("usable") && verdict != QLatin1String("unusable")) return check;
+    check.ran = true;
+    check.usable = verdict == QLatin1String("usable");
+    if (lines.size() > 1) check.reason = lines.at(1).trimmed().toStdString();
+    return check;
+}
+
+int runHalconLicenseProbe() {
+#ifdef AOI_WITH_HALCON
+    const infra::HalconLicenseVerdict verdict = infra::judgeHalconLicense(infra::probeHalconLicense());
+    std::printf("%s\n%s\n", verdict.usable ? "usable" : "unusable", verdict.reason.c_str());
+    std::fflush(stdout);
+    return verdict.usable ? 0 : 1;
+#else
+    std::printf("unusable\nThe HALCON back end is not built into this program.\n");
+    std::fflush(stdout);
+    return 1;
+#endif
+}
+
+Result<Backend> createHalconBackendSafely(const std::function<HalconLicenseCheck()>& checkInSeparateProcess,
+                                          const std::function<bool()>& probedInProcess, const std::function<Result<Backend>()>& create) {
+    if (!probedInProcess()) {
+        const HalconLicenseCheck check = checkInSeparateProcess();
+        if (check.ran && !check.usable) return makeError(ErrorCode::BackendUnavailable, check.reason);  // 不碰這個行程的 HALCON
+        return create();
+    }
+    Result<Backend> backend = create();
+    if (backend || backend.error().code != ErrorCode::BackendUnavailable) return backend;
+    const HalconLicenseCheck check = checkInSeparateProcess();
+    if (check.ran && check.usable) {
+        return makeError(ErrorCode::BackendUnavailable,
+                         backend.error().message +
+                             " The license works in a new process now, but HALCON in this program does not read the license again "
+                             "after its first failure. Restart the program to use HALCON.");
+    }
+    return backend;
 }
 
 std::unique_ptr<IImageSource> makeImageSource() {

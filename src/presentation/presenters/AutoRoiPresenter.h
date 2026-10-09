@@ -39,14 +39,13 @@ struct PresenterViews {
 };
 
 // Presenter 用到的核心（都是 application 層的型別；具體的 back end 在組裝根接好，這裡不認識）。
-// back end 的名稱不在這裡：狀態列最左邊的 back end 標示歸 BackendPresenter。
+// back end 的名稱不在這裡：狀態列最左邊的 back end 標示歸 BackendPresenter；錯誤卡片用的名稱由它交過來（setBackendLabels）。
 // generate 和它的 back end 共用擁有權（application/backend/SearchEngine.h 的 useCaseOf）：執行中換 back end 時
 // Presenter 換掉這一份，進行中的工作還拿著舊的，舊的 adapter 等工作結束才釋放（ADR-021）。
 struct PresenterServices {
     std::shared_ptr<const GenerateObjectsFromSample> generate;
     JobRunner& runner;
     IPerfProbe* probe = nullptr;
-    QString fallbackBackendName;  // back end 無法使用時，錯誤橫幅建議改用的那一個
 };
 
 // 回饋時間規則（ux-spec 第 9 節）與最小樣本。預設取自 tokens.json；測試可以縮短時間，免得等真實的 200 ms、1 s。
@@ -130,7 +129,9 @@ public:
     // ---- ISearchEngineSink（BackendPresenter：執行中切換 back end，ADR-021）----
     aoi::InteractionState interactionState() const override { return state(); }
     void pauseSearch() override;
-    void useSearchEngine(std::shared_ptr<const GenerateObjectsFromSample> useCase, const QString& fallbackBackendName) override;
+    void useSearchEngine(std::shared_ptr<const GenerateObjectsFromSample> useCase, const BackendLabels& labels) override;
+    // 錯誤卡片用的名稱（目前的 back end、建議改用的那一個）。AppPresenters 在啟動時交一次，換 back end 時 useSearchEngine 一起交。
+    void setBackendLabels(const BackendLabels& labels) { backendLabels_ = labels; }
     void researchSameRegion() override;
 
     // 目前用的影像（套過有效位元數的設定）。測試用。
@@ -153,6 +154,8 @@ signals:
     void stateChanged(aoi::InteractionState state);
     // 訊息卡的動作要求換工具（〔重畫樣本〕→ 教樣本）。
     void toolRequested(aoi::ui::ToolId tool);
+    // 錯誤卡片的〔改用 OpenCV〕：要求換 back end（AppPresenters 接到 BackendPresenter::selectBackend）。
+    void backendSwitchRequested(const QString& backendId);
     // 一次搜尋的結果已經套用到畫面（世代編號）；測試與效能量測等它。
     void searchApplied(quint64 generation);
 
@@ -211,6 +214,7 @@ private:
     aoi::ImageView sourceImage_;    // 影像來源給的原樣（significantBits 是推測的值）
     QString imageName_;
     SearchParams searchParams_;
+    BackendLabels backendLabels_;
     int scanScope_ = 0;
 
     // 非同步

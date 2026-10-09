@@ -208,6 +208,63 @@ private slots:
     }
 
     // 開放封閉的證明：註冊一個全新的 back end，use case 與 JobRunner 一個字都不用改，直接可用。
+    // ---- HALCON：碰這個行程的 HALCON 之前先用另一個行程確認授權（2026-10-09）。規則用假的三個動作驗證 ----
+    void halconIsCheckedInASeparateProcessBeforeThisProcessTouchesIt() {
+        bool probed = false;  // 這個行程碰過 HALCON 了嗎
+        int created = 0;
+        int checks = 0;
+        app::HalconLicenseCheck answer{true, false, "HALCON has no valid license (error 2300: Dongle not attached)."};
+        auto create = [&]() -> Result<Backend> {
+            ++created;
+            probed = true;
+            return Result<Backend>(makeScriptedBackend());
+        };
+        auto attempt = [&] {
+            return app::createHalconBackendSafely([&] { ++checks; return answer; }, [&] { return probed; }, create);
+        };
+        const Result<Backend> unplugged = attempt();
+        QVERIFY(!unplugged.ok());
+        QVERIFY(unplugged.error().code == ErrorCode::BackendUnavailable);
+        QCOMPARE(unplugged.error().message, answer.reason);  // 另一個行程的原因
+        QCOMPARE(created, 0);
+        QVERIFY2(!probed, "this process must not touch HALCON while the license is missing");
+        answer = {true, true, ""};  // 使用者插上 dongle
+        QVERIFY(attempt().ok());
+        QCOMPARE(created, 1);
+        QCOMPARE(checks, 2);
+        QVERIFY(attempt().ok());  // 已經碰過（而且能用）：不再問另一個行程
+        QCOMPARE(checks, 2);
+    }
+
+    void withoutAnAnswerFromTheSeparateProcessThisProcessTriesItself() {
+        int created = 0;
+        const Result<Backend> r = app::createHalconBackendSafely([] { return app::HalconLicenseCheck{}; }, [] { return false; }, [&] {
+            ++created;
+            return Result<Backend>(makeScriptedBackend());
+        });
+        QVERIFY(r.ok());  // 找不到 AiInspTool.exe、逾時：沒有結論，照舊在這個行程試（S08 的行為）
+        QCOMPARE(created, 1);
+    }
+
+    void aHalconStuckOnItsFirstFailureSaysToRestart() {
+        const std::string inProcess = "HALCON has no valid license (error 2036: could not find license file).";
+        auto stuck = [&] { return Result<Backend>(makeError(ErrorCode::BackendUnavailable, inProcess)); };
+        // 另一個行程拿得到授權，這個行程拿不到：卡在第一次的失敗，要重新啟動
+        const Result<Backend> r = app::createHalconBackendSafely([] { return app::HalconLicenseCheck{true, true, ""}; }, [] { return true; }, stuck);
+        QVERIFY(!r.ok());
+        QVERIFY2(r.error().message.find(inProcess) == 0, r.error().message.c_str());
+        QVERIFY2(r.error().message.find("Restart the program") != std::string::npos, r.error().message.c_str());
+        // 另一個行程也拿不到：就是沒有授權，原因照舊
+        const Result<Backend> none = app::createHalconBackendSafely([] { return app::HalconLicenseCheck{true, false, "x"}; }, [] { return true; }, stuck);
+        QCOMPARE(none.error().message, inProcess);
+        // 不是授權的問題：不必問另一個行程
+        int checks = 0;
+        const Result<Backend> other = app::createHalconBackendSafely([&] { ++checks; return app::HalconLicenseCheck{}; }, [] { return true; },
+                                                                     [] { return Result<Backend>(makeError(ErrorCode::Internal, "boom")); });
+        QVERIFY(other.error().code == ErrorCode::Internal);
+        QCOMPARE(checks, 0);
+    }
+
     void aBrandNewBackendRunsTheWholeUseCaseUnchanged() {
         BackendRegistry registry = app::makeBackendRegistry();
         QVERIFY(registry.registerBackend("scripted", "Scripted", [] { return Result<Backend>(makeScriptedBackend()); }).ok());

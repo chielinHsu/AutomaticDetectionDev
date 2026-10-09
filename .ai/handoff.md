@@ -4,11 +4,11 @@
 > 流程見 `ai-handoff` skill。
 
 - 最後一位 agent：Claude Code (Claude Opus 5.5)
-- 日期：2026-10-08
+- 日期：2026-10-09
 
 ## 正在做
 
-無。**S09 之前的 session B 已完成**：分支 `feat/backend-switch-ui-forms`（三個 feat commit ＋ 交接文件），以 `--no-ff` 合併到 `main`（沒有 tag、沒有 push）。**下一個是 S09**（`docs/plan/S09-contract-ab.md`，開頭有「session B 完成後的提醒」）。
+無。**S09 之前的 session B 已完成**：分支 `feat/backend-switch-ui-forms`（三個 feat commit ＋ 交接文件），以 `--no-ff` 合併到 `main`（沒有 tag、沒有 push）。2026-10-09 使用者要求修掉它的四個已知問題：分支 `fix/backend-followups`（`e40dfca` ＋ 文件），同樣 `--no-ff` 合併到 `main`（ADR-021 的「後續（2026-10-09）」）。**下一個是 S09**（`docs/plan/S09-contract-ab.md`，開頭有「session B 完成後的提醒」）。
 **仍等使用者決定**（見 `docs/current-status.md`）：ADR-009（I1）、U3 超標、T3、存檔／開啟配方與樣本庫（含流程 B）的 UI、S06 的指標、S07 的門檻與晶格、T7、HALCON 的影像來源、授權提醒的規則、兩個 back end 的分數門檻。
 
 ## session B 做了什麼（設計見 ADR-017 的後續、ADR-021、ADR-022）
@@ -25,15 +25,15 @@
 
 ## 不要動
 
-- `ai-project-template/`；`docs/ux/tokens.json`；`copy.json` 只新增 key（`ui.status.summary`、`ui.status.none` 已不使用，沒有刪）；`perf/budgets.json` 的 limit；`knownOver("U3")` 等 S11。
+- `ai-project-template/`；`docs/ux/tokens.json`；`copy.json` 原則上只新增 key（2026-10-09 使用者同意刪掉不再使用的 `ui.status.summary`、`ui.status.none`）；`perf/budgets.json` 的 limit；`knownOver("U3")` 等 S11。
 - `third_party/halcon/`；`tests/infra/fixtures/*.json`；`AOI_SYNTHETIC_REFERENCE_HASH`；`PresenterRig.h` 的視窗閘門；晶格的門檻與 ADR-013；port 契約、`ImageView`、`SearchParams`；`OpenCvSearchOptions`、`HalconSearchOptions` 的預設值。
 - `AiInspTool/main.cpp`、`mainwindow.*`（精靈產生，沒有使用，使用者決定保留）；`aoi_target.pri` 的 `/IGNORE:4199`。
 - 表單裡的文字不要改成可翻譯（會和 `copy.json` 衝突，ADR-022）。
 
 ## 已知問題與風險
 
-- **HALCON 的授權**：判斷用 `test.ps1 -Filter 'tst_halcon_backend'`（log 的 Totals 0 skipped），不要用 `hhostid`。授權探測整個程式只做一次：第一次切到 HALCON 失敗之後插上 dongle 要**重新啟動程式**。`SESSIONS=1`：從 HALCON 換走之後仍初始化著，會不會佔住授權沒有驗證；同時跑兩邊的 HALCON 測試要避開。
-- 搜尋時 back end 無法使用的錯誤卡片（S08 的 `errorCard`）標題把錯誤訊息當成 back end 名稱，沒有改。
+- **HALCON 的授權**：判斷用 `test.ps1 -Filter 'tst_halcon_backend'`（log 的 Totals 0 skipped），不要用 `hhostid`。2026-10-09 早上又讀不到 dongle（錯誤 2300，第三次，原因不明，之後自己恢復）。HALCON 在行程裡第一次初始化失敗後會記住失敗，所以程式碰 HALCON 之前先用另一個行程檢查（`AiInspTool.exe --probe-halcon-license`）：失敗後插上 dongle 再切就好、不必重新啟動；代價是第一次切到 HALCON 約 2.8 秒（之前 1.3）。`SESSIONS=1` 驗證過不會擋住別的程式（三個行程同時拿到授權）。
+- `tst_cli` 的 `aHalconFailureDoesNotStickOnceTheLicenseIsBack` 要在那個行程碰 HALCON 之前跑（HALCON 那一段的第一個）。錯誤卡片建議改用的是「可用、不是目前的最後一個」：`makeBackendRegistry` 的註冊順序由簡單到完整（fake、opencv、halcon）。
 - UI 效能量測受機器負載影響很大（同一份程式兩輪可以差 2–3 倍），比較時要前後交替量（ADR-022 的表）。
 - Qt Creator 的 Designer：使用者 2026-10-09 打開五個表單確認過（沒有存檔）。之後在 Designer 存檔，整個 `.ui` 會被重寫，diff 會比實際的修改大。
 

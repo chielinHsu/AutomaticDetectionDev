@@ -108,7 +108,7 @@ private slots:
 
     // ---- 錯誤 ----
     void anImageErrorOffersOnlyDismissAndNamesTheFile() {
-        const CardSpec spec = errorCard(makeError(ErrorCode::FormatInvalid, "x"), ErrorSource::Image, QStringLiteral("board_07.png"), QString());
+        const CardSpec spec = errorCard(makeError(ErrorCode::FormatInvalid, "x"), ErrorSource::Image, QStringLiteral("board_07.png"), {});
         QCOMPARE(spec.card.title, QStringLiteral("無法開啟影像"));
         QVERIFY(spec.card.body.contains(QStringLiteral("board_07.png")));
         QCOMPARE(spec.actions, (std::vector<CardAction>{CardAction::Dismiss}));
@@ -116,17 +116,29 @@ private slots:
 
     void aSearchErrorShowsTheDetailAndOffersRetry() {
         const CardSpec spec =
-            errorCard(makeError(ErrorCode::BackendFailed, "template build failed"), ErrorSource::Search, QString(), QString());
+            errorCard(makeError(ErrorCode::BackendFailed, "template build failed"), ErrorSource::Search, QString(), {});
         QCOMPARE(spec.card.title, QStringLiteral("搜尋失敗"));
         QVERIFY(spec.card.body.contains(QStringLiteral("template build failed")));
         QCOMPARE(spec.actions, (std::vector<CardAction>{CardAction::Dismiss, CardAction::Retry}));
     }
 
-    void anUnavailableBackendNamesItAndTheFallback() {
-        const CardSpec spec = errorCard(makeError(ErrorCode::BackendUnavailable, "HALCON"), ErrorSource::Search, QString(),
-                                        QStringLiteral("OpenCV"));
-        QVERIFY(spec.card.title.contains(QStringLiteral("HALCON")));
+    // 2026-10-09：標題是 back end 的名稱（S08 誤把錯誤訊息放進標題），原因放在做法清單，多一個〔改用 OpenCV〕（ux-spec 第 10 節）。
+    void anUnavailableBackendNamesItAndOffersTheFallback() {
+        const std::string reason = "HALCON has no valid license while searching. Error 2300.";
+        const CardSpec spec = errorCard(makeError(ErrorCode::BackendUnavailable, reason), ErrorSource::Search, QString(),
+                                        BackendLabels{QStringLiteral("HALCON"), QStringLiteral("opencv"), QStringLiteral("OpenCV")});
+        QCOMPARE(spec.card.title, QStringLiteral("HALCON 無法使用"));
+        QVERIFY(!spec.card.title.contains(QStringLiteral("license")));
         QVERIFY(spec.card.body.contains(QStringLiteral("OpenCV")));
+        QCOMPARE(spec.card.advice, QStringList{QString::fromStdString(reason)});
+        QCOMPARE(spec.actions, (std::vector<CardAction>{CardAction::Dismiss, CardAction::Retry, CardAction::SwitchBackend}));
+        QCOMPARE(spec.card.actions.last(), QStringLiteral("改用 OpenCV"));
+        QCOMPARE(spec.switchBackendId, QStringLiteral("opencv"));
+        // 沒有別的可用的 back end：不建議、沒有〔改用 …〕
+        const CardSpec alone = errorCard(makeError(ErrorCode::BackendUnavailable, reason), ErrorSource::Search, QString(),
+                                         BackendLabels{QStringLiteral("HALCON"), QString(), QString()});
+        QVERIFY(alone.card.body.isEmpty());
+        QCOMPARE(alone.actions, (std::vector<CardAction>{CardAction::Dismiss, CardAction::Retry}));
     }
 
     // ---- 復原按鈕 ----
@@ -150,9 +162,10 @@ private slots:
             SceneCounts c;
             c.found = 1;
             c.lowConfidence = 2;
-            for (const CardSpec& spec : {previewCard(c), errorCard(makeError(ErrorCode::BackendFailed, "x"), ErrorSource::Search, QStringLiteral("a.png"), QStringLiteral("OpenCV")),
-                                         errorCard(makeError(ErrorCode::BackendUnavailable, "HALCON"), ErrorSource::Search, QString(), QStringLiteral("OpenCV")),
-                                         errorCard(makeError(ErrorCode::FormatInvalid, "x"), ErrorSource::Image, QStringLiteral("a.png"), QString())}) {
+            for (const CardSpec& spec : {previewCard(c), errorCard(makeError(ErrorCode::BackendFailed, "x"), ErrorSource::Search, QStringLiteral("a.png"), {}),
+                                         errorCard(makeError(ErrorCode::BackendUnavailable, "HALCON lost its license"), ErrorSource::Search, QString(),
+                                                   BackendLabels{QStringLiteral("HALCON"), QStringLiteral("opencv"), QStringLiteral("OpenCV")}),
+                                         errorCard(makeError(ErrorCode::FormatInvalid, "x"), ErrorSource::Image, QStringLiteral("a.png"), {})}) {
                 check(spec.card.title);
                 check(spec.card.body);
                 for (const QString& a : spec.card.advice) check(a);
@@ -177,13 +190,20 @@ private slots:
         const QJsonObject keys = QJsonDocument::fromJson(file.readAll()).object().value("keys").toObject();
         for (const char* key : {"ui.history.accept", "ui.history.discard", "ui.history.delete", "ui.history.add", "ui.history.move",
                                 "ui.history.undo", "ui.history.redo", "ui.preview.nothingToAccept", "ui.editor.unavailable",
-                                "ui.objects.col.name", "ui.objects.col.state", "ui.objects.col.score"}) {
+                                "ui.objects.col.name", "ui.objects.col.state", "ui.objects.col.score",
+                                // session B（2026-10-08／09）：back end 的提醒、切換、錯誤卡片的〔改用 …〕、狀態列的摘要
+                                "ui.backend.halcon.runtimeLicense", "ui.backend.notice.title", "ui.backend.status.tip",
+                                "ui.backend.switching", "ui.backend.reverted", "ui.backend.switchTo", "ui.status.counts",
+                                "ui.status.noObjects"}) {
             const QJsonObject entry = keys.value(QLatin1String(key)).toObject();
             QVERIFY2(!entry.value("zh_TW").toString().isEmpty() && !entry.value("en").toString().isEmpty(), key);
         }
         // 暫代用的文案已經移除
         QVERIFY(!keys.contains("ui.shell.regionDrawn"));
         QVERIFY(!keys.contains("ui.shell.deleteRequested"));
+        // 狀態列的摘要不再帶 back end 名稱（它在最左邊的標示，2026-10-08）：舊的兩個 key 已移除（2026-10-09）
+        QVERIFY(!keys.contains("ui.status.summary"));
+        QVERIFY(!keys.contains("ui.status.none"));
     }
 };
 

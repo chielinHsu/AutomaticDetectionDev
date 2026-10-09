@@ -47,11 +47,22 @@ S03 起 back end 只在啟動時選（`--backend`），選單一直是停用的�
 
 ## 後果與限制
 
-- **HALCON 的授權探測整個程式只做一次**（`halconLicense()` 快取，ADR-017）：第一次切到 HALCON 失敗（例如 dongle 沒插）之後，插上 dongle 再切換仍然失敗，要重新啟動程式。沒有改，因為 HALCON 自己在同一個行程裡是否會重新檢查授權沒有驗證過。
-- 從 HALCON 換到別的 back end，HALCON 仍然在這個行程裡初始化著（授權寫 `SESSIONS=1`）；會不會佔住授權、讓別的 HALCON 程式拿不到，沒有驗證。
-- 搜尋時 back end 無法使用的錯誤卡片（S08 的 `errorCard`，`ErrorCode::BackendUnavailable`）標題仍把錯誤訊息當成 back end 名稱（S08 留下的，這次沒有改）；切換失敗用的是新的卡片，不受影響。
+- ~~**HALCON 的授權探測整個程式只做一次**（`halconLicense()` 快取，ADR-017）：第一次切到 HALCON 失敗（例如 dongle 沒插）之後，插上 dongle 再切換仍然失敗，要重新啟動程式。沒有改，因為 HALCON 自己在同一個行程裡是否會重新檢查授權沒有驗證過。~~ **2026-10-09 已解決**，見下面「後續」。
+- ~~從 HALCON 換到別的 back end，HALCON 仍然在這個行程裡初始化著（授權寫 `SESSIONS=1`）；會不會佔住授權、讓別的 HALCON 程式拿不到，沒有驗證。~~ **2026-10-09 驗證：不會**，見下面「後續」。
+- ~~搜尋時 back end 無法使用的錯誤卡片（S08 的 `errorCard`，`ErrorCode::BackendUnavailable`）標題仍把錯誤訊息當成 back end 名稱（S08 留下的，這次沒有改）；切換失敗用的是新的卡片，不受影響。~~ **2026-10-09 已修正**，見下面「後續」。
 - 換 back end 不進復原堆疊（ADR-002 規則 6）。重新搜尋產生的新提案取代舊的，和改角度範圍一樣。
 - `copy.json` 新增 `ui.backend.switching`、`ui.backend.reverted`。`--backend` 的說明改成「預設：上次用的，沒有就是 fake」。
+
+## 後續（2026-10-09）：session B 的四個已知問題
+
+使用者要求把上面「後果與限制」的已知問題都修掉。
+
+1. **HALCON 授權失敗之後不必重新啟動程式**。原因有兩層：（a）`halconLicense()` 用 `call_once` 永久記住第一次的結果 → 改成 `HalconLicenseCache`「能用才記住」，失敗的下一次重新探測（先呼叫 `get_system('is_license_valid')`，說明寫它會立刻重新檢查授權）；（b）**HALCON 自己也會記住失敗**（實測：行程啟動時 `HALCONROOT` 指到空資料夾、錯誤 2036 之後，在同一個行程改回 `HALCONROOT`、呼叫 `is_license_valid`，都一樣 2036，每次 0 ms；dongle 讀不到的錯誤 2300 則每次呼叫都花 100–150 ms 重新找 dongle，恢復與否沒有驗證）。所以組裝根在這個行程碰 HALCON 之前，**先用另一個行程檢查授權**（`AiInspTool.exe --probe-halcon-license`，不開視窗，第一行 usable／unusable、第二行原因）；確定不能用就回它的原因、不碰這個行程的 HALCON，插上 dongle 再試就是乾淨的第一次初始化。規則在 `app::createHalconBackendSafely`（三個動作可以換成假的測）：已經碰過的話照舊在這個行程建立；仍然沒有授權、但另一個行程拿得到 → 原因說要重新啟動（兩次檢查之間授權剛好掉了的罕見情況）。另一個行程沒有結論（找不到程式、逾時）時照舊在這個行程試。切換失敗的卡片多一個〔再試一次〕（只有工廠失敗時；登記成不可用、沒有這個 id 的再試也一樣，不給）。**代價**：第一次切到 HALCON 從約 1.3 秒變成約 2.8 秒（多一個行程的檢查；背景執行，UI 事件迴圈最長停頓仍是 12 ms），`--backend halcon` 啟動也多約 1.2 秒。
+2. **`SESSIONS=1` 不會讓初始化著的程式擋住別的程式**：`tst_cli` 的 `severalProgramsCanUseHalconAtTheSameTime`——測試行程自己初始化著 HALCON，同時再開兩個 `--backend=halcon` 的程式，三個都拿到授權（只有拿到授權的程式會印出 runtime 授權的提醒）。2026-10-08 的 `halconStartsWhenLicensedAndFailsClearlyOtherwise` 也已經是兩個行程同時拿著（測試行程＋子行程）。遠端桌面等不同的 Windows session 沒有驗證。
+3. **搜尋時 back end 無法使用的錯誤卡片**（例如執行中 HALCON 的授權不見了，`HalconErrors`）：標題改成 back end 的名稱（S08 誤把錯誤訊息放進標題），原因（英文，含 HALCON 的錯誤碼）放在做法清單，加上 ux-spec 第 10 節寫的〔改用 …〕（`CardAction::SwitchBackend` → `BackendPresenter::selectBackend`）。建議的那一個（`BackendSwitch::fallback`）改成「可用、不是目前的**最後**一個」（註冊順序由簡單到完整：fake、opencv、halcon），HALCON 不能用時建議 OpenCV、不是不看影像的 fake。換好之後用新的 back end 再試一次：`researchAfter(Switched, Error)` 改成 是（`AutoRoiPresenter::researchSameRegion` 在 Error 時是〔再試一次〕；影像開不了的錯誤不動）。錯誤卡片用的名稱由 `BackendPresenter::labels()` 交給 `AutoRoiPresenter`（`PresenterServices` 不再帶名稱）。
+4. `copy.json` 刪掉不再使用的 `ui.status.summary`、`ui.status.none`（使用者同意改「只新增 key」的規則），新增 `ui.backend.switchTo`。
+
+驗證：`tst_halcon_backend`（快取的規則 3 項，假的探測）、`tst_backend_registry`（`createHalconBackendSafely` 的規則 3 項）、`tst_cli`（真的 HALCON：授權不在時這個行程不碰 HALCON、授權回來就能用；三個行程同時拿到授權；`--probe-halcon-license`）、`tst_presenter`（〔再試一次〕、錯誤卡片與〔改用 …〕之後自動再試）、`tst_messages`、`tst_backend_switch`。數字見 `docs/changelog-ai.md` 2026-10-09 那一筆。
 
 ## 流程圖
 

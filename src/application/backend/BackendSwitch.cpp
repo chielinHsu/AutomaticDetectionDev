@@ -51,7 +51,7 @@ bool BackendSwitch::researchAfter(Outcome outcome, InteractionState state) {
     switch (outcome) {
         case Outcome::Switched:
             return state == InteractionState::Searching || state == InteractionState::Preview ||
-                   state == InteractionState::NoMatch;
+                   state == InteractionState::NoMatch || state == InteractionState::Error;
         case Outcome::Failed: return state == InteractionState::Searching;
         case Outcome::Stale: return false;
     }
@@ -59,8 +59,8 @@ bool BackendSwitch::researchAfter(Outcome outcome, InteractionState state) {
 }
 
 std::string BackendSwitch::fallback() const {
-    for (const BackendInfo& info : backends_) {
-        if (info.available && info.id != current_) return info.id;
+    for (auto it = backends_.rbegin(); it != backends_.rend(); ++it) {
+        if (it->available && it->id != current_) return it->id;
     }
     return {};
 }

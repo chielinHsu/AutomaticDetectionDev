@@ -6,6 +6,7 @@
 #include "application/Error.h"
 #include "application/interaction/InspectionSession.h"
 #include "domain/object_state.h"
+#include "presentation/presenters/ControllerInterfaces.h"
 #include "presentation/presenters/SceneBuilder.h"
 #include "presentation/presenters/ViewInterfaces.h"
 
@@ -21,12 +22,14 @@ enum class CardAction {
     TeachNew,        // 教一個新樣本：同上
     LowerThreshold,  // 降低門檻到建議值（不重新搜尋）
     WidenScope,      // 改用整個樣本庫（重新搜尋）
+    SwitchBackend,   // back end 無法使用：改用建議的那一個（執行中切換，ADR-021）
 };
 
 struct CardSpec {
     MessageCard card;
     std::vector<CardAction> actions;  // 與 card.actions 一一對應
     double suggestedThreshold = 0.0;  // LowerThreshold 用
+    QString switchBackendId;          // SwitchBackend 用
 };
 
 // 全部是純函式：輸入是資料，輸出是已翻譯的文字與動作表，所以可以不開視窗直接測。
@@ -38,8 +41,9 @@ CardSpec previewCard(const SceneCounts& counts);
 // 沒有結果時的卡片：原因、下一步建議，以及對應的動作按鈕，最後一定有〔關閉〕（只用滑鼠也要走得完）。
 CardSpec noMatchCard(const NoMatchInfo& info);
 
-// 錯誤橫幅。imageName 只用在影像開啟失敗；fallbackBackend 只用在 back end 無法使用。
-CardSpec errorCard(const Error& error, ErrorSource source, const QString& imageName, const QString& fallbackBackend);
+// 錯誤橫幅。imageName 只用在影像開啟失敗；backend 只用在 back end 無法使用（標題是目前的 back end 的名稱，說明建議改用的那一個，
+// 做法清單是英文的原因；有建議的那一個時多一個〔改用 …〕）。
+CardSpec errorCard(const Error& error, ErrorSource source, const QString& imageName, const BackendLabels& backend);
 
 // 復原／重做按鈕上的說明：「接受 4 個元件」「刪除 12 個元件」…
 QString historyLabel(CommandKind kind, std::size_t count);

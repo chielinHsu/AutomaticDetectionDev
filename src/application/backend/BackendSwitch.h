@@ -55,12 +55,14 @@ public:
 
     // 切換結束之後，要不要對同一個區域重新搜尋（使用者 2026-10-08 決定：畫面上有提案時用新的 back end 重新搜尋，
     // 和改了角度範圍一樣；舊的提案留在畫面上，直到新的結果取代它）。
-    //   Switched：Searching（切換開始時暫停的）、Preview、NoMatch → 是；其餘 → 否。
+    //   Switched：Searching（切換開始時暫停的）、Preview、NoMatch → 是；Error → 是（搜尋失敗的錯誤：用新的 back end 再試一次，
+    //     例如錯誤卡片的〔改用 OpenCV〕；影像開不了的錯誤由呼叫端忽略）；其餘 → 否。
     //   Failed：Searching → 是（暫停的搜尋用原來的 back end 接著做）；其餘 → 否（維持原狀）。
     //   Stale → 否。
     static bool researchAfter(Outcome outcome, InteractionState state);
 
-    // 搜尋時 back end 無法使用（錯誤卡片）時建議改用的那一個：可用、不是 current() 的第一個（註冊順序）；沒有就是空字串。
+    // 搜尋時 back end 無法使用（錯誤卡片的〔改用 …〕）時建議改用的那一個：可用、不是 current() 的**最後**一個（註冊順序由簡單到完整：
+    // fake、opencv、halcon。HALCON 的授權不見了 → 建議 OpenCV，不建議不看影像的 fake）；沒有就是空字串。
     std::string fallback() const;
 
 private:

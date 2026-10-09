@@ -10,6 +10,8 @@
 #include <QTemporaryDir>
 
 #ifdef AOI_WITH_HALCON
+#include "app/CompositionRoot.h"
+#include "application/backend/SearchEngine.h"
 #include "infrastructure/backend_halcon/HalconLicense.h"
 #endif
 
@@ -104,6 +106,43 @@ private slots:
 
     // 這台機器有授權：--backend=halcon 要能啟動；授權種類不對（runtime 授權、SDK 的 dongle 沒插）時 stderr 有提醒。
     // 沒有授權的機器：要明確失敗（結束碼 2、原因）。哪一種由 HALCON 自己說（halconLicense），兩種都是確定的結果。
+    // 2026-10-09：第一次失敗之後，授權回來就能用，不必重新啟動程式。「授權不在」用 HALCONROOT 指到空資料夾模擬（HALCON 找不到授權檔，
+    // 錯誤 2036；實測 HALCON 在行程裡初始化失敗之後一直記得這個錯誤，改回 HALCONROOT 也一樣）。組裝根先用另一個行程檢查，所以這個行程的
+    // HALCON 沒被碰過；改回 HALCONROOT（像插上 dongle）之後再建立就成功。要在這個行程碰 HALCON 之前跑：放在 HALCON 的測試最前面。
+    void aHalconFailureDoesNotStickOnceTheLicenseIsBack() {
+        if (aoi::infra::halconProbedInProcess()) QSKIP("this process has touched HALCON already; this test has to run before the others");
+        const aoi::app::HalconLicenseCheck now = aoi::app::checkHalconLicenseInSeparateProcess();
+        QVERIFY2(now.ran, "AiInspTool.exe --probe-halcon-license has to run next to this test");
+        if (!now.usable) QSKIP(qPrintable(QStringLiteral("HALCON is not usable here: ") + QString::fromStdString(now.reason)));
+        const QByteArray realRoot = qgetenv("HALCONROOT");
+        QTemporaryDir empty;
+        QVERIFY(empty.isValid());
+        qputenv("HALCONROOT", QDir::toNativeSeparators(empty.path()).toLocal8Bit());
+        const aoi::BackendRegistry registry = aoi::app::makeBackendRegistry();
+        const aoi::Result<aoi::SearchEnginePtr> unplugged = aoi::makeSearchEngine(registry, "halcon");
+        qputenv("HALCONROOT", realRoot);  // 先還原（下面的 QVERIFY 失敗時會直接返回）
+        QVERIFY(!unplugged.ok());
+        QVERIFY2(unplugged.error().message.find("2036") != std::string::npos, unplugged.error().message.c_str());
+        QVERIFY2(!aoi::infra::halconProbedInProcess(), "this process must not touch HALCON while the license is missing");
+        const aoi::Result<aoi::SearchEnginePtr> pluggedIn = aoi::makeSearchEngine(registry, "halcon");
+        QVERIFY2(pluggedIn.ok(), pluggedIn.ok() ? "" : pluggedIn.error().message.c_str());
+        QVERIFY(aoi::infra::halconProbedInProcess());
+    }
+
+    // --probe-halcon-license：組裝根用的內部選項（不開視窗），第一行 usable／unusable，第二行原因。
+    void theLicenseProbeOptionAnswersWithoutAWindow() {
+        QProcess process;
+        process.setProcessEnvironment(offscreen());
+        process.start(QStringLiteral(AOI_EXE_PATH), {QStringLiteral("--probe-halcon-license")});
+        QVERIFY(process.waitForFinished(30000));
+        const QStringList lines = QString::fromUtf8(process.readAllStandardOutput()).split(QLatin1Char('\n'), Qt::SkipEmptyParts);
+        QVERIFY(!lines.isEmpty());
+        const QString verdict = lines.first().trimmed();
+        QVERIFY2(verdict == QLatin1String("usable") || verdict == QLatin1String("unusable"), qPrintable(verdict));
+        QCOMPARE(process.exitCode(), verdict == QLatin1String("usable") ? 0 : 1);
+        if (verdict == QLatin1String("unusable")) QVERIFY(lines.size() >= 2);  // 有原因
+    }
+
     void halconStartsWhenLicensedAndFailsClearlyOtherwise() {
         const aoi::infra::HalconLicenseVerdict verdict = aoi::infra::judgeHalconLicense(aoi::infra::halconLicense());
         QProcess process;
@@ -127,6 +166,42 @@ private slots:
             QCOMPARE(process.exitCode(), 2);
             QVERIFY2(QString::fromUtf8(process.readAllStandardError()).contains(QString::fromStdString(verdict.reason)), "the reason is printed");
         }
+    }
+
+    // 授權檔寫 SESSIONS=1（MVTec_HALCON 那一行）：一個行程初始化著 HALCON（例如我們的程式換到別的 back end 之後，HALCON 仍在行程裡），
+    // 別的程式還拿不拿得到授權？（2026-10-09）這個測試行程自己先初始化 HALCON，再開兩個 --backend=halcon 的程式同時跑：
+    // 三個行程都要拿到授權（拿不到的程式會以結束碼 2 結束）。這台機器不能用 HALCON 時跳過並說原因。
+    void severalProgramsCanUseHalconAtTheSameTime() {
+        const aoi::infra::HalconLicenseVerdict verdict = aoi::infra::judgeHalconLicense(aoi::infra::halconLicense());
+        if (!verdict.usable) QSKIP(qPrintable(QStringLiteral("HALCON is not usable here: ") + QString::fromStdString(verdict.reason)));
+        QProcess first;
+        QProcess second;
+        first.setProcessEnvironment(offscreen());
+        second.setProcessEnvironment(offscreen());
+        first.start(QStringLiteral(AOI_EXE_PATH), {QStringLiteral("--backend=halcon")});
+        QVERIFY(first.waitForStarted(20000));
+        const bool firstExited = first.waitForFinished(6000);  // 授權檢查約 1.5 秒：之後它就初始化著 HALCON
+        second.start(QStringLiteral(AOI_EXE_PATH), {QStringLiteral("--backend=halcon")});
+        QVERIFY(second.waitForStarted(20000));
+        const bool secondExited = second.waitForFinished(6000);
+        const bool firstExitedLater = !firstExited && first.state() != QProcess::Running;
+        for (QProcess* p : {&first, &second}) {
+            if (p->state() == QProcess::Running) {
+                p->kill();
+                p->waitForFinished(10000);
+            }
+        }
+        const QString err1 = QString::fromUtf8(first.readAllStandardError());
+        const QString err2 = QString::fromUtf8(second.readAllStandardError());
+        QVERIFY2(!firstExited && !firstExitedLater, qPrintable(QStringLiteral("the first program lost or never got HALCON: ") + err1));
+        QVERIFY2(!secondExited, qPrintable(QStringLiteral("the second program could not get HALCON while the first one ran: ") + err2));
+        // 這台機器（用 runtime 授權、SDK 的 dongle 沒插）兩個都印出授權的提醒：只有拿到授權的程式才會印。
+        for (const aoi::infra::HalconLicenseNotice& n : verdict.notices) {
+            QVERIFY2(err1.contains(QString::fromStdString(n.missingId)), qPrintable(err1));
+            QVERIFY2(err2.contains(QString::fromStdString(n.missingId)), qPrintable(err2));
+        }
+        // 這個測試行程自己也還拿著
+        QVERIFY(aoi::infra::judgeHalconLicense(aoi::infra::probeHalconLicense()).usable);
     }
 
     // 找不到授權（HALCONROOT 指到空資料夾，HALCON 找不到授權檔）：結束碼 2，訊息有 HALCON 的錯誤碼與原因，不當掉。

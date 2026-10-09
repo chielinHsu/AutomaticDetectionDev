@@ -30,6 +30,11 @@ AppPresenters::AppPresenters(MainWindow& window, PresenterServices services, Bac
     QObject::connect(&window, &MainWindow::imageOpenFailed, presenter, &AutoRoiPresenter::onImageOpenFailed);
     QObject::connect(canvas, &ImageCanvas::pointerDragChanged, presenter, &AutoRoiPresenter::onPointerDragChanged);
     QObject::connect(presenter, &AutoRoiPresenter::toolRequested, &window, &MainWindow::selectTool);
+    // 錯誤卡片：名稱以 BackendPresenter 為準；〔改用 OpenCV〕交給它換（ADR-021）。
+    BackendPresenter* backendPresenter = backend_.get();
+    presenter->setBackendLabels(backendPresenter->labels());
+    QObject::connect(presenter, &AutoRoiPresenter::backendSwitchRequested, backendPresenter,
+                     [backendPresenter](const QString& id) { backendPresenter->selectBackend(id.toStdString()); });
 }
 
 AppPresenters::~AppPresenters() {

@@ -3,6 +3,7 @@
 #include <QSettings>
 #include <QStringList>
 #include <cstdio>
+#include <cstring>
 #include <memory>
 #include <optional>
 #include <string>
@@ -66,6 +67,9 @@ std::optional<std::string> rememberedBackend(const QSettings& settings) {
 }  // namespace
 
 int main(int argc, char* argv[]) {
+    // 內部用（2026-10-09）：組裝根在這個程式碰 HALCON 之前，用另一個行程檢查授權（app/CompositionRoot.h）。不建立 Qt 的畫面。
+    if (argc == 2 && std::strcmp(argv[1], aoi::app::kProbeHalconLicenseOption) == 0) return aoi::app::runHalconLicenseProbe();
+
     QApplication app(argc, argv);
     QCoreApplication::setOrganizationName(QStringLiteral("AOI"));
     QCoreApplication::setApplicationName(QStringLiteral("AutoCadCreated"));
@@ -137,17 +141,8 @@ int main(int argc, char* argv[]) {
     // （按〔關閉〕才收起）與狀態列 back end 名稱後面的標示（BackendPresenter）。
     for (const aoi::BackendNotice& notice : services.engine->backend.notices) reportLine(QString::fromStdString(notice.message));
 
-    // 錯誤橫幅（搜尋時 back end 無法使用）建議改用的：目前以外、可用的第一個。換 back end 之後由 BackendPresenter 更新。
-    QString fallbackBackend = QStringLiteral("OpenCV");
-    for (const aoi::BackendInfo& info : registry.list()) {
-        if (info.available && info.id != services.engine->backend.id) {
-            fallbackBackend = QString::fromStdString(info.displayName);
-            break;
-        }
-    }
-
-    aoi::ui::PresenterServices presenterServices{aoi::useCaseOf(services.engine), *services.runner, services.probe.get(),
-                                                 fallbackBackend};
+    // 錯誤卡片用的 back end 名稱（目前的、建議改用的）由 BackendPresenter 交給 AutoRoiPresenter（AppPresenters 接線）。
+    aoi::ui::PresenterServices presenterServices{aoi::useCaseOf(services.engine), *services.runner, services.probe.get()};
     // 執行中切換（ADR-021）：在背景執行緒（和 JobRunner 同一個執行緒池）建立新的 back end ＋ use case；registry 與 probe 活得比它久。
     aoi::ui::BackendServices backendServices;
     backendServices.backends = registry.list();
