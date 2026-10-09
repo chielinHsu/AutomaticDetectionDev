@@ -97,7 +97,7 @@ CardSpec noMatchCard(const NoMatchInfo& info) {
     return spec;
 }
 
-CardSpec errorCard(const Error& error, ErrorSource source, const QString& imageName, const QString& fallbackBackend) {
+CardSpec errorCard(const Error& error, ErrorSource source, const QString& imageName, const BackendLabels& backend) {
     CardSpec spec;
     if (source == ErrorSource::Image) {
         spec.card.title = uiText("ui.error.imageOpen.title");
@@ -107,8 +107,19 @@ CardSpec errorCard(const Error& error, ErrorSource source, const QString& imageN
         return spec;
     }
     if (error.code == ErrorCode::BackendUnavailable) {
-        spec.card.title = uiText("ui.error.backend.title", {{"backend", QString::fromStdString(error.message)}});
-        spec.card.body = uiText("ui.error.backend.body", {{"fallback", fallbackBackend}});
+        // 例如執行中 HALCON 的授權不見了（HalconErrors）。標題是 back end 的名稱（S08 誤把錯誤訊息放在這裡）；原因（英文，
+        // 含 HALCON 的錯誤碼）放在做法清單。
+        spec.card.title = uiText("ui.error.backend.title", {{"backend", backend.name}});
+        if (!backend.fallbackName.isEmpty()) spec.card.body = uiText("ui.error.backend.body", {{"fallback", backend.fallbackName}});
+        spec.card.advice << QString::fromStdString(error.message);
+        spec.card.actions << uiText("action.dismiss") << uiText("action.retry");
+        spec.actions = {CardAction::Dismiss, CardAction::Retry};
+        if (!backend.fallbackId.isEmpty()) {
+            spec.card.actions << uiText("ui.backend.switchTo", {{"backend", backend.fallbackName}});
+            spec.actions.push_back(CardAction::SwitchBackend);
+            spec.switchBackendId = backend.fallbackId;
+        }
+        return spec;
     } else {
         spec.card.title = uiText("ui.error.searchFailed.title");
         spec.card.body = uiText("ui.error.searchFailed.body", {{"detail", QString::fromStdString(error.message)}});

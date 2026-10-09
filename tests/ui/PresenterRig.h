@@ -41,6 +41,8 @@ struct BackendProbe {
     std::atomic<int> builds{0};
     std::atomic<int> finds{0};
     std::atomic<bool> fail{false};
+    // 搜尋時 back end 無法使用（例如執行中 HALCON 的授權不見了，HalconErrors 回 BackendUnavailable）。
+    std::atomic<bool> unavailable{false};
     // 視窗驗證（use case 的最後一個階段）的閘門：開著的時候，每一次視窗搜尋依到達順序領一張號碼牌，
     // 要等 windowReleased 大於等於號碼才返回。測試用它讓兩個搜尋「同時卡在最後一步」。
     std::atomic<bool> gateWindows{false};
@@ -52,6 +54,8 @@ struct BackendProbe {
     std::atomic<bool> createReleased{false};
     std::atomic<int> creates{0};
     std::atomic<bool> createdOnUiThread{false};
+    // 建立 back end 失敗（像授權檢查失敗）；清掉之後再建立就會成功（像插上 dongle）。
+    std::atomic<bool> failCreate{false};
 };
 
 class ProbedBuilder final : public aoi::ITemplateBuilder {
@@ -84,6 +88,7 @@ public:
                 std::this_thread::sleep_for(std::chrono::milliseconds(1));
         }
         if (probe_->fail) return aoi::makeError(aoi::ErrorCode::BackendFailed, "the test back end was told to fail");
+        if (probe_->unavailable) return aoi::makeError(aoi::ErrorCode::BackendUnavailable, "the test license is gone");
         // 閘門後面模擬「不可中斷的函式庫呼叫」：它不看取消旗標，照樣成功返回。取消的結果怎麼處理，是 Presenter 的事。
         return inner_.find(image, tmpl, region, params, gated ? aoi::CancelToken{} : cancel);
     }
@@ -105,9 +110,10 @@ inline aoi::fake::FakeSpec defaultWorld() {
 }
 
 // 執行中切換的對象（ADR-021）：Rig 的 registry 除了 fake 還有這三個。
-//   other  「Other (test)」：同樣的假世界，自己的探針（otherProbe），建立可以卡在閘門上；有一個提醒（像 HALCON 的 runtime 授權）
 //   broken 「Broken (test)」：登記成可用，但工廠失敗（像授權檢查失敗）
+//   other  「Other (test)」：同樣的假世界，自己的探針（otherProbe），建立可以卡在閘門上或失敗；有一個提醒（像 HALCON 的 runtime 授權）
 //   off    「Off (test)」：登記成不可用（像沒編進程式）
+// 註冊順序和產品一樣由簡單到完整：fake 的錯誤卡片建議改用的（可用、不是目前的最後一個）是 other。
 inline aoi::BackendNotice otherNotice() {
     return {"ui.backend.halcon.sdkDongleMissing", "ui.backend.halcon.runtimeLicense",
             {{"inUse", "3-7614034"}, {"missing", "3-7081033"}}, "Other runs with the runtime license."};
@@ -132,8 +138,7 @@ struct Rig {
         aoi::ui::Translations::install(QStringLiteral("zh_TW"));
         window.setImageSource(&imageSource);
         aoi::app::CoreServices& services = core.value();
-        aoi::ui::PresenterServices presenterServices{aoi::useCaseOf(services.engine), *services.runner, services.probe.get(),
-                                                     QStringLiteral("OpenCV")};
+        aoi::ui::PresenterServices presenterServices{aoi::useCaseOf(services.engine), *services.runner, services.probe.get()};
         // 和產品一樣：切換在 core 的執行緒池上建立（main.cpp）。
         aoi::ui::BackendServices backendServices;
         backendServices.backends = registry.list();
@@ -173,6 +178,9 @@ struct Rig {
             backend.notices = notices;
             return aoi::Result<aoi::Backend>(std::move(backend));
         });
+        (void)registry.registerBackend("broken", "Broken (test)", []() -> aoi::Result<aoi::Backend> {
+            return aoi::makeError(aoi::ErrorCode::BackendUnavailable, "no license (test)");
+        });
         const std::thread::id uiThread = std::this_thread::get_id();
         (void)registry.registerBackend("other", "Other (test)", [otherProbe, world, uiThread]() -> aoi::Result<aoi::Backend> {
             ++otherProbe->creates;
@@ -181,6 +189,7 @@ struct Rig {
             const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
             while (otherProbe->gateCreate && !otherProbe->createReleased && std::chrono::steady_clock::now() < deadline)
                 std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            if (otherProbe->failCreate) return aoi::makeError(aoi::ErrorCode::BackendUnavailable, "no license (test)");
             aoi::Backend backend;
             backend.id = "other";
             backend.displayName = "Other (test)";
@@ -188,9 +197,6 @@ struct Rig {
             backend.searcher = std::make_unique<ProbedSearcher>(otherProbe, world);
             backend.notices = {otherNotice()};
             return aoi::Result<aoi::Backend>(std::move(backend));
-        });
-        (void)registry.registerBackend("broken", "Broken (test)", []() -> aoi::Result<aoi::Backend> {
-            return aoi::makeError(aoi::ErrorCode::BackendUnavailable, "no license (test)");
         });
         (void)registry.registerUnavailable("off", "Off (test)", "not built in (test)");
         return aoi::app::composeCore(registry, "fake", false, executor);

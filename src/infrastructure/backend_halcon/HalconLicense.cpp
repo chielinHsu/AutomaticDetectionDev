@@ -199,11 +199,14 @@ HalconLicenseVerdict judgeHalconLicense(const HalconLicenseInfo& info) {
     return v;
 }
 
-HalconLicenseInfo probeHalconLicense() {
+HalconLicenseInfo probeHalconLicense(bool recheck) {
     HalconLicenseInfo info;
     const auto started = std::chrono::steady_clock::now();
     info.runtimeProblem = halconRuntimeProblem();
     if (info.runtimeProblem) return info;
+    // 之前失敗過：先要 HALCON 立刻重新檢查授權（get_system 的說明：is_license_valid「triggers an immediate license check」）。
+    // 結果不看：下面第一個運算子的成敗與錯誤碼才是判斷的依據。
+    if (recheck) (void)system("is_license_valid");
     try {
         // 第一個運算子：HALCON 在這裡初始化並檢查授權。失敗的錯誤碼比 is_license_valid 的 'false' 有用。
         HalconCpp::HObject image;
@@ -243,11 +246,33 @@ HalconLicenseInfo probeHalconLicense() {
     return info;
 }
 
-const HalconLicenseInfo& halconLicense() {
-    static std::once_flag once;
-    static HalconLicenseInfo info;
-    std::call_once(once, [] { info = probeHalconLicense(); });
+HalconLicenseCache::HalconLicenseCache(Probe probe) : probe_(std::move(probe)) {}
+
+HalconLicenseInfo HalconLicenseCache::get() {
+    std::lock_guard lock(mutex_);  // 同時問的人等同一次探測（HALCON 的初始化不要並行做兩次）
+    if (usable_) return *usable_;
+    HalconLicenseInfo info = probe_(probes_ > 0);
+    ++probes_;
+    if (judgeHalconLicense(info).usable) usable_ = info;
     return info;
 }
+
+int HalconLicenseCache::probes() const {
+    std::lock_guard lock(mutex_);
+    return probes_;
+}
+
+namespace {
+
+HalconLicenseCache& sharedLicenseCache() {
+    static HalconLicenseCache cache([](bool recheck) { return probeHalconLicense(recheck); });
+    return cache;
+}
+
+}  // namespace
+
+HalconLicenseInfo halconLicense() { return sharedLicenseCache().get(); }
+
+bool halconProbedInProcess() { return sharedLicenseCache().probes() > 0; }
 
 }  // namespace aoi::infra

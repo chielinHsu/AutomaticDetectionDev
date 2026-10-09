@@ -165,8 +165,9 @@ private slots:
     }
 
     void afterASwitchTheSameRegionIsSearchedAgain() {
-        for (S s : {S::Searching, S::Preview, S::NoMatch}) QVERIFY(BackendSwitch::researchAfter(Outcome::Switched, s));
-        for (S s : {S::Empty, S::Idle, S::DrawingRegion, S::Error, S::EditingType})
+        // Error：搜尋失敗的錯誤卡片（例如 back end 無法使用）換好之後用新的再試一次（2026-10-09）
+        for (S s : {S::Searching, S::Preview, S::NoMatch, S::Error}) QVERIFY(BackendSwitch::researchAfter(Outcome::Switched, s));
+        for (S s : {S::Empty, S::Idle, S::DrawingRegion, S::EditingType})
             QVERIFY(!BackendSwitch::researchAfter(Outcome::Switched, s));
     }
 
@@ -177,8 +178,12 @@ private slots:
         for (S s : {S::Searching, S::Preview, S::NoMatch}) QVERIFY(!BackendSwitch::researchAfter(Outcome::Stale, s));
     }
 
-    void theFallbackIsTheFirstOtherAvailableBackend() {
-        QCOMPARE(BackendSwitch(threeBackends(), "fake").fallback(), std::string("opencv"));
+    // 錯誤卡片的〔改用 …〕：可用、不是目前的，註冊順序裡最後的那一個（由簡單到完整：HALCON 不能用時建議 OpenCV，不是 fake）。
+    void theFallbackIsTheMostCompleteOtherAvailableBackend() {
+        const std::vector<BackendInfo> all{info("fake"), info("opencv"), info("halcon")};
+        QCOMPARE(BackendSwitch(all, "halcon").fallback(), std::string("opencv"));
+        QCOMPARE(BackendSwitch(all, "opencv").fallback(), std::string("halcon"));
+        QCOMPARE(BackendSwitch(threeBackends(), "fake").fallback(), std::string("opencv"));  // halcon 不可用
         QCOMPARE(BackendSwitch(threeBackends(), "opencv").fallback(), std::string("fake"));
         QCOMPARE(BackendSwitch({info("fake"), info("halcon", false)}, "fake").fallback(), std::string());
     }

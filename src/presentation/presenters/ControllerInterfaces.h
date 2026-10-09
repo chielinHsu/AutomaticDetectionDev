@@ -60,6 +60,13 @@ public:
     virtual void applyNoticeAction(int actionIndex) = 0;
 };
 
+// 目前的 back end 與「搜尋時 back end 無法使用」的錯誤卡片建議改用的那一個（顯示用的名稱；fallbackId 空 ＝ 沒有別的可用）。
+struct BackendLabels {
+    QString name;          // 「HALCON」
+    QString fallbackId;    // 「opencv」：卡片上〔改用 OpenCV〕換成它
+    QString fallbackName;  // 「OpenCV」
+};
+
 // BackendPresenter 對 AutoRoiPresenter 的窄介面（像 IParamsSink）：換 back end 時，搜尋那一側要做的事。
 // 什麼時候做什麼由 application 的 BackendSwitch 決定（pausesSearch、researchAfter）；這裡只是執行。
 class ISearchEngineSink {
@@ -68,10 +75,10 @@ public:
     virtual aoi::InteractionState interactionState() const = 0;
     // 作廢進行中的搜尋（latest-wins：不等它停下，它的結果回來時被丟掉）。狀態留在 Searching，忙碌標示照舊。
     virtual void pauseSearch() = 0;
-    // 之後的搜尋用這個 use case（它和它的 back end 共用擁有權）；fallbackBackendName 是搜尋時 back end 無法使用的錯誤卡片建議改用的。
-    virtual void useSearchEngine(std::shared_ptr<const aoi::GenerateObjectsFromSample> useCase,
-                                 const QString& fallbackBackendName) = 0;
-    // 同一個區域重新搜尋（Searching、Preview、NoMatch；其餘狀態不動）。
+    // 之後的搜尋用這個 use case（它和它的 back end 共用擁有權）；labels 是錯誤卡片用的名稱（目前的、建議改用的）。
+    virtual void useSearchEngine(std::shared_ptr<const aoi::GenerateObjectsFromSample> useCase, const BackendLabels& labels) = 0;
+    // 用目前的 back end 重做上次的搜尋：Searching、Preview、NoMatch 是同一個區域重新搜尋；搜尋失敗的錯誤（Error）是〔再試一次〕；
+    // 其餘狀態不動。
     virtual void researchSameRegion() = 0;
 };
 

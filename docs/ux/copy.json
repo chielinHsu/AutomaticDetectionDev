@@ -223,14 +223,6 @@
       "zh_TW": "後端回報錯誤：{detail}。樣本框已保留，可以再試一次。",
       "en": "The back end reported an error: {detail}. The sample box stays. You can try again."
     },
-    "ui.status.summary": {
-      "zh_TW": "{backend} · {ms} ms · 找到 {found} · 推算 {inferred}",
-      "en": "{backend} · {ms} ms · Found {found} · Inferred {inferred}"
-    },
-    "ui.status.none": {
-      "zh_TW": "{backend} · — ms · 0 個物件",
-      "en": "{backend} · — ms · 0 objects"
-    },
     "ui.status.counts": {
       "zh_TW": "{ms} ms · 找到 {found} · 推算 {inferred}",
       "en": "{ms} ms · Found {found} · Inferred {inferred}"
@@ -298,6 +290,10 @@
     "ui.backend.reverted": {
       "zh_TW": "仍使用 {backend}。",
       "en": "Still using {backend}."
+    },
+    "ui.backend.switchTo": {
+      "zh_TW": "改用 {backend}",
+      "en": "Switch to {backend}"
     },
     "ui.settings.theme.light": {
       "zh_TW": "淺色",

@@ -4,6 +4,8 @@
 // 這台機器沒有 HALCON 的授權或 DLL 時，整組測試跳過並說原因。
 #include <QtTest>
 #include <algorithm>
+#include <atomic>
+#include <chrono>
 #include <cmath>
 #include <thread>
 
@@ -161,6 +163,56 @@ private slots:
         HalconLicenseInfo noDll;
         noDll.runtimeProblem = "halconcpp.dll is missing";
         QCOMPARE(judgeHalconLicense(noDll).reason, std::string("halconcpp.dll is missing"));
+    }
+
+    // ---- 授權的快取（2026-10-09）：能用才記住；不能用的下一次重新檢查（插上 dongle 之後不必重新啟動程式）。假的探測，不呼叫 HALCON ----
+    void aFailedLicenseIsCheckedAgainTheNextTime() {
+        HalconLicenseInfo unplugged = licensedRuntime();
+        unplugged.valid = false;
+        unplugged.errorCode = 2300;
+        unplugged.errorText = "Dongle not attached, or can't read dongle";
+        std::vector<bool> rechecks;
+        bool attached = false;
+        HalconLicenseCache cache([&](bool recheck) {
+            rechecks.push_back(recheck);
+            return attached ? licensedRuntime() : unplugged;
+        });
+        QVERIFY(!judgeHalconLicense(cache.get()).usable);  // 第一次：沒插
+        QVERIFY(!judgeHalconLicense(cache.get()).usable);  // 還是沒插：再檢查一次，不是回舊的結果
+        attached = true;                                    // 使用者插上 dongle
+        QVERIFY(judgeHalconLicense(cache.get()).usable);    // 下一次問就拿到
+        QCOMPARE(cache.probes(), 3);
+        // 第一次是一般的探測；之後的都要 HALCON 立刻重新檢查（is_license_valid）
+        QCOMPARE(rechecks, (std::vector<bool>{false, true, true}));
+    }
+
+    void aUsableLicenseIsRememberedAndNotProbedAgain() {
+        int calls = 0;
+        HalconLicenseCache cache([&](bool) {
+            ++calls;
+            return licensedRuntime();
+        });
+        for (int i = 0; i < 5; ++i) QVERIFY(judgeHalconLicense(cache.get()).usable);
+        QCOMPARE(calls, 1);  // 第一次約 1.5 秒（HALCON 初始化）；之後回記住的那一份
+        QCOMPARE(cache.get().hostId, std::string("3-2222222"));
+    }
+
+    void callersAtTheSameTimeShareOneProbe() {
+        std::atomic<int> calls{0};
+        HalconLicenseCache cache([&](bool) {
+            ++calls;
+            std::this_thread::sleep_for(std::chrono::milliseconds(50));  // 探測很慢（真的約 1.5 秒）
+            return licensedRuntime();
+        });
+        std::vector<std::thread> callers;
+        std::atomic<int> usable{0};
+        for (int i = 0; i < 4; ++i)
+            callers.emplace_back([&] {
+                if (judgeHalconLicense(cache.get()).usable) ++usable;
+            });
+        for (std::thread& t : callers) t.join();
+        QCOMPARE(usable.load(), 4);
+        QCOMPARE(calls.load(), 1);  // HALCON 的初始化不要並行做兩次
     }
 
     // ---- 座標換算（HalconPose.h）：純函式 ----

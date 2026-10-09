@@ -342,6 +342,10 @@ void AutoRoiPresenter::runCardAction(CardAction action) {
         case CardAction::WidenScope:
             applyScanScope(2);
             break;
+        case CardAction::SwitchBackend:
+            // 卡片留著：換好之後 BackendPresenter 會要求用新的 back end 再試一次（researchSameRegion；BackendSwitch::researchAfter）。
+            emit backendSwitchRequested(card_.switchBackendId);
+            break;
     }
 }
 
@@ -394,14 +398,17 @@ void AutoRoiPresenter::pauseSearch() {
     services_.runner.cancel();
 }
 
-void AutoRoiPresenter::useSearchEngine(std::shared_ptr<const GenerateObjectsFromSample> useCase,
-                                       const QString& fallbackBackendName) {
+void AutoRoiPresenter::useSearchEngine(std::shared_ptr<const GenerateObjectsFromSample> useCase, const BackendLabels& labels) {
     if (!useCase) return;
     services_.generate = std::move(useCase);  // 舊的：進行中的工作還拿著一份
-    services_.fallbackBackendName = fallbackBackendName;
+    backendLabels_ = labels;
 }
 
 void AutoRoiPresenter::researchSameRegion() {
+    if (state() == InteractionState::Error) {
+        retry();  // 搜尋失敗的錯誤：用目前的 back end 再試一次（影像開不了的錯誤不會動：retrySearch 只收搜尋的錯誤）
+        return;
+    }
     if (!session_.restartSearch()) return;
     if (session_.lastSearch()->mode == RegionMode::Region) finishRegionScan();
     else startSearch();
@@ -692,7 +699,7 @@ void AutoRoiPresenter::publishMessage() {
                 views_.message.hideCard();
                 return;
             }
-            card_ = errorCard(*session_.error(), session_.errorSource(), imageName_, services_.fallbackBackendName);
+            card_ = errorCard(*session_.error(), session_.errorSource(), imageName_, backendLabels_);
             break;
         default:
             if (cardVisible_) views_.message.hideCard();

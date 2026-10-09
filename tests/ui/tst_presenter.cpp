@@ -1027,6 +1027,14 @@ private slots:
     }
 
     // ---- 執行中切換 back end（ADR-021；規則在 application 的 BackendSwitch，tst_backend_switch）----
+    static QPushButton* noticeButton(Rig& r, const QString& text) {
+        QWidget* notice = r.window.messageBar()->findChild<QWidget*>(QStringLiteral("messageNotice"));
+        for (QPushButton* b : notice->findChildren<QPushButton*>())
+            if (b->text() == text) return b;
+        qFatal("no notice button '%s'", qPrintable(text));
+        return nullptr;
+    }
+
     static bool waitSwitch(QSignalSpy& finished, int count = 1) {
         return QTest::qWaitFor([&] { return finished.count() >= count; }, 8000);
     }
@@ -1155,12 +1163,78 @@ private slots:
         QVERIFY2(all.contains(QStringLiteral("no license (test)")), qPrintable(all));
         QVERIFY2(all.contains(zh("ui.backend.reverted", {{"backend", "Fake (test)"}})), qPrintable(all));
         QVERIFY2(all.contains(zh("ui.error.backend.body", {{"fallback", "Fake (test)"}})), qPrintable(all));
-        notice->findChild<QPushButton*>()->click();
+        // 工廠失敗（像授權檢查失敗）可以〔再試一次〕；〔關閉〕才收起
+        QStringList buttons;
+        for (const QPushButton* b : notice->findChildren<QPushButton*>()) buttons << b->text();
+        QCOMPARE(buttons, (QStringList{zh("action.retry"), zh("action.dismiss")}));
+        noticeButton(r, zh("action.dismiss"))->click();
         QVERIFY(!bar->noticePending());
 
         // 之後的搜尋照舊用 fake
         QVERIFY(r.teachSample());
         QVERIFY(r.probe->builds > builds);
+    }
+
+    // 第一次換失敗（像 dongle 沒插、授權檢查失敗），狀況改變之後（插上 dongle）按卡片上的〔再試一次〕就換過去，不必重新啟動程式。
+    void aFailedSwitchCanBeRetriedFromTheCardOnceTheCauseIsGone() {
+        Rig r;
+        r.open();
+        QVERIFY(r.teachSample());
+        r.otherProbe->failCreate = true;
+        QSignalSpy finished(&r.presenters->backend(), &BackendPresenter::switchFinished);
+        r.chooseBackend(QStringLiteral("other"));
+        QVERIFY(waitSwitch(finished));
+        QCOMPARE(finished.last().first().toBool(), false);
+        QCOMPARE(r.presenters->backend().current(), std::string("fake"));
+        r.key(Qt::Key_Return);  // 接受預覽：卡片讓出位置給提醒卡片
+        MessageBar* bar = r.window.messageBar();
+        QVERIFY(bar->noticeVisible());
+        QCOMPARE(bar->noticeTitle(), zh("ui.error.backend.title", {{"backend", "Other (test)"}}));
+
+        r.otherProbe->failCreate = false;  // 使用者插上 dongle
+        noticeButton(r, zh("action.retry"))->click();
+        QVERIFY(waitSwitch(finished, 2));
+        QCOMPARE(finished.last().first().toBool(), true);
+        QCOMPARE(r.presenters->backend().current(), std::string("other"));
+        QCOMPARE(r.otherProbe->creates.load(), 2);  // 真的再建立了一次（HALCON：重新檢查授權）
+        QCOMPARE(bar->noticeTitle(), zh("ui.backend.notice.title", {{"backend", "Other (test)"}}));  // 失敗的卡片換成新的提醒
+        QVERIFY(r.backendStatus().startsWith(QStringLiteral("Other (test)")));
+    }
+
+    void aBackendThatIsNotBuiltInOffersNoRetry() {
+        Rig r;
+        r.presenters->backend().selectBackend("off");
+        QWidget* notice = r.window.messageBar()->findChild<QWidget*>(QStringLiteral("messageNotice"));
+        QStringList buttons;
+        for (const QPushButton* b : notice->findChildren<QPushButton*>()) buttons << b->text();
+        QCOMPARE(buttons, QStringList{zh("action.dismiss")});  // 再試也一樣：沒有〔再試一次〕
+    }
+
+    // 搜尋時 back end 無法使用（例如執行中 HALCON 的授權不見了，HalconErrors）：卡片的標題是 back end 的名稱（S08 誤把錯誤訊息當成
+    // 名稱），原因在做法清單；〔改用 Other (test)〕換過去之後，用新的 back end 再試一次同一個搜尋（2026-10-09）。
+    void aBackendThatBecomesUnavailableWhileSearchingNamesItAndOffersToSwitch() {
+        Rig r;
+        r.open();
+        r.probe->unavailable = true;
+        r.drag(ToolId::Sample, QRectF(560, 360, 60, 32));
+        QVERIFY(r.waitState(S::Error));
+        MessageBar* bar = r.window.messageBar();
+        QCOMPARE(bar->cardTitle(), zh("ui.error.backend.title", {{"backend", "Fake (test)"}}));
+        QStringList texts;
+        for (const QLabel* label : bar->findChild<QWidget*>(QStringLiteral("messageCard"))->findChildren<QLabel*>()) texts << label->text();
+        const QString all = texts.join(QStringLiteral(" | "));
+        QVERIFY2(all.contains(QStringLiteral("the test license is gone")), qPrintable(all));
+        QVERIFY2(all.contains(zh("ui.error.backend.body", {{"fallback", "Other (test)"}})), qPrintable(all));
+        QStringList buttons;
+        for (const QPushButton* b : r.cardButtons()) buttons << b->text();
+        QCOMPARE(buttons, (QStringList{zh("action.dismiss"), zh("action.retry"), zh("ui.backend.switchTo", {{"backend", "Other (test)"}})}));
+
+        QSignalSpy finished(&r.presenters->backend(), &BackendPresenter::switchFinished);
+        r.cardButtons().last()->click();
+        QVERIFY(waitSwitch(finished));
+        QCOMPARE(r.presenters->backend().current(), std::string("other"));
+        QVERIFY(r.waitState(S::Preview));  // 換好之後自動用新的 back end 再試一次
+        QVERIFY(r.otherProbe->builds >= 1);
     }
 
     void anUnavailableBackendIsRefusedAtOnceWithItsReason() {
@@ -1209,7 +1283,7 @@ private slots:
             std::shared_ptr<const GenerateObjectsFromSample> used;
             InteractionState interactionState() const override { return InteractionState::Idle; }
             void pauseSearch() override {}
-            void useSearchEngine(std::shared_ptr<const GenerateObjectsFromSample> useCase, const QString&) override {
+            void useSearchEngine(std::shared_ptr<const GenerateObjectsFromSample> useCase, const BackendLabels&) override {
                 used = std::move(useCase);
             }
             void researchSameRegion() override {}

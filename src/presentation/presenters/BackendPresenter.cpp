@@ -50,7 +50,7 @@ void BackendPresenter::selectBackend(const std::string& id) {
             return;
         case BackendSwitch::Request::Unknown:
         case BackendSwitch::Request::Unavailable:
-            fail(id, request.error);  // 不必嘗試：登記時就知道不能用（或沒有這個 id）
+            fail(id, request.error, false);  // 不必嘗試：登記時就知道不能用（或沒有這個 id），再試也一樣
             emit switchFinished(false);
             return;
         case BackendSwitch::Request::Start: break;
@@ -86,36 +86,47 @@ void BackendPresenter::onCreated(const std::string& id, Result<SearchEnginePtr> 
         failure_.reset();
         noticePending_ = !engine_->backend.notices.empty();
         if (!noticePending_) view_.hideNotice();  // 舊的提醒（或上次的失敗）是關於別的 back end 的
-        const std::string fallback = switch_.fallback();
-        sink_.useSearchEngine(useCaseOf(engine_), displayName(fallback.empty() ? switch_.current() : fallback));
+        sink_.useSearchEngine(useCaseOf(engine_), labels());
         publish();
         QStringList messages;
         for (const BackendNotice& notice : engine_->backend.notices) messages << QString::fromStdString(notice.message);
         emit backendChanged(QString::fromStdString(id), messages);
     } else {
-        fail(id, result.error());
+        fail(id, result.error(), true);  // 工廠失敗（例如授權檢查）：狀況改變之後（插上 dongle）再試可能會成功
     }
     if (BackendSwitch::researchAfter(outcome, sink_.interactionState())) sink_.researchSameRegion();
     emit switchFinished(outcome == BackendSwitch::Outcome::Switched);
 }
 
 // 留在原本的 back end；訊息列的卡片說原因（ui.error.backend.*），按〔關閉〕才收起。
-void BackendPresenter::fail(const std::string& id, const Error& error) {
-    failure_ = Failure{id, error};
+void BackendPresenter::fail(const std::string& id, const Error& error, bool retryable) {
+    failure_ = Failure{id, error, retryable};
     noticePending_ = true;
     publish();
     emit switchFailed(QString::fromStdString(id), QString::fromStdString(error.message));
 }
 
 void BackendPresenter::applyNoticeAction(int actionIndex) {
-    // 提醒卡片只有一個按鈕：〔關閉〕。
-    if (actionIndex != 0 || !noticePending_) return;
-    noticePending_ = false;
-    failure_.reset();
-    view_.hideNotice();
+    if (!noticePending_ || actionIndex < 0 || actionIndex >= static_cast<int>(noticeActions_.size())) return;
+    switch (noticeActions_[static_cast<std::size_t>(actionIndex)]) {
+        case NoticeAction::Retry:
+            // 切換失敗的卡片：再換一次（HALCON：組裝根先用另一個行程重新檢查授權，app/CompositionRoot.h）。卡片在下一次的結果出來時更新。
+            if (failure_) selectBackend(failure_->id);
+            return;
+        case NoticeAction::Close:
+            noticePending_ = false;
+            failure_.reset();
+            view_.hideNotice();
+            return;
+    }
 }
 
 // ---- 畫面 ----------------------------------------------------------------------------------------------
+
+BackendLabels BackendPresenter::labels() const {
+    const std::string fallback = switch_.fallback();
+    return BackendLabels{displayName(switch_.current()), QString::fromStdString(fallback), fallback.empty() ? QString() : displayName(fallback)};
+}
 
 QString BackendPresenter::displayName(const std::string& id) const {
     if (const BackendInfo* info = switch_.find(id)) return QString::fromStdString(info->displayName);
@@ -172,7 +183,13 @@ void BackendPresenter::publish() {
         card.title = uiText("ui.backend.notice.title", {{"backend", name}});
         card.body = bodies.join(QLatin1Char('\n'));
     }
+    noticeActions_.clear();
+    if (failure_ && failure_->retryable) {
+        card.actions << uiText("action.retry");
+        noticeActions_.push_back(NoticeAction::Retry);
+    }
     card.actions << uiText("action.dismiss");
+    noticeActions_.push_back(NoticeAction::Close);
     view_.showNotice(card);
 }
 
