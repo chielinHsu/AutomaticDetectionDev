@@ -74,3 +74,7 @@ S08 要做第二個 back end（`docs/plan/S08-halcon.md`）。開工時的事實
 - stderr 那一行保留；選單的提示照舊。
 
 實作：提醒跟著 back end 交出去（`Backend::notices`，`application/backend/BackendRegistry.h`；HALCON 的工廠在組裝根填），`app::backendNotices()` 移除；畫面由新的 `BackendPresenter`（presentation）負責，`IBackendView` 由 `MainWindow` 實作。判斷的規則（`judgeHalconLicense`）沒有改。`copy.json` 新增 `ui.backend.halcon.runtimeLicense`、`ui.backend.notice.title`、`ui.backend.status.tip`、`ui.status.counts`、`ui.status.noObjects`。
+
+## 後續（2026-10-09）：授權失敗後不必重新啟動、SESSIONS=1
+
+決定 3 的授權探測原本整個程式只做一次（`halconLicense()` 的 `call_once`）。改成「能用才記住」（`HalconLicenseCache`），而且組裝根在這個行程碰 HALCON 之前先用另一個行程檢查（`AiInspTool.exe --probe-halcon-license`）：實測 HALCON 在行程裡第一次初始化失敗之後會記住失敗（錯誤 2036）。第一次切到 HALCON 因此多約 1.2 秒。授權檔的 `SESSIONS=1` 不會讓初始化著 HALCON 的程式擋住別的程式（三個行程同時拿到授權）。判斷規則（`judgeHalconLicense`）沒有改。細節與驗證在 ADR-021 的「後續（2026-10-09）」。

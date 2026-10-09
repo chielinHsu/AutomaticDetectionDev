@@ -24,6 +24,35 @@
 - 下一位 agent 需要知道的限制、否決的做法、不要還原的修改
 ```
 
+## 2026-10-09 — Claude Code (Claude Opus 5.5)（修掉 session B 的四個已知問題）
+
+### 完成
+- 使用者要求把 session B 回報的已知問題都修掉（`e40dfca`，分支 `fix/backend-followups`）。設計寫在 ADR-021 的「後續（2026-10-09）」與 ADR-017 的後續。
+- **HALCON 授權失敗之後不必重新啟動**：`halconLicense()` 改成 `HalconLicenseCache`（能用才記住，失敗的下一次先 `is_license_valid` 再探測）；組裝根在這個行程碰 HALCON 之前先用另一個行程檢查（`AiInspTool.exe --probe-halcon-license`，`app::createHalconBackendSafely`），因為實測 HALCON 自己會記住第一次的失敗（錯誤 2036）。切換失敗的卡片多〔再試一次〕。
+- **`SESSIONS=1`**：驗證三個行程可以同時拿到授權（新測試）。
+- **錯誤卡片**（搜尋時 back end 無法使用）：標題改成 back end 名稱、原因放在做法清單、加〔改用 …〕；建議的是可用的、最完整的另一個（HALCON → OpenCV）；換好之後用新的 back end 再試一次。
+- `copy.json` 刪掉 `ui.status.summary`、`ui.status.none`，新增 `ui.backend.switchTo`。
+
+### 修改的檔案
+- 程式：`src/app/CompositionRoot.*`、`main.cpp`、`src/infrastructure/backend_halcon/HalconLicense.*`、`src/application/backend/BackendSwitch.*`、presentation 的 `AppPresenters.cpp`、`AutoRoiPresenter.*`、`BackendPresenter.*`、`ControllerInterfaces.h`、`MessageTexts.*`；`docs/ux/copy.json`
+- 測試：`tests/backend/tst_halcon_backend.cpp`、`tests/core/tst_backend_registry.cpp`、`tst_backend_switch.cpp`、`tst_cli.cpp`、`tests/ui/PresenterRig.h`、`tst_messages.cpp`、`tst_presenter.cpp`
+- 文件：ADR-021、ADR-017、`docs/decisions.md`、`ux-spec.md`、`architecture.md`、`AI_CONTEXT.md`、`current-status.md`、`plan/S09-contract-ab.md`、`.ai/handoff.md`、本檔
+
+### 驗證
+- HALCON 的實驗（scratchpad 的小程式，不在 repo）：早上 HALCON 讀不到 dongle（錯誤 2300，Windows 看得到 `VID_064F` 序號 7614034，沒有別的行程佔著）；兩個行程每 2 秒重試 15 分鐘都是 2300，每次呼叫 100–150 ms。使用者當時不能動 dongle；10:28 之前自己恢復，原因不明。恢復後：`HALCONROOT` 指到空資料夾 → 2036，同一個行程改回 `HALCONROOT`、`is_license_valid` 都還是 2036（每次 0 ms）→ HALCON 會記住第一次的失敗。另一個行程檢查授權約 1.1 秒（`AiInspTool.exe` 啟動約 0.17 秒）。
+- `scripts/dev/test.ps1`（Release＋OpenCV＋HALCON）54／54：`tst_halcon_backend` 32 項（多 3 個快取的規則）、`tst_halcon_end_to_end` 12、`tst_halcon_library_matcher` 9，0 跳過；`tst_cli` 17 項 0 跳過（`aHalconFailureDoesNotStickOnceTheLicenseIsBack`：授權不在時這個行程不碰 HALCON，授權回來就能用；`severalProgramsCanUseHalconAtTheSameTime`；`theLicenseProbeOptionAnswersWithoutAWindow`）；`tst_backend_registry` 3 項新規則；`tst_presenter` 新增 4 項。真的 HALCON 背景切換：總共 2 755 ms（之前 1 289–1 352），`selectBackend` 0 ms 返回，UI 事件迴圈最長停頓 12 ms。
+- 其他組態（同一個 commit 的程式）：`-NoHalcon` 51／51、`-NoOpenCv -NoHalcon` 46／46、`-Config Debug` 54／54（HALCON 0 跳過；真的 HALCON 切換 2 855 ms、UI 最長停頓 12 ms）。
+- `ste-lint` 0 errors、`check-contrast` 0 failures、`check-ai-structure` OK。
+
+### 未完成
+- dongle 讀不到（錯誤 2300）之後，同一個行程能不能自己恢復沒有驗證（要拔插 dongle）；現在的做法不依賴它（碰 HALCON 之前先用另一個行程檢查）。兩次檢查之間授權剛好掉了的罕見情況，仍然要重新啟動（訊息會說）。
+- 早上錯誤 2300 的原因不明（第三次：10-07 中午、10-07 15:06 到 10-08 13:20、10-09 早上）。
+
+### 注意事項
+- 第一次用 HALCON 多約 1.2 秒（另一個行程的檢查）；`--backend halcon` 啟動也是。S09 的 A/B 量測不要把它算進搜尋的時間（S09 計畫開頭的提醒）。
+- `aHalconFailureDoesNotStickOnceTheLicenseIsBack` 要在 `tst_cli` 行程碰 HALCON 之前跑（它是 HALCON 那一段的第一個；行程已經碰過時會跳過並說原因）。
+- 錯誤卡片建議改用的是「可用、不是目前的最後一個」：`makeBackendRegistry` 的註冊順序由簡單到完整（fake、opencv、halcon），新增 back end 時照這個順序登記。
+
 ## 2026-10-08 — Claude Code (Claude Opus 5.5)（S09 之前的 session B：授權提醒的卡片、執行中切換 back end、Designer 的 .ui）
 
 ### 完成
