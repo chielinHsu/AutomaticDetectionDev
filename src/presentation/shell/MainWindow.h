@@ -8,6 +8,7 @@
 #include "application/ports/IImageSource.h"
 #include "presentation/canvas/ICanvasController.h"
 #include "presentation/canvas/ImageViewMetaType.h"
+#include "presentation/compare/CompareInterfaces.h"
 #include "presentation/presenters/ControllerInterfaces.h"
 #include "presentation/presenters/ViewInterfaces.h"
 #include "presentation/tools/ToolId.h"
@@ -24,6 +25,7 @@ class QToolBar;
 
 namespace aoi::ui {
 
+class CompareWindow;
 class EmptyCard;
 class ImageCanvas;
 class MessageBar;
@@ -39,9 +41,15 @@ class MainWindow;
 // 右側三個 dock（樣本庫：S06 之前是空殼；物件樹；比對參數）、狀態列。
 // 這一層只負責組裝與事件接線，不含業務規則。S04 起它同時是 Presenter 的幾個 View：
 // 狀態列與提示（IStatusView）、訊息卡（IMessageView）、復原／重做按鈕（IHistoryView）、back end 的選單、標示與提醒卡片
-// （IBackendView）；Presenter 只看到這些窄介面。
+// （IBackendView）、A/B 比較的入口（ICompareEntryView，S09）；Presenter 只看到這些窄介面。
+// S09 起它也擁有 A/B 比較的視窗（CompareWindow，另一個頂層視窗；主視窗關掉時一起關）。
 // 使用者的操作經 setControllers 交進來的 Controller 介面送出，這個類別不認識 Presenter。
-class MainWindow : public QMainWindow, public IStatusView, public IMessageView, public IHistoryView, public IBackendView {
+class MainWindow : public QMainWindow,
+                   public IStatusView,
+                   public IMessageView,
+                   public IHistoryView,
+                   public IBackendView,
+                   public ICompareEntryView {
     Q_OBJECT
 public:
     explicit MainWindow(ThemeManager& theme, QWidget* parent = nullptr);
@@ -57,6 +65,7 @@ public:
         IHistoryController* history = nullptr;
         IParamsController* params = nullptr;
         IBackendController* backend = nullptr;
+        ICompareController* compare = nullptr;  // 主視窗的〔A/B 比較…〕與比較視窗（S09）
     };
     void setControllers(const Controllers& controllers);
 
@@ -65,10 +74,12 @@ public:
     ParamsPanel* paramsPanel() const { return paramsPanel_; }
     MessageBar* messageBar() const { return messageBar_; }
     EmptyCard* emptyCard() const { return emptyCard_; }
+    CompareWindow* compareWindow() const { return compareWindow_; }
     QAction* toolAction(ToolId id) const;
     QAction* fitAction() const { return fitAction_; }
     QAction* fitWidthAction() const { return fitWidthAction_; }
     QAction* openAction() const { return openAction_; }
+    QAction* compareAction() const { return compareAction_; }
     QAction* undoAction() const { return undoAction_; }
     QAction* redoAction() const { return redoAction_; }
     QComboBox* backendCombo() const { return backendCombo_; }
@@ -100,6 +111,10 @@ public:
     // 訊息列的提醒卡片（MessageBar::showNotice）：比搜尋的卡片低一級，按鈕交給 IBackendController::applyNoticeAction。
     void showNotice(const MessageCard& card) override;
     void hideNotice() override;
+
+    // ---- ICompareEntryView（ComparePresenter）----
+    // 檢視選單與工具列的〔A/B 比較…〕：有樣本、而且有兩個能用的 back end 時才能按；tip 說明為什麼（不能按時說怎麼做）。
+    void setCompareAvailable(bool enabled, const QString& tip) override;
 
     // ---- IStatusView ----
     void showSummary(const QString& text) override;
@@ -146,6 +161,7 @@ private:
     ImageCanvas* canvas_ = nullptr;
     MessageBar* messageBar_ = nullptr;
     EmptyCard* emptyCard_ = nullptr;
+    CompareWindow* compareWindow_ = nullptr;
     ObjectsPanel* objectsPanel_ = nullptr;
     ParamsPanel* paramsPanel_ = nullptr;
     Controllers controllers_;
@@ -163,6 +179,7 @@ private:
     QAction* redoAction_ = nullptr;
     QAction* fitAction_ = nullptr;
     QAction* fitWidthAction_ = nullptr;
+    QAction* compareAction_ = nullptr;
 
     QMenu* fileMenu_ = nullptr;
     QMenu* editMenu_ = nullptr;

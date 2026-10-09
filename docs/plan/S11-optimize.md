@@ -19,6 +19,8 @@
 
 > **建置改 qmake 之後的提醒（2026-10-07，[ADR-018](../adr/018-qmake-only-build.md)）**：建置只用 qmake（`AiInspTool/AiInspTool.pro`；CMake、preset、CTest 都已移除，S02–S08 文件裡的那些指令是歷史紀錄，對照表在 ADR-018），執行檔叫 `AiInspTool.exe`（GUI 子系統），在 `<建置>/bin`。OpenCV 與 HALCON **預設編進去**（以前的 preset `release-halcon`）；關掉用 qmake 變數 `AOI_WITH_OPENCV=OFF`／`AOI_WITH_HALCON=OFF`。命令列：`scripts/dev/test.ps1`（建置＋測試；`-Config Debug|Profile`、`-NoOpenCv`、`-NoHalcon`、`-Perf`、`-Filter`、`-NoBuild`）；Qt Creator 開 `AiInspTool/AiInspTool.pro` 也能建置、執行與跑測試。**新增測試**：在 `AiInspTool/tests/<資料夾>/` 加一個 `.pro`（照同資料夾的寫法：`TARGET`、需要時 `AOI_LINK_EXTRA`、`include(<資料夾>_tests.pri)`、`SOURCES`），再列進 `AiInspTool/tests/tests.pro` 的 `AOI_TESTS`（效能量測列進 `AOI_PERF_TESTS`；只有某個 back end 才有的放進對應的 `equals(AOI_WITH_…, ON)` 區塊）。**新增原始碼**要加進對應的 `.pro`（不會自動納入）。S09 之前還有一個 session B（授權提醒的卡片、執行中切換 back end、Designer 的 `.ui`），開工時先看 `.ai/handoff.md`。before／after 用 `test.ps1 -Perf`（Release；`-NoBuild` 重跑不重建）。S02–S08 的基準線是 CMake 的建置量的；建置改 qmake 時在 qmake 的 Release 重量過一次全部效能量測（數字在 `docs/changelog-ai.md` 那一筆），旗標的最佳化相同（`-O2`、`NDEBUG`）。
 
+> **S09 完成後的提醒（2026-10-09）**：A/B 比較視窗的 UI 已經量過也改過一次（先量再改：表格的 `ResizeToContents` 每填一格就重量整欄、標記每個描兩次邊；改完 AB-U1a p95 19.6–27.0 ms、AB-U1b 30.5–38.8 ms，見 `docs/steps/S09-contract-ab/perf.md` §3）。還沒改的：**AB-U3**（改門檻之後重新比較，p95 48.8–63.4 ms，其中 `compareProposals` 7–9 ms，其餘是每次重建 5 600 個標記與 1 000 列文字）——沒有預算，要不要做由 S11 依預算決定。HALCON 的 `nativeGray16`（12 bit 的種子搜尋快約 1.7 倍）要不要當預設，ADR-004 列為使用者決定。
+
 <!--STE-->
 ## Purpose
 This step makes the slowest parts faster. We change only the parts that the test shows as slow.

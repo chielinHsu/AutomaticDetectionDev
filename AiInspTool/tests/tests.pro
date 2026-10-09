@@ -6,6 +6,7 @@
 #   AOI_PERF_TESTS   效能量測：test.ps1 -Perf 只跑這些；只在 Release 有意義
 # qmake 執行時把兩份清單寫到 <建置>/aoi-tests.txt、aoi-perf-tests.txt，test.ps1 照清單執行（不看 bin/ 裡有什麼檔案，
 # 所以不會跑到過期的執行檔）。Qt Creator 的測試面板自己從原始碼找測試。
+# S09 的契約測試（contract/）在每一種建置都有：沒編進來或沒有授權的 back end，那一列 SKIPPED 並說原因。
 
 TEMPLATE = subdirs
 include($$AOI_QMAKE/aoi_options.pri)
@@ -21,6 +22,7 @@ AOI_TESTS = \
     core/tst_fake_backend \
     core/tst_backend_registry \
     core/tst_backend_switch \
+    core/tst_backend_comparison \
     core/tst_perf_probe \
     core/tst_undo_stack \
     core/tst_state_machine \
@@ -55,7 +57,11 @@ AOI_TESTS = \
     ui/tst_params \
     ui/tst_messages \
     ui/tst_scene \
-    ui/tst_presenter
+    ui/tst_presenter \
+    ui/tst_compare \
+    contract/tst_contract_searcher \
+    contract/tst_contract_end_to_end \
+    contract/tst_contract_library_matcher
 
 AOI_PERF_TESTS = \
     core/perf_core \
@@ -63,23 +69,22 @@ AOI_PERF_TESTS = \
     infra/perf_storage \
     ui/perf_paint_micro \
     ui/perf_ui_s04 \
-    ui/perf_ui_baseline
+    ui/perf_ui_baseline \
+    ui/perf_compare_ui \
+    contract/perf_ab
 
 # S06、S07：OpenCV 的影像 adapter 與 back end。
 equals(AOI_WITH_OPENCV, ON) {
     AOI_TESTS += \
         infra/tst_opencv_image \
         infra/tst_image_sources_agree \
-        backend/tst_opencv_backend \
-        backend/tst_opencv_end_to_end \
-        backend/tst_opencv_library_matcher
+        backend/tst_opencv_backend
     AOI_PERF_TESTS += backend/perf_opencv_real backend/perf_opencv
 }
 # S08：HALCON（沒有授權或沒有 DLL 時，測試跳過並說原因）。真實影像的並排量測讀 TIFF 要 OpenCV。
 equals(AOI_WITH_HALCON, ON) {
     AOI_TESTS += \
         backend/tst_halcon_backend \
-        backend/tst_halcon_end_to_end \
         backend/tst_halcon_library_matcher
     AOI_PERF_TESTS += backend/perf_halcon
     equals(AOI_WITH_OPENCV, ON): AOI_PERF_TESTS += backend/perf_halcon_real

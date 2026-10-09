@@ -295,6 +295,190 @@
       "zh_TW": "改用 {backend}",
       "en": "Switch to {backend}"
     },
+    "ui.compare.action": {
+      "zh_TW": "A/B 比較…",
+      "en": "Compare back ends (A/B)…"
+    },
+    "ui.compare.entry.tip": {
+      "zh_TW": "用兩個 back end 搜尋同一個樣本，疊在同一張影像上看差異。",
+      "en": "Search the same sample with two back ends and see the differences on one image."
+    },
+    "ui.compare.entry.needSample": {
+      "zh_TW": "先教一個樣本（S），再比較兩個 back end。",
+      "en": "Teach a sample (S) first. Then compare two back ends."
+    },
+    "ui.compare.entry.needTwo": {
+      "zh_TW": "要有兩個能用的 back end 才能比較。",
+      "en": "A comparison needs two usable back ends."
+    },
+    "ui.compare.window": {
+      "zh_TW": "A/B 比較",
+      "en": "A/B comparison"
+    },
+    "ui.compare.title": {
+      "zh_TW": "A/B 比較：{a} 對 {b} — {image}",
+      "en": "A/B comparison: {a} vs {b} — {image}"
+    },
+    "ui.compare.sideA": {
+      "zh_TW": "A",
+      "en": "A"
+    },
+    "ui.compare.sideB": {
+      "zh_TW": "B",
+      "en": "B"
+    },
+    "ui.compare.run": {
+      "zh_TW": "比較",
+      "en": "Compare"
+    },
+    "ui.compare.thresholds": {
+      "zh_TW": "分數門檻",
+      "en": "Score threshold"
+    },
+    "ui.compare.thresholds.note": {
+      "zh_TW": "兩邊的分數不是同一把尺（OpenCV 是亮度的相關係數 NCC，HALCON 是邊緣方向的一致度），所以門檻分開設。改門檻只重新比較，不重新搜尋。",
+      "en": "The two scores do not use the same scale (OpenCV: intensity correlation, NCC; HALCON: agreement of edge directions). Each side has its own threshold. A threshold change compares again without a new search."
+    },
+    "ui.compare.show": {
+      "zh_TW": "顯示",
+      "en": "Show"
+    },
+    "ui.compare.kind.both": {
+      "zh_TW": "● 兩邊都找到（{n}）",
+      "en": "● Found by both ({n})"
+    },
+    "ui.compare.kind.onlyA": {
+      "zh_TW": "■ 只有 A 找到（{n}）",
+      "en": "■ Found only by A ({n})"
+    },
+    "ui.compare.kind.onlyB": {
+      "zh_TW": "▲ 只有 B 找到（{n}）",
+      "en": "▲ Found only by B ({n})"
+    },
+    "ui.compare.col.item": {
+      "zh_TW": "項目",
+      "en": "Item"
+    },
+    "ui.compare.col.diff": {
+      "zh_TW": "B − A",
+      "en": "B − A"
+    },
+    "ui.compare.col.kind": {
+      "zh_TW": "類別",
+      "en": "Kind"
+    },
+    "ui.compare.col.where": {
+      "zh_TW": "位置（x, y）",
+      "en": "Position (x, y)"
+    },
+    "ui.compare.col.reason": {
+      "zh_TW": "另一邊為什麼沒有",
+      "en": "Why the other side has none"
+    },
+    "ui.compare.row.template": {
+      "zh_TW": "建範本（ms）",
+      "en": "Template (ms)"
+    },
+    "ui.compare.row.seed": {
+      "zh_TW": "種子搜尋（ms）",
+      "en": "Seed search (ms)"
+    },
+    "ui.compare.row.fit": {
+      "zh_TW": "晶格（ms）",
+      "en": "Lattice (ms)"
+    },
+    "ui.compare.row.verify": {
+      "zh_TW": "視窗驗證（ms）",
+      "en": "Window check (ms)"
+    },
+    "ui.compare.row.total": {
+      "zh_TW": "總計（ms）",
+      "en": "Total (ms)"
+    },
+    "ui.compare.row.found": {
+      "zh_TW": "找到",
+      "en": "Found"
+    },
+    "ui.compare.row.inferred": {
+      "zh_TW": "推算",
+      "en": "Inferred"
+    },
+    "ui.compare.row.rejected": {
+      "zh_TW": "低於門檻",
+      "en": "Below threshold"
+    },
+    "ui.compare.row.only": {
+      "zh_TW": "只有這一邊找到",
+      "en": "Found only by this side"
+    },
+    "ui.compare.row.position": {
+      "zh_TW": "位置差 平均｜最大（px）",
+      "en": "Position diff. mean | max (px)"
+    },
+    "ui.compare.row.angle": {
+      "zh_TW": "角度差 最大（°）",
+      "en": "Angle diff. max (°)"
+    },
+    "ui.compare.differences": {
+      "zh_TW": "差異（{n}）",
+      "en": "Differences ({n})"
+    },
+    "ui.compare.differences.capped": {
+      "zh_TW": "差異（{n}，列出前 {shown} 個；疊圖上全部都有）",
+      "en": "Differences ({n}; the first {shown} are listed; the overlay shows all)"
+    },
+    "ui.compare.diff.only": {
+      "zh_TW": "只有 {backend}",
+      "en": "Only {backend}"
+    },
+    "ui.compare.gap.belowThreshold": {
+      "zh_TW": "{backend} 的分數 {score} 低於它的門檻 {threshold}",
+      "en": "{backend} scored {score}, below its threshold {threshold}"
+    },
+    "ui.compare.gap.inferredOnly": {
+      "zh_TW": "{backend} 只是晶格推算（視窗內沒有找到）",
+      "en": "{backend} only inferred a part here (the window check found none)"
+    },
+    "ui.compare.gap.notFound": {
+      "zh_TW": "{backend} 在附近沒有任何候選",
+      "en": "{backend} has no candidate near here"
+    },
+    "ui.compare.score.inferred": {
+      "zh_TW": "推算",
+      "en": "inferred"
+    },
+    "ui.compare.preparing": {
+      "zh_TW": "準備 {a} 與 {b}…",
+      "en": "Preparing {a} and {b}…"
+    },
+    "ui.compare.running": {
+      "zh_TW": "比較中：{backend} 搜尋…",
+      "en": "Comparing: {backend} searches…"
+    },
+    "ui.compare.done": {
+      "zh_TW": "完成：{a} {msA} ms、{b} {msB} ms（依序跑，耗時可以直接比）",
+      "en": "Done: {a} {msA} ms, {b} {msB} ms (run one after the other, so the times compare directly)"
+    },
+    "ui.compare.failed": {
+      "zh_TW": "{backend} 無法比較：{reason}",
+      "en": "{backend} cannot compare: {reason}"
+    },
+    "ui.compare.notUsable": {
+      "zh_TW": "這個 back end 在這個程式裡不能用。",
+      "en": "This back end is not usable in this program."
+    },
+    "ui.compare.cancelled": {
+      "zh_TW": "已取消比較。",
+      "en": "Comparison cancelled."
+    },
+    "ui.compare.noSample": {
+      "zh_TW": "沒有樣本可以比較：先在主視窗教一個樣本。",
+      "en": "There is no sample to compare. Teach a sample in the main window first."
+    },
+    "ui.compare.sameBackend": {
+      "zh_TW": "A 與 B 要選不同的 back end。",
+      "en": "Choose two different back ends for A and B."
+    },
     "ui.settings.theme.light": {
       "zh_TW": "淺色",
       "en": "Light"

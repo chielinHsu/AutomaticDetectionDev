@@ -24,6 +24,40 @@
 - 下一位 agent 需要知道的限制、否決的做法、不要還原的修改
 ```
 
+## 2026-10-09 — Claude Code (Claude Opus 5.5)（S09：契約測試與 A/B 比較）
+
+### 完成
+- **契約測試**（`tests/contract/`）：`ContractSupport.h`（資料列 ＝ `app::makeBackendRegistry()` 的每個 back end，每個只建一次；沒編進來或沒有授權的那一列 `QSKIP` 並寫原因；`QCOMPARE_ERROR`）、`ContractTolerances.h`（容差唯一的地方，附依據；`profileOf`：fake 不讀像素、沒有樣本庫比對器，HALCON 強雜訊的角度改用角落位移）、`tst_contract_searcher`（錯誤碼、分數與排序、下限、maxMatches、角度範圍、區域、空結果、取消在 I4 內、可重入、座標原點、子影像、角度正負號、角度掃描、三種格式）、`tst_contract_end_to_end`（use case × 8 種板子 × 會讀像素的 back end）、`tst_contract_library_matcher`（辨識、排序、位姿、N、區域、空的、錯誤、兩邊一致）、效能量測 `perf_ab`（12 種 5 MP 情境並排；只有一個 back end 時 A/B 那一列 SKIPPED）。
+- 草稿合併：`tst_opencv_end_to_end`、`tst_halcon_end_to_end`、`tst_opencv_library_matcher` 刪除；`tst_opencv_backend`、`tst_halcon_backend`、`tst_halcon_library_matcher`、`tst_fake_backend` 只留各自才有的事。
+- **契約找到的 Liskov 差異**：假 back end 不檢查角度範圍（NaN、顛倒時「成功、找不到」）→ 改成和 OpenCV、HALCON 一樣回 `InvalidArgument`。port 標頭加指向契約測試的註解與「參數不合法回 InvalidArgument」一行（語意沒有改）。
+- **A/B 比較**：application `compare/BackendComparison`（配對、分類、差異的原因、`runSideBySide`）；presentation `compare/`（`ComparePresenter` 自己的 JobRunner、背景建立 back end、門檻兩邊各一個；`CompareWindow` ＋ `CompareWindow.ui`；`CompareOverlayItem` 標記畫成小圖）；`MainWindow` 的〔A/B 比較…〕（`ICompareEntryView`）、`AutoRoiPresenter` 的 `ICompareSource`；`copy.json` 新增 46 個 `ui.compare.*`。
+- 先量再改（A/B 疊圖）：表格的 `ResizeToContents` 改成填完再算一次欄寬（填表 662 → 4 ms）、標記改成小圖（5 600 個標記的疊圖 96 → 4 ms）、欄寬只看前 64 列。
+- 文件：ADR-004（新增；`docs/decisions.md`）、`docs/steps/S09-contract-ab/` 的 `spec.md`、`diagram.md`、`explainer.html`（資料在 HALCON 恢復前是標明「示意」的）、`storyboard.md`、`perf.md`；`architecture.md`、`AI_CONTEXT.md`、`current-status.md`、`docs/plan/S10`–`S12` 的提醒。
+
+### 修改的檔案
+- 新增：`src/application/compare/BackendComparison.*`、`src/presentation/compare/*`（含 `.ui`）、`tests/contract/*`、`tests/core/tst_backend_comparison.cpp`、`tests/ui/tst_compare.cpp`、`tests/ui/perf_compare_ui.cpp`、對應的 `AiInspTool/tests/**/*.pro` 與 `contract_tests.pri`、`docs/adr/004-backend-divergence.md`、`docs/steps/S09-contract-ab/*`
+- 修改：`src/infrastructure/backend_fake/FakeBackend.cpp`、`src/application/ports/{IPatternSearcher,ITemplateBuilder,ILibraryMatcher}.h`（註解）、`src/presentation/shell/MainWindow.{h,cpp,ui}`、`src/presentation/presenters/{AutoRoiPresenter,AppPresenters}.{h,cpp}`、`docs/ux/copy.json`、`AiInspTool/src/{application,presentation}/*.pro`、`AiInspTool/tests/tests.pro`、`tests/backend/tst_{opencv,halcon}_backend.cpp`、`tests/backend/tst_halcon_library_matcher.cpp`、`tests/core/tst_fake_backend.cpp`、文件（見上）
+- 刪除：`tests/backend/tst_{opencv,halcon}_end_to_end.cpp`、`tests/backend/tst_opencv_library_matcher.cpp` 與它們的 `.pro`
+
+### 驗證
+- `scripts/dev/test.ps1`（預設，最後一版）：56／56 通過；HALCON 讀不到 dongle（錯誤 2300），`tst_contract_*` 的 HALCON 列、`tst_halcon_*`、`tst_cli` 的 HALCON 部分是 SKIPPED。
+- `-Config Debug`（最後一版）：56／56 通過（HALCON 同上 SKIPPED）。`-NoHalcon` 54／54、`-NoOpenCv` 53／53、兩個都關 51／51（這三個在 UI 的最後兩次修改之前跑；那兩次修改和選項無關。兩個都關的組合抓到 `makeMatcher` 沒用到的參數 `/WX`，修好後重跑通過）。
+- HALCON 能用時（12:3x，契約測試第一版）：`tst_contract_searcher` 61 passed 0 skipped、`tst_contract_end_to_end` 22／0、`tst_contract_library_matcher` 21／0；數字在 `perf.md` §1。
+- 變異測試（手動，改一處 → 只重建那個程式庫與 `tst_contract_searcher` → 跑 → 改回）：4 個都在對的那一列失敗（`spec.md`）。
+- `test.ps1 -Perf -Filter 'perf_compare_ui'` 連跑 3 次：AB-U1a p95 19.6–27.0 ms（≤ 33）、AB-U1b 30.5–38.8 ms（≤ 50），都通過；`perf_ab` 3 次（只有 OpenCV）。
+- `node tools/ste-lint.mjs --strict`：899 句 0 error 0 warning；`node tools/check-deps.mjs`：0 violation；說明頁在瀏覽器裡實際操作過（拖門檻、點差異），沒有 console 錯誤。
+- **未驗證（使用者 2026-10-09 決定之後再測）**：最後一版在 HALCON 上的所有測試、`perf_ab` 的 HALCON 那一邊與 A/B 比較。
+
+### 未完成
+- HALCON 恢復後：`perf.md` §6 的步驟（`tst_halcon_backend` 0 skipped → 預設與 Debug → `perf_ab` 3 次 → 補 `perf.md` §2、ADR-004 §3、`explainer.html` 的 `ab-data`）。
+- 等使用者決定（ADR-004）：分數門檻要不要依 back end 分開、`nativeGray16` 要不要當預設、新的真實影像能不能用。
+
+### 注意事項
+- 容差只改 `ContractTolerances.h`，放寬要在 ADR-004 寫理由；新的 back end 在組裝根註冊就自動多一列。
+- 在成功的 `Result` 上呼叫 `error()` 會丟例外、整個測試執行檔中止：契約測試用 `QCOMPARE_ERROR`。
+- `test.ps1` 以 `<建置>/test-work` 為工作資料夾：測試的輸出檔寫在目前的資料夾（不要再加 `test-work/`）。
+- 表格不要用 `ResizeToContents` 填大量資料（每個 `setItem` 都重量整欄）。
+
 ## 2026-10-09 — Claude Code (Claude Opus 5.5)（修掉 session B 的四個已知問題）
 
 ### 完成

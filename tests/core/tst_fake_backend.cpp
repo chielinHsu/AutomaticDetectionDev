@@ -1,9 +1,8 @@
-// 假 back end 遵守 port 契約（IPatternSearcher.h、ITemplateBuilder.h 裡寫的那份）。
-// S09 會把同一組斷言泛化成「對每個 back end 跑」的契約測試；這裡先對假 back end 跑，
-// 因為 use case 的測試要靠它，它自己錯了，其他測試就都沒有意義。
+// 假 back end 的合成世界（FakeGrid）：結果和它算出來的一模一樣（數量、分數、位置、角度），而且同樣的參數永遠同一個世界。
+// use case 的測試要靠它，它自己錯了，其他測試就都沒有意義。port 的契約（錯誤碼、排序、區域、取消、可重入）在 S09 的
+// 契約測試（tests/contract/tst_contract_searcher），對每個 back end——包括這一個——跑同一組；S03 這裡原本的那幾個搬過去了。
 #include <QtTest>
 #include <algorithm>
-#include <thread>
 
 #include "CoreTestSupport.h"
 
@@ -72,18 +71,6 @@ private slots:
         QVERIFY(approxEqual(t.value()->size().w, 20.0) && approxEqual(t.value()->size().h, 20.0));
     }
 
-    void theBuilderRefusesBadInput() {
-        fake::FakeTemplateBuilder builder(spec());
-        const Result<TemplatePtr> noImage = builder.build(ImageView{}, kSample, SearchParams{}, CancelToken());
-        QVERIFY(!noImage.ok() && noImage.error().code == ErrorCode::InvalidArgument);
-        const Result<TemplatePtr> outside = builder.build(image().view(), {5000.0, 5000.0, 10.0, 10.0}, SearchParams{}, CancelToken());
-        QVERIFY(!outside.ok() && outside.error().code == ErrorCode::InvalidArgument);
-        CancelSource source;
-        source.cancel();
-        const Result<TemplatePtr> cancelled = builder.build(image().view(), kSample, SearchParams{}, source.token());
-        QVERIFY(!cancelled.ok() && cancelled.error().code == ErrorCode::Cancelled);
-    }
-
     void aWholeImageSearchReturnsEveryPartSortedByScore() {
         const fake::FakeSpec s = spec();
         const Result<std::vector<Match>> r = find(s, SearchRegion::wholeImage(), everything());
@@ -132,12 +119,6 @@ private slots:
         QCOMPARE(r.value().size(), expected);
     }
 
-    void aSearchWithNoWindowsFindsNothingAndThatIsNotAnError() {
-        const Result<std::vector<Match>> r = find(spec(), SearchRegion::inWindows({}), everything());
-        QVERIFY(r.ok());
-        QVERIFY(r.value().empty());
-    }
-
     void theAngleRangeFiltersParts() {
         fake::FakeSpec s = spec();
         s.gridAngleDeg = 20.0;
@@ -164,63 +145,6 @@ private slots:
         QCOMPARE(r.value().size(), std::size_t{5});
         const Result<std::vector<Match>> all = find(spec(), SearchRegion::wholeImage(), everything());
         for (std::size_t i = 0; i < 5; ++i) QCOMPARE(r.value()[i].score, all.value()[i].score);
-    }
-
-    void aTemplateFromAnotherBackendIsRefused() {
-        struct Foreign final : ITemplate {
-            Size2D size() const noexcept override { return {1.0, 1.0}; }
-            std::string_view backendId() const noexcept override { return "fake"; }  // 連名字都冒用：型別檢查要擋下
-        } foreign;
-        fake::FakeSearcher searcher(spec());
-        const Result<std::vector<Match>> r = searcher.find(image().view(), foreign, SearchRegion::wholeImage(), everything(), CancelToken());
-        QVERIFY(!r.ok());
-        QVERIFY(r.error().code == ErrorCode::BackendMismatch);
-    }
-
-    void badSearchInputIsAnErrorNotAnException() {
-        const TemplatePtr t = buildTemplate(spec());
-        fake::FakeSearcher searcher(spec());
-        const Result<std::vector<Match>> noImage = searcher.find(ImageView{}, *t, SearchRegion::wholeImage(), everything(), CancelToken());
-        QVERIFY(!noImage.ok() && noImage.error().code == ErrorCode::InvalidArgument);
-        SearchParams bad = everything();
-        bad.minScore = 1.5;
-        const Result<std::vector<Match>> tooHigh = searcher.find(image().view(), *t, SearchRegion::wholeImage(), bad, CancelToken());
-        QVERIFY(!tooHigh.ok() && tooHigh.error().code == ErrorCode::InvalidArgument);
-        bad.minScore = std::nan("");
-        const Result<std::vector<Match>> nan = searcher.find(image().view(), *t, SearchRegion::wholeImage(), bad, CancelToken());
-        QVERIFY(!nan.ok() && nan.error().code == ErrorCode::InvalidArgument);
-    }
-
-    void aRaisedCancelFlagStopsTheSearch() {
-        CancelSource source;
-        source.cancel();
-        const Result<std::vector<Match>> r = find(spec(), SearchRegion::wholeImage(), everything(), source.token());
-        QVERIFY(!r.ok());
-        QVERIFY(r.error().code == ErrorCode::Cancelled);
-    }
-
-    // 契約：可以被多個 worker 同時呼叫。四個執行緒共用同一個搜尋器與範本，結果必須完全相同。
-    void severalThreadsCanSearchWithTheSameObjects() {
-        const TemplatePtr t = buildTemplate(spec());
-        fake::FakeSearcher searcher(spec());
-        const Result<std::vector<Match>> reference = searcher.find(image().view(), *t, SearchRegion::wholeImage(), everything(), CancelToken());
-        QVERIFY(reference.ok());
-        std::atomic<int> same{0};
-        std::vector<std::thread> threads;
-        for (int i = 0; i < 4; ++i) {
-            threads.emplace_back([&] {
-                for (int k = 0; k < 50; ++k) {
-                    const Result<std::vector<Match>> r = searcher.find(image().view(), *t, SearchRegion::wholeImage(), everything(), CancelToken());
-                    if (r.ok() && r.value().size() == reference.value().size() &&
-                        std::equal(r.value().begin(), r.value().end(), reference.value().begin(),
-                                   [](const Match& a, const Match& b) { return a.score == b.score && a.pose.x == b.pose.x && a.pose.y == b.pose.y; })) {
-                        ++same;
-                    }
-                }
-            });
-        }
-        for (std::thread& th : threads) th.join();
-        QCOMPARE(same.load(), 200);
     }
 
     void theWorldDoesNotDependOnWhoAsks() {

@@ -17,6 +17,7 @@
 #include "domain/search_params.h"
 #include "presentation/canvas/ICanvasController.h"
 #include "presentation/canvas/ICanvasView.h"
+#include "presentation/compare/CompareInterfaces.h"
 #include "presentation/presenters/ControllerInterfaces.h"
 #include "presentation/presenters/MessageTexts.h"
 #include "presentation/presenters/SceneBuilder.h"
@@ -75,7 +76,8 @@ class AutoRoiPresenter : public QObject,
                          public IMessageController,
                          public IHistoryController,
                          public IParamsSink,
-                         public ISearchEngineSink {
+                         public ISearchEngineSink,
+                         public ICompareSource {
     Q_OBJECT
 public:
     AutoRoiPresenter(PresenterViews views, PresenterServices services, PresenterSettings settings, QObject* parent = nullptr);
@@ -133,6 +135,10 @@ public:
     // 錯誤卡片用的名稱（目前的 back end、建議改用的那一個）。AppPresenters 在啟動時交一次，換 back end 時 useSearchEngine 一起交。
     void setBackendLabels(const BackendLabels& labels) { backendLabels_ = labels; }
     void researchSameRegion() override;
+
+    // ---- ICompareSource（ComparePresenter：A/B 比較，S09）----
+    // 有樣本的搜尋（搜尋中、預覽、無匹配、錯誤）時：目前的影像（套過有效位元數）、樣本框、搜尋參數與分數門檻。
+    std::optional<CompareRequest> compareRequest() const override;
 
     // 目前用的影像（套過有效位元數的設定）。測試用。
     const aoi::ImageView& image() const { return image_; }
