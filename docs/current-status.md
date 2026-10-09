@@ -3,7 +3,7 @@
 新 session 開工前先讀這份，再讀 `docs/plan/Sxx-*.md`。步驟完成後由該步驟的 session 更新。原檔名 `STATUS.md`，2026-10-05 更名為本檔以符合共用結構（見 `docs/adr/000-ai-agent-structure.md`）。各步驟的完整內容在 `docs/steps/Sxx-*/` 與 `docs/changelog-ai.md`，本檔只留重點。
 
 - 更新日期：2026-10-09
-- 階段：S00–S08 完成；**2026-10-07 建置改成只用 qmake**（S09 之前的 session A，[ADR-018](adr/018-qmake-only-build.md)；分支 `build/qmake-only` 以 `--no-ff` 合併到 `main`，沒有 tag）。**2026-10-08 S09 之前的 session B 完成**（授權提醒改成卡片＋狀態列的標示、back end 選單可以在執行中切換、介面的版面改用 Designer 的 `.ui`；[ADR-021](adr/021-runtime-backend-switching.md)、[ADR-022](adr/022-designer-forms.md)；分支 `feat/backend-switch-ui-forms` 以 `--no-ff` 合併到 `main`，沒有 tag）。**下一個是 S09**。S01–S08 都已用 `--no-ff` 合併到 `main` 並打 tag（`step-01-done`…`step-08-done`）；AI 共用結構、commit 格式規則與 S04 之後的〔適配寬度〕也已合併到 `main`（全部只在本機，**沒有 push**）。S06 起用 Qt 6.12.0。**等使用者決定的事**：（1）[ADR-009](adr/009-ui-toolkit-review-after-s02.md)：I1 在預算邊緣、真實視窗超標；（2）**U3 超出預算**（S04）；（3）T3 要不要涵蓋散佈的點（S05）；（4）**存檔／開啟配方的 UI 放進哪一步**（S06；分層樣本庫各層的檔案位置、流程 B 的 UI 也在那一步一起定）；（5）S06 的指標（開圖、存檔）要不要有預算；（6）S07：真實影像上 use case 的種子門檻與預設的分數門檻（0.70）偏低、晶格在空槽補假缺格、T7（流程 B）的預算（見「S07 的產出與發現」）；（7）**S08 新增**：HALCON 的影像來源（`read_image`）要不要做、授權提醒的規則是否符合期待、兩個 back end 的分數門檻要不要分開（見「S08 的產出與發現」）
+- 階段：S00–S09 完成（**S09 的 HALCON 部分未測**：2026-10-09 12:39 起 HALCON 讀不到 dongle，使用者決定記下來、之後再測，見「S09 的產出與發現」）；**2026-10-07 建置改成只用 qmake**（S09 之前的 session A，[ADR-018](adr/018-qmake-only-build.md)；分支 `build/qmake-only` 以 `--no-ff` 合併到 `main`，沒有 tag）。**2026-10-08 S09 之前的 session B 完成**（授權提醒改成卡片＋狀態列的標示、back end 選單可以在執行中切換、介面的版面改用 Designer 的 `.ui`；[ADR-021](adr/021-runtime-backend-switching.md)、[ADR-022](adr/022-designer-forms.md)；分支 `feat/backend-switch-ui-forms` 以 `--no-ff` 合併到 `main`，沒有 tag）。**下一個是 S10**。S01–S09 都已用 `--no-ff` 合併到 `main` 並打 tag（`step-01-done`…`step-09-done`）；AI 共用結構、commit 格式規則與 S04 之後的〔適配寬度〕也已合併到 `main`（全部只在本機，**沒有 push**）。S06 起用 Qt 6.12.0。**等使用者決定的事**：（1）[ADR-009](adr/009-ui-toolkit-review-after-s02.md)：I1 在預算邊緣、真實視窗超標；（2）**U3 超出預算**（S04）；（3）T3 要不要涵蓋散佈的點（S05）；（4）**存檔／開啟配方的 UI 放進哪一步**（S06；分層樣本庫各層的檔案位置、流程 B 的 UI 也在那一步一起定）；（5）S06 的指標（開圖、存檔）要不要有預算；（6）S07：真實影像上 use case 的種子門檻與預設的分數門檻（0.70）偏低、晶格在空槽補假缺格、T7（流程 B）的預算（見「S07 的產出與發現」）；（7）**S08 新增**：HALCON 的影像來源（`read_image`）要不要做、授權提醒的規則是否符合期待（見「S08 的產出與發現」）；（8）**S09 新增**（ADR-004）：兩個 back end 的分數門檻要不要分開（產品的預設）、HALCON 的 `nativeGray16` 要不要當預設、新的真實影像（`D:Benano61007_4677_AdvancePin_Proj`）能不能用
 
 | 步驟 | 層級 | 主題 | 狀態 | 分支 | tag |
 |---|---|---|---|---|---|
@@ -16,8 +16,8 @@
 | S06 | 底層 | 影像緩衝、轉接器、Recipe 儲存 | ✅ 完成 | `step/06-image-storage` | `step-06-done` |
 | S07 | 底層 | OpenCV back end | ✅ 完成（⚠ 真實影像的門檻與晶格待使用者決定） | `step/07-opencv` | `step-07-done` |
 | S08 | 底層 | HALCON back end | ✅ 完成（⚠ 影像來源與授權提醒的規則待使用者確認） | `step/08-halcon` | `step-08-done` |
-| S09 | 底層 | 契約測試與 A/B 比較 | ⏳ 下一個 | `step/09-contract-ab` | |
-| S10 | 驗證 | 效能測試 harness 與回歸閘門 | ⬜ | `step/10-perf-harness` | |
+| S09 | 底層 | 契約測試與 A/B 比較 | ✅ 完成（⚠ HALCON 部分未測：dongle 讀不到） | `step/09-contract-ab` | `step-09-done` |
+| S10 | 驗證 | 效能測試 harness 與回歸閘門 | ⏳ 下一個 | `step/10-perf-harness` | |
 | S11 | 驗證 | 效能優化（先量再改） | ⬜ | `step/11-optimize` | |
 | S12 | 發行 | 匯出、打包、最終文件 | ⬜ | `step/12-release` | |
 
@@ -62,6 +62,14 @@
 - **驗證**：預設的建置 54／54（新增 `tst_backend_switch`；之前 53），`-NoHalcon` 51、`-NoOpenCv` 49、兩個都關 46、Debug 54、Profile 54；HALCON 的測試都沒有跳過。使用者在 Qt Creator 的 Designer 打開五個表單確認過。真的 HALCON 背景切換：總共 1.3 秒，`selectBackend` 0 ms 返回，UI 事件迴圈最長停頓 12 ms。UI 效能前後交替量 4 輪：I1、U3 沒有變差，U1 有一輪受機器負載干擾（ADR-022 的表）。數字與 Designer 的確認見 `docs/changelog-ai.md`。
 - **2026-10-09 修掉 session B 的四個已知問題**（使用者要求，ADR-021 的「後續」）：HALCON 授權失敗之後不必重新啟動（授權「能用才記住」；HALCON 自己會記住第一次的失敗，所以碰 HALCON 之前先用另一個行程檢查，第一次切到 HALCON 從約 1.3 秒變成 2.8 秒）；`SESSIONS=1` 驗證過不會擋住別的程式；錯誤卡片的標題改成 back end 名稱，加〔改用 …〕（建議 OpenCV 而不是 fake）；`copy.json` 刪掉兩個不再使用的 key。2026-10-09 早上 HALCON 讀不到 dongle（錯誤 2300），沒有拔插、之後自己恢復，原因不明。
 
+## S09 的產出與發現（2026-10-09）
+
+- **做了什麼**：契約測試 `tests/contract/`（Liskov）：同一組測試以組裝根註冊的 back end 參數化，每個測試函式「一個 back end 一列」（fake、opencv、halcon），沒編進來或沒有授權的那一列 **SKIPPED 並寫出原因**；容差只在 `ContractTolerances.h`（附依據）。S03、S07、S08 的契約草稿與兩份端到端、OpenCV 的樣本庫比對器測試併進來（各 back end 的測試只留它自己才有的事）。A/B 比較：application 的 `compare/BackendComparison`（兩份提案在容差內一對一配對，兩邊都有／只有 A／只有 B 與原因；依序跑兩個 use case）、presentation 的比較視窗（主視窗〔A/B 比較…〕，綠圓／藍方／橘三角、各階段耗時與數量、差異清單、兩邊的門檻各自一個，改門檻不重新搜尋）。ADR-004（兩個 back end 的差異：哪些接受、哪些算 bug）。application、domain、port 的語意沒有改（port 標頭只加了指向契約測試的註解與「參數不合法回 InvalidArgument」一行）。
+- **契約測試找到的**：假 back end 收到不合法的角度範圍時「成功、找不到」，OpenCV、HALCON 回 `InvalidArgument`——改假 back end。變異測試 4 個（拿掉 OpenCV 的視窗過濾、假的排序反過來、假的角度檢查拿掉、OpenCV 的角度正負號反過來）都在對的那一列失敗。
+- **效能**：A/B 疊圖 AB-U1a（約 200 個標記）p95 19.6–27.0 ms（U1a 33）、AB-U1b（約 5 600 個）30.5–38.8 ms（U1b 50）；第一版約 200 個要 640–873 ms、5 600 個跑不完，先量才找到兩個瓶頸（表格的 `ResizeToContents` 每填一格就重量整欄、每個標記描兩次邊）。AB-U3（改門檻之後重新比較）p95 48.8–63.4 ms，沒有預算。OpenCV 在 12 種 5 MP 合成板子（含光照不均、低對比、重模糊、大片反光、強雜訊）召回率都是 100%；**反光是 OpenCV 最弱的地方**（位置偏約 0.5 px、40% 反光分數掉到 0.84）。`perf/budgets.json` 沒有改。細節：`docs/steps/S09-contract-ab/perf.md`。
+- **HALCON 未測（使用者 2026-10-09 決定之後再測）**：12:39 起讀不到 dongle（錯誤 2300，第四次）。三個契約測試含 HALCON 在 12:3x 的第一版全部通過；之後的版本與 A/B 並排的 HALCON 那一邊沒有跑過。恢復之後的步驟在 `perf.md` §6（`tst_halcon_backend` 0 skipped → `test.ps1` 預設與 Debug → `perf_ab` 3 次 → 補 `perf.md` §2、ADR-004 §3、`explainer.html` 的資料；說明頁現在顯示標明「示意」的資料）。
+- **測試數**：預設 56 項（`-NoHalcon` 54、`-NoOpenCv` 53、兩個都關 51）。兩個都關的組合抓到一個 `/WX`（已修）。
+
 ## 預算校準狀態
 
 `perf/budgets.json` 頂層仍是 `status: "proposed"`（T5 等 S10）。**S08 把 T2b 標 `calibrated`**（limit 沒有改，新增 `searchCalibrationS08`；HALCON 的 T1、T4、T6、T7 的數字記在 `docs/steps/S08-halcon/perf.md` 與 `perf/baseline/casparhsu1-halcon.json`，那些 id 的 `measured` 仍是 S07 OpenCV 的值）。T3 標 `calibrated`（S05）；**S07 把 T1、T2a、T4、T6a、T6b 標 `calibrated`**（limit 沒有改；新增 `searchCalibrationS07`；T7 的預算只在 `docs/steps/S07-opencv/perf.md` 提案，沒有寫進檔案）。UI 類：U1a、U1b、U4、I2、I5 標 `calibrated`，I1 標 `calibrated-at-limit`；S04 起 U2、I3、I4、I6 也標 `calibrated`，**U3 標 `measured-over-limit`**。**S06 沒有改 `budgets.json`**：S06 的指標（載入、複製次數、配方存讀）沒有預算，只記在 `docs/steps/S06-image-storage/perf.md` 與 `perf/baseline/casparhsu1-storage.json`；U4 在 Qt 6.12.0 重量過，記在 `perf.md`。S02–S05 的基準線（`perf/baseline/casparhsu1*.json`）是 Qt 6.8.0 的數字，只在這台機器可比較。
@@ -73,7 +81,7 @@
 - **存檔與開啟配方的 UI（必要功能，沒有排進任何一步）**：儲存層與背景存檔在 S06 做好了，畫面上的〔儲存〕仍停用，也沒有〔開啟配方〕；開啟配方還需要記住影像路徑（S07 的 schema v2 只加了 `board.significantBits`）。需要使用者決定放進哪一步。**樣本庫 UI 也在同一步**：使用者 2026-10-06 決定，分層樣本庫三層的檔案位置（專案層、使用者層、系統層各放哪裡）等到那一步和這兩個 UI 一起定；**流程 B 的 UI（`finishRegionScan` 接 `OpenCvLibraryMatcher`）也等那一步**（S07 的 `Backend` 結構沒有 `libraryMatcher` 欄位）。
 - **S04 沒有涵蓋的 UI**：`LibraryPresenter`、`TypeEditorPresenter`（樣本庫面板、元件類型編輯器、流程 C）沒有任何一步的 plan 檔涵蓋；流程 B（區域掃描）的結果固定是「樣本庫是空的」（S07 做好了 OpenCV 的比對器，但接受提案時類型沒有存參考影像、樣本庫也還沒組裝，所以畫面沒接）；接受提案時的元件類型是暫時的（`X1…`）；沒有校正值的影像暫以 1 µm ＝ 1 像素展開框；晶格的信心與「建議檢查」還沒有顯示。
 - ADR-006 未決：實例覆寫、Panel 多連板、角度正負號、窗的演算法與參數、自由公式。庫的分層 S06 已照 TRI 決定並實作（`LayeredLibraryStore`）；各層的檔案位置等接樣本庫 UI 的那一步（見上一條）。新預算 T7（區域掃描隨樣本庫大小 N）等 S07 實測後再提。
-- **HALCON（S08 之後）**：開發檔在 `third_party/halcon`（`%HALCONROOT%` 仍只有 runtime）。ADR-010 的 HALCON 端、ADR-006「每個條目一個 shape model、一次找多個」都在 S08 實測確認。**等使用者決定**：（1）HALCON 的影像來源（`read_image`）要不要做：現在 `release-halcon` 靠 OpenCV 讀 TIFF，只有 HALCON 的建置讀不了 TIFF；（2）授權提醒的規則：「用 runtime 授權、而 SDK 授權檔的 dongle 不在」才提醒，只有 runtime 授權的電腦（部署）不提醒——是否符合期待；（3）兩個 back end 的分數是不同的尺（NCC 對邊緣方向的一致度），同一個門檻 0.70 的意義不同，要不要分開（S09 的 A/B 一起看）。`nativeGray16`（HALCON 直接用 16 bit，零複製、更快）要不要當預設，S09 決定。
+- **HALCON（S08 之後）**：開發檔在 `third_party/halcon`（`%HALCONROOT%` 仍只有 runtime）。ADR-010 的 HALCON 端、ADR-006「每個條目一個 shape model、一次找多個」都在 S08 實測確認。**等使用者決定**：（1）HALCON 的影像來源（`read_image`）要不要做：現在 `release-halcon` 靠 OpenCV 讀 TIFF，只有 HALCON 的建置讀不了 TIFF；（2）授權提醒的規則：「用 runtime 授權、而 SDK 授權檔的 dongle 不在」才提醒，只有 runtime 授權的電腦（部署）不提醒——是否符合期待；（3）兩個 back end 的分數是不同的尺（NCC 對邊緣方向的一致度），同一個門檻 0.70 的意義不同：S09 的 A/B 視窗已經可以兩邊各設一個門檻來看差異；產品的預設要不要分開，**等使用者決定**（ADR-004）。`nativeGray16`（HALCON 直接用 16 bit，零複製、S08 實測種子搜尋快約 1.7 倍、準確度相同）：ADR-004 **建議改成預設**，但真實的 12 bit 影像沒驗證、而且預設值在交接單的「不要動」清單，所以沒有改，**等使用者決定**。（4）**S09 的 HALCON 部分未測**（dongle 讀不到，見「S09 的產出與發現」）。
 - 設定記憶（主題、字級、語言）、減少動態、高 DPI 的實際外觀：**沒有做**。`QBENCHMARK` 沒有用到也沒有驗證（ADR-003）。
 - AI 共用結構與 `ai-project-template/`（2026-10-05 套用並合併，見 `docs/adr/000-ai-agent-structure.md`）：stage 時一律明確列出路徑；Codex 端的流程沒有在本機端到端測過（該機器的 Codex CLI 無法執行 `codex exec`）。
 - 模型與推理強度路由（2026-10-08，Claude Code 專用；[ADR-019](adr/019-model-routing.md)、[ADR-020](adr/020-adaptive-model-effort-routing.md)，都以 `--no-ff` 合併到 `main`，沒有 push）：`MODEL_ROUTING.md`、五個 subagent（frontmatter 的 `model` 與 `effort`）、`UserPromptSubmit` hook（評分與升降級）。實測五個 subagent 的 model 與 effort 都照設定套用；同一組簡單任務五個 agent 都答對，費用差 35–40 倍，幾乎都是啟動成本（`MODEL_ROUTING.md` 第 9 節）。沒有 Git Bash 的電腦沒有驗證；更難的任務的正確率比較沒有做。

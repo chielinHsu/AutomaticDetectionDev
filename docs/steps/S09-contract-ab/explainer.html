@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S09 契約與 A/B</title>
+<style>
+:root{--bg:#f6f7f9;--panel:#fff;--ink:#18212b;--muted:#566273;--line:#d3d9e0;--accent:#1d4ed8;--accent-ink:#fff;
+  --sample:#1d4ed8;--found:#15803d;--infer:#b45309;--reject:#b91c1c;--pred:#6b7787;--board:#1f2a24}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#0f141a;--panel:#18202a;--ink:#e7edf4;--muted:#9aa8b8;--line:#2c3846;
+  --accent:#7aa7ff;--accent-ink:#0b1220;--sample:#7aa7ff;--found:#4ade80;--infer:#fbbf24;--reject:#f87171;--pred:#8fa0b4;--board:#101814}}
+:root[data-theme="dark"]{--bg:#0f141a;--panel:#18202a;--ink:#e7edf4;--muted:#9aa8b8;--line:#2c3846;
+  --accent:#7aa7ff;--accent-ink:#0b1220;--sample:#7aa7ff;--found:#4ade80;--infer:#fbbf24;--reject:#f87171;--pred:#8fa0b4;--board:#101814}
+*{box-sizing:border-box} html{color-scheme:light dark}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 system-ui,"Segoe UI","Microsoft JhengHei",sans-serif}
+.wrap{max-width:1100px;margin:0 auto;padding:16px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;margin-top:14px}
+h1{font-size:22px;margin:0 0 6px} h2{font-size:17px;margin:0 0 8px}
+h3{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--accent);margin:12px 0 2px}
+.zh{color:var(--muted);font-size:13.5px} .muted{color:var(--muted)} .small{font-size:13px}
+.row{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center}
+.grid{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:14px}
+@media (max-width:760px){.grid{grid-template-columns:1fr}}
+canvas{width:100%;height:auto;background:var(--board);border-radius:8px;display:block;touch-action:manipulation;cursor:crosshair}
+select,input,button{font:inherit;color:inherit}
+select,button{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:4px 8px}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+label.kind{display:inline-flex;gap:6px;align-items:center;white-space:nowrap}
+.shape{display:inline-block;width:14px;height:14px}
+table{border-collapse:collapse;width:100%;font-size:13.5px}
+th,td{border-bottom:1px solid var(--line);padding:4px 6px;text-align:left;vertical-align:top}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+tr.pick{cursor:pointer} tr.pick:hover,tr.sel{background:color-mix(in srgb,var(--accent) 14%,transparent)}
+.scroll{max-height:300px;overflow:auto}
+.pill{display:inline-block;padding:0 8px;border-radius:999px;border:1px solid var(--line);font-size:12.5px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+.stat{border:1px solid var(--line);border-radius:10px;padding:8px}
+.stat b{font-size:20px;display:block}
+input[type=range]{width:160px}
+.detail{min-height:110px}
+.tbl-wrap{overflow-x:auto}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>S09：兩個 back end 為什麼可以互換——契約測試與 A/B 比較</h1>
+  <p class="zh">同一組契約測試對每個 back end 各跑一次（Liskov）；A/B 比較把同一個樣本在 OpenCV 與 HALCON 上的結果疊在一起。疊圖可以載入 <code>perf_ab</code> 寫出的 <code>ab-*.json</code>（兩個 back end 都能用時才有）。<b>S09 收工時 HALCON 讀不到 dongle</b>，所以頁面預設顯示的是<b>示意資料</b>（「A（示意）」「B（示意）」，不是量測），只用來說明怎麼讀；實測要等 HALCON 恢復後由 <code>perf_ab</code> 產生。</p>
+
+  <div class="card" id="stage">
+    <div class="row">
+      <label>情境 <select id="scenario"></select></label>
+      <label class="small">載入 A/B 結果（<code>build/qmake-release/test-work/ab-*.json</code>）<input type="file" id="file" accept=".json,application/json"></label>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <label class="kind"><input type="checkbox" id="showBoth" checked><svg class="shape" viewBox="0 0 14 14"><circle cx="7" cy="7" r="5" fill="none" stroke="var(--found)" stroke-width="2"/></svg>兩邊都找到 <span id="nBoth" class="pill">0</span></label>
+      <label class="kind"><input type="checkbox" id="showA" checked><svg class="shape" viewBox="0 0 14 14"><rect x="2" y="2" width="10" height="10" fill="none" stroke="var(--sample)" stroke-width="2"/></svg>只有 A <span id="nA" class="pill">0</span></label>
+      <label class="kind"><input type="checkbox" id="showB" checked><svg class="shape" viewBox="0 0 14 14"><polygon points="7,1.5 13,12.5 1,12.5" fill="none" stroke="var(--infer)" stroke-width="2"/></svg>只有 B <span id="nB" class="pill">0</span></label>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <label>A 的門檻 <input type="range" id="thrA" min="0.70" max="0.99" step="0.01" value="0.70"> <b id="thrAv">0.70</b></label>
+      <label>B 的門檻 <input type="range" id="thrB" min="0.70" max="0.99" step="0.01" value="0.70"> <b id="thrBv">0.70</b></label>
+      <span class="muted small">兩邊的分數不是同一把尺：拉高其中一邊，看差異怎麼長出來（不重新搜尋，和程式的 A/B 視窗一樣）。</span>
+    </div>
+    <div class="grid" style="margin-top:10px">
+      <div>
+        <canvas id="board" width="1040" height="780" aria-label="A/B 疊圖：點一個標記看兩邊的分數"></canvas>
+        <p class="muted small" id="legendNote"></p>
+      </div>
+      <div>
+        <div class="stats" id="stats"></div>
+        <h3>點一個標記或下面的差異</h3>
+        <div class="detail small" id="detail"><span class="muted">還沒有選。</span></div>
+      </div>
+    </div>
+    <h3>差異（只有 A、只有 B）</h3>
+    <div class="scroll tbl-wrap"><table id="diffs"><thead><tr><th>類別</th><th class="num">x</th><th class="num">y</th><th class="num">A</th><th class="num">B</th><th>另一邊為什麼沒有</th></tr></thead><tbody></tbody></table></div>
+  </div>
+
+  <div class="card">
+    <h2>每一條契約：違反時會發生什麼壞事</h2>
+    <p class="zh">契約測試在 <code>tests/contract/</code>，每個測試函式「一個 back end 一列」。HALCON 欄是 2026-10-09 12:3x（dongle 還讀得到）那一次的結果；之後的版本沒有在 HALCON 上跑過（未測，等 dongle）。沒編進程式或沒有授權的那一列是 <b>SKIPPED</b> 並寫出原因（S09 開發途中 HALCON 讀不到 dongle，這件事實際發生過）。點一列看它保護什麼。</p>
+    <div class="tbl-wrap"><table id="contracts"><thead><tr><th>契約</th><th>fake</th><th>OpenCV</th><th>HALCON</th></tr></thead><tbody></tbody></table></div>
+    <div class="detail small" id="contractDetail" style="margin-top:8px"></div>
+  </div>
+
+  <div class="card" id="text"></div>
+</div>
+
+<!-- 頁面的文字。key 為 "ste" 的字串由 tools/ste-lint.mjs 檢查。 -->
+<script type="application/json" id="aoi-data">
+{
+  "sections": [
+    { "title": "Purpose",
+      "ste": { "text": "This step proves that the back ends are interchangeable. One test suite runs on each back end. The A/B view shows the results of two back ends on the same sample." },
+      "zh": "同一組契約測試跑每個 back end；A/B 比較把兩個 back end 對同一個樣本的結果並排。" },
+    { "title": "Reason",
+      "ste": { "text": "A common interface does not guarantee a common behavior. The coordinates, the angles and the scores can be different, and the compiler cannot find it." },
+      "zh": "介面相同不代表行為相同：座標、角度、分數的差異都編譯得過。" },
+    { "title": "Effect",
+      "ste": { "text": "Each back end is one row in the test log. A back end without a license shows SKIPPED with the reason. The A/B view shows found by both, found only by A, and found only by B." },
+      "zh": "每個 back end 是 log 裡的一列；沒有授權的那一列是 SKIPPED 並附原因。A/B 視窗分成兩邊都有、只有 A、只有 B。" },
+    { "title": "The scores",
+      "ste": { "text": "OpenCV compares gray values. HALCON compares edge directions. Thus the same threshold does not mean the same thing. The view has one threshold for each back end." },
+      "zh": "OpenCV 的分數是灰階的相關係數，HALCON 的是邊緣方向的一致度；同一個門檻的意義不同，所以 A/B 視窗兩邊各一個門檻。" }
+  ],
+  "contracts": [
+    { "name": "錯誤是值，不丟例外；不合法的輸入回 InvalidArgument", "bad": "例外穿過 port 讓 worker 結束；不合法的參數被當成「找不到」，使用者會去調門檻。S09 抓到：假 back end 收到顛倒的角度範圍時「成功、找不到」（已修正）。", "tests": "theBuilderRefusesBadInput、theSearcherRefusesBadInput", "rows": ["pass", "pass", "pass"] },
+    { "name": "別家的範本回 BackendMismatch（看型別）", "bad": "執行中換 back end 時舊範本遇到新搜尋器：只比名字就會把別的型別當成自己的（當機）。", "tests": "aForeignTemplateIsRefused", "rows": ["pass", "pass", "pass"] },
+    { "name": "分數在 [minScore, 1]，依分數排序，最多 maxMatches 個", "bad": "門檻與分類假設 0..1；排序錯了截斷時留下錯的元件、結果無法重現。", "tests": "matchesAreScored…、minScoreIsAHardFloor、maxMatchesKeepsTheBestOnes", "rows": ["pass", "pass", "pass"] },
+    { "name": "角度在範圍內", "bad": "晶格與框的展開用這個角度：每個框都歪。範圍比範本寬時：OpenCV、HALCON 拒絕，假的過濾（契約沒有規定，ADR-004 接受）。", "tests": "theAngleRangeIsRespected", "rows": ["pass", "pass", "pass"] },
+    { "name": "中心在搜尋區域內（視窗搜尋只回視窗內的）", "bad": "晶格驗證的視窗回傳鄰居：同一個元件算兩次、缺格看起來被補上。變異測試：拿掉 OpenCV 的過濾，這一列立刻失敗。", "tests": "aWindowSearchOnlyReturnsCentersInsideTheWindows、windowAndWholeImageAgree", "rows": ["pass", "pass", "pass"] },
+    { "name": "找不到 ＝ 成功、空的", "bad": "「無匹配」變成錯誤卡片，給不出「只有一個」「門檻太高」的建議。", "tests": "noWindowsMeansNothingAndNoError、anEmptyBoardGivesAnEmptyResult", "rows": ["pass", "pass", "pass"] },
+    { "name": "取消在 I4（100 ms）之內生效", "bad": "UI 不等 worker，但停不下來的 worker 佔住執行緒，下一次搜尋排隊。", "tests": "cancellingDuringASearchStopsItInTime", "rows": ["n/a", "pass", "pass"] },
+    { "name": "多個 worker 同時呼叫，結果相同", "bad": "latest-wins 時新舊工作重疊在同一個搜尋器上，結果互相污染。", "tests": "severalThreadsGetTheSameResult", "rows": ["pass", "pass", "pass"] },
+    { "name": "座標原點（像素中心在 +0.5）、子影像的原點、角度逆時針為正（ADR-010）", "bad": "每個框偏半個像素；轉過的框左右顛倒。變異測試：OpenCV 的角度正負號反過來，三列都失敗。", "tests": "aCleanBoard…、aSubViewHasItsOwnOrigin、theAngleSignFollowsTheConvention、everyAngleInTheRangeIsRecovered", "rows": ["n/a", "pass", "pass"] },
+    { "name": "樣本庫比對：每個元件的第一個類型是對的，兩個 back end 一致", "bad": "整個類型的元件拿到錯的 CAD 框。", "tests": "tst_contract_library_matcher", "rows": ["n/a", "pass", "pass"] }
+  ]
+}
+</script>
+
+<!-- perf_ab 寫出的 A/B 結果（每一種情境一份；格式 aoi-ab-comparison/1）。由 docs/steps/S09-contract-ab/perf.md 說明的指令重新產生。 -->
+<script type="application/json" id="ab-data">
+[]
+</script>
+
+<script>
+(() => {
+  const data = JSON.parse(document.getElementById('aoi-data').textContent);
+  const scenarios = JSON.parse(document.getElementById('ab-data').textContent);
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+
+  // ---- 文字 ----
+  $('text').innerHTML = data.sections
+    .map((s) => `<h3>${esc(s.title)}</h3><p lang="en">${esc(s.ste.text)}</p><p class="zh" lang="zh-Hant">${esc(s.zh)}</p>`).join('');
+  const contractBody = $('contracts').querySelector('tbody');
+  const mark = (r) => r === 'pass' ? '✓ 通過' : r === 'n/a' ? '—（不適用）' : esc(r);
+  contractBody.innerHTML = data.contracts.map((c, i) =>
+    `<tr class="pick" data-i="${i}"><td>${esc(c.name)}</td>${c.rows.map((r) => `<td>${mark(r)}</td>`).join('')}</tr>`).join('');
+  contractBody.addEventListener('click', (e) => {
+    const tr = e.target.closest('tr'); if (!tr) return;
+    contractBody.querySelectorAll('tr').forEach((r) => r.classList.toggle('sel', r === tr));
+    const c = data.contracts[+tr.dataset.i];
+    $('contractDetail').innerHTML = `<b>違反時：</b>${esc(c.bad)}<br><span class="muted">測試：${esc(c.tests)}（fake 的「不適用」：假 back end 不看影像，準確度與座標慣例不包括它）</span>`;
+  });
+
+  // ---- A/B 疊圖 ----
+  // 沒有實測的資料時：產生一份示意資料（固定的亂數，不是量測），只用來說明疊圖、門檻與原因怎麼讀。
+  if (!scenarios.length) {
+    let seed = 20261009;
+    const rnd = () => ((seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648);
+    const items = [];
+    for (let r = 0; r < 16; r++) for (let c = 0; c < 24; c++) {
+      const x = 120 + c * 102, y = 110 + r * 108, u = rnd();
+      let sa = 0.93 + 0.06 * rnd(), sb = 0.88 + 0.10 * rnd();
+      if (c < 5) sb = 0.62 + 0.14 * rnd();     // B 在左邊的分數低（示意）
+      if (u < 0.08) sa = 0.80 + 0.07 * rnd();  // A 在某些元件上分數低（示意）
+      if (u > 0.985) sb = 'inferred';          // B 只有晶格推算
+      else if (u > 0.975) sb = null;           // B 附近沒有任何候選
+      items.push(['both', x, y, +sa.toFixed(3), typeof sb === 'number' ? +sb.toFixed(3) : sb, 'none']);
+    }
+    scenarios.push({ schema: 'aoi-ab-comparison/1', scenario: 'demo', label: '示意資料（不是量測）', image: [2592, 1944], partSize: [64, 32],
+      threshold: [0.7, 0.7], a: { id: 'A（示意）', totalMs: '—', found: '—', inferred: '—', rejected: '—' },
+      b: { id: 'B（示意）', totalMs: '—', found: '—', inferred: '—', rejected: '—' },
+      summary: { maxDistancePx: '—', meanDistancePx: '—', maxAngleDiffDeg: '—' }, items });
+  }
+  const state = { index: 0, selected: -1, items: [] };
+  const sel = $('scenario');
+  function refreshScenarios() {
+    sel.innerHTML = scenarios.map((s, i) => `<option value="${i}">${esc(s.scenario)} — ${esc(s.label || '')}</option>`).join('');
+    if (!scenarios.length) sel.innerHTML = '<option>（沒有資料：載入 ab-*.json）</option>';
+  }
+  // 依門檻重新分類（和 application/compare/BackendComparison 同一個定義）。
+  const isScore = (v) => typeof v === 'number';
+  function classify(s) {
+    const thrA = +$('thrA').value, thrB = +$('thrB').value;
+    const out = [];
+    for (const [kind0, x, y, sa, sb] of s.items) {
+      const foundA = isScore(sa) && sa >= thrA, foundB = isScore(sb) && sb >= thrB;
+      if (!foundA && !foundB) continue;
+      const kind = foundA && foundB ? 'both' : foundA ? 'onlyA' : 'onlyB';
+      const other = kind === 'onlyA' ? sb : kind === 'onlyB' ? sa : 0;
+      const gap = kind === 'both' ? 'none' : other === null || other === undefined ? 'notFound' : other === 'inferred' ? 'inferredOnly' : 'belowThreshold';
+      out.push({ kind, x, y, sa, sb, gap, was: kind0 });
+    }
+    return out;
+  }
+  const names = (s) => ({ a: (s.a && s.a.id) || 'A', b: (s.b && s.b.id) || 'B' });
+  function reason(it, s) {
+    const n = names(s);
+    const other = it.kind === 'onlyA' ? n.b : n.a;
+    const thr = it.kind === 'onlyA' ? +$('thrB').value : +$('thrA').value;
+    const sc = it.kind === 'onlyA' ? it.sb : it.sa;
+    if (it.gap === 'belowThreshold') return `${other} 的分數 ${sc.toFixed(2)} 低於它的門檻 ${thr.toFixed(2)}（可能只是門檻）`;
+    if (it.gap === 'inferredOnly') return `${other} 只是晶格推算（視窗內沒有找到）`;
+    if (it.gap === 'notFound') return `${other} 在附近沒有任何候選（搜尋本身沒找到）`;
+    return '兩邊都找到';
+  }
+  const unit = (v, u) => typeof v === 'number' ? v + u : '—（示意）';
+  const fmt = (v) => isScore(v) ? v.toFixed(3) : v === 'inferred' ? '推算' : '—';
+
+  const canvas = $('board'), ctx = canvas.getContext('2d');
+  let view = { scale: 1, ox: 0, oy: 0 };
+  function draw() {
+    const s = scenarios[state.index];
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (!s) return;
+    const [w, h] = s.image;
+    view.scale = Math.min((canvas.width - 20) / w, (canvas.height - 20) / h);
+    view.ox = (canvas.width - w * view.scale) / 2; view.oy = (canvas.height - h * view.scale) / 2;
+    ctx.strokeStyle = css('--line'); ctx.lineWidth = 1;
+    ctx.strokeRect(view.ox, view.oy, w * view.scale, h * view.scale);
+    const show = { both: $('showBoth').checked, onlyA: $('showA').checked, onlyB: $('showB').checked };
+    const color = { both: css('--found'), onlyA: css('--sample'), onlyB: css('--infer') };
+    const r = Math.max(3, Math.min(7, s.partSize[1] * view.scale * 0.45));
+    for (const kind of ['both', 'onlyA', 'onlyB']) {
+      if (!show[kind]) continue;
+      ctx.strokeStyle = color[kind]; ctx.lineWidth = kind === 'both' ? 1.5 : 2.2;
+      for (const it of state.items) {
+        if (it.kind !== kind) continue;
+        const px = view.ox + it.x * view.scale, py = view.oy + it.y * view.scale;
+        ctx.beginPath();
+        if (kind === 'both') ctx.arc(px, py, r, 0, Math.PI * 2);
+        else if (kind === 'onlyA') ctx.rect(px - r, py - r, 2 * r, 2 * r);
+        else { ctx.moveTo(px, py - r * 1.15); ctx.lineTo(px + r * 1.1, py + r * 0.85); ctx.lineTo(px - r * 1.1, py + r * 0.85); ctx.closePath(); }
+        ctx.stroke();
+      }
+    }
+    const it = state.items[state.selected];
+    if (it) {
+      ctx.strokeStyle = css('--accent'); ctx.lineWidth = 2.5; ctx.beginPath();
+      ctx.arc(view.ox + it.x * view.scale, view.oy + it.y * view.scale, r * 2.4, 0, Math.PI * 2); ctx.stroke();
+    }
+  }
+  function showDetail() {
+    const s = scenarios[state.index], it = state.items[state.selected];
+    if (!s || !it) { $('detail').innerHTML = '<span class="muted">還沒有選。</span>'; return; }
+    const n = names(s);
+    const label = { both: '兩邊都找到', onlyA: `只有 A（${n.a}）`, onlyB: `只有 B（${n.b}）` }[it.kind];
+    $('detail').innerHTML = `<b>${esc(label)}</b>　位置 (${it.x.toFixed(1)}, ${it.y.toFixed(1)})<br>` +
+      `${esc(n.a)} 的分數：<b>${fmt(it.sa)}</b>（門檻 ${(+$('thrA').value).toFixed(2)}）<br>` +
+      `${esc(n.b)} 的分數：<b>${fmt(it.sb)}</b>（門檻 ${(+$('thrB').value).toFixed(2)}）<br>` +
+      `<span class="muted">${esc(reason(it, s))}</span>`;
+  }
+  function refresh() {
+    const s = scenarios[state.index];
+    $('thrAv').textContent = (+$('thrA').value).toFixed(2);
+    $('thrBv').textContent = (+$('thrB').value).toFixed(2);
+    state.items = s ? classify(s) : [];
+    const count = (k) => state.items.filter((i) => i.kind === k).length;
+    $('nBoth').textContent = count('both'); $('nA').textContent = count('onlyA'); $('nB').textContent = count('onlyB');
+    if (s) {
+      const n = names(s);
+      $('stats').innerHTML = [
+        [`A：${n.a}`, unit(s.a.totalMs, ' ms'), `找到 ${s.a.found}・推算 ${s.a.inferred}・低於門檻 ${s.a.rejected}（門檻 0.70）`],
+        [`B：${n.b}`, unit(s.b.totalMs, ' ms'), `找到 ${s.b.found}・推算 ${s.b.inferred}・低於門檻 ${s.b.rejected}（門檻 0.70）`],
+        ['同一個元件的位置差', unit(s.summary.maxDistancePx, ' px'), `平均 ${s.summary.meanDistancePx} px・角度最大 ${s.summary.maxAngleDiffDeg}°`],
+      ].map(([t, b, m]) => `<div class="stat"><span class="muted small">${esc(t)}</span><b>${esc(b)}</b><span class="small">${esc(m)}</span></div>`).join('');
+      $('legendNote').textContent = `影像 ${s.image[0]}×${s.image[1]}、元件框 ${s.partSize[0]}×${s.partSize[1]} px；時間是 use case 端到端的中位數（這台機器、Release）。`;
+    }
+    const body = $('diffs').querySelector('tbody');
+    const diffs = state.items.map((it, i) => [it, i]).filter(([it]) => it.kind !== 'both');
+    body.innerHTML = diffs.slice(0, 500).map(([it, i]) =>
+      `<tr class="pick${i === state.selected ? ' sel' : ''}" data-i="${i}"><td>${it.kind === 'onlyA' ? '只有 A' : '只有 B'}</td>` +
+      `<td class="num">${it.x.toFixed(1)}</td><td class="num">${it.y.toFixed(1)}</td><td class="num">${fmt(it.sa)}</td><td class="num">${fmt(it.sb)}</td>` +
+      `<td>${esc(reason(it, s))}</td></tr>`).join('') || '<tr><td colspan="6" class="muted">沒有差異：兩邊找到的元件完全一樣。拉高其中一邊的門檻試試。</td></tr>';
+    draw(); showDetail();
+  }
+  $('diffs').querySelector('tbody').addEventListener('click', (e) => {
+    const tr = e.target.closest('tr[data-i]'); if (!tr) return;
+    state.selected = +tr.dataset.i; refresh();
+  });
+  canvas.addEventListener('click', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const cx = (e.clientX - rect.left) * canvas.width / rect.width, cy = (e.clientY - rect.top) * canvas.height / rect.height;
+    let best = -1, bestD = 18;
+    state.items.forEach((it, i) => {
+      const d = Math.hypot(view.ox + it.x * view.scale - cx, view.oy + it.y * view.scale - cy);
+      if (d < bestD) { bestD = d; best = i; }
+    });
+    state.selected = best; refresh();
+  });
+  sel.addEventListener('change', () => { state.index = +sel.value; state.selected = -1; refresh(); });
+  for (const id of ['showBoth', 'showA', 'showB', 'thrA', 'thrB']) $(id).addEventListener('input', () => { if (id.startsWith('thr')) state.selected = -1; refresh(); });
+  $('file').addEventListener('change', async (e) => {
+    const f = e.target.files[0]; if (!f) return;
+    try {
+      const s = JSON.parse(await f.text());
+      if (s.schema !== 'aoi-ab-comparison/1') throw new Error('不是 perf_ab 寫出的 A/B 結果（schema aoi-ab-comparison/1）');
+      scenarios.push(s); refreshScenarios(); state.index = scenarios.length - 1; sel.value = String(state.index); state.selected = -1; refresh();
+    } catch (err) { alert(err.message); }
+  });
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', draw);
+  refreshScenarios(); refresh();
+})();
+</script>
+</body>
+</html>
