@@ -1,6 +1,7 @@
 #include "presentation/presenters/AppPresenters.h"
 
 #include "presentation/canvas/ImageCanvas.h"
+#include "presentation/compare/CompareWindow.h"
 #include "presentation/objects/ObjectsPanel.h"
 #include "presentation/params/ParamsPanel.h"
 
@@ -12,7 +13,16 @@ AppPresenters::AppPresenters(MainWindow& window, PresenterServices services, Bac
     PresenterViews views{*canvas, *canvas, window, window, window, *window.objectsPanel(), *window.paramsPanel()};
     autoRoi_ = std::make_unique<AutoRoiPresenter>(views, std::move(services), PresenterSettings::fromTokens(tokens));
     params_ = std::make_unique<ParamsPresenter>(*autoRoi_, tokens.timing.paramDebounce);
+    // A/B 比較（S09）：同一份 back end 的清單與工廠、同一個執行緒池；啟動時建好的那一個直接用。A 預設是主視窗目前的 back end。
+    CompareServices compare;
+    compare.backends = backend.backends;
+    compare.create = backend.create;
+    compare.executor = backend.executor;
+    if (backend.current) compare.ready.push_back(backend.current);
     backend_ = std::make_unique<BackendPresenter>(window, *autoRoi_, std::move(backend));
+    BackendPresenter* backendPresenter = backend_.get();
+    compare.currentBackend = [backendPresenter] { return backendPresenter->current(); };
+    compare_ = std::make_unique<ComparePresenter>(window, *window.compareWindow(), *autoRoi_, std::move(compare));
 
     MainWindow::Controllers controllers;
     controllers.canvas = autoRoi_.get();
@@ -23,6 +33,7 @@ AppPresenters::AppPresenters(MainWindow& window, PresenterServices services, Bac
     controllers.history = autoRoi_.get();
     controllers.params = params_.get();
     controllers.backend = backend_.get();
+    controllers.compare = compare_.get();
     window.setControllers(controllers);
 
     AutoRoiPresenter* presenter = autoRoi_.get();
@@ -30,8 +41,9 @@ AppPresenters::AppPresenters(MainWindow& window, PresenterServices services, Bac
     QObject::connect(&window, &MainWindow::imageOpenFailed, presenter, &AutoRoiPresenter::onImageOpenFailed);
     QObject::connect(canvas, &ImageCanvas::pointerDragChanged, presenter, &AutoRoiPresenter::onPointerDragChanged);
     QObject::connect(presenter, &AutoRoiPresenter::toolRequested, &window, &MainWindow::selectTool);
+    // 有沒有樣本可以比較，跟著主視窗的狀態走（〔A/B 比較…〕能不能按）。
+    QObject::connect(presenter, &AutoRoiPresenter::stateChanged, compare_.get(), &ComparePresenter::refreshEntry);
     // 錯誤卡片：名稱以 BackendPresenter 為準；〔改用 OpenCV〕交給它換（ADR-021）。
-    BackendPresenter* backendPresenter = backend_.get();
     presenter->setBackendLabels(backendPresenter->labels());
     QObject::connect(presenter, &AutoRoiPresenter::backendSwitchRequested, backendPresenter,
                      [backendPresenter](const QString& id) { backendPresenter->selectBackend(id.toStdString()); });

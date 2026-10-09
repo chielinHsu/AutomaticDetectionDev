@@ -21,6 +21,7 @@ AOI_TESTS = \
     core/tst_fake_backend \
     core/tst_backend_registry \
     core/tst_backend_switch \
+    core/tst_backend_comparison \
     core/tst_perf_probe \
     core/tst_undo_stack \
     core/tst_state_machine \
@@ -55,7 +56,8 @@ AOI_TESTS = \
     ui/tst_params \
     ui/tst_messages \
     ui/tst_scene \
-    ui/tst_presenter
+    ui/tst_presenter \
+    ui/tst_compare
 
 AOI_PERF_TESTS = \
     core/perf_core \
@@ -63,7 +65,8 @@ AOI_PERF_TESTS = \
     infra/perf_storage \
     ui/perf_paint_micro \
     ui/perf_ui_s04 \
-    ui/perf_ui_baseline
+    ui/perf_ui_baseline \
+    ui/perf_compare_ui
 
 # S06、S07：OpenCV 的影像 adapter 與 back end。
 equals(AOI_WITH_OPENCV, ON) {

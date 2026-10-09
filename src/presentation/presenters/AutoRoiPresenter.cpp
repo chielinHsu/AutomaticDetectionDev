@@ -449,6 +449,26 @@ SignificantBitsDecision AutoRoiPresenter::applyBitsSetting(int requested) {
     return decision;
 }
 
+// ---- A/B 比較（S09）------------------------------------------------------------------------------------
+
+std::optional<CompareRequest> AutoRoiPresenter::compareRequest() const {
+    const std::optional<SearchTarget>& target = session_.lastSearch();
+    if (!session_.hasImage() || !image_.valid() || !target || target->mode != RegionMode::Sample) return std::nullopt;
+    const InteractionState s = session_.state();
+    if (s != InteractionState::Searching && s != InteractionState::Preview && s != InteractionState::NoMatch &&
+        s != InteractionState::Error) {
+        return std::nullopt;
+    }
+    if (s == InteractionState::Error && session_.errorSource() != ErrorSource::Search) return std::nullopt;
+    CompareRequest request;
+    request.image = image_;
+    request.sample = target->region;
+    request.search = searchParams_;
+    request.threshold = session_.threshold();
+    request.imageName = imageName_;
+    return request;
+}
+
 // ---- 搜尋 ----------------------------------------------------------------------------------------------
 
 void AutoRoiPresenter::startSearch() {

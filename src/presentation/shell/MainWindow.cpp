@@ -22,6 +22,7 @@
 #include <string>
 
 #include "presentation/canvas/ImageCanvas.h"
+#include "presentation/compare/CompareWindow.h"
 #include "presentation/i18n/Translations.h"
 #include "presentation/shell/EmptyCard.h"
 #include "presentation/objects/ObjectsPanel.h"
@@ -57,6 +58,9 @@ MainWindow::MainWindow(ThemeManager& theme, QWidget* parent)
     paramsPanel_ = ui_->paramsPanel;
 
     emptyCard_ = new EmptyCard(canvas_->viewport());
+    // A/B 比較的視窗（S09）：另一個頂層視窗，主視窗擁有它（一起關、一起解構）；顯示與內容由 ComparePresenter 決定。
+    compareWindow_ = new CompareWindow(tokens, this);
+    compareWindow_->hide();
     canvas_->viewport()->installEventFilter(this);
     connect(emptyCard_, &EmptyCard::openRequested, this, &MainWindow::promptOpen);
 
@@ -66,8 +70,12 @@ MainWindow::MainWindow(ThemeManager& theme, QWidget* parent)
     buildDocks();
     buildStatusBar();
 
-    connect(&theme_, &ThemeManager::changed, this, [this] { canvas_->applyTheme(theme_.colors()); });
+    connect(&theme_, &ThemeManager::changed, this, [this] {
+        canvas_->applyTheme(theme_.colors());
+        compareWindow_->applyTheme(theme_.colors());
+    });
     canvas_->applyTheme(theme_.colors());
+    compareWindow_->applyTheme(theme_.colors());
 
     connect(canvas_, &ImageCanvas::zoomChanged, this, [this](double percent) {
         zoomLabel_->setText(uiText("ui.status.zoom", {{"percent", QString::number(qRound(percent))}}));
@@ -132,6 +140,7 @@ void MainWindow::setControllers(const Controllers& controllers) {
     canvas_->setController(controllers.canvas);
     canvas_->setSelectionController(controllers.selection);
     canvas_->setKeyboardController(controllers.keyboard);
+    compareWindow_->setController(controllers.compare);
 }
 
 QAction* MainWindow::toolAction(ToolId id) const {
@@ -176,6 +185,12 @@ void MainWindow::buildActions() {
     fitWidthAction_ = ui_->actionFitWidth;
     fitWidthAction_->setShortcut(Qt::Key_W);
     connect(fitWidthAction_, &QAction::triggered, this, [this] { canvas_->fitWidth(); });
+    // A/B 比較（S09）：停用（.ui）；ComparePresenter 依「有沒有樣本、有沒有兩個能用的 back end」啟用（ICompareEntryView）。
+    compareAction_ = ui_->actionCompare;
+    compareAction_->setObjectName(QStringLiteral("actionCompare"));
+    connect(compareAction_, &QAction::triggered, this, [this] {
+        if (controllers_.compare) controllers_.compare->openCompare();
+    });
 
     // 左側的工具（V、S、R、＋；.ui 裡是可勾選的動作，選取工具預設勾選）：同一時間只有一個。
     toolGroup_ = new QActionGroup(this);
@@ -268,6 +283,7 @@ void MainWindow::buildToolbars() {
     spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
     topBar_->insertWidget(undoAction_, backendLabel_);
     topBar_->insertWidget(undoAction_, backendCombo_);
+    topBar_->insertAction(undoAction_, compareAction_);  // back end 選單旁邊：〔A/B 比較…〕（S09）
     topBar_->insertWidget(undoAction_, spacer);
 }
 
@@ -322,6 +338,7 @@ void MainWindow::retranslateUi() {
     fitAction_->setToolTip(withShortcut(qtTrId("action.fit"), QStringLiteral("F")));
     fitWidthAction_->setText(QStringLiteral("↔ ") + qtTrId("action.fitWidth"));
     fitWidthAction_->setToolTip(withShortcut(qtTrId("action.fitWidth"), QStringLiteral("W")));
+    compareAction_->setText(qtTrId("ui.compare.action"));
     toolSelect_->setToolTip(withShortcut(qtTrId("tool.select"), QStringLiteral("V")));
     toolSample_->setToolTip(withShortcut(qtTrId("tool.sample"), QStringLiteral("S")));
     toolRegion_->setToolTip(withShortcut(qtTrId("tool.scan"), QStringLiteral("R")));
@@ -450,6 +467,14 @@ void MainWindow::showNotice(const MessageCard& card) {
 }
 
 void MainWindow::hideNotice() { messageBar_->clearNotice(); }
+
+// ---- ICompareEntryView ---------------------------------------------------------------------------------
+
+void MainWindow::setCompareAvailable(bool enabled, const QString& tip) {
+    compareAction_->setEnabled(enabled);
+    compareAction_->setToolTip(tip);
+    compareAction_->setStatusTip(tip);
+}
 
 // ---- IStatusView ---------------------------------------------------------------------------------------
 

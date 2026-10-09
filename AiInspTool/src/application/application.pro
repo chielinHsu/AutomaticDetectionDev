@@ -8,6 +8,7 @@ SOURCES += \
     $$DIR/backend/BackendRegistry.cpp \
     $$DIR/backend/BackendSwitch.cpp \
     $$DIR/backend/SearchEngine.cpp \
+    $$DIR/compare/BackendComparison.cpp \
     $$DIR/document/InspectionDocument.cpp \
     $$DIR/document/ProposalSession.cpp \
     $$DIR/document/RecipeSaver.cpp \
@@ -25,6 +26,7 @@ HEADERS += \
     $$DIR/backend/BackendRegistry.h \
     $$DIR/backend/BackendSwitch.h \
     $$DIR/backend/SearchEngine.h \
+    $$DIR/compare/BackendComparison.h \
     $$DIR/document/InspectionDocument.h \
     $$DIR/document/ProposalSession.h \
     $$DIR/document/RecipeSaver.h \

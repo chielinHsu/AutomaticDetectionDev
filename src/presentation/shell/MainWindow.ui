@@ -87,6 +87,7 @@
     </widget>
     <addaction name="actionFit"/>
     <addaction name="actionFitWidth"/>
+    <addaction name="actionCompare"/>
     <addaction name="separator"/>
     <addaction name="themeMenu"/>
     <addaction name="fontMenu"/>
@@ -266,6 +267,14 @@
   <action name="actionFitWidth">
    <property name="text">
     <string notr="true">↔ 適配寬度</string>
+   </property>
+  </action>
+  <action name="actionCompare">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string notr="true">A/B 比較…</string>
    </property>
   </action>
   <action name="actionToolSelect">

@@ -13,6 +13,9 @@ SOURCES += \
     $$DIR/canvas/OverlayStyle.cpp \
     $$DIR/canvas/RoiGraphicsItem.cpp \
     $$DIR/canvas/RoiLayerItem.cpp \
+    $$DIR/compare/CompareOverlayItem.cpp \
+    $$DIR/compare/ComparePresenter.cpp \
+    $$DIR/compare/CompareWindow.cpp \
     $$DIR/i18n/Translations.cpp \
     $$DIR/objects/ObjectsModel.cpp \
     $$DIR/objects/ObjectsPanel.cpp \
@@ -43,6 +46,10 @@ HEADERS += \
     $$DIR/canvas/OverlayTypes.h \
     $$DIR/canvas/RoiGraphicsItem.h \
     $$DIR/canvas/RoiLayerItem.h \
+    $$DIR/compare/CompareInterfaces.h \
+    $$DIR/compare/CompareOverlayItem.h \
+    $$DIR/compare/ComparePresenter.h \
+    $$DIR/compare/CompareWindow.h \
     $$DIR/i18n/Translations.h \
     $$DIR/objects/ObjectRows.h \
     $$DIR/objects/ObjectsModel.h \
@@ -69,7 +76,9 @@ HEADERS += \
 
 # Qt Designer 的表單（session B，ADR-022）：和類別放在一起。uic 的輸出在建置資料夾（.uic/aoi_presentation），qmake 會加進 include 路徑。
 # 表單裡的文字只是佔位（notr，不翻譯）：執行時由各類別的 retranslate 從 copy.json 設定。提升的佔位元件：ImageCanvas、MessageBar、ObjectsPanel、ParamsPanel。
+# S09：A/B 比較的視窗 compare/CompareWindow.ui（畫布是提升的 ImageCanvas）。
 FORMS += \
+    $$DIR/compare/CompareWindow.ui \
     $$DIR/objects/ObjectsPanel.ui \
     $$DIR/params/ParamsPanel.ui \
     $$DIR/shell/EmptyCard.ui \

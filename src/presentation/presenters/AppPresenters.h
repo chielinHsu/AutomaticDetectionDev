@@ -2,6 +2,7 @@
 
 #include <memory>
 
+#include "presentation/compare/ComparePresenter.h"
 #include "presentation/presenters/AutoRoiPresenter.h"
 #include "presentation/presenters/BackendPresenter.h"
 #include "presentation/presenters/ParamsPresenter.h"
@@ -25,12 +26,14 @@ public:
     AutoRoiPresenter& autoRoi() { return *autoRoi_; }
     ParamsPresenter& params() { return *params_; }
     BackendPresenter& backend() { return *backend_; }
+    ComparePresenter& compare() { return *compare_; }
 
 private:
     MainWindow& window_;
     std::unique_ptr<AutoRoiPresenter> autoRoi_;
     std::unique_ptr<ParamsPresenter> params_;
     std::unique_ptr<BackendPresenter> backend_;
+    std::unique_ptr<ComparePresenter> compare_;  // A/B 比較（S09）：和 BackendPresenter 同一份 back end 的來源
 };
 
 }  // namespace aoi::ui
