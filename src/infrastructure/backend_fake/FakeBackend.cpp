@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cmath>
 #include <exception>
 #include <thread>
 
@@ -10,6 +11,11 @@ namespace aoi::fake {
 namespace {
 
 Error cancelled() { return makeError(ErrorCode::Cancelled, "The fake back end was cancelled."); }
+
+// 角度範圍要是有限值、而且 min ≤ max（S09 的契約測試：和 OpenCV、HALCON 一樣回 InvalidArgument，不是默默找不到）。
+bool validAngleRange(const SearchParams& params) {
+    return std::isfinite(params.angleMinDeg) && std::isfinite(params.angleMaxDeg) && params.angleMinDeg <= params.angleMaxDeg;
+}
 
 // 假裝花了 latencyMs 毫秒；每 1 ms 檢查一次取消，所以取消的延遲約 1 ms。
 Result<void> simulateLatency(double latencyMs, const CancelToken& cancel) {
@@ -24,10 +30,11 @@ Result<void> simulateLatency(double latencyMs, const CancelToken& cancel) {
 
 }  // namespace
 
-Result<TemplatePtr> FakeTemplateBuilder::build(const ImageView& image, const Rect& sample, const SearchParams&,
+Result<TemplatePtr> FakeTemplateBuilder::build(const ImageView& image, const Rect& sample, const SearchParams& params,
                                                const CancelToken& cancel) {
     try {
         if (!image.valid()) return makeError(ErrorCode::InvalidArgument, "The image is not valid.");
+        if (!validAngleRange(params)) return makeError(ErrorCode::InvalidArgument, "The angle range is not valid.");
         const Rect imageRect{0.0, 0.0, static_cast<double>(image.width), static_cast<double>(image.height)};
         const Rect clamped = intersection(sample, imageRect);
         if (clamped.empty()) return makeError(ErrorCode::InvalidArgument, "The sample is outside the image.");
@@ -54,6 +61,7 @@ Result<std::vector<Match>> FakeSearcher::find(const ImageView& image, const ITem
         if (!(params.minScore >= 0.0 && params.minScore <= 1.0)) {
             return makeError(ErrorCode::InvalidArgument, "minScore must be between 0 and 1.");
         }
+        if (!validAngleRange(params)) return makeError(ErrorCode::InvalidArgument, "The angle range is not valid.");
         const auto& parts = fakeTemplate->parts();
 
         if (Result<void> waited = simulateLatency(spec_.latencyMs, cancel); !waited) return waited.error();

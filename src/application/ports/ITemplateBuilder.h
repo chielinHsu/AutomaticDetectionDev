@@ -29,7 +29,7 @@ public:
 
 using TemplatePtr = std::shared_ptr<const ITemplate>;
 
-// 契約（S09 的契約測試對每個 back end 跑同一組）：
+// 契約（S09 起由 tests/contract/tst_contract_searcher 對每個 back end 跑同一組；違反時的後果見 docs/steps/S09-contract-ab/spec.md）：
 //  - build 與 find 可以被多個 worker 執行緒同時呼叫（latest-wins 時，新舊工作會重疊）：實作要無狀態或自己同步。
 //  - 不丟例外；失敗回 Error。cancel 被觸發時回 ErrorCode::Cancelled。
 //  - 影像無效或樣本矩形超出影像時回 ErrorCode::InvalidArgument。

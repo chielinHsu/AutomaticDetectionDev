@@ -25,7 +25,7 @@ struct LibraryMatchResult {
 };
 
 // 流程 B（區域掃描）：框任意區域，與候選類型比對，求每個元件的類型、位姿與分數。
-// 契約：
+// 契約（S09 起由 tests/contract/tst_contract_library_matcher 對每個有實作的 back end 跑同一組）：
 //  - candidates 是呼叫端挑好的清單（先板子已有的類型、不夠再整個庫）；matcher 不自己掃整個庫（ux-spec §12.1 第 11 項）。
 //  - 每個 ComponentCandidate 的 typeScores 由高到低排序；分數在 [0, 1] 且 ≥ params.minScore。
 //  - 取消在「每比對一個樣本之間」生效（回 ErrorCode::Cancelled）；progress（可為空）每比對完一個樣本回報一次（Stage::Match）。
