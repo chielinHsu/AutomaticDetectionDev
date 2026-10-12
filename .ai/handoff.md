@@ -34,7 +34,7 @@
 
 ## 已知問題與風險
 
-- **HALCON dongle 的 5 分鐘限制（2026-10-12 查到）**：重插後 CodeMeter 偵測到 Box Event，把 dongle 限制 5 分鐘（`%ProgramData%\CodeMeter\Logs`）；之前四次「重插沒用、過一陣子自己好」很可能就是它。**讀不到時先等 5 分鐘，不要一直重插**；判斷用 `test.ps1 -Filter 'tst_halcon_backend'`（0 skipped）或 `cmu --list`。使用者今天裝了 CodeMeter Runtime 9.10a，HALCON 照樣能用。`SESSIONS=1`，跑 HALCON 的量測時別同時開其他用 HALCON 的程式。
+- **HALCON dongle 的 5 分鐘限制（2026-10-12 查到）**：重插後 CodeMeter 偵測到 Box Event，把 dongle 限制 5 分鐘（`%ProgramData%\CodeMeter\Logs`）；之前四次「重插沒用、過一陣子自己好」很可能就是它。實驗：重插本身與正常的測試流程都不會觸發，事件是 dongle 內部先前記錄的，原因不明。**讀不到時先等 5 分鐘，不要一直重插**；判斷用 `test.ps1 -Filter 'tst_halcon_backend'`（0 skipped）或 `cmu --list`。使用者今天裝了 CodeMeter Runtime 9.10a，HALCON 照樣能用。`SESSIONS=1`，跑 HALCON 的量測時別同時開其他用 HALCON 的程式。
 - 探測時看到（ADR-004 §5，沒有加測試）：低對比的 5 MP 板子**沒有雜訊**時，HALCON 與 OpenCV 都會在半個格距多出候選。修正 B2 時一起看。
 - 等使用者決定（ADR-004）：分數門檻要不要依 back end 分開、`nativeGray16` 要不要當預設。
 - 真實影像不在 `D:\Benano\20260922_*` 了；`D:\Benano\20261007_4677_AdvancePin_Proj\` 有新的，能不能用要問使用者。

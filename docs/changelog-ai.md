@@ -33,7 +33,7 @@
 - 反向確認：拿掉 B3 的標記，那一列真的 FAIL（27 passed、1 failed），放回去恢復。
 - `scripts/dev/test.ps1`：每個測試讀 log 的 `XFAIL` 行，最後列出「N 個測試有預期失敗（XFAIL）的項目（已知、待修）」與列名；失敗時的摘要也印 `XPASS` 行。順帶讓既有的一個 XFAIL 浮出來：`tst_image_sources_agree` 的 `bothSourcesGiveTheSameImage(palette BMP, 16 grays)`（S06 就有，沒有動）。
 - 探測時看到、沒有加測試（ADR-004 §5）：低對比的 5 MP 板子沒有雜訊時，HALCON（雜訊 0 或 4、模糊 0）與 OpenCV（雜訊 0、模糊 1）都在半個格距多出幾百個候選——B2 那種誤判不只 HALCON、不只重模糊。
-- **HALCON dongle 第五次讀不到**（跑完整測試途中；重插兩次都沒用）。使用者裝了 CodeMeter Runtime 9.10a 之後，log 寫出「重插後 Box Event → 限制 5 分鐘」；5 分鐘一到 HALCON 就正常。寫進 AI_CONTEXT 的 HALCON 那一列（讀不到時先等 5 分鐘、看 CodeMeter 的 log、`cmu --list`）。
+- **HALCON dongle 第五次讀不到**（跑完整測試途中；重插兩次都沒用）。使用者裝了 CodeMeter Runtime 9.10a 之後，log 寫出「偵測到 dongle 時讀到 Box Event → 限制 5 分鐘」；5 分鐘一到 HALCON 就正常。之後的實驗（合併後的小 commit）：完整的 Release＋Debug 沒有再出現 Box Event；再拔插一次也沒有（HALCON 立刻能用）——重插與正常流程都不會觸發，事件是 dongle 內部先前記錄的，原因仍不明。查證網路上「`get_system('dongle_ids')`／`'license_info'`」的說法：24.11 的 `operators_en_US.ref` 沒有這兩個參數。都寫進 AI_CONTEXT 的 HALCON 那一列。
 - 文件：ADR-004（狀態、§5 的回歸測試／O1／探測）、AI_CONTEXT（`tests/contract` 列、測試說明、`VERIFIED` 的定義、詞彙表加 XFAIL、HALCON 列）、current-status、decisions（ADR-004 那一列）、`docs/plan/S10-perf-harness.md` 提醒第 7 點、`docs/plan/S11-optimize.md` 修正 session 的 Start prompt（加 O1 與探測的現象）、交接單。
 
 ### 修改的檔案
