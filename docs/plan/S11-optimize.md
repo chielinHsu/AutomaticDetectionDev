@@ -11,8 +11,8 @@
 >
 > ```
 > 你正在 D:\AOI_Project\Qt\AutoCadCreated 繼續 AOI 專案。請先讀 AGENTS.md、docs/current-status.md、.ai/handoff.md、docs/adr/004-backend-divergence.md（§1 的界線、§5 的 B1–B3）、docs/steps/S09-contract-ab/perf.md（§2、§6）、docs/adr/017-halcon-shape-model-backend.md、src/infrastructure/backend_halcon/HalconSearchOptions.h，
-> 在分支 fix/halcon-accuracy 修正 HALCON 在三種合成板子上的準確度（B1 低對比除了樣本一個都沒找到、B2 重模糊時重複偵測與半個格距的誤判、B3 雜訊 12＋模糊 2 的位置 p95 0.933 px）。
-> 目標：tst_contract_end_to_end 裡這三種板子的 HALCON 列不再需要 QEXPECT_FAIL（拿掉標記後通過；OpenCV 的列照舊通過），perf_ab 的 HALCON 在這三種情境達到 T6a／T6b，其他情境與 perf_halcon（T2b、T4、T6）沒有變差。
+> 在分支 fix/halcon-accuracy 修正 HALCON 在三種合成板子上的準確度（B1 低對比除了樣本一個都沒找到、B2 重模糊時重複偵測與半個格距的誤判、B3 雜訊 12＋模糊 2 的位置 p95 0.933 px），並處理 O1（OpenCV 在 B1 的板子上角度最大 1.2°，上限 0.6°；加回歸測試時發現，我決定一起看：要修還是列為 ADR-004 接受的差異，先把證據給我）。
+> 目標：tst_contract_end_to_end 裡這三種板子的 HALCON 列與 OpenCV 的 B1 列不再需要 QEXPECT_FAIL（拿掉標記後通過；其他列照舊通過），perf_ab 的 HALCON 在這三種情境達到 T6a／T6b，其他情境與 perf_halcon（T2b、T4、T6）沒有變差。ADR-004 §5「探測時看到、沒有加測試的現象」（低對比沒有雜訊時兩個 back end 都會在半個格距多出候選）查 B2 時一起看。
 > 規則：先找根因再改（engineering-workflow 的 Observed Fact／Hypothesis／Conclusion；ADR-004 寫的原因是推測，沒有驗證）。修在 HALCON 的 adapter（ADR-004 §1），不要放寬 ContractTolerances.h。根因在 use case 或 domain（例如 B2 的重複偵測和 NMS 有關、會影響 OpenCV）時，先停下來把證據給我看。要改 HalconSearchOptions 的預設（在交接單的「不要動」清單）時，先把證據與提議的值給我確認再改；nativeGray16 仍然等我決定。
 > HALCON 授權用 test.ps1 -Filter 'tst_halcon_backend' 判斷（Totals 0 skipped），不要用 hhostid；跳過不是通過，讀不到時請我處理；SESSIONS=1，不要同時跑兩組 HALCON 的測試或開別的用 HALCON 的程式。
 > 驗證：test.ps1 預設與 -Config Debug 全部通過、HALCON 0 跳過、log 沒有 XFAIL；test.ps1 -Perf -Filter 'perf_ab' 修正前後各 3 次；test.ps1 -Perf -Filter 'perf_halcon' 前後各一次（機器負載會飄，交替量）。更新 ADR-004（B1–B3 的根因與修正）、S09 的 perf.md 或新的紀錄、current-status、交接單（ai-handoff skill）。
