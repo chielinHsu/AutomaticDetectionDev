@@ -24,6 +24,29 @@
 - 下一位 agent 需要知道的限制、否決的做法、不要還原的修改
 ```
 
+## 2026-10-12 — Claude Code (Claude Opus 5.5)（使用者對 HALCON B1–B3 的決定）
+
+### 完成
+- 記下使用者的決定（ADR-004 §5）：（1）S09 之後先不修；（2）在 S10 之後、S11 之前另開 session 修（分支 `fix/halcon-accuracy`）；（3）先把三種板子加進 `tst_contract_end_to_end` 當回歸測試，HALCON 的列用 `QEXPECT_FAIL` 標成預期失敗（使用者從「預期失敗」與「真的失敗」選了前者：真的失敗會讓 `test.ps1` 一直 55／56，S10 起每一步都達不到 VERIFIED）。
+- `docs/plan/S11-optimize.md` 開頭加「S11 之前先做」與修正那個 session 的 Start prompt；`依賴` 加上這個修正。`docs/plan/S10-perf-harness.md` 的提醒加第 7 點（S10 不修；XFAIL 在回歸閘門裡怎麼看；S10 收工時開修正的 session，不是 S11）。
+- `current-status.md`、`decisions.md`、交接單：接下來的順序是回歸測試 → S10 → 修正 → S11。
+- 回歸測試本身沒有在這個 session 做（使用者的習慣：確認之後開新 session 實作）；用 `spawn_task` 開了回歸測試的 session，它收工時開 S10。原本的 S10 卡片撤掉。
+
+### 修改的檔案
+- docs/adr/004-backend-divergence.md
+- docs/plan/S10-perf-harness.md、docs/plan/S11-optimize.md
+- docs/current-status.md、docs/decisions.md
+- docs/changelog-ai.md、.ai/handoff.md
+
+### 驗證
+- 只改文件，沒有建置。`node tools/ste-lint.mjs --strict`：899 句，0 error、0 warning。
+
+### 未完成
+- 回歸測試（新 session）、S10、B1–B3 的修正、S11，照上面的順序。
+
+### 注意事項
+- `QEXPECT_FAIL` 要放在 HALCON 那幾列實際失敗的那一個檢查之前（跑過才知道是哪一個）；放錯會變成真的 FAIL 或 XPASS。
+
 ## 2026-10-12 — Claude Code (Claude Opus 5.5)（S09 的 HALCON 補測）
 
 ### 完成

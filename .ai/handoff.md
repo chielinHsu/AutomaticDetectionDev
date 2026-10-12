@@ -8,9 +8,11 @@
 
 ## 正在做
 
-無。**S09 完成**（`step-09-done`）；**2026-10-12 補完 HALCON 的部分**（dongle 恢復）：分支 `chore/s09-halcon-verification`，只改文件，`--no-ff` 合併到 `main`（沒有 tag、沒有 push）。**下一個是 S10**（`docs/plan/S10-perf-harness.md`，開頭有「S09 完成後的提醒」，含 10-12 的第 6 點）。
+無。**S09 完成**（`step-09-done`）；**2026-10-12 補完 HALCON 的部分**（dongle 恢復）：分支 `chore/s09-halcon-verification`，只改文件，`--no-ff` 合併到 `main`（沒有 tag、沒有 push）；使用者對 B1–B3 的決定記在 `docs/halcon-b1-b3-decisions` 分支（同樣合併到 `main`）。
 
-**HALCON 補測找到三個不接受的差異，等使用者決定**（ADR-004 §5；契約測試沒有違反，都是準確度）：B1 低對比時除了樣本一個都沒找到；B2 重模糊時多 812 個候選（重複偵測＋半個格距的誤判，242 個誤判）；B3 雜訊 12＋模糊 2 位置 p95 0.933 px。原因沒有查（ADR-004 的是推測）；`HalconSearchOptions` 的預設在「不要動」清單，**沒有使用者的決定不要改**。
+**接下來的順序（使用者 2026-10-12 決定）**：（1）**B1–B3 的回歸測試**（新 session，已用 `spawn_task` 開；`tst_contract_end_to_end` 加三種板子，HALCON 的列 `QEXPECT_FAIL`，OpenCV 的列要通過）→（2）**S10**（回歸測試的 session 收工時開；`docs/plan/S10-perf-harness.md` 的提醒第 6、7 點）→（3）**HALCON 準確度的修正**（S10 收工時開，分支 `fix/halcon-accuracy`，Start prompt 在 `docs/plan/S11-optimize.md` 開頭）→（4）S11。
+
+**HALCON 補測找到三個不接受的差異**（ADR-004 §5；契約測試沒有違反，都是準確度）：B1 低對比時除了樣本一個都沒找到；B2 重模糊時多 812 個候選（重複偵測＋半個格距的誤判，242 個誤判）；B3 雜訊 12＋模糊 2 位置 p95 0.933 px。原因沒有查（ADR-004 的是推測）。使用者決定：S10 之後、S11 之前修；`HalconSearchOptions` 的預設仍在「不要動」清單，修正要改它時先把證據給使用者確認。
 
 ## S09 做了什麼
 
@@ -35,7 +37,7 @@
 ## 已知問題與風險
 
 - HALCON 授權：判斷用 `test.ps1 -Filter 'tst_halcon_backend'`（0 skipped），不要用 `hhostid`；`SESSIONS=1`，跑 HALCON 的量測時別同時開其他用 HALCON 的程式。
-- 等使用者決定（ADR-004）：分數門檻要不要依 back end 分開、`nativeGray16` 要不要當預設、B1–B3 怎麼處理（修不修、在哪一步、要不要加進契約測試當回歸測試）。
+- 等使用者決定（ADR-004）：分數門檻要不要依 back end 分開、`nativeGray16` 要不要當預設。B1–B3 已決定（見「正在做」）。
 - HALCON 讀不到 dongle 已經四次（第四次 2026-10-09 12:39 到 10-12），原因不明；跑 HALCON 的東西之前先確認。
 - 真實影像不在 `D:\Benano\20260922_*` 了；`D:\Benano\20261007_4677_AdvancePin_Proj\` 有新的，能不能用要問使用者。
 - AB-U3（改門檻之後重新比較）p95 48.8–63.4 ms，沒有預算（S10、S11）。
