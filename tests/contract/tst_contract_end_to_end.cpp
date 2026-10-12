@@ -3,10 +3,16 @@
 // 同一個 use case、同一組板子、同一組容差（ContractTolerances.h）：證明 use case 不必改就能換 back end（開放封閉），
 // 而且每個 back end 換上去之後的行為都在容差內（Liskov）。S07 的 tst_opencv_end_to_end 與 S08 的 tst_halcon_end_to_end 併進這裡。
 // 假 back end 不看影像，不在這裡（它的端到端在 tests/core/tst_generate_objects）。
+//
+// ADR-004 §5 的回歸測試（2026-10-12）：S09 的 A/B 並排（perf_ab）找到 HALCON 在三種板子上不合格（B1 低對比、B2 重模糊、
+// B3 雜訊 12＋模糊 2）。這三種板子加進 syntheticBoards；真的失敗的那幾列用 QEXPECT_FAIL 標成預期失敗（log 是 XFAIL，
+// scripts/dev/test.ps1 最後會列出來），修正在 S10 之後、S11 之前另開 session 做；修好時那一列變成 XPASS、Qt Test 判成失敗，
+// 逼著拿掉標記。板子的名稱用巨集：QEXPECT_FAIL 的資料列名稱（"<back end> <板子>"）要和 _data 用同一個字串。
 #include <QtTest>
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <vector>
 
 #include "BackendTestSupport.h"
 #include "ContractSupport.h"
@@ -21,6 +27,13 @@ using namespace aoi;
 using namespace aoi::contract;
 using namespace aoi::test;
 
+// B1、B2 用 perf_ab 的 5 MP 板子（abBoardSpec）：契約測試原本的 1280×960 板子上 HALCON 兩種都 100% 找到、沒有多餘的候選，
+// 重現不了（低對比的那一塊沒有雜訊與模糊；重模糊的那一塊元件 40×20、格距 80，相鄰的電極沒有糊成一塊）。
+// B3 在原本的板子上就重現（HALCON 最大 0.709 px），所以用原本的板子。
+#define AOI_BOARD_B1 "B1 low contrast, 5 MP board"
+#define AOI_BOARD_B2 "B2 heavy blur 4, 5 MP board"
+#define AOI_BOARD_B3 "B3 noise 12, blur 2"
+
 namespace {
 
 struct Outcome {
@@ -28,14 +41,15 @@ struct Outcome {
     std::size_t foundPresent = 0;     // 有元件的格子，被有分數的候選（Sample、Seed、Verified）找到
     std::size_t aboveThreshold = 0;   // 其中分數 ≥ 0.70（預設門檻）的
     std::size_t falsePositives = 0;   // 有分數的候選，附近沒有元件
+    std::size_t duplicates = 0;       // 同一個元件附近第二個以後的有分數的候選（每個有元件的格子最多一個）
     std::size_t missing = 0;          // 缺件的格子
     std::size_t missingInferred = 0;  // 缺件的格子上有 Predicted（Inferred）
     double meanErrorPx = 0.0;
     double maxErrorPx = 0.0;
     QString describe() const {
-        return QStringLiteral("present %1 found %2 (>=0.70: %3) false %4 | missing %5 inferred %6 | error mean %7 max %8 px")
-            .arg(present).arg(foundPresent).arg(aboveThreshold).arg(falsePositives).arg(missing).arg(missingInferred)
-            .arg(meanErrorPx, 0, 'f', 3).arg(maxErrorPx, 0, 'f', 3);
+        return QStringLiteral("present %1 found %2 (>=0.70: %3) false %4 duplicates %5 | missing %6 inferred %7 | error mean %8 max %9 px")
+            .arg(present).arg(foundPresent).arg(aboveThreshold).arg(falsePositives).arg(duplicates).arg(missing)
+            .arg(missingInferred).arg(meanErrorPx, 0, 'f', 3).arg(maxErrorPx, 0, 'f', 3);
     }
 };
 
@@ -85,13 +99,25 @@ Outcome evaluate(const SyntheticBoard& board, const SampleProposal& proposal, do
             if (near && nearest->source == CandidateSource::Predicted) ++o.missingInferred;
         }
     }
+    // 每個有分數的候選歸給最近的元件：容差內沒有元件的是誤判；同一個元件第二個以後的是重複
+    // （ADR-004 §5 的 B2：HALCON 在重模糊時同一個元件有兩個有分數的候選，domain 的 NMS 沒有合併，誤判的檢查看不到）。
+    std::vector<std::size_t> hits(board.parts.size(), 0);
     for (const Candidate& c : proposal.candidates) {
         if (!c.hasScore()) continue;
-        const bool nearPart = std::any_of(board.parts.begin(), board.parts.end(), [&](const SyntheticPart& p) {
-            return p.present && distance(c.pose.position(), {p.pose.x + offset.x, p.pose.y + offset.y}) <= tolerance;
-        });
-        if (!nearPart) ++o.falsePositives;
+        std::size_t nearestPart = board.parts.size();
+        double nearestDistance = std::numeric_limits<double>::max();
+        for (std::size_t i = 0; i < board.parts.size(); ++i) {
+            const SyntheticPart& p = board.parts[i];
+            const double d = distance(c.pose.position(), {p.pose.x + offset.x, p.pose.y + offset.y});
+            if (p.present && d < nearestDistance) {
+                nearestDistance = d;
+                nearestPart = i;
+            }
+        }
+        if (nearestDistance <= tolerance) ++hits[nearestPart];
+        else ++o.falsePositives;
     }
+    for (const std::size_t n : hits) o.duplicates += n > 1 ? n - 1 : 0;
     o.meanErrorPx = o.foundPresent == 0 ? 0.0 : sum / static_cast<double>(o.foundPresent);
     return o;
 }
@@ -103,6 +129,26 @@ SyntheticBoardSpec baseSpec() {
     s.rows = 12;
     s.cols = 14;
     s.seed = 11;
+    return s;
+}
+
+// perf_ab.cpp 的 boardSpec()（S09 的 A/B 並排找到 B1–B3 的那一塊）：5 MP、56×24 的主體、格距 84×60（29×29 ＝ 841 個元件）、
+// 底下有雜訊 4＋模糊 1。刻意複製一份而不是共用：回歸測試釘在找到問題的那一塊板子上，perf_ab 改了情境也不會跟著變。
+SyntheticBoardSpec abBoardSpec() {
+    SyntheticBoardSpec s;
+    s.width = 2592;
+    s.height = 1944;
+    s.bodyWidthPx = 56.0;
+    s.bodyHeightPx = 24.0;
+    s.pitchXPx = 84.0;
+    s.pitchYPx = 60.0;
+    s.originXPx = 120.0;
+    s.originYPx = 110.0;
+    s.cols = static_cast<int>((s.width - 2 * s.originXPx) / s.pitchXPx) + 1;
+    s.rows = static_cast<int>((s.height - 2 * s.originYPx) / s.pitchYPx) + 1;
+    s.noiseAmplitude = 4;
+    s.blurRadius = 1;
+    s.seed = 17;
     return s;
 }
 
@@ -119,7 +165,7 @@ class TstContractEndToEnd : public QObject {
     Q_OBJECT
 
 private slots:
-    // T6 的 8 種情況（S07 的 perf_opencv 與 S08 的 perf_halcon 同一組）× 每個會讀像素的 back end。
+    // T6 的 8 種情況（S07 的 perf_opencv 與 S08 的 perf_halcon 同一組）加上 ADR-004 §5 的三種 × 每個會讀像素的 back end。
     void syntheticBoards_data() {
         QTest::addColumn<QString>("backend");
         QTest::addColumn<SyntheticBoardSpec>("spec");
@@ -149,6 +195,18 @@ private slots:
         SyntheticBoardSpec color = s;
         color.format = PixelFormat::Bgrx32;
         boards.emplace_back("Bgrx32", color);
+        // ADR-004 §5 的三種板子（perf_ab 的 lowContrast、blur4、noise12 情境）：底 60、主體 72、電極 84；模糊半徑 4；雜訊 12＋模糊 2。
+        SyntheticBoardSpec lowContrast = abBoardSpec();
+        lowContrast.bodyLevel = 72;
+        lowContrast.padLevel = 84;
+        boards.emplace_back(AOI_BOARD_B1, lowContrast);
+        SyntheticBoardSpec blur4 = abBoardSpec();
+        blur4.blurRadius = 4;
+        boards.emplace_back(AOI_BOARD_B2, blur4);
+        SyntheticBoardSpec noise12blur2 = s;
+        noise12blur2.noiseAmplitude = 12;
+        noise12blur2.blurRadius = 2;
+        boards.emplace_back(AOI_BOARD_B3, noise12blur2);
         for (const std::string& id : backendIds(Rows::Vision)) {
             for (const auto& [name, spec] : boards) QTest::addRow("%s %s", id.c_str(), name) << QString::fromStdString(id) << spec;
         }
@@ -170,8 +228,16 @@ private slots:
                                    .arg(QString::fromStdString(be.backend.id), o.describe()).arg(p.grid.found).arg(p.grid.holes)
                                    .arg(p.timings.templateMs, 0, 'f', 1).arg(p.timings.seedMs, 0, 'f', 1)
                                    .arg(p.timings.fitMs, 0, 'f', 1).arg(p.timings.verifyMs, 0, 'f', 1)));
+        // ADR-004 §5 的已知問題（修好之後拿掉）：QEXPECT_FAIL 只套在實際會失敗的那一列、放在第一個失敗的檢查之前；
+        // Abort：那一列後面的檢查也會失敗（例如 B1 沒有晶格、B2 的角度），但那是同一個問題的後果，不另外標。
+        // 2026-10-12 實測：B1 HALCON 841 個只找到樣本（沒有晶格）；B2 HALCON 多 812 個候選（242 個附近沒有元件、570 個重複）；
+        // B3 HALCON 最大 0.709 px（T6b 0.5）。沒有標記的那一列會真的 FAIL，標記的列修好時會 XPASS（也是失敗）。
+        QEXPECT_FAIL("halcon " AOI_BOARD_B1, "ADR-004 section 5, B1: HALCON finds only the sample on the low-contrast board (remove when fixed)", Abort);
         QVERIFY2(o.foundPresent == o.present, qPrintable(o.describe()));
+        QEXPECT_FAIL("halcon " AOI_BOARD_B2, "ADR-004 section 5, B2: HALCON reports candidates half a pitch away and twice per part on the heavily blurred board (remove when fixed)", Abort);
         QVERIFY2(o.falsePositives == 0, qPrintable(o.describe()));
+        QVERIFY2(o.duplicates == 0, qPrintable(o.describe()));
+        QEXPECT_FAIL("halcon " AOI_BOARD_B3, "ADR-004 section 5, B3: HALCON position error exceeds T6b on the noise 12 + blur 2 board (remove when fixed)", Abort);
         QVERIFY2(o.maxErrorPx <= tol.positionMaxPx, qPrintable(o.describe()));
         QVERIFY2(o.missingInferred == o.missing, qPrintable(o.describe()));
         QVERIFY(p.grid.found);
@@ -183,6 +249,9 @@ private slots:
         double worstAngle = 0.0;
         for (const Candidate& c : p.candidates) worstAngle = std::max(worstAngle, std::abs(c.pose.angleDeg));
         qInfo("  worst |angle| %.3f deg (limit %.3f)", worstAngle, angleLimit);
+        // ADR-004 §5 的 O1（加回歸測試時發現，使用者 2026-10-12 決定一樣標成預期失敗、和 B1–B3 一起處理）：OpenCV 在 B1 的
+        // 低對比板子上 841 個都找到、位置最大 0.173 px，但角度最大 1.200°（上限 0.6°；perf_ab 沒有量角度，所以 S09 沒看到）。
+        QEXPECT_FAIL("opencv " AOI_BOARD_B1, "ADR-004 section 5, O1: OpenCV angles reach 1.2 deg on the low-contrast board (remove when fixed)", Abort);
         QVERIFY2(worstAngle < angleLimit, qPrintable(QString::number(worstAngle)));
     }
 
@@ -230,7 +299,8 @@ private slots:
         QVERIFY(r.ok());
         QVERIFY(!r.value().sampleProblem);
         const Outcome o = evaluate(board, r.value());
-        QVERIFY2(o.foundPresent == o.present && o.falsePositives == 0 && o.maxErrorPx <= beProfile.endToEnd.positionMaxPx,
+        QVERIFY2(o.foundPresent == o.present && o.falsePositives == 0 && o.duplicates == 0 &&
+                     o.maxErrorPx <= beProfile.endToEnd.positionMaxPx,
                  qPrintable(o.describe()));
     }
 };

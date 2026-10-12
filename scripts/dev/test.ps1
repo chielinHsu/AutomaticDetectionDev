@@ -116,14 +116,20 @@ function Invoke-AoiItem([string]$display, [string]$file, [string[]]$arguments, [
     $code = $process.ExitCode
     $passed = $finished -and ($(if ($expectFail) { $code -ne 0 } else { $code -eq 0 }))
     $skipped = 0
+    $xfails = @()
     if (-not $captureOutput -and (Test-Path $log)) {
         $totals = Select-String -Path $log -Pattern 'Totals: \d+ passed, \d+ failed, (\d+) skipped' -Encoding UTF8 | Select-Object -Last 1
         if ($totals) { $skipped = [int]$totals.Matches[0].Groups[1].Value }
+        # 預期失敗（QEXPECT_FAIL）：Qt Test 寫成 XFAIL，算通過；列出「測試函式(資料列)」。修好時會變成 XPASS（失敗）。
+        $xfails = @(Select-String -Path $log -Pattern '^XFAIL\s*:\s*[^:]+::(\S+?\([^)]*\))' -Encoding UTF8 | ForEach-Object { $_.Matches[0].Groups[1].Value })
     }
     $status = if (-not $finished) { 'TIMEOUT' } elseif ($passed) { 'PASS' } else { 'FAIL' }
-    $note = if ($skipped -gt 0) { "（$skipped 個項目跳過，見 log）" } else { '' }
+    $notes = @()
+    if ($skipped -gt 0) { $notes += "$skipped 個項目跳過" }
+    if ($xfails.Count -gt 0) { $notes += "$($xfails.Count) 個預期失敗（XFAIL）" }
+    $note = if ($notes.Count) { "（$($notes -join '、')，見 log）" } else { '' }
     Write-Host ('{0,-8} {1,-34} {2,7:N1} s {3}' -f $status, $display, $watch.Elapsed.TotalSeconds, $note)
-    $results.Add([pscustomobject]@{ Name = $display; Status = $status; Code = $code; Log = $log; Skipped = $skipped })
+    $results.Add([pscustomobject]@{ Name = $display; Status = $status; Code = $code; Log = $log; Skipped = $skipped; XFails = $xfails })
 }
 
 Write-Host ''
@@ -133,7 +139,7 @@ foreach ($test in $tests) {
     $log = Join-Path $logs "$test.txt"
     if (-not (Test-Path $exe)) {
         Write-Host ('{0,-8} {1,-34} 找不到 {2}' -f 'FAIL', $test, $exe)
-        $results.Add([pscustomobject]@{ Name = $test; Status = 'FAIL'; Code = -1; Log = ''; Skipped = 0 })
+        $results.Add([pscustomobject]@{ Name = $test; Status = 'FAIL'; Code = -1; Log = ''; Skipped = 0; XFails = @() })
         continue
     }
     Remove-Item $log -ErrorAction SilentlyContinue
@@ -146,7 +152,7 @@ if ($nodeChecks.Count) {
         $log = Join-Path $logs "$($check.Name).txt"
         if (-not $node) {
             Write-Host ('{0,-8} {1,-34} 找不到 node（Node.js 要在 PATH 上）' -f 'FAIL', $check.Name)
-            $results.Add([pscustomobject]@{ Name = $check.Name; Status = 'FAIL'; Code = -1; Log = ''; Skipped = 0 })
+            $results.Add([pscustomobject]@{ Name = $check.Name; Status = 'FAIL'; Code = -1; Log = ''; Skipped = 0; XFails = @() })
             continue
         }
         Invoke-AoiItem $check.Name $node.Source $check.Args $log $check.ExpectFail $true
@@ -156,15 +162,21 @@ if ($nodeChecks.Count) {
 # ---- 結果 ----
 $failed = @($results | Where-Object { $_.Status -ne 'PASS' })
 $withSkips = @($results | Where-Object { $_.Skipped -gt 0 })
+$withXFails = @($results | Where-Object { $_.XFails.Count -gt 0 })
 Write-Host ''
 Write-Host "通過 $($results.Count - $failed.Count)／$($results.Count)$(if ($withSkips.Count) { "；$($withSkips.Count) 個測試有跳過的項目（例如 HALCON 讀不到授權時整組跳過）：$(($withSkips | ForEach-Object Name) -join '、')" })"
+# 預期失敗（XFAIL）：已知、待修的問題（例如 ADR-004 §5 的 B1–B3），不是通過也不是失敗；修好時 Qt Test 判成 XPASS（失敗），要拿掉 QEXPECT_FAIL。
+if ($withXFails.Count) {
+    Write-Host "$($withXFails.Count) 個測試有預期失敗（XFAIL）的項目（已知、待修）："
+    foreach ($x in $withXFails) { Write-Host "  $($x.Name)：$($x.XFails -join '、')" }
+}
 if ($failed.Count) {
     Write-Host ''
     Write-Host "--- 沒有通過的項目（log 在 $logs）---"
     foreach ($f in $failed) {
         Write-Host "== $($f.Name)：$($f.Status)，結束碼 $($f.Code)"
         if ($f.Log -and (Test-Path $f.Log)) {
-            Get-Content $f.Log -Encoding UTF8 | Where-Object { $_ -match '^FAIL|Loc:|Actual|Expected|Totals|error|Error' } | Select-Object -First 40
+            Get-Content $f.Log -Encoding UTF8 | Where-Object { $_ -match '^FAIL|^XPASS|Loc:|Actual|Expected|Totals|error|Error' } | Select-Object -First 40
         }
     }
     exit 1

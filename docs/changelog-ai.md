@@ -24,6 +24,41 @@
 - 下一位 agent 需要知道的限制、否決的做法、不要還原的修改
 ```
 
+## 2026-10-12 — Claude Code (Claude Fable 5.1)（B1–B3 的回歸測試）
+
+### 完成
+- 分支 `test/halcon-accuracy-regression`（從 `main` 41f5a74 開），`--no-ff` 合併到 `main`，沒有 tag、沒有 push。
+- `tests/contract/tst_contract_end_to_end.cpp`：`syntheticBoards` 多三列（ADR-004 §5 的 B1 低對比、B2 重模糊、B3 雜訊 12＋模糊 2）。先用原本的 1280×960 板子試：HALCON 的 B1、B2 都 100% 找到、沒有多餘的候選（重現不了），B3 重現（最大 0.709 px）；所以 B1、B2 改用 `perf_ab` 的 5 MP 板子（複製成 `abBoardSpec()`，56×24 的元件、格距 84×60、841 個、雜訊 4＋模糊 1），B3 用原本的。`evaluate()` 多了「重複」的計數（每個有元件的格子最多一個有分數的候選），套在所有列；既有 16 列照樣通過，沒有新的發現。
+- `QEXPECT_FAIL`（Abort）4 列，放在第一個會失敗的檢查之前：HALCON B1「全部找到」（841 個只找到樣本、沒有晶格）、HALCON B2「沒有誤判」（242 個誤判、570 個重複、位置最大 0.754 px、角度最大 3.3°）、HALCON B3「位置 ≤ 0.5 px」（最大 0.709 px；角度最大 2.4°）、**OpenCV B1「角度」**——O1：841 個都找到、位置最大 0.173 px，但角度最大 1.200°（上限 0.6°）。O1 是加測試時發現的（`perf_ab` 沒量角度）；探測：拿掉雜訊或拿掉模糊都在 0.13° 內，是低對比加上雜訊 4＋模糊 1 一起才會。**使用者決定**：OpenCV 這一列一樣標 XFAIL，和 B1–B3 一起交給修正的 session。板子的名稱用巨集（`AOI_BOARD_B1` …），讓 `_data` 與 `QEXPECT_FAIL` 的列名是同一個字串。
+- 反向確認：拿掉 B3 的標記，那一列真的 FAIL（27 passed、1 failed），放回去恢復。
+- `scripts/dev/test.ps1`：每個測試讀 log 的 `XFAIL` 行，最後列出「N 個測試有預期失敗（XFAIL）的項目（已知、待修）」與列名；失敗時的摘要也印 `XPASS` 行。順帶讓既有的一個 XFAIL 浮出來：`tst_image_sources_agree` 的 `bothSourcesGiveTheSameImage(palette BMP, 16 grays)`（S06 就有，沒有動）。
+- 探測時看到、沒有加測試（ADR-004 §5）：低對比的 5 MP 板子沒有雜訊時，HALCON（雜訊 0 或 4、模糊 0）與 OpenCV（雜訊 0、模糊 1）都在半個格距多出幾百個候選——B2 那種誤判不只 HALCON、不只重模糊。
+- **HALCON dongle 第五次讀不到**（跑完整測試途中；重插兩次都沒用）。使用者裝了 CodeMeter Runtime 9.10a 之後，log 寫出「重插後 Box Event → 限制 5 分鐘」；5 分鐘一到 HALCON 就正常。寫進 AI_CONTEXT 的 HALCON 那一列（讀不到時先等 5 分鐘、看 CodeMeter 的 log、`cmu --list`）。
+- 文件：ADR-004（狀態、§5 的回歸測試／O1／探測）、AI_CONTEXT（`tests/contract` 列、測試說明、`VERIFIED` 的定義、詞彙表加 XFAIL、HALCON 列）、current-status、decisions（ADR-004 那一列）、`docs/plan/S10-perf-harness.md` 提醒第 7 點、`docs/plan/S11-optimize.md` 修正 session 的 Start prompt（加 O1 與探測的現象）、交接單。
+
+### 修改的檔案
+- tests/contract/tst_contract_end_to_end.cpp、AiInspTool/tests/contract/tst_contract_end_to_end.pro
+- scripts/dev/test.ps1
+- docs/adr/004-backend-divergence.md、AI_CONTEXT.md、docs/current-status.md、docs/decisions.md
+- docs/plan/S10-perf-harness.md、docs/plan/S11-optimize.md
+- docs/changelog-ai.md、.ai/handoff.md
+
+### 驗證
+- 加列之後的探測（Release、HALCON 讀得到時）：`tst_contract_end_to_end` 兩個 back end各 8＋3 列的實際數字見 ADR-004 §5。
+- 標記完成後：`test.ps1 -Filter 'tst_contract_end_to_end'` 28 passed、0 failed、0 skipped、4 XFAIL；反向確認 1 次。
+- `test.ps1` 預設（Release，第一輪）：56／56 但 HALCON 在途中讀不到（HALCON 的列與測試 SKIPPED）；dongle 恢復後 `-NoBuild` 重跑：**56／56、HALCON 0 跳過**，XFAIL 列表 ＝ `tst_contract_end_to_end` 4 列＋`tst_image_sources_agree` 1 列（剩下 5 個有跳過的測試是 S09 之前就有的同一組項目）。
+- `test.ps1 -NoHalcon`：**54／54**，HALCON 的列 SKIPPED、OpenCV 的 B1 XFAIL、B2／B3 PASS。
+- `test.ps1 -Config Debug`：**56／56**，HALCON 0 跳過，XFAIL 列表和 Release 相同（`tst_contract_end_to_end` 4 列＋`tst_image_sources_agree` 1 列；Debug 的 `tst_contract_end_to_end` 27.9 秒）。
+- `node tools/ste-lint.mjs --strict`：899 sentences, 0 errors。
+
+### 未完成
+- 無。B1–B3＋O1 的修正是另一個 session（S10 之後）。
+
+### 注意事項
+- 不要為了讓 XFAIL 的列通過而放寬 `ContractTolerances.h`；修好那一列才拿掉它的 `QEXPECT_FAIL`。
+- B1、B2 的板子是 5 MP：HALCON 的 B2 那一列約 150 ms、整個測試執行檔約 5–7 秒。
+- HALCON 讀不到時先等 5 分鐘再試，不要一直重插（見 AI_CONTEXT）。
+
 ## 2026-10-12 — Claude Code (Claude Opus 5.5)（使用者對 HALCON B1–B3 的決定）
 
 ### 完成
