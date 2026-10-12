@@ -24,6 +24,35 @@
 - 下一位 agent 需要知道的限制、否決的做法、不要還原的修改
 ```
 
+## 2026-10-12 — Claude Code (Claude Opus 5.5)（S09 的 HALCON 補測）
+
+### 完成
+- 使用者告知 dongle 恢復，照 `docs/steps/S09-contract-ab/perf.md` §6 在 `main`（b60592b，S09 合併之後）補做 HALCON 的部分；程式沒有改。分支 `chore/s09-halcon-verification`。
+- 契約測試的 HALCON 列在最後一版的程式上通過，數字和 2026-10-09 12:3x 的第一版一樣；取消延遲 17.5 ms（I4 100）。
+- `perf_ab` 兩個 back end 各 3 次（準確度與 A/B 比較每次都一樣）：`perf.md` §2 改成兩邊並排，加上 A/B 比較的表；`explainer.html` 的 `ab-data` 換成實測的 6 種情境（低對比、重模糊、40% 反光、雜訊 12、光照不均、乾淨），不再是「示意」。
+- **HALCON 三個不接受的差異**（超過 T6a／T6b，依 ADR-004 的界線不是接受的差異；記在 ADR-004 §5 的 B1–B3）：B1 低對比時除了樣本一個都沒找到；B2 重模糊時多 812 個候選（551 個重複偵測、其餘多半在半個格距，242 個誤判），use case 130–189 ms、峰值多約 80 MB；B3 雜訊 12＋模糊 2 位置 p95 0.933 px、最大 1.360 px。
+- ADR-004：狀態、D3、D5、§3 的 HALCON 欄、§5、證據；`spec.md` 的檢查清單；`current-status.md`、`decisions.md`、`AI_CONTEXT.md`（HALCON 第四次讀不到之後 10-12 恢復）、S10 計畫的提醒（6）。順便修掉 `current-status.md` 一個寫壞的路徑（`D:\Benano\20261007_4677_AdvancePin_Proj`，S09 寫入時反斜線被吃掉）。
+
+### 修改的檔案
+- docs/adr/004-backend-divergence.md
+- docs/steps/S09-contract-ab/perf.md、spec.md、explainer.html
+- docs/current-status.md、docs/decisions.md、docs/plan/S10-perf-harness.md、AI_CONTEXT.md
+- docs/changelog-ai.md、.ai/handoff.md
+
+### 驗證
+- `scripts/dev/test.ps1 -Filter 'tst_halcon_backend'`：17 項，Totals 0 skipped。
+- `scripts/dev/test.ps1`（Release＋OpenCV＋HALCON）56／56；`-Config Debug` 56／56。契約測試的 HALCON 列、`tst_halcon_*`、`tst_cli` 都 0 skipped；「有跳過項目的測試」只剩 S09 之前就有的 5 個測試的同一組項目。
+- `scripts/dev/test.ps1 -Perf -Filter 'perf_ab'` 3 次（兩個 back end）。`-NoOpenCv`、`-NoHalcon` 的組合沒有重跑（程式沒有改）。`perf_compare_ui` 沒有重跑（不用 HALCON）。
+- `explainer.html` 在內建瀏覽器打開：6 個情境都載入，低對比「只有 A」840、重模糊「只有 B」812，和 `perf.md` 一致。
+- `node tools/ste-lint.mjs --strict`：899 句，0 error、0 warning。
+
+### 未完成
+- B1–B3 要不要修、在哪一步修、要不要把這三種板子加進 `tst_contract_end_to_end` 當成回歸測試：**等使用者決定**（`HalconSearchOptions` 的預設在「不要動」清單）。原因沒有查，ADR-004 寫的是推測。
+
+### 注意事項
+- B2 的分類（重複偵測、半個格距）來自 `build/qmake-release/test-work/ab-blur4.json`；`build/` 不入版控，要重看就重跑 `perf_ab`。
+- HALCON 的峰值記憶體增量常常接近 0（HALCON 重複使用配置過的記憶體），只能看大的差別。
+
 ## 2026-10-09 — Claude Code (Claude Opus 5.5)（S09：契約測試與 A/B 比較）
 
 ### 完成

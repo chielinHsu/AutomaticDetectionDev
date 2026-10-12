@@ -11,7 +11,7 @@ This step proves that the back ends are interchangeable. One test suite runs on 
 This step also adds an A/B view. The view shows the results of two back ends on the same sample.
 <!--/STE-->
 
-**繁中**：用同一組契約測試跑每個 back end（fake、OpenCV、HALCON），證明它們可以互換（Liskov）；再做一個 A/B 比較的視窗，讓同一個樣本在兩個 back end 上的結果並排、差異看得見。（S09 收工時 HALCON 讀不到 dongle：HALCON 的部分在第一版上通過過，最後一版與 A/B 並排的 HALCON 那一邊未測，見 `perf.md` §6。）
+**繁中**：用同一組契約測試跑每個 back end（fake、OpenCV、HALCON），證明它們可以互換（Liskov）；再做一個 A/B 比較的視窗，讓同一個樣本在兩個 back end 上的結果並排、差異看得見。（S09 收工時 HALCON 讀不到 dongle；2026-10-12 恢復後在最後一版上補測：契約測試全部通過，A/B 並排找到 HALCON 三個不接受的準確度差異，見 `perf.md` §2、§6 與 ADR-004 §5。）
 
 <!--STE-->
 ## Reason
@@ -130,7 +130,8 @@ The view does not change the board and does not go into the undo history.
 
 - [x] 建置通過：Release、Debug、`-NoOpenCv`、`-NoHalcon`、兩個都關（數字見 `docs/changelog-ai.md` 本步驟那一筆）
 - [x] 測試通過（fake 與 OpenCV 的列）：`tst_contract_searcher`、`tst_contract_end_to_end`、`tst_contract_library_matcher`、`tst_backend_comparison`、`tst_compare` 與既有的全部
-- [ ] **HALCON 的列在最後一版的程式上沒有跑過**：2026-10-09 12:39 起 HALCON 讀不到 dongle（錯誤 2300）；最後一次三個契約測試含 HALCON 全部通過是 12:3x 的第一版。使用者決定 dongle 相關的部分記下來、等之後再測（`perf.md` §6）
+- [x] **HALCON 的列**：S09 收工時讀不到 dongle（2026-10-09 12:39 起，錯誤 2300），使用者決定之後再測；2026-10-12 恢復後在最後一版（`main` 的 b60592b）上補跑：`test.ps1` 預設 56／56、`-Config Debug` 56／56，HALCON 0 跳過，契約的數字和 10-09 的第一版一樣（`perf.md` §1、§6）
 - [x] 無授權的環境：契約測試的 HALCON 列是 SKIPPED（附原因），不是 PASSED——這次實際發生，log 見 `perf.md` §1
 - [x] `node tools/ste-lint.mjs --strict` 無 error
-- [x] `perf.md` 的 UI 指標已量測並與 `perf/budgets.json` 比對（U1a、U1b）；A/B 並排只有 OpenCV 那一邊（HALCON 未測）
+- [x] `perf.md` 的 UI 指標已量測並與 `perf/budgets.json` 比對（U1a、U1b）；A/B 並排兩邊都量了（HALCON 2026-10-12 補量）
+- [ ] **HALCON 在低對比、重模糊、雜訊 12＋模糊 2 的準確度**超過 T6a／T6b（`perf_ab`，ADR-004 §5 的 B1–B3）：沒有違反契約，原因沒有查，怎麼處理等使用者決定
