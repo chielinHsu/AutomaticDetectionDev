@@ -16,7 +16,7 @@
 //  2. 搜尋區域 ＝ 影像的區域（domain）：整張影像，或所有視窗的聯集。HALCON 在區域裡找「參考點」（樣本框的中心）。
 //     每個視窗往外多 2^(層數−1) 個像素（說明：區域太緊時，高層的金字塔可能找不到）；之後再用視窗本身過濾。
 //  3. find_shape_model：角度範圍來自 SearchParams（度 → 弧度），分數下限 ＝ minScore，NumMatches ＝ 0（全部），
-//     次像素、greediness、HALCON 自己的重疊抑制照 HalconSearchOptions。
+//     次像素、greediness、HALCON 自己的重疊抑制照 HalconSearchOptions（次像素與影像的平滑由範本決定：HalconTemplateTuning）。
 //  4. 結果換成 ADR-010 的位姿（HalconPose.h：考慮旋轉的 ±0.5 修正；角度只換單位）。
 //  5. 分數 < minScore、中心不在區域內的丟掉；domain 的 NMS（範本大小的旋轉矩形，IoU > nmsMaxOverlap）合併重複的；
 //     依分數排序（同分依 y、再依 x）、最多 maxMatches 個。和 OpenCV 版同一套規則（契約）。
@@ -39,6 +39,8 @@ struct HalconSearchStats {
     std::size_t matches = 0;     // 最後回傳的個數
     int numLevels = 0;           // 模型的金字塔層數
     bool copied = false;         // 影像有沒有複製
+    int smoothRadius = 0;        // 範本決定的平滑（mean_image 的半徑，0 ＝ 沒有）
+    double edgeWidthPx = 0.0;    // 樣本的邊寬估計
 };
 
 class HalconPatternSearcher final : public IPatternSearcher {

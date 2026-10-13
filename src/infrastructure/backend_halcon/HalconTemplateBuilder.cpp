@@ -9,6 +9,7 @@
 #include "infrastructure/backend_halcon/HalconErrors.h"
 #include "infrastructure/backend_halcon/HalconImages.h"
 #include "infrastructure/backend_halcon/HalconPose.h"
+#include "infrastructure/backend_halcon/HalconSearchSteps.h"
 
 namespace aoi::infra {
 namespace {
@@ -16,7 +17,8 @@ namespace {
 Error cancelled() { return makeError(ErrorCode::Cancelled, "The HALCON template build was cancelled."); }
 
 // 樣本外多轉換幾個像素：邊緣（梯度）在樣本的邊上也要用到外面一圈的像素，整張影像與一小塊才會給出同一個模型。
-constexpr int kContextPx = 8;
+// 平滑（mean_image 半徑最大 2、3 次 ＝ 6 個像素）時再多濾波器的範圍，邊界碰不到樣本。
+constexpr int kContextPx = 8 + 6;
 
 HalconCpp::HTuple autoOr(int value) { return value > 0 ? HalconCpp::HTuple(static_cast<Hlong>(value)) : HalconCpp::HTuple("auto"); }
 
@@ -48,21 +50,40 @@ Result<TemplatePtr> HalconTemplateBuilder::build(const ImageView& image, const R
 
         const bool zeroCopy = image.packed() && (image.format == PixelFormat::Gray8 ||
                                                  (options_.nativeGray16 && image.format == PixelFormat::Gray16));
-        PixelRect roi{0, 0, image.width, image.height};
-        if (!zeroCopy) {
-            const int rx0 = std::max(0, x0 - kContextPx);
-            const int ry0 = std::max(0, y0 - kContextPx);
-            const int rx1 = std::min(image.width, x1 + kContextPx);
-            const int ry1 = std::min(image.height, y1 + kContextPx);
-            roi = {rx0, ry0, rx1 - rx0, ry1 - ry0};
-        }
-        const HalconGray gray = toHalconGray(image, roi, options_.nativeGray16);
+        const PixelRect context{std::max(0, x0 - kContextPx), std::max(0, y0 - kContextPx),
+                                std::min(image.width, x1 + kContextPx) - std::max(0, x0 - kContextPx),
+                                std::min(image.height, y1 + kContextPx) - std::max(0, y0 - kContextPx)};
+        const HalconGray gray = toHalconGray(image, zeroCopy ? PixelRect{0, 0, image.width, image.height} : context, options_.nativeGray16);
         if (!gray.image.IsInitialized()) return makeError(ErrorCode::Internal, "Cannot convert the sample for HALCON.");
 
-        const HalconRect1 r = halconRect1(x0 - gray.originX, y0 - gray.originY, width, height);
+        // 樣本的邊有多寬、雜訊多大 → 要不要先平滑、次像素用哪一種、追蹤到哪一層（HalconSearchOptions.h 的「預先平滑」；搜尋影像跟著範本做）。
+        HalconTemplateTuning tuning;
+        const HalconSampleStatistics stats = estimateSampleStatistics(gray.image, halconRect1(x0 - gray.originX, y0 - gray.originY, width, height));
+        tuning.edgeWidthPx = stats.edgeWidthPx;
+        tuning.noiseRatio = stats.noiseRatio;
+        const HalconSmoothing smoothing = chooseHalconSmoothing(stats, options_);
+        tuning.smoothRadius = smoothing.smoothRadius;
+        tuning.subPixel = smoothing.subPixel;
+        tuning.lowestLevel = smoothing.lowestLevel;
+
+        // 建模型用的影像：平滑時只平滑樣本外加一圈的那一塊（零複製的整張先裁下來；HALCON 自己配置新影像）。
+        HalconCpp::HImage modelImage = gray.image;
+        int originX = gray.originX;
+        int originY = gray.originY;
+        if (tuning.smoothRadius > 0) {
+            if (zeroCopy) {
+                modelImage = gray.image.CropRectangle1(static_cast<Hlong>(context.y), static_cast<Hlong>(context.x),
+                                                       static_cast<Hlong>(context.y + context.height - 1),
+                                                       static_cast<Hlong>(context.x + context.width - 1));
+                originX = context.x;
+                originY = context.y;
+            }
+            modelImage = smoothHalconImage(modelImage, tuning.smoothRadius, options_.meanPasses);
+        }
+        const HalconRect1 r = halconRect1(x0 - originX, y0 - originY, width, height);
         HalconCpp::HRegion domain;
         domain.GenRectangle1(r.row1, r.column1, r.row2, r.column2);
-        const HalconCpp::HImage reduced = gray.image.ReduceDomain(domain);
+        const HalconCpp::HImage reduced = modelImage.ReduceDomain(domain);
 
         // 角度步進與模型的角度範圍（HalconSearchOptions.h 的說明與 S08 的實測）。
         double stepDeg = options_.angleStepDeg;
@@ -86,7 +107,7 @@ Result<TemplatePtr> HalconTemplateBuilder::build(const ImageView& image, const R
             if (static_cast<long>(e.ErrorCode()) != kHalconTooFewModelPoints) throw;
             // 邊緣點太少：樣本是平的（或對比太低）。和 OpenCV 版一樣，回傳帶問題的範本，搜尋會回空的結果。
             return TemplatePtr(std::make_shared<const HalconTemplate>(size, params.angleMinDeg, params.angleMaxDeg,
-                                                                      HalconCpp::HShapeModel(), 0, NoMatchReason::LowContrast));
+                                                                      HalconCpp::HShapeModel(), 0, NoMatchReason::LowContrast, tuning));
         }
         if (cancel.cancelled()) return cancelled();
 
@@ -101,7 +122,8 @@ Result<TemplatePtr> HalconTemplateBuilder::build(const ImageView& image, const R
         const HalconCpp::HTuple levels =
             model.GetShapeModelParams(&ignoredStart, &ignoredExtent, &ignoredStep, &scaleMin, &scaleMax, &scaleStep, &metric, &minContrast);
         const int numLevels = levels.Length() > 0 ? static_cast<int>(levels[0].L()) : 0;
-        return TemplatePtr(std::make_shared<const HalconTemplate>(size, params.angleMinDeg, params.angleMaxDeg, std::move(model), numLevels));
+        return TemplatePtr(std::make_shared<const HalconTemplate>(size, params.angleMinDeg, params.angleMaxDeg, std::move(model), numLevels,
+                                                                  std::nullopt, tuning));
     } catch (const HalconCpp::HException& e) {
         return fromHalcon(e, "building the template");
     } catch (const std::bad_alloc&) {

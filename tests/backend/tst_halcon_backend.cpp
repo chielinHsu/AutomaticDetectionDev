@@ -282,6 +282,82 @@ private slots:
         qInfo("model levels: %d", ht.numLevels());
     }
 
+    // 2026-10-13（ADR-004 §5 的 B1–B3 修正）：樣本的邊寬與相對雜訊決定平滑、次像素與追蹤的層（HalconSearchOptions.h 的「預先平滑」）。
+    // 銳利或輕微模糊、對比夠的樣本不平滑（Gray8 零複製照舊，和 S08 相同）；邊很寬（模糊半徑 2、4）→ mean_image 半徑 2 ＋ 'least_squares' ＋
+    // 只追蹤到第 2 層；低對比＋雜訊（相對雜訊 ≥ 4%）→ 半徑 1 ＋ 'least_squares_high'。
+    void theEdgeWidthAndNoiseOfTheSampleDecideTheSmoothing() {
+        REQUIRE_HALCON();
+        struct Case {
+            int blur;
+            bool lowContrast;
+            double widthMin;
+            double widthMax;
+            int smoothRadius;
+            const char* subPixel;
+            int lowestLevel;
+        };
+        for (const Case& c : {Case{0, false, 1.5, 3.0, 0, "least_squares", 1}, Case{1, false, 3.0, 5.0, 0, "least_squares", 1},
+                              Case{2, false, 5.0, 7.0, 2, "least_squares", 2}, Case{4, false, 7.0, 12.0, 2, "least_squares", 2},
+                              Case{1, true, 3.0, 5.0, 1, "least_squares_high", 1}}) {
+            SyntheticBoardSpec s = cleanSpec();
+            s.blurRadius = c.blur;
+            s.noiseAmplitude = c.blur > 0 ? 4 : 0;
+            if (c.lowContrast) {
+                s.bodyLevel = 72;
+                s.padLevel = 84;
+            }
+            const SyntheticBoard board = makeSyntheticBoard(s);
+            const TemplatePtr t = buildFrom(board, params());
+            QVERIFY(t);
+            const HalconTemplateTuning& tuning = dynamic_cast<const HalconTemplate&>(*t).tuning();
+            qInfo("blur %d%s: edge width %.2f px, noise ratio %.4f, smooth radius %d, subpixel %s, lowest level %d", c.blur, c.lowContrast ? " low contrast" : "",
+                  tuning.edgeWidthPx, tuning.noiseRatio, tuning.smoothRadius, tuning.subPixel.c_str(), tuning.lowestLevel);
+            QVERIFY2(c.lowContrast ? tuning.noiseRatio >= 0.04 : tuning.noiseRatio < 0.04, qPrintable(QString::number(tuning.noiseRatio)));
+            QVERIFY2(tuning.edgeWidthPx >= c.widthMin && tuning.edgeWidthPx <= c.widthMax, qPrintable(QString::number(tuning.edgeWidthPx)));
+            QCOMPARE(tuning.smoothRadius, c.smoothRadius);
+            QCOMPARE(tuning.subPixel, std::string(c.subPixel));
+            QCOMPARE(tuning.lowestLevel, c.lowestLevel);
+            // 平滑過的範本照樣在板子上找到每一個元件，而且搜尋影像用同一個平滑（找不到就表示兩邊不一致）。
+            const std::vector<Match> found = findAll(board, *t, params());
+            QCOMPARE(found.size(), board.presentCount());
+        }
+        HalconSearchOptions off;
+        off.adaptiveSmoothing = false;
+        SyntheticBoardSpec blurred = cleanSpec();
+        blurred.blurRadius = 4;
+        const TemplatePtr raw = buildFrom(makeSyntheticBoard(blurred), params(), 0, off);
+        QVERIFY(raw);
+        QCOMPARE(dynamic_cast<const HalconTemplate&>(*raw).tuning().smoothRadius, 0);
+    }
+
+    // 2026-10-13（ADR-004 §5 的 B2 與「低對比沒有雜訊」的現象）：相鄰兩個元件的電極在半個格距的位置像一個元件（極性相同，
+    // 只差主體上下邊的點），低對比時 'auto' 的對比把主體的邊丟掉、模型只剩電極，那裡的分數 0.75 ≥ 0.70。它和兩邊真的元件
+    // 各重疊 25%：MaxOverlap 0.5（S08 的預設）擋不住，0.2（現在的預設）擋掉，真的元件一個都不少。
+    void twoInstancesOverlappingMoreThanAFifthAreTheSameInstance() {
+        REQUIRE_HALCON();
+        SyntheticBoardSpec s = cleanSpec();
+        s.bodyWidthPx = 56.0;
+        s.bodyHeightPx = 24.0;
+        s.pitchXPx = 84.0;
+        s.bodyLevel = 72;
+        s.padLevel = 84;
+        const SyntheticBoard board = makeSyntheticBoard(s);
+        HalconSearchOptions loose;
+        loose.maxOverlap = 0.5;
+        const TemplatePtr t = buildFrom(board, params(), 0, loose);
+        QVERIFY(t);
+        const std::vector<Match> withLoose = findAll(board.image, *t, params(), SearchRegion::wholeImage(), loose);
+        const std::vector<Match> withDefault = findAll(board, *t, params());
+        qInfo("parts %zu, matches with MaxOverlap 0.5: %zu, with 0.2: %zu", board.presentCount(), withLoose.size(), withDefault.size());
+        QVERIFY2(withLoose.size() > board.presentCount(), "the half-pitch candidates must exist, or this test proves nothing");
+        QCOMPARE(withDefault.size(), board.presentCount());
+        for (const SyntheticPart& p : board.parts) {
+            const bool found = std::any_of(withDefault.begin(), withDefault.end(),
+                                           [&](const Match& m) { return distance(m.pose.position(), p.pose.position()) < 3.0; });
+            QVERIFY(found);
+        }
+    }
+
     // 寬的角度範圍（±30°）：這裡量得出位姿換算的旋轉修正（30° 時差 0.37 像素）。
     // 沒有修正的（naivePoseFromHalcon）是「依角度變化的系統性偏移」：平均誤差在大角度明顯變大；修正過的平均誤差要小，
     // 而且和角度無關。證明 HalconPose.h 的公式是對的、而且必要。最大誤差的上限和角度正負號的測試同一把尺（0.35 像素）。

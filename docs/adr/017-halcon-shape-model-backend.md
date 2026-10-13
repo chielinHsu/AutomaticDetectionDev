@@ -78,3 +78,7 @@ S08 要做第二個 back end（`docs/plan/S08-halcon.md`）。開工時的事實
 ## 後續（2026-10-09）：授權失敗後不必重新啟動、SESSIONS=1
 
 決定 3 的授權探測原本整個程式只做一次（`halconLicense()` 的 `call_once`）。改成「能用才記住」（`HalconLicenseCache`），而且組裝根在這個行程碰 HALCON 之前先用另一個行程檢查（`AiInspTool.exe --probe-halcon-license`）：實測 HALCON 在行程裡第一次初始化失敗之後會記住失敗（錯誤 2036）。第一次切到 HALCON 因此多約 1.2 秒。授權檔的 `SESSIONS=1` 不會讓初始化著 HALCON 的程式擋住別的程式（三個行程同時拿到授權）。判斷規則（`judgeHalconLicense`）沒有改。細節與驗證在 ADR-021 的「後續（2026-10-09）」。
+
+## 後續（2026-10-13）：預先平滑、MaxOverlap 0.2、least_squares_high
+
+決定 4 的參數改了三件事（分支 `fix/halcon-accuracy`，原因、量測與使用者的決定在 [ADR-004](004-backend-divergence.md) 的「後續（2026-10-13）」與 `docs/steps/S09-contract-ab/halcon-accuracy-probe.md`）：（1）`MaxOverlap` 0.5 → 0.2：同一個模型的兩個實例不可能重疊超過兩成，擋掉相鄰電極在半個格距形成的假元件；（2）建範本時量樣本的邊寬與相對雜訊：邊很寬（≥ 5 px）時建模型與搜尋之前先 `mean_image` 5×5 三次、SubPixel 'least_squares'、搜尋只追蹤到金字塔第 2 層（說明對失焦影像的建議）；雜訊高（σ ≥ 灰階範圍的 4%）時 `mean_image` 3×3 三次、'least_squares_high'；其餘不平滑（零複製、時間和 S08 相同）。決定寫在範本裡（`HalconTemplateTuning`）；（3）SubPixel 的預設維持 'least_squares'。'auto' 的對比門檻照舊，但是在平滑過的影像上選。流程 B 不平滑。

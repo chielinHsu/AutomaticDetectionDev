@@ -24,6 +24,37 @@
 - 下一位 agent 需要知道的限制、否決的做法、不要還原的修改
 ```
 
+## 2026-10-13 — Claude Code (Claude Fable 5.1)（HALCON 準確度的修正：ADR-004 §5 的 B1–B3 與 O1）
+
+### 完成
+- 分支 `fix/halcon-accuracy`（從 `main` 76fd732 開），`--no-ff` 合併到 `main`，沒有 tag、沒有 push。
+- **先找根因再改**（探測程式 `tests/backend/probe_halcon_accuracy.cpp`、`probe_opencv_angle.cpp`，不列進 `tests.pro`；十一輪量測記在 `docs/steps/S09-contract-ab/halcon-accuracy-probe.md`）。ADR-004 §5 的推測全部不對：B1 是 `create_shape_model` 的 'auto' 對比在「對比 12、雜訊 ±4、模糊 1」的樣本上選到 5／5（雜訊的量級：模型 419 點有 120 點不在邊上，其他元件分數 0.59、連樣本自己 0.71）；B2 是模糊後「電極–底–電極」和模型只差主體上下邊那三成的點（半格距分數 ≈ 1 − 59／349 ＝ 0.83，量到 0.825），570 個重複偵測**全部**是 use case 驗證階段對半格距種子的後果（`dup by verified`）；B3 是 'auto' 把門檻拉到 38、主體長邊掉出模型（114 點只剩 7 點在主體邊上）。O1 是角度 0 的範本帶著樣本自己的像素雜訊、轉過角度的範本被雙線性內插平掉，NCC 對角度的曲線在 0° 凹下去（量到曲線）。
+- **修正（都在 `src/infrastructure/backend_halcon`；使用者 2026-10-13 確認後改 `HalconSearchOptions` 的預設）**：（1）MaxOverlap 0.5 → 0.2（半格距候選和兩邊真的元件各重疊 25%；六種板子真的匹配一個都不少）；（2）建範本時量樣本的邊寬（`estimateSampleStatistics`：灰階 p95 − p5 ÷ Sobel 梯度 p99）與相對雜訊（像素和 3×3 平均的差的中位數 × 1.4826 ÷ 灰階範圍）：邊寬 ≥ 5 → 建模型與搜尋之前先 `mean_image` 5×5 三次、SubPixel 'least_squares'、只追蹤到金字塔第 2 層（HALCON 說明對失焦影像的建議）；相對雜訊 ≥ 4% → `mean_image` 3×3 三次、'least_squares_high'；其餘不平滑（零複製、時間和 S08 相同）。決定寫在範本裡（`HalconTemplateTuning`），搜尋影像跟著做；流程 B 不平滑。HALCON 的 `gauss_filter`、`binomial_filter` 同樣的 σ 都比 `mean_image` 三次差（B1 角度 0.92 對 0.75°）；'interpolation' 在模糊的板子不穩（同 σ 的三種濾波器 0.24、0.60、0.91°），不用；第一版「邊寬 ≥ 3 就平滑、全部 least_squares_high」讓一般板子的 T2b 慢一倍、T4 超出預算，所以加了相對雜訊的條件。
+- **使用者的四個決定**：HALCON 採用上面這組；「強雜訊」改成相對定義（`ContractTolerances.h` 的 `isStrongNoise`：雜訊 ≥ 邊緣對比的 1/8；數字沒有放寬）；O1 列為接受的差異（ADR-004 的 D6），OpenCV 的 B1 列留 `QEXPECT_FAIL` 當哨兵；OpenCV 在低對比沒有雜訊時的半格距候選只記錄不改。
+- 測試：`tst_halcon_backend` 加 2 項（邊寬與雜訊決定平滑、次像素與追蹤的層；重疊超過兩成的兩個實例是同一個）；`tst_contract_end_to_end` 拿掉 HALCON 的三個 `QEXPECT_FAIL`、OpenCV B1 的改成 D6 的說明。`perf/budgets.json` 的 `knownIssues` 清空、`perf_matrix.cpp` 的 `knownIssue()` 拿掉。基準線 `perf/baseline/casparhsu1-harness.json` 重建。
+- 文件：ADR-004（狀態、D2 的相對定義、新的 D6、「後續（2026-10-13）」）、ADR-017（後續）、`decisions.md`、`architecture.md`、`AI_CONTEXT.md`（XFAIL 只剩 1 列）、`current-status.md`、交接單。
+
+### 修改的檔案
+- 新增：`docs/steps/S09-contract-ab/halcon-accuracy-probe.md`、`tests/backend/{probe_halcon_accuracy,probe_opencv_angle}.cpp`、`AiInspTool/tests/backend/{probe_halcon_accuracy,probe_opencv_angle}.pro`
+- 修改：`src/infrastructure/backend_halcon/{HalconSearchOptions.h,HalconTemplate.h,HalconTemplate.cpp,HalconTemplateBuilder.cpp,HalconSearchSteps.h,HalconSearchSteps.cpp,HalconPatternSearcher.h,HalconPatternSearcher.cpp,HalconLibraryMatcher.h}`、`tests/backend/tst_halcon_backend.cpp`、`tests/contract/{ContractTolerances.h,tst_contract_end_to_end.cpp}`、`tests/perf/perf_matrix.cpp`、`perf/budgets.json`、`perf/baseline/casparhsu1-harness.json`、`AI_CONTEXT.md`、`docs/{architecture,decisions,current-status,changelog-ai}.md`、`docs/adr/{004-backend-divergence,017-halcon-shape-model-backend}.md`、`.ai/handoff.md`
+- 沒有改：`application/`、`domain/`、OpenCV 的 adapter、`ContractTolerances.h` 的數字、`OpenCvSearchOptions`
+
+### 驗證
+- `test.ps1` 預設（Release，OpenCV＋HALCON）：**57／57**（HALCON 0 跳過；XFAIL 只剩 `tst_contract_end_to_end` 的 opencv B1 與 `tst_image_sources_agree` 的 1 列，和修正前比少了 HALCON 的 3 列）；`test.ps1 -Config Debug`：**57／57**。
+- `tst_contract_end_to_end` 28／28：HALCON B1 841 全找到、0 誤判、0 重複、位置最大 0.353 px、角度 0.745°（上限 0.801，相對定義）；B2 0 誤判、0 重複、0.215 px、0.575°（上限 0.6）；B3 0.142 px、0.650°（上限 1.031）；其他 24 列照舊通過，數字和修正前相同或更好（雜訊 12 模糊 1：角度 0.898 → 0.463°）。
+- `node tools/ste-lint.mjs` 0 errors；`scripts/ai/check-ai-structure.ps1` OK（既有的警告：`current-status.md` 超過 80 行）。
+- 效能（`scripts/dev/perf.ps1 -NoBuild`，和修正前的基準線比）：`perf_halcon` **0 項超出預算**：T1 中位數 6.9／p95 7.4 ms（30）、T2b 20.4／24.7 ms（80；基準線的範圍內）、T4 24.7／42.9 ms（60）、T6a 100%、T6b p95 **0.114 px**（修正前 0.485）；閘門只標 C-search 一項（中位數 16.5 對基準線 2.1–12.7，p95 在範圍內），其餘 16 項變快。`perf_ab -Runs 3`：12 種情境兩個 back end 都 100%；HALCON 低對比召回率 0.1% → **100%**（位置 p95 0.189 px）、重模糊誤判 242 → **0**、位置 p95 0.536 → 0.15 px、use case 130–189 → 61–92 ms、峰值 74–85 → 20–28 MB、雜訊 12 模糊 2 位置 p95 0.933 → **0.11 px**。閘門標的「回歸」：低對比的 use case 30–46 → 70–96 ms（以前是什麼都沒找到的快）、峰值 +47 MB（平滑過的影像）、10% 缺件的峰值 22–24 → 56–60 MB（HALCON 的工作記憶體在同一個行程裡累積，ADR-023 說過峰值只能看大的差別）。基準線重建（`perf.ps1 -NoBuild -Runs 3 -WriteBaseline`，每次約 12 分鐘）：637 個指標、3 次的範圍寫進 `perf/baseline/casparhsu1-harness.json`；這 3 次對**舊**基準線的閘門都 FAIL（結束碼 1），0 項超出預算，標的「回歸」是低對比那一格（現在找得到了）與第 2 次整台變慢時的一批（OpenCV 的格子也在內，雜訊；ADR-023 的 INCONCLUSIVE 條件沒到）。
+
+### 未完成
+- B2 的角度餘裕只有 4%（0.575 對 0.6）、B1 7%（0.745 對 0.80）：合成板子是確定的，同一個建置每次一樣；換 HALCON 版本要重跑。
+- use case 驗證階段的漏洞（視窗裡找到的匹配離別的已知候選更近時仍當成那個缺格的元件）記在 ADR-004 與 `current-status.md` 的待決定（10），沒有改 application。
+- 真實影像（HA）沒有重量：新的影像位置要使用者確認（ADR-004 §5 最後一項）。
+
+### 注意事項
+- `HalconSearchOptions` 的新預設（MaxOverlap 0.2、adaptiveSmoothing 與它的門檻）是使用者 2026-10-13 確認過的；要再改先看 `halcon-accuracy-probe.md`。
+- 探測程式不在 `tests.pro`：要跑時在 `build/qmake-release/tests/backend/<name>/` 用 `qmake <repo>/AiInspTool/tests/backend/<name>.pro AOI_BUILD_ROOT=<build>` 再 `jom`；`AOI_PROBE_SET`、`AOI_PROBE_BOARDS`、`AOI_PROBE_VARIANTS` 選量測。
+- 'interpolation'、`gauss_filter`、`binomial_filter`、「全部平滑」都試過、都比現在的差（probe.md §8），不要憑印象改回去。
+
 ## 2026-10-13 — Claude Code (Claude Fable 5.1)（S10：效能測試 harness 與回歸閘門）
 
 ### 完成

@@ -5,9 +5,11 @@
 // 假 back end 不看影像，不在這裡（它的端到端在 tests/core/tst_generate_objects）。
 //
 // ADR-004 §5 的回歸測試（2026-10-12）：S09 的 A/B 並排（perf_ab）找到 HALCON 在三種板子上不合格（B1 低對比、B2 重模糊、
-// B3 雜訊 12＋模糊 2）。這三種板子加進 syntheticBoards；真的失敗的那幾列用 QEXPECT_FAIL 標成預期失敗（log 是 XFAIL，
-// scripts/dev/test.ps1 最後會列出來），修正在 S10 之後、S11 之前另開 session 做；修好時那一列變成 XPASS、Qt Test 判成失敗，
-// 逼著拿掉標記。板子的名稱用巨集：QEXPECT_FAIL 的資料列名稱（"<back end> <板子>"）要和 _data 用同一個字串。
+// B3 雜訊 12＋模糊 2）。這三種板子加進 syntheticBoards。2026-10-13（分支 fix/halcon-accuracy）修好了 HALCON 的三列（MaxOverlap 0.2、
+// 依樣本邊寬的預先平滑、least_squares_high；根因在 docs/steps/S09-contract-ab/halcon-accuracy-probe.md），QEXPECT_FAIL 拿掉。
+// 剩下 OpenCV 的 B1 列（O1）：使用者 2026-10-13 決定列為 ADR-004 接受的差異（D6），角度的檢查之前用 QEXPECT_FAIL 標著並說明；
+// 修好時那一列變成 XPASS、Qt Test 判成失敗，逼著拿掉標記。板子的名稱用巨集：QEXPECT_FAIL 的資料列名稱（"<back end> <板子>"）
+// 要和 _data 用同一個字串。
 #include <QtTest>
 #include <algorithm>
 #include <cmath>
@@ -228,30 +230,28 @@ private slots:
                                    .arg(QString::fromStdString(be.backend.id), o.describe()).arg(p.grid.found).arg(p.grid.holes)
                                    .arg(p.timings.templateMs, 0, 'f', 1).arg(p.timings.seedMs, 0, 'f', 1)
                                    .arg(p.timings.fitMs, 0, 'f', 1).arg(p.timings.verifyMs, 0, 'f', 1)));
-        // ADR-004 §5 的已知問題（修好之後拿掉）：QEXPECT_FAIL 只套在實際會失敗的那一列、放在第一個失敗的檢查之前；
-        // Abort：那一列後面的檢查也會失敗（例如 B1 沒有晶格、B2 的角度），但那是同一個問題的後果，不另外標。
-        // 2026-10-12 實測：B1 HALCON 841 個只找到樣本（沒有晶格）；B2 HALCON 多 812 個候選（242 個附近沒有元件、570 個重複）；
-        // B3 HALCON 最大 0.709 px（T6b 0.5）。沒有標記的那一列會真的 FAIL，標記的列修好時會 XPASS（也是失敗）。
-        QEXPECT_FAIL("halcon " AOI_BOARD_B1, "ADR-004 section 5, B1: HALCON finds only the sample on the low-contrast board (remove when fixed)", Abort);
+        // 2026-10-12 的 HALCON 三列（B1 只找到樣本、B2 多 812 個候選、B3 最大 0.709 px）2026-10-13 修好，標記拿掉：
+        // 現在每一列都要通過這四個檢查。
         QVERIFY2(o.foundPresent == o.present, qPrintable(o.describe()));
-        QEXPECT_FAIL("halcon " AOI_BOARD_B2, "ADR-004 section 5, B2: HALCON reports candidates half a pitch away and twice per part on the heavily blurred board (remove when fixed)", Abort);
         QVERIFY2(o.falsePositives == 0, qPrintable(o.describe()));
         QVERIFY2(o.duplicates == 0, qPrintable(o.describe()));
-        QEXPECT_FAIL("halcon " AOI_BOARD_B3, "ADR-004 section 5, B3: HALCON position error exceeds T6b on the noise 12 + blur 2 board (remove when fixed)", Abort);
         QVERIFY2(o.maxErrorPx <= tol.positionMaxPx, qPrintable(o.describe()));
         QVERIFY2(o.missingInferred == o.missing, qPrintable(o.describe()));
         QVERIFY(p.grid.found);
-        // 樣本的角度是 0（範本就是它），其他元件和它同一個方向（板子整個傾斜時也是）。強雜訊時 HALCON 的上限改用框的角落位移
-        // （ContractTolerances.h 的 strongNoiseCornerShiftPx，ADR-004）。
+        // 樣本的角度是 0（範本就是它），其他元件和它同一個方向（板子整個傾斜時也是）。強雜訊（isStrongNoise：雜訊相對於邊緣的對比，
+        // 2026-10-13 起）時 HALCON 的上限改用框的角落位移（ContractTolerances.h 的 strongNoiseCornerShiftPx，ADR-004）。
         const double halfDiagonal = 0.5 * std::hypot(p.partSize.w, p.partSize.h);
-        const bool strongNoise = spec.noiseAmplitude >= 12 && tol.strongNoiseCornerShiftPx > 0.0;
+        const int edgeContrast = std::min(spec.bodyLevel - spec.backgroundLevel, spec.padLevel - spec.bodyLevel);
+        const bool strongNoise = isStrongNoise(spec.noiseAmplitude, edgeContrast) && tol.strongNoiseCornerShiftPx > 0.0;
         const double angleLimit = strongNoise ? radiansToDegrees(tol.strongNoiseCornerShiftPx / halfDiagonal) : tol.angleMaxDeg;
         double worstAngle = 0.0;
         for (const Candidate& c : p.candidates) worstAngle = std::max(worstAngle, std::abs(c.pose.angleDeg));
         qInfo("  worst |angle| %.3f deg (limit %.3f)", worstAngle, angleLimit);
-        // ADR-004 §5 的 O1（加回歸測試時發現，使用者 2026-10-12 決定一樣標成預期失敗、和 B1–B3 一起處理）：OpenCV 在 B1 的
-        // 低對比板子上 841 個都找到、位置最大 0.173 px，但角度最大 1.200°（上限 0.6°；perf_ab 沒有量角度，所以 S09 沒看到）。
-        QEXPECT_FAIL("opencv " AOI_BOARD_B1, "ADR-004 section 5, O1: OpenCV angles reach 1.2 deg on the low-contrast board (remove when fixed)", Abort);
+        // ADR-004 的 O1（D6，使用者 2026-10-13 決定列為接受的差異）：OpenCV 在 B1 的低對比板子上 841 個都找到、位置最大 0.173 px，
+        // 但角度最大 1.200°（上限 0.6°）。機制：角度 0 的範本帶著樣本自己的像素雜訊，轉過角度的範本被雙線性內插平掉，NCC 對角度的
+        // 曲線在 0° 凹下去；範本先平滑只能降到 0.65–0.75°，而且低對比板子會多出半格距的種子（halcon-accuracy-probe.md §4）。
+        // 標記留著：有一天修好會變成 XPASS，逼著把 ADR-004 的 D6 改掉。
+        QEXPECT_FAIL("opencv " AOI_BOARD_B1, "ADR-004 D6 (accepted, 2026-10-13): OpenCV angles reach 1.2 deg on the low-contrast board; the sample noise stays in the 0-degree template", Abort);
         QVERIFY2(worstAngle < angleLimit, qPrintable(QString::number(worstAngle)));
     }
 
