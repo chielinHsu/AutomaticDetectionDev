@@ -235,7 +235,7 @@ private slots:
         labels.board = QStringLiteral("板子");
 
         const double values[] = {0.50, 0.92, 0.70, 0.97};
-        std::vector<double> canvasMs, canvasPaintMs, treeMs, treePaintMs, cardMs, restMs;
+        std::vector<double> canvasMs, canvasPaintMs, imagePaintMs, layerPaintMs, treeMs, treePaintMs, cardMs, restMs;
         for (int i = 0; i < kWarmup + kRuns; ++i) {
             session.setThreshold(values[i % 4]);
             const Scene scene = buildScene(session, labels);
@@ -247,6 +247,9 @@ private slots:
             t.start();
             paintPending(r);
             const double cp = msSince(t);
+            // S11：這一幀裡影像與框層各花多久（兩個 Item 自己量的；差額是 View 與背景）。
+            const double ip = r.canvas()->imageItem()->lastPaintMs();
+            const double lp = r.canvas()->layerItem()->lastPaintStats().paintMs;
 
             t.start();
             r.window.objectsPanel()->setRows(scene.rows);
@@ -266,6 +269,8 @@ private slots:
             if (i >= kWarmup) {
                 canvasMs.push_back(c);
                 canvasPaintMs.push_back(cp);
+                imagePaintMs.push_back(ip);
+                layerPaintMs.push_back(lp);
                 treeMs.push_back(tr);
                 treePaintMs.push_back(trp);
                 cardMs.push_back(cd);
@@ -274,6 +279,8 @@ private slots:
         }
         record("U3-canvas" + suffix, "diagnostic: canvas showComponents (rebuild the layer buckets)", canvasMs, -1, "diagnostic");
         record("U3-canvas-paint" + suffix, "diagnostic: paint after the canvas update", canvasPaintMs, -1, "diagnostic");
+        record("U3-canvas-paint-image" + suffix, "diagnostic: of which ImageItem::paint (the board image)", imagePaintMs, -1, "diagnostic");
+        record("U3-canvas-paint-layer" + suffix, "diagnostic: of which RoiLayerItem::paint (the boxes)", layerPaintMs, -1, "diagnostic");
         record("U3-tree" + suffix, "diagnostic: object tree setRows (dataChanged path)", treeMs, -1, "diagnostic");
         record("U3-tree-paint" + suffix, "diagnostic: paint after the tree update", treePaintMs, -1, "diagnostic");
         record("U3-card" + suffix, "diagnostic: message card + status text", cardMs, -1, "diagnostic");

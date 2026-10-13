@@ -18,12 +18,18 @@ void BoxFrames::appendFrame(std::vector<QRect>& out, int x, int y, int w, int h,
     }
 }
 
-void BoxFrames::append(Batch& batch, const QRectF& screen, int t) {
+QRect BoxFrames::snap(const QRectF& screen) {
     const int x0 = qRound(screen.left());
     const int y0 = qRound(screen.top());
     // 至少 1 px：再小的框也要看得到（Body 永遠畫）。
     const int w = std::max(1, qRound(screen.right()) - x0);
     const int h = std::max(1, qRound(screen.bottom()) - y0);
+    return QRect(x0, y0, w, h);
+}
+
+void BoxFrames::append(Batch& batch, const QRectF& screen, int t) {
+    const QRect r = snap(screen);
+    const int x0 = r.x(), y0 = r.y(), w = r.width(), h = r.height();
     appendFrame(batch.stroke, x0, y0, w, h, std::min(t, std::max(1, std::min(w, h))));
     appendFrame(batch.casing, x0 - 1, y0 - 1, w + 2, h + 2, std::min(t + 2, std::max(1, std::min(w + 2, h + 2))));
 }
@@ -42,10 +48,8 @@ void BoxFrames::appendDashed(Batch& batch, const QRectF& screen, int t, const Da
         append(batch, screen, t);
         return;
     }
-    const int x0 = qRound(screen.left());
-    const int y0 = qRound(screen.top());
-    const int w = std::max(1, qRound(screen.right()) - x0);
-    const int h = std::max(1, qRound(screen.bottom()) - y0);
+    const QRect r = snap(screen);
+    const int x0 = r.x(), y0 = r.y(), w = r.width(), h = r.height();
     const int th = std::min(t, std::max(1, std::min(w, h)));
     appendDashedEdge(batch, x0, y0, w, true, th, dash);            // 上
     appendDashedEdge(batch, x0, y0 + h - th, w, true, th, dash);   // 下

@@ -6,6 +6,7 @@
 #include <QImage>
 #include <QPainter>
 #include <QPainterPath>
+#include <QPixmap>
 #include <QTest>
 #include <algorithm>
 #include <vector>
@@ -110,6 +111,41 @@ private slots:
                    p.setBrush(Qt::green);
                    p.drawRects(stroke.data(), static_cast<int>(stroke.size()));
                }));
+        // E（S11）：同樣的框先畫成一張小圖（外框＋描邊、內部透明），每個框只做一次未轉換的 drawImage（alpha 混合的 blit）。
+        // 同一個桶裡的框在螢幕上大小相同（同一個樣本），所以一張小圖可以畫幾千個框。
+        {
+            QImage glyph(15 + 2, 9 + 2, QImage::Format_ARGB32_Premultiplied);
+            glyph.fill(Qt::transparent);
+            std::vector<QRect> gc, gs;
+            frame(gs, 1, 1, 15, 9, 2);
+            frame(gc, 0, 0, 17, 11, 4);
+            {
+                QPainter g(&glyph);
+                g.setPen(Qt::NoPen);
+                g.setBrush(Qt::black);
+                g.drawRects(gc.data(), static_cast<int>(gc.size()));
+                g.setBrush(Qt::green);
+                g.drawRects(gs.data(), static_cast<int>(gs.size()));
+            }
+            std::vector<QPoint> origins;
+            for (const QRectF& r : rects) origins.emplace_back(qRound(r.x()) - 1, qRound(r.y()) - 1);
+            report("E  one ARGB glyph per bucket, drawImage(QPoint) per box (S11)", timeMedianMs([&] {
+                       QPainter p(&target);
+                       p.setRenderHint(QPainter::SmoothPixmapTransform, false);
+                       for (const QPoint& o : origins) p.drawImage(o, glyph);
+                   }));
+            const QPixmap pix = QPixmap::fromImage(glyph);
+            report("F  same, QPixmap and drawPixmap(QPoint)", timeMedianMs([&] {
+                       QPainter p(&target);
+                       for (const QPoint& o : origins) p.drawPixmap(o, pix);
+                   }));
+            report("G  same glyph, drawImage with a 2x painter scale (dpr 2 case)", timeMedianMs([&] {
+                       QPainter p(&target);
+                       p.scale(2.0, 2.0);
+                       p.setRenderHint(QPainter::SmoothPixmapTransform, false);
+                       for (const QPoint& o : origins) p.drawImage(QPointF(o) / 2.0, glyph);
+                   }));
+        }
         report("D  same rects, QRectF with antialiasing on", timeMedianMs([&] {
                    std::vector<QRectF> c2(casing.begin(), casing.end()), s2(stroke.begin(), stroke.end());
                    QPainter p(&target);

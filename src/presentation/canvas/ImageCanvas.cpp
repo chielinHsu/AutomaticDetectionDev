@@ -199,6 +199,7 @@ void ImageCanvas::notifyScale() {
 void ImageCanvas::applyTheme(const ThemeColors& colors) {
     setBackgroundBrush(colors.surface.canvas);
     style_.setAccent(colors.surface.accent);
+    layerItem_->invalidateGlyphs();  // 狀態色不隨主題變（tokens），清掉只是保險
     viewport()->update();
 }
 

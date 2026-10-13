@@ -91,6 +91,40 @@ QRectF RoiLayerItem::outlineOf(const std::vector<int>& componentIds) const {
     return united;
 }
 
+void RoiLayerItem::setGlyphsEnabled(bool enabled) {
+    if (enabled == glyphsEnabled_) return;
+    glyphsEnabled_ = enabled;
+    glyphs_.clear();
+    update();
+}
+
+const QImage& RoiLayerItem::glyphFor(OverlayState state, BoxKind kind, int w, int h) {
+    const std::uint64_t key = (static_cast<std::uint64_t>(stateIndex(state)) << 56) |
+                              (static_cast<std::uint64_t>(kindIndex(kind)) << 48) |
+                              (static_cast<std::uint64_t>(static_cast<std::uint32_t>(w)) << 24) |
+                              static_cast<std::uint64_t>(static_cast<std::uint32_t>(h));
+    const auto it = glyphs_.find(key);
+    if (it != glyphs_.end()) return it->second;
+
+    // 和填色矩形同一套規則（BoxFrames）：框在 (1, 1)，外框往外 1 px 剛好填滿 (w + 2) × (h + 2)。
+    QImage image(w + 2, h + 2, QImage::Format_ARGB32_Premultiplied);
+    image.fill(Qt::transparent);
+    BoxFrames::Batch batch;
+    const int t = style_.frameThickness(state, kind, false);
+    const BoxFrames::DashSpec dash = style_.dashSpec(state, kind, false);
+    const QRectF box(1, 1, w, h);
+    if (dash.valid()) BoxFrames::appendDashed(batch, box, t, dash);
+    else BoxFrames::append(batch, box, t);
+    {
+        QPainter p(&image);
+        p.setRenderHint(QPainter::Antialiasing, false);
+        const StrokeColors& colors = style_.colors(state);
+        BoxFrames::draw(p, batch, colors.casing, colors.stroke);
+    }
+    ++stats_.glyphsBuilt;
+    return glyphs_.emplace(key, std::move(image)).first->second;
+}
+
 void RoiLayerItem::paint(QPainter* painter, const QStyleOptionGraphicsItem* option, QWidget*) {
     stats_ = {};
     if (!snapshot_ || snapshot_->components.empty()) return;
@@ -102,9 +136,14 @@ void RoiLayerItem::paint(QPainter* painter, const QStyleOptionGraphicsItem* opti
     const qreal margin = kStrokeReachPx / lod;
     const QRectF cull = option->exposedRect.adjusted(-margin, -margin, margin, margin);
     const qreal minSceneSide = kMinBoxScreenSide / lod;
+    // 字形只在 devicePixelRatio ＝ 1 時用：裝置無關像素就是裝置像素，未轉換的 blit 才走 Qt 最快的路徑，
+    // 而且和填色矩形的像素一樣。高 DPI 時照舊畫填色矩形（粗細由 OverlayStyle 依 dpr 換算）。
+    const bool useGlyphs = glyphsEnabled_ && qFuzzyCompare(painter->device()->devicePixelRatioF(), 1.0);
+    if (useGlyphs && glyphs_.size() > kGlyphCacheLimit) glyphs_.clear();
 
     // 這個 Item 不依賴 View 還原畫筆狀態（View 有 DontSavePainterState），所以用到的狀態每次都明確設定。
     painter->setRenderHint(QPainter::Antialiasing, false);
+    painter->setRenderHint(QPainter::SmoothPixmapTransform, false);  // 影像 Item 可能留下 smooth；字形要走未轉換的 blit
     painter->setBrush(Qt::NoBrush);
 
     // 場景矩形 → 螢幕矩形：這個轉換只有縮放與平移（畫布沒有旋轉）。
@@ -116,6 +155,7 @@ void RoiLayerItem::paint(QPainter* painter, const QStyleOptionGraphicsItem* opti
         // 只有花樣不是「畫、空」一組的狀態才退回 cosmetic 描邊（目前沒有）。
         const bool solid = style_.frameable(state);
         std::array<bool, kBoxKindCount> hasFrames{};
+        std::array<bool, kBoxKindCount> hasGlyphs{};
         for (BoxKind kind : kKindOrder) {
             const auto& bucket = buckets_[static_cast<size_t>(bucketIndex(state, kind))];
             if (bucket.empty()) continue;
@@ -136,16 +176,28 @@ void RoiLayerItem::paint(QPainter* painter, const QStyleOptionGraphicsItem* opti
             ++stats_.bucketsDrawn;
 
             if (solid) {
-                BoxFrames::Batch& batch = frames_[static_cast<size_t>(kindIndex(kind))];
+                const size_t ki = static_cast<size_t>(kindIndex(kind));
+                BoxFrames::Batch& batch = frames_[ki];
                 batch.clear();
+                std::vector<GlyphBlit>& blits = glyphBlits_[ki];
+                blits.clear();
                 const int t = style_.frameThickness(state, kind, false);
                 const BoxFrames::DashSpec dash = style_.dashSpec(state, kind, false);
                 for (const QRectF& r : visible_) {
                     const QRectF screen(r.x() * sx + tx, r.y() * sy + ty, r.width() * sx, r.height() * sy);
+                    if (useGlyphs) {
+                        const QRect box = BoxFrames::snap(screen);
+                        if (box.width() <= kGlyphMaxSide && box.height() <= kGlyphMaxSide) {
+                            blits.push_back({box.topLeft() - QPoint(1, 1), &glyphFor(state, kind, box.width(), box.height())});
+                            continue;
+                        }
+                    }
                     if (dash.valid()) BoxFrames::appendDashed(batch, screen, t, dash);
                     else BoxFrames::append(batch, screen, t);
                 }
-                hasFrames[static_cast<size_t>(kindIndex(kind))] = true;
+                hasFrames[ki] = !batch.empty();
+                hasGlyphs[ki] = !blits.empty();
+                stats_.boxesDrawnAsGlyphs += static_cast<int>(blits.size());
             } else {
                 const PenPair& pens = style_.box(state, kind, false);
                 painter->setPen(pens.casing);
@@ -154,13 +206,19 @@ void RoiLayerItem::paint(QPainter* painter, const QStyleOptionGraphicsItem* opti
                 painter->drawRects(visible_.data(), static_cast<int>(visible_.size()));
             }
         }
-        if (solid && std::any_of(hasFrames.begin(), hasFrames.end(), [](bool b) { return b; })) {
+        const auto any = [](const std::array<bool, kBoxKindCount>& a) {
+            return std::any_of(a.begin(), a.end(), [](bool b) { return b; });
+        };
+        if (solid && (any(hasFrames) || any(hasGlyphs))) {
             const StrokeColors& colors = style_.colors(state);
             painter->save();
-            painter->resetTransform();  // 填色矩形的座標是螢幕像素
+            painter->resetTransform();  // 填色矩形與字形的座標都是螢幕像素
             for (BoxKind kind : kKindOrder) {
-                if (hasFrames[static_cast<size_t>(kindIndex(kind))])
-                    BoxFrames::draw(*painter, frames_[static_cast<size_t>(kindIndex(kind))], colors.casing, colors.stroke);
+                const size_t ki = static_cast<size_t>(kindIndex(kind));
+                if (hasFrames[ki]) BoxFrames::draw(*painter, frames_[ki], colors.casing, colors.stroke);
+                if (hasGlyphs[ki]) {
+                    for (const GlyphBlit& g : glyphBlits_[ki]) painter->drawImage(g.origin, *g.image);
+                }
             }
             painter->restore();
         }
