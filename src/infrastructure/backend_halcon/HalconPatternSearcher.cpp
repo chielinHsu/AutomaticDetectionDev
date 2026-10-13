@@ -1,5 +1,6 @@
 #include "infrastructure/backend_halcon/HalconPatternSearcher.h"
 
+#include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <new>
@@ -75,21 +76,26 @@ Result<std::vector<Match>> HalconPatternSearcher::find(const ImageView& image, c
         // ---- 2. 影像與搜尋區域 ----
         Clock::time_point t0 = Clock::now();
         const Size2D size = t->size();
+        // 範本決定的平滑與次像素（HalconTemplate.h 的 HalconTemplateTuning）：搜尋影像和模型要是同一種影像。
+        const HalconTemplateTuning& tuning = t->tuning();
         const HalconSearchInput input = prepareHalconSearch(image, accepts, windows, 0.5 * std::hypot(size.w, size.h),
-                                                            halconWindowGrow(t->numLevels()), options_.nativeGray16);
+                                                            halconWindowGrow(t->numLevels()), options_.nativeGray16, tuning.smoothRadius, options_.meanPasses);
         if (!input.gray.image.IsInitialized()) return makeError(ErrorCode::Internal, "Cannot convert the image for HALCON.");
         stats.copied = input.gray.copied;
+        stats.smoothRadius = tuning.smoothRadius;
+        stats.edgeWidthPx = tuning.edgeWidthPx;
         stats.convertMs = millisecondsSince(t0);
         if (cancel.cancelled()) return cancelledError();
 
-        // ---- 3. find_shape_model（NumMatches ＝ 0：全部；NumLevels ＝ 0：模型的層數）----
+        // ---- 3. find_shape_model（NumMatches ＝ 0：全部；NumLevels ＝ 0：模型的層數，邊很寬的範本只追蹤到 tuning.lowestLevel）----
         t0 = Clock::now();
         HalconCpp::HTuple rows, columns, angles, scores;
         {
             HalconCancelWatch watch(cancel);
             t->model().FindShapeModel(input.searchImage, degreesToRadians(params.angleMinDeg),
                                       degreesToRadians(params.angleMaxDeg - params.angleMinDeg), HalconCpp::HTuple(params.minScore), 0,
-                                      options_.maxOverlap, HalconCpp::HTuple(options_.subPixel.c_str()), HalconCpp::HTuple(0),
+                                      options_.maxOverlap, HalconCpp::HTuple((tuning.subPixel.empty() ? options_.subPixel : tuning.subPixel).c_str()),
+                                      tuning.lowestLevel > 1 ? HalconCpp::HTuple(static_cast<Hlong>(t->numLevels())).TupleConcat(HalconCpp::HTuple(static_cast<Hlong>(std::min(tuning.lowestLevel, t->numLevels())))) : HalconCpp::HTuple(0),
                                       options_.greediness, &rows, &columns, &angles, &scores);
         }
         stats.findMs = millisecondsSince(t0);

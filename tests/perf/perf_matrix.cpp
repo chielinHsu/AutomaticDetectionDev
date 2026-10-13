@@ -9,8 +9,8 @@
 //                 （共 15 格），其餘的格子熱機 2 次、量 10 次。預設的建置（OpenCV＋HALCON）約 1–2 分鐘。
 //   full（AOI_PERF_PROFILE=full）：整個外積 540 格，每格熱機 1 次、量 3 次；要用 test.ps1 -TimeoutSec 3600。
 // 基準格就是 T5 的條件（5 MP、200 個元件；UI 的那一段在 perf_e2e），1 000 個元件的那一格就是 T2 的條件（S07、S08 的 841 個）。
-// 這裡的 use case 時間只記錄，不當成失敗條件（預算的閘門在 tools/perf-compare.mjs）；準確度帶 T6a／T6b 的預算，已知的差異
-// （ADR-004 §5 的 B1–B3：HALCON 在低對比、雜訊 12＋模糊 2 的板子上）標成 known，閘門列出但不當失敗。
+// 這裡的 use case 時間只記錄，不當成失敗條件（預算的閘門在 tools/perf-compare.mjs）；準確度帶 T6a／T6b 的預算。
+// （S10 時 ADR-004 §5 的 B1–B3 標成 known；2026-10-13 修好之後拿掉，閘門照預算擋。）
 //
 // 新增一格（或一個維度的值）：改下面的 dimensions()；新增一種難度：difficulties()。每一格就是一列（Qt Test 的資料列），
 // log 裡看得到每一格的數字。結果寫到 perf/results/matrix_<時間>.json。
@@ -217,15 +217,6 @@ CellAccuracy evaluate(const SyntheticBoard& board, const SampleProposal& p) {
     return a;
 }
 
-// 已知的準確度差異（ADR-004 §5）：HALCON 在低對比（B1）與雜訊 12＋模糊 2（B3）的板子上超過 T6a／T6b；修正的分支 fix/halcon-accuracy。
-// 這些格子的準確度照樣量、照樣記，但閘門不當失敗（known）。修好之後把這裡清掉。
-QString knownIssue(const std::string& backend, const QString& difficulty) {
-    if (backend != "halcon") return {};
-    if (difficulty == QLatin1String("lowContrast")) return QStringLiteral("ADR-004 §5 B1 (HALCON, low contrast)");
-    if (difficulty == QLatin1String("noise12")) return QStringLiteral("ADR-004 §5 B3 (HALCON, noise 12 + blur 2)");
-    return {};
-}
-
 }  // namespace
 
 class PerfMatrix : public QObject {
@@ -348,7 +339,6 @@ private slots:
         QVERIFY2(!failed, qPrintable(QStringLiteral("%1: the use case failed: %2").arg(backend, QString::fromStdString(failure))));
         const CellAccuracy a = evaluate(board, last);
         const double recall = a.present == 0 ? 0.0 : 100.0 * static_cast<double>(a.found) / static_cast<double>(a.present);
-        const QString known = knownIssue(id, cell.difficulty);
         const QString prefix = backend + QLatin1Char(':') + cell.id + QLatin1Char(':');
         const QString where = QStringLiteral("%1, %2 sample, +-%3 deg, %4 parts, %5, %6")
                                   .arg(QLatin1String(cell.size.name), QLatin1String(cell.sample.name)).arg(cell.angleHalf)
@@ -358,7 +348,6 @@ private slots:
         t.id = prefix + QStringLiteral("total");
         t.label = QStringLiteral("use case end to end: ") + where;
         t.stats = summarize(total);
-        if (!known.isEmpty()) t.known = known;
         // 1 000 個元件的基準條件就是 T2（種子搜尋，S07／S08 的 841 個）；use case 的整條沒有預算（T5 是 UI 的那一段，perf_e2e）。
         t.note = QStringLiteral("warmup %1, runs %2; lattice %3").arg(warmup).arg(runs).arg(last.grid.found ? QStringLiteral("found") : QStringLiteral("none"));
         add(t);
@@ -367,7 +356,6 @@ private slots:
             s.id = prefix + QLatin1String(name);
             s.label = QStringLiteral("stage %1: %2").arg(QLatin1String(name), where);
             s.stats = summarize(ms);
-            if (!known.isEmpty()) s.known = known;
             if (QLatin1String(name) == QLatin1String("seed") && cell.difficulty == QLatin1String("noise4") && cell.sample.bodyW == 56.0 &&
                 cell.angleHalf == 5.0 && cell.targetParts == 1000 && cell.size.w == 2592) {
                 s.budgetId = id == "halcon" ? QStringLiteral("T2b") : QStringLiteral("T2a");
@@ -395,7 +383,6 @@ private slots:
         rec.higherIsBetter = true;
         rec.budgetId = QStringLiteral("T6a");
         rec.budget = budgetOf(rec.budgetId);
-        rec.known = known;
         rec.note = QStringLiteral("%1 of %2 parts; %3 false at 0.70").arg(a.found).arg(a.present).arg(a.falseFound);
         add(rec);
 
@@ -406,7 +393,6 @@ private slots:
         err.stats = summarize(a.errors);
         err.budgetId = QStringLiteral("T6b");
         err.budget = budgetOf(err.budgetId);
-        err.known = known;
         add(err);
 
         QJsonObject row;
@@ -435,7 +421,6 @@ private slots:
         row["errorP95Px"] = round3(percentile(a.errors, 0.95));
         row["errorMaxPx"] = round3(a.errors.empty() ? 0.0 : *std::max_element(a.errors.begin(), a.errors.end()));
         row["lattice"] = last.grid.found;
-        if (!known.isEmpty()) row["known"] = known;
         cells_.append(row);
     }
 

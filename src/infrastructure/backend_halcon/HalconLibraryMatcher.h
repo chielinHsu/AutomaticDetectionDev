@@ -24,12 +24,18 @@ namespace aoi::infra {
 
 class HalconLibraryMatcher final : public ILibraryMatcher {
 public:
-    explicit HalconLibraryMatcher(HalconSearchOptions options = {}) : options_(options), builder_(options), searcher_(options) {}
+    // 流程 B 不做範本決定的平滑（HalconSearchOptions.h）：幾個模型共用一張搜尋影像，所以 builder_ 關掉 adaptiveSmoothing。
+    explicit HalconLibraryMatcher(HalconSearchOptions options = {}) : options_(options), builder_(withoutSmoothing(options)), searcher_(options) {}
 
     Result<LibraryMatchResult> match(const ImageView& image, const Rect& region, const std::vector<ComponentType>& candidates,
                                      const SearchParams& params, const CancelToken& cancel, IProgressSink* progress) override;
 
 private:
+    static HalconSearchOptions withoutSmoothing(HalconSearchOptions o) {
+        o.adaptiveSmoothing = false;
+        return o;
+    }
+
     HalconSearchOptions options_;
     HalconTemplateBuilder builder_;
     HalconPatternSearcher searcher_;

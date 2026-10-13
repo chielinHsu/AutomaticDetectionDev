@@ -35,7 +35,7 @@ struct SearcherTolerances {
 struct EndToEndTolerances {
     double positionMaxPx = 0.5;  // perf/budgets.json 的 T6b
     double angleMaxDeg = 0.6;    // 每個候選的 |角度|（樣本與其他元件同一個方向）；S07 的上限
-    // 強雜訊（noiseAmplitude ≥ 12）時改用「框的角落位移」的上限（像素），0 ＝ 不改，仍用 angleMaxDeg。
+    // 強雜訊（isStrongNoise：雜訊振幅 ≥ 邊緣對比的 1/8）時改用「框的角落位移」的上限（像素），0 ＝ 不改，仍用 angleMaxDeg。
     // HALCON：S08 實測最大 0.84–0.90°（48×28 的範本角落位移 0.41 px）；shape model 只看邊緣點，雜訊大的小元件角度
     // 比 NCC（用整塊像素）不穩。這是 ADR-004 接受的差異，上限是 T6b 的 0.5 px。
     double strongNoiseCornerShiftPx = 0.0;
@@ -47,6 +47,12 @@ struct LibraryTolerances {
     // 兩個 back end 之間同一個元件的位置差也用它（實測 0.004 px）。
     double positionPx = 0.5;
 };
+
+// 「強雜訊」的定義（2026-10-13 改成相對的；使用者決定，ADR-004 §5 的 B1）：雜訊振幅 ≥ 邊緣對比（主體對底、電極對主體取小的那個）的 1/8。
+// 原本是絕對的「雜訊 ≥ 12」：低對比的板子（對比 12、雜訊 4，比例 1/3）比雜訊 12 對比 90 的板子（1/7.5）相對更吵，卻用的是嚴的上限；
+// 兩個 back end 在那塊板子修到底都在 0.65–0.97°（docs/steps/S09-contract-ab/halcon-accuracy-probe.md §5）。1/8 把這兩種都算進去，
+// 雜訊 4 對比 75（1/19，perf_ab 的基準板子）不算。數字（0.5 px、0.6°）沒有放寬，只改判斷用哪一個。
+inline bool isStrongNoise(int noiseAmplitude, int edgeContrast) { return edgeContrast > 0 && noiseAmplitude * 8 >= edgeContrast; }
 
 struct ContractProfile {
     std::string_view id;

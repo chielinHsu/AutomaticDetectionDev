@@ -8,40 +8,38 @@
 
 ## 正在做
 
-無。**S10 完成**（分支 `step/10-perf-harness`，`--no-ff` 合併到 `main`，tag `step-10-done`，沒有 push）。
+無。**HALCON 準確度的修正完成**（分支 `fix/halcon-accuracy`，`--no-ff` 合併到 `main`，沒有 tag、沒有 push）。**接下來是 S11**（這個 session 收工時用 `spawn_task` 開；分支 `step/11-optimize`；開工前確認 `tst_contract_end_to_end` 的 XFAIL 只剩 `opencv B1`）。
 
-**接下來的順序（使用者 2026-10-12 決定）**：（1）~~B1–B3 的回歸測試~~ →（2）~~S10~~ →（3）**HALCON 準確度的修正**（這個 session 收工時用 `spawn_task` 開；分支 `fix/halcon-accuracy`，`--no-ff` 合併、不打 tag；Start prompt 在 `docs/plan/S11-optimize.md` 開頭；B1–B3 加上 O1）→（4）S11（修正的 session 收工時開；開工前確認 `tst_contract_end_to_end` 的 log 沒有 XFAIL）。
+## 這次做了什麼（細節在 `docs/changelog-ai.md` 最上面那一筆、ADR-004 的「後續（2026-10-13）」、`docs/steps/S09-contract-ab/halcon-accuracy-probe.md`）
 
-## 這次做了什麼（細節在 `docs/changelog-ai.md` 最上面那一筆、`docs/steps/S10-perf-harness/`、ADR-023）
-
-- 一鍵效能測試 `scripts/dev/perf.ps1`（環境快照 → `test.ps1 -Perf` → 彙整 → 和基準線與預算比 → 報表）；閘門 `tools/perf-compare.mjs`（`collect`、`compare`、`baseline`、`noise`、`html`、`--self-test`；結束碼 0／1／2／3）。
-- 新的量測 `tests/perf/perf_matrix`（搜尋矩陣）、`perf_e2e`（T5）；基準線 `perf/baseline/casparhsu1-harness.json`（整套跑 3 次）。
-- `perf/budgets.json`：T5 `calibrated`、頂層 `status: calibrated`、`knownIssues`（B1–B3）；limit 沒有改。
-- `test.ps1` 多 1 個 node 檢查（`perf_compare_self_test`）：預設 **57 項**（`-NoHalcon` 55、`-NoOpenCv` 54、兩個都關 52）。
-- 沒有改 `src/`、S02–S09 的量測程式、容差、back end 的預設。
+- 根因（探測，不是推測）：B1 ＝ 'auto' 對比落在雜訊量級；B2 ＝ 模糊後「電極–底–電極」只差主體上下邊三成的點（半格距分數 0.83），重複偵測是 use case 驗證階段對半格距種子的後果；B3 ＝ 'auto' 把門檻拉到 38、主體長邊掉出模型；O1 ＝ 角度 0 的範本帶著樣本自己的雜訊。
+- 修正（只動 `infrastructure/backend_halcon`，`HalconSearchOptions` 的預設）：MaxOverlap 0.5 → 0.2；建範本時量樣本的邊寬與相對雜訊，邊寬 ≥ 5 → `mean_image` 5×5 三次＋least_squares＋只追蹤到金字塔第 2 層，相對雜訊 ≥ 4% → `mean_image` 3×3 三次＋least_squares_high，其餘不平滑（和 S08 相同）；決定在 `HalconTemplateTuning`，搜尋影像跟著做；流程 B 不平滑。
+- 使用者的決定：「強雜訊」改相對定義（`isStrongNoise`，數字沒放寬）；O1 列為 ADR-004 的 D6（OpenCV B1 列的 `QEXPECT_FAIL` 留著當哨兵）；OpenCV 的半格距現象只記錄。
+- `perf/budgets.json` 的 `knownIssues` 清空、`perf_matrix` 的 `knownIssue()` 拿掉、基準線重建。
 
 ## 建置與測試
 
-- `test.ps1` 預設 57／57（HALCON 0 跳過；XFAIL 照舊 5 列）；`-Config Debug -Filter perf_e2e` 建置通過。
-- 效能：`perf.ps1`（約 15 分鐘一次）。before／after 用 `-Filter` 縮小、`-Runs 3` 看範圍、前後交替量；改了會影響效能的程式之後 `-Runs 3 -WriteBaseline` 重建基準線。
-- **雜訊**：這台機器跨行程差到中位數 44%（處理器只跑在額定速度的 54–67%：Visual Studio、Chrome、遠端桌面在跑）。報表會標；INCONCLUSIVE（結束碼 3）＝ 整台變慢，再量一次。
+- `test.ps1` 預設 57／57（HALCON 0 跳過；XFAIL 2 列：opencv B1、`tst_image_sources_agree` 的 1 列）；`-Config Debug` 57／57。
+- `tst_contract_end_to_end`：HALCON B1 0.353 px／0.745°（上限 0.80）、B2 0.215 px／0.575°（上限 0.6）、B3 0.142 px／0.650°（上限 1.03）。**餘裕小**（B2 4%、B1 7%）：合成板子是確定的，同一個建置每次一樣；換 HALCON 版本要重跑。
+- 效能：`perf_halcon` 0 項超出預算（T2b 20.4／24.7 ms、T4 24.7／42.9 ms、T6b p95 0.114 px）；`perf_ab` 低對比 100%、重模糊 0 誤判。
 
 ## 不要動
 
+- `HalconSearchOptions` 的新預設（使用者確認過）；要改先看 `halcon-accuracy-probe.md` §5、§8（gauss_filter、binomial_filter、'interpolation'、全部平滑都試過、都比較差）。
 - `ai-project-template/`；`docs/ux/tokens.json`；`copy.json` 只新增 key；`perf/budgets.json` 的 limit；`knownOver("U3")`、`knownOver("I1")` 等 S11。
-- `third_party/halcon/`；`tests/infra/fixtures/*.json`；`AOI_SYNTHETIC_REFERENCE_HASH`；`PresenterRig.h` 的視窗閘門；晶格的門檻與 ADR-013；port 契約的語意、`ImageView`、`SearchParams`；`OpenCvSearchOptions`、`HalconSearchOptions` 的預設值（修正的 session 要改時先把證據給使用者）。
-- `tst_contract_end_to_end` 的四個 `QEXPECT_FAIL`：只有修好那一列才拿掉；不要放寬容差。修好之後一併拿掉 `perf/budgets.json` 的 `knownIssues` 與 `tests/perf/perf_matrix.cpp` 的 `knownIssue()`。
+- `third_party/halcon/`；`tests/infra/fixtures/*.json`；`AOI_SYNTHETIC_REFERENCE_HASH`；`PresenterRig.h` 的視窗閘門；晶格的門檻與 ADR-013；port 契約的語意、`ImageView`、`SearchParams`；`OpenCvSearchOptions` 的預設值。
+- `tst_contract_end_to_end` 的 opencv B1 `QEXPECT_FAIL`：是刻意接受的差異（D6），修好 O1 才拿掉；不要放寬容差。
 - `AiInspTool/main.cpp`、`mainwindow.*`；`aoi_target.pri` 的 `/IGNORE:4199`；表單的文字不要改成可翻譯（ADR-022）。
-- `perf/baseline/casparhsu1-harness.json`：只用 `perf-compare baseline`（或 `perf.ps1 -WriteBaseline`）重建，不要手改。
+- `perf/baseline/casparhsu1-harness.json`：只用 `perf.ps1 -WriteBaseline` 重建，不要手改。
 
 ## 已知問題與風險
 
-- 基準線含一次慢的執行（範圍偏寬）：機器狀態正常時重建。`-Window`、`-Profile full`、真實影像沒有跑過。
-- HALCON 修正會改變它的時間：修正合併之後 S11 開工前要重建基準線（S11 計畫的提醒）。
-- HALCON dongle 的 5 分鐘限制（AI_CONTEXT 的 HALCON 列）：讀不到時先等 5 分鐘；判斷用 `test.ps1 -Filter 'tst_halcon_backend'`（0 skipped）。這個 session 全程都讀得到。
-- 等使用者決定（ADR-004、S09、S10）：分數門檻要不要依 back end 分開、`nativeGray16` 要不要當預設、AB-U3 與 T7 的預算、U3 與 I1。
+- use case 驗證階段的漏洞（視窗裡找到的匹配離別的已知候選更近時仍當成那個缺格的元件）：`current-status.md` 待決定（10），沒有改 application。
+- 探測程式 `tests/backend/probe_*.cpp` 不在 `tests.pro`，要跑要單獨 qmake（changelog 的注意事項）。
+- HALCON dongle 的 5 分鐘限制（AI_CONTEXT 的 HALCON 列）：這個 session 全程都讀得到。
+- 等使用者決定（ADR-004、S09、S10）：分數門檻要不要依 back end 分開、`nativeGray16`、AB-U3 與 T7 的預算、U3 與 I1、真實影像 HA 的位置。
 
 ## 驗證（實際執行）
 
-- `test.ps1` 預設 Release 57／57；`-Config Debug` 整個建置通過，`-Config Debug -Perf -NoBuild -Filter perf_e2e` 執行通過；`perf-compare --self-test` 20 項；`ste-lint --strict` 0 errors；`check-ai-structure.ps1` OK（1 個既有的警告：`current-status.md` 超過 80 行）。
-- `test.ps1 -Perf` 整套 3 次 → 基準線；第 3 次對基準線 PASS；`perf.ps1 -NoBuild -Filter perf_matrix -InjectDelayMs 60` 閘門 FAIL（35 個回歸）。
+- `test.ps1` 預設 Release 57／57、`-Config Debug` 57／57；`tst_halcon_backend` 19 項 0 skipped；`ste-lint` 0 errors；`check-ai-structure.ps1` OK（既有警告：`current-status.md` 超過 80 行）。
+- `perf.ps1 -NoBuild -Filter perf_halcon`（1 次）、`-Filter perf_ab -Runs 3`、`-Runs 3 -WriteBaseline`（結果見 changelog）。
