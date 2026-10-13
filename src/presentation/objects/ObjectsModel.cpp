@@ -198,7 +198,7 @@ QVariant ObjectsModel::data(const QModelIndex& index, int role) const {
     // 元件列
     if (role == Qt::DisplayRole) {
         switch (index.column()) {
-            case NameColumn: return row.name;
+            case NameColumn: return displayName(row);
             case StateColumn: return stateNames_[static_cast<std::size_t>(stateIndex(row.state))];
             case ScoreColumn:
                 if (row.manual) return manualText_;
@@ -209,9 +209,9 @@ QVariant ObjectsModel::data(const QModelIndex& index, int role) const {
     } else if (role == Qt::ToolTipRole && index.column() == NameColumn) {
         if (row.typeIndex >= 0 && static_cast<std::size_t>(row.typeIndex) < rows_->types.size()) {
             const QString& label = rows_->types[static_cast<std::size_t>(row.typeIndex)].label;
-            if (!label.isEmpty()) return QStringLiteral("%1 · %2").arg(row.name, label);
+            if (!label.isEmpty()) return QStringLiteral("%1 · %2").arg(displayName(row), label);
         }
-        return row.name;
+        return displayName(row);
     }
     return {};
 }

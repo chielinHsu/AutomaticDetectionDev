@@ -35,8 +35,6 @@ QRectF toQRect(const RectObj& r) {
     return QRectF(box.x, box.y, box.w, box.h);
 }
 
-QString scoreText(double score) { return QString::number(score, 'f', 2); }
-
 // 一個群組有幾個框（Window 與父群組一樣多）。
 int groupBoxCount(const ComponentType& type, const BoxGroup& group) {
     auto countOf = [](const BoxGroup& g) {
@@ -110,9 +108,10 @@ Scene buildScene(const InspectionSession& session, const SceneLabels& labels) {
             }
             view.outline = outline;
         }
-        if (c.origin == ObjectOrigin::Manual) view.label = QString::fromStdString(c.name) + QLatin1Char(' ') + labels.manual;
-        else if (c.score) view.label = QString::fromStdString(c.name) + QLatin1Char(' ') + scoreText(*c.score);
-        else view.label = QString::fromStdString(c.name);
+        const QString name = QString::fromStdString(c.name);
+        view.text = name;
+        if (c.origin == ObjectOrigin::Manual) view.text = name + QLatin1Char(' ') + labels.manual;
+        else if (c.score) view.score = *c.score;  // 分數畫的時候才格式化
         docCounts.boxes += view.boxes.size();
         ++docCounts.components;
         addToCounts(docCounts, state);
@@ -120,7 +119,7 @@ Scene buildScene(const InspectionSession& session, const SceneLabels& labels) {
 
         ObjectRow row;
         row.id = c.id;
-        row.name = QString::fromStdString(c.name);
+        row.name = name;
         row.state = state;
         row.score = c.score ? *c.score : -1.0;
         row.manual = c.origin == ObjectOrigin::Manual;
@@ -159,15 +158,15 @@ Scene buildScene(const InspectionSession& session, const SceneLabels& labels) {
         view.state = state;
         view.outline = rect;
         view.boxes.push_back({rect, BoxKind::Body});
-        if (o.origin == ObjectOrigin::Manual) view.label = labels.manual;
-        else if (o.state == ObjectState::Sample) view.label = labels.sample;
-        else if (o.state == ObjectState::Inferred) view.label = labels.inferred;
-        else if (o.score) view.label = scoreText(*o.score);
+        if (o.origin == ObjectOrigin::Manual) view.text = labels.manual;
+        else if (o.state == ObjectState::Sample) view.text = labels.sample;
+        else if (o.state == ObjectState::Inferred) view.text = labels.inferred;
+        else if (o.score) view.score = *o.score;
         snapshot->components.push_back(std::move(view));
 
         ObjectRow row;
         row.id = sceneId;
-        row.name = QStringLiteral("#%1").arg(o.id);
+        // 名稱留空：提案物件顯示「#編號」，由 displayName 在顯示時組（S11：每次門檻變動都格式化 5 832 個是白工）。
         row.state = state;
         row.score = o.score ? *o.score : -1.0;
         row.manual = o.origin == ObjectOrigin::Manual;

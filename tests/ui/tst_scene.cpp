@@ -79,18 +79,19 @@ private slots:
         InspectionSession s = previewOf({0.95, 0.50}, 1);
         QCOMPARE(s.addManual({400, 300, 0}), InspectionSession::AddResult::Added);
         const Scene scene = buildScene(s, labels());
-        QCOMPARE(byId(scene, kProposalIdBase + 1)->label, QStringLiteral("樣本"));
-        QCOMPARE(byId(scene, kProposalIdBase + 2)->label, QStringLiteral("0.95"));
-        QCOMPARE(byId(scene, kProposalIdBase + 3)->label, QStringLiteral("0.50"));  // 拒絕的也標示分數
-        QCOMPARE(byId(scene, kProposalIdBase + 4)->label, QStringLiteral("推算"));
-        QCOMPARE(byId(scene, kProposalIdBase + 5)->label, QStringLiteral("手動"));
+        QCOMPARE(byId(scene, kProposalIdBase + 1)->label(), QStringLiteral("樣本"));
+        QCOMPARE(byId(scene, kProposalIdBase + 2)->label(), QStringLiteral("0.95"));
+        QCOMPARE(byId(scene, kProposalIdBase + 3)->label(), QStringLiteral("0.50"));  // 拒絕的也標示分數
+        QCOMPARE(byId(scene, kProposalIdBase + 4)->label(), QStringLiteral("推算"));
+        QCOMPARE(byId(scene, kProposalIdBase + 5)->label(), QStringLiteral("手動"));
     }
 
     void proposalRowsAreNamedByIdAndCarryTheScore() {
         InspectionSession s = previewOf({0.95}, 1);
         const Scene scene = buildScene(s, labels());
         QCOMPARE(scene.rows->rows.size(), std::size_t{3});
-        QCOMPARE(scene.rows->rows[1].name, QStringLiteral("#2"));
+        QVERIFY(scene.rows->rows[1].name.isEmpty());  // 提案物件沒有名稱；顯示時才組「#編號」（S11）
+        QCOMPARE(displayName(scene.rows->rows[1]), QStringLiteral("#2"));
         QCOMPARE(scene.rows->rows[1].score, 0.95);
         QCOMPARE(scene.rows->rows[2].score, -1.0);  // 推算的沒有分數
         QVERIFY(scene.rows->rows[1].id >= kProposalIdBase);
@@ -142,8 +143,8 @@ private slots:
         QCOMPARE(scene.rows->rows.size(), std::size_t{4});
         QCOMPARE(scene.rows->rows[0].id, 1);
         QCOMPARE(scene.rows->rows[0].name, QStringLiteral("X1"));
-        QCOMPARE(scene.snapshot->components[1].label, QStringLiteral("X2 0.95"));
-        QCOMPARE(scene.snapshot->components[3].label, QStringLiteral("X4"));  // 推算的沒有分數
+        QCOMPARE(scene.snapshot->components[1].label(), QStringLiteral("X2 0.95"));
+        QCOMPARE(scene.snapshot->components[3].label(), QStringLiteral("X4"));  // 推算的沒有分數
         for (const ComponentView& c : scene.snapshot->components) QVERIFY(!isProposalId(c.id));
         QCOMPARE(scene.rows->types.size(), std::size_t{1});
         QCOMPARE(scene.rows->rows[0].typeIndex, 0);
@@ -170,7 +171,7 @@ private slots:
         s.accept();
         s.addManual({500, 400, 0});
         const Scene scene = buildScene(s, labels());
-        QVERIFY(scene.snapshot->components.back().label.contains(QStringLiteral("手動")));
+        QVERIFY(scene.snapshot->components.back().label().contains(QStringLiteral("手動")));
         QVERIFY(scene.rows->rows.back().manual);
     }
 

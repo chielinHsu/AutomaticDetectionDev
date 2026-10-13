@@ -257,15 +257,16 @@ void RoiLayerItem::paintLabels(QPainter* painter, const QRectF& cull, qreal lod)
     bool started = false;
     const QFontMetrics fm(painter->font());
     for (const ComponentView& c : snapshot_->components) {
-        if (c.label.isEmpty() || c.outline.width() * lod < kLabelMinScreenWidth) continue;
+        if (!c.hasLabel() || c.outline.width() * lod < kLabelMinScreenWidth) continue;
         if (!cull.intersects(c.outline)) continue;
+        const QString label = c.label();  // 只有真的要畫的才格式化
         if (!started) {
             painter->save();
             painter->resetTransform();
             started = true;
         }
         const QPointF origin = world.map(c.outline.topLeft());
-        const int w = fm.horizontalAdvance(c.label) + 8;
+        const int w = fm.horizontalAdvance(label) + 8;
         const int h = fm.height() + 2;
         const QRectF pill(origin.x(), origin.y() - h - 3, w, h);
         const StrokeColors& colors = style_.tokens().overlay.state[static_cast<size_t>(stateIndex(c.state))];
@@ -273,7 +274,7 @@ void RoiLayerItem::paintLabels(QPainter* painter, const QRectF& cull, qreal lod)
         bg.setAlphaF(0.82f);
         painter->fillRect(pill, bg);
         painter->setPen(colors.stroke);
-        painter->drawText(pill.adjusted(4, 0, -4, 0), Qt::AlignVCenter | Qt::AlignLeft, c.label);
+        painter->drawText(pill.adjusted(4, 0, -4, 0), Qt::AlignVCenter | Qt::AlignLeft, label);
         ++stats_.labelsDrawn;
     }
     if (started) painter->restore();

@@ -22,8 +22,19 @@ struct ComponentView {
     int id = 0;
     OverlayState state = OverlayState::Found;
     QRectF outline;  // 全部框的外接矩形；選取外框、點擊判定、標籤位置都用它
-    QString label;   // 例如「8371 0.97」；空字串＝不顯示
+    // 標籤 ＝ text［＋ 空格 ＋ 分數（兩位小數）］，例如「8371 0.97」、「推算」、「0.83」；兩個都沒有＝不顯示。
+    // 分數畫的時候才格式化（S11）：門檻每動一次 5 832 個元件都重建，但標籤只在放大到夠寬時才畫得出來，
+    // 先格式化成字串是每次 2 ms 的白工。
+    QString text;
+    double score = -1.0;  // < 0 ＝ 沒有分數
     std::vector<BoxView> boxes;
+
+    bool hasLabel() const { return !text.isEmpty() || score >= 0.0; }
+    QString label() const {
+        if (score < 0.0) return text;
+        const QString s = QString::number(score, 'f', 2);
+        return text.isEmpty() ? s : text + QLatin1Char(' ') + s;
+    }
 };
 
 struct ComponentsSnapshot {
