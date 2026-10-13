@@ -24,6 +24,39 @@
 - 下一位 agent 需要知道的限制、否決的做法、不要還原的修改
 ```
 
+## 2026-10-13 — Claude Code (Claude Fable 5.1)（S11：效能優化，先量再改）
+
+### 完成
+- 分支 `step/11-optimize`（從 `main` 98db42a 開），`--no-ff` 合併到 `main`，tag `step-11-done`，沒有 push。
+- 開工時確認 `tst_contract_end_to_end` 28／28、HALCON 0 跳過、XFAIL 只剩 opencv B1（D6）。
+- **挑選**（S10 報表 2026-10-13 16:46 那次）：唯一超出預算的指標是 U3（p95 26.7 對 16）；互動與搜尋類都在預算內，所以只做 U3；搜尋類列成候選、沒有改（perf.md §5）。
+- **先量**：`perf_ui_s04` 加 `U3-canvas-paint-image`／`-layer` 診斷（一次重繪 14.2 ms：影像 1.1、框層 12.5）；`perf_paint_micro` 加字形 blit 的案例（2 600 個框 5.13 → 0.35 ms；dpr 2 的情況 2.31 ms）。
+- **優化 1**（`ff1f262`，[ADR-024](adr/024-box-glyph-cache.md)）：`RoiLayerItem` 小框用字形快取畫——每種（狀態、種類、螢幕寬高）用同一套 `BoxFrames` 畫一張 (w+2)×(h+2) 的 ARGB 小圖，每個框一次未轉換的 `drawImage`；`BoxFrames::snap` 是共用的取整規則；dpr ≠ 1、框超過 96 px、選取的框照舊；快取 64 張。框層 12.5 → 1.15 ms；U3 18.9／23.5 → 13.5／17.6 ms；I1 p95 8.1 → 4.5；I3 22.9 → 7.1。`tst_items` 加三個測試（四種狀態 × 三種框、三種縮放逐像素相同；dpr 2 不用字形；快取命中）。
+- **優化 2**（`a92ac95`）：`ComponentView` 的 `label` 改成 `text` ＋ `score`，`label()` 畫的時候才組（`RoiLayerItem` 只對真的要畫的標籤格式化）；提案列的 `ObjectRow.name` 留空，`displayName()` 顯示時組「#編號」。場景重建 3.46 → 0.89 ms；U3 → 8.75／11.2 ms（**進入預算**）；I6 4.4 → 1.7。
+- **優化 3**（`a317131`）：`InspectionDocument::revision()`（每次變更通知加 1；`tst_document` 加測試）＋ `SceneBuilder` 的 `DocumentSceneCache`（鍵 ＝ 修訂號 ＋ 標籤文字；命中時文件那一部分共用上一次的快照與列，沒有提案時連快照都不複製；Presenter 持有一份；`tst_scene` 加測試）。U3-bg（背景 4 883 個已接受的元件）17.8 → 7.2 ms；U3 → 6.5／7.6 ms（差異在飄移內）。
+- **預算檔**（`c8511a2`）：`perf/budgets.json` 的 U3 改 `calibrated`、新增 `uiCalibrationS11`（limit 沒有改）；`perf_ui_s04` 的 `knownOver("U3")` 拿掉。
+- 文件：四種輸出與 `perf.md`（`docs/steps/S11-optimize/`）、ADR-024、`decisions.md`、`architecture.md`、`AI_CONTEXT.md`、`00-master-plan.md`、S12 計畫的提醒、`current-status.md`、交接單。
+
+### 修改的檔案
+- 新增：`docs/adr/024-box-glyph-cache.md`、`docs/steps/S11-optimize/{spec,diagram,storyboard,perf}.md`、`explainer.html`
+- 修改：`src/presentation/canvas/{BoxFrames.h,BoxFrames.cpp,RoiLayerItem.h,RoiLayerItem.cpp,ImageCanvas.cpp,ComponentSnapshot.h,RoiGraphicsItem.cpp}`、`src/presentation/presenters/{SceneBuilder.h,SceneBuilder.cpp,AutoRoiPresenter.h,AutoRoiPresenter.cpp}`、`src/presentation/objects/{ObjectRows.h,ObjectsModel.cpp}`、`src/presentation/dev/FakeScene.cpp`、`src/application/document/{InspectionDocument.h,InspectionDocument.cpp}`、`tests/ui/{tst_items,tst_scene,tst_presenter,perf_ui_s04,perf_paint_micro}.cpp`、`tests/core/tst_document.cpp`、`perf/budgets.json`、`perf/baseline/casparhsu1-harness.json`、`AI_CONTEXT.md`、`docs/{architecture,decisions,00-master-plan,current-status,changelog-ai}.md`、`docs/plan/S12-release.md`、`.ai/handoff.md`
+- 沒有改：`domain/`、兩個 back end、use case、`ContractTolerances.h`、`perf/budgets.json` 的 limit、`.pro`（沒有新的執行檔）
+
+### 驗證
+- `test.ps1` 預設（Release，OpenCV＋HALCON）：**57／57**（HALCON 0 跳過；有跳過的 5 個測試和之前相同；XFAIL 2 列：opencv B1、`tst_image_sources_agree` 的 1 列，和之前相同）。
+- `test.ps1 -Config Debug`：**57／57**（HALCON 0 跳過；跳過與 XFAIL 的清單和 Release 相同）
+- `node tools/ste-lint.mjs`：979 sentences，0 errors；`check-deps` 的 3 項在 `test.ps1` 裡通過；`scripts/ai/check-ai-structure.ps1`：OK（既有警告：`current-status.md` 超過 80 行）
+- 效能：每個優化之後 `test.ps1 -Perf -NoBuild -Filter perf_ui_s04` 各一次、優化 1 之後 `perf_ui_baseline` 一次（數字在 perf.md §3）；`perf.ps1 -NoBuild -Runs 3 -WriteBaseline`：三次都 0 項超出預算、0 個測試失敗；U3 三次中位數 5.8–9.7、p95 6.5–10.9 ms；對舊基準線的閘門三次都 FAIL（改善 42–48 個都是 UI 的指標；標成回歸的 13–61 個都不在這一步改的程式裡，是機器的飄移，第 1 次處理器只有 80.8%）；新基準線 641 個指標（`docs/steps/S11-optimize/perf.md` §6）
+
+### 未完成
+- 搜尋類沒有動（都在預算內）；AB-U3 沒有預算、T7 的預算仍等使用者決定；`perf.ps1 -Window` 仍沒有跑過，I1 真實視窗的數字（ADR-009）沒有重量。
+- dpr ≠ 1 時字形快取不生效（照舊填色矩形）：高 DPI 的機器上 U3 會回到 S04 的數字。
+
+### 注意事項
+- 字形與填色矩形必須產生相同的像素（`tst_items` 的 `glyphsGiveTheSamePixelsAsFilledRects`）：改 `BoxFrames` 時兩條路都會變，改 `RoiLayerItem` 的字形時要讓這個測試過。
+- `DocumentSceneCache` 的鍵只有修訂號與標籤：任何會改板子內容、但不經過 `InspectionDocument::notify` 的新路徑都會讓畫面過期——新的文件修改一律做成 Command（本來的規則）。
+- U3 的 `knownOver` 已拿掉：這台機器整台變慢時（S10 的第 1 次那種）`perf_ui_s04` 可能因 U3 超標而失敗，看報表上處理器的實際速度再判斷。
+
 ## 2026-10-13 — Claude Code (Claude Fable 5.1)（HALCON 準確度的修正：ADR-004 §5 的 B1–B3 與 O1）
 
 ### 完成

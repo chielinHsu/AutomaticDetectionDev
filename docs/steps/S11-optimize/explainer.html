@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S11 效能優化：前後對照</title>
+<style>
+:root{--bg:#f6f7f9;--panel:#fff;--ink:#18212b;--muted:#566273;--line:#d3d9e0;--accent:#1d4ed8;--accent-ink:#fff;
+  --sample:#1d4ed8;--found:#15803d;--infer:#b45309;--reject:#b91c1c;--ok:#15803d;--bad:#b91c1c;
+  --seg1:#1d4ed8;--seg2:#b45309;--seg3:#6b7787;--seg4:#15803d;--seg5:#8b5cf6}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#0f141a;--panel:#18202a;--ink:#e7edf4;--muted:#9aa8b8;--line:#2c3846;
+  --accent:#7aa7ff;--accent-ink:#0b1220;--sample:#7aa7ff;--found:#4ade80;--infer:#fbbf24;--reject:#f87171;--ok:#4ade80;--bad:#f87171;
+  --seg1:#7aa7ff;--seg2:#fbbf24;--seg3:#9aa8b8;--seg4:#4ade80;--seg5:#c4b5fd}}
+:root[data-theme="dark"]{--bg:#0f141a;--panel:#18202a;--ink:#e7edf4;--muted:#9aa8b8;--line:#2c3846;
+  --accent:#7aa7ff;--accent-ink:#0b1220;--sample:#7aa7ff;--found:#4ade80;--infer:#fbbf24;--reject:#f87171;--ok:#4ade80;--bad:#f87171;
+  --seg1:#7aa7ff;--seg2:#fbbf24;--seg3:#9aa8b8;--seg4:#4ade80;--seg5:#c4b5fd}
+*{box-sizing:border-box} html{color-scheme:light dark}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 system-ui,"Segoe UI","Microsoft JhengHei",sans-serif}
+.wrap{max-width:1100px;margin:0 auto;padding:16px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;margin-top:14px}
+h1{font-size:22px;margin:0 0 4px} h2{font-size:16px;margin:0 0 8px} h3{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--accent);margin:12px 0 2px}
+.zh{color:var(--muted);font-size:13.5px} .muted{color:var(--muted)} .small{font-size:12.5px}
+.row{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center}
+label{display:inline-flex;gap:6px;align-items:center}
+.btn{border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:5px 10px;border-radius:8px;font:inherit;cursor:pointer}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+input[type=range]{width:min(320px,100%);accent-color:var(--accent)}
+.note{border-left:4px solid var(--accent);padding:4px 10px;margin:10px 0;background:color-mix(in srgb,var(--accent) 8%,transparent)}
+.warn{border-left-color:var(--bad);background:color-mix(in srgb,var(--bad) 8%,transparent)}
+table{border-collapse:collapse;width:100%;font-size:13.5px;font-variant-numeric:tabular-nums}
+th,td{border-bottom:1px solid var(--line);padding:5px 8px;text-align:right}
+th:first-child,td:first-child{text-align:left} th{color:var(--muted);font-weight:500}
+.ok{color:var(--ok);font-weight:600} .bad{color:var(--bad);font-weight:600}
+.big{font-size:34px;font-weight:700;line-height:1.1} .big small{font-size:14px;font-weight:400;color:var(--muted)}
+.bars{display:grid;grid-template-columns:150px 1fr 90px;gap:6px 10px;align-items:center;margin-top:8px}
+.bar{height:22px;border-radius:5px;background:color-mix(in srgb,var(--line) 60%,transparent);position:relative;overflow:visible}
+.bar .seg{position:absolute;top:0;bottom:0;transition:width .35s,left .35s}
+.bar .lim{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--bad)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:8px;font-size:12.5px}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-1px;margin-right:4px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px} @media (max-width:820px){.grid{grid-template-columns:1fr}}
+.glyphDemo{display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start}
+canvas.demo{border:1px solid var(--line);border-radius:8px;background:#1a5c3a;max-width:100%}
+pre.code{background:color-mix(in srgb,var(--line) 40%,transparent);border-radius:8px;padding:8px 10px;font:12.5px/1.5 Consolas,"Cascadia Mono",monospace;overflow-x:auto;white-space:pre-wrap}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>S11 — 效能優化：先量再改，三個開關看 U3 怎麼變</h1>
+  <div class="zh">S10 的報表裡只有一個指標超出預算：<strong>U3</strong>（分數滑桿變動到重繪，5 832 個元件，預算 16 ms）。這一頁的數字全部是 <code>perf_ui_s04</code>、<code>perf_ui_baseline</code>、<code>perf_paint_micro</code> 在這台機器上<strong>真的量到的</strong>（Release、offscreen、2026-10-13 同一天）。三個優化是累加量的（先 1、再 1＋2、再 1＋2＋3），所以只有這四種組合有數字；其他組合這一頁會告訴你「沒有量」。</div>
+
+  <!-- 1. toggles + stacked bars -->
+  <div class="card">
+    <h2>1　三個優化的開關（實測）</h2>
+    <div class="row">
+      <label><input type="checkbox" id="o1" checked> 1　小框用字形畫（RoiLayerItem，ADR-024）</label>
+      <label><input type="checkbox" id="o2" checked> 2　標籤與列名延後格式化（SceneBuilder）</label>
+      <label><input type="checkbox" id="o3" checked> 3　文件那一部分的場景快取（revision ＋ DocumentSceneCache）</label>
+    </div>
+    <div class="grid" style="margin-top:10px">
+      <div>
+        <div class="big" id="u3Big"></div>
+        <div class="small muted" id="u3Sub"></div>
+        <div class="bars" id="bars" aria-live="polite"></div>
+        <div class="legend" id="legend"></div>
+        <div class="note small" id="combo"></div>
+      </div>
+      <div>
+        <table id="metricTable" aria-label="各指標在這個組合下的中位數與 p95"></table>
+        <p class="small muted">「—」＝那一次的 log 有數字但沒有特別看；U3-bg、框層、場景重建沒有預算，是診斷用的拆解。I1 只在優化 1 之後量過一次。</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. glyph demo -->
+  <div class="card">
+    <h2>2　字形怎麼畫（示意，用的是同一套規則）</h2>
+    <div class="row">
+      <label>框數 <input type="range" id="nBoxes" min="100" max="6000" step="100" value="5832" aria-label="框的數量"> <b id="nLabel"></b></label>
+      <label>螢幕上的框 <input type="range" id="boxW" min="6" max="60" step="1" value="10" aria-label="框的寬度"> <b id="wLabel"></b></label>
+      <label><input type="checkbox" id="useGlyph" checked> 用字形（一張小圖貼 n 次）</label>
+      <button type="button" class="btn primary" id="paintBtn">畫一次並計時（瀏覽器的 Canvas，不是 Qt）</button>
+    </div>
+    <div class="glyphDemo" style="margin-top:8px">
+      <canvas class="demo" id="demo" width="520" height="300" aria-label="示意畫布"></canvas>
+      <div style="flex:1;min-width:220px">
+        <div class="big" id="demoMs"></div>
+        <div class="small muted" id="demoNote"></div>
+        <pre class="code" id="demoStats"></pre>
+      </div>
+    </div>
+    <div class="note small">這是瀏覽器的示意，只用來看「畫 8 個矩形」與「貼一張小圖」的差別；Qt 的實測是微基準 <code>perf_paint_micro</code>：2 600 個框填色矩形 <b>5.13 ms</b>、字形 <b>0.35 ms</b>。真正的規則：<code>BoxFrames::snap</code> 取整、字形只在 dpr ＝ 1 且寬高 ≤ 96 px 時用、超過 64 張就清掉快取。</div>
+  </div>
+
+  <!-- 3. what was not changed -->
+  <div class="card">
+    <h2>3　有數字、沒有改的</h2>
+    <table id="notDone"></table>
+  </div>
+
+  <div class="card" id="text"></div>
+</div>
+
+<!-- Text for the page. Strings under the key "ste" are checked by tools/ste-lint.mjs. -->
+<script type="application/json" id="aoi-data">
+{
+  "budgetU3": 16,
+  "stages": [
+    { "key": "000", "name": "before（98db42a ＋ 診斷）", "u3": [18.88, 23.54], "layer": [12.52, 19.01], "scene": [5.50, 7.39], "canvasPaint": [14.20, 20.86], "bg": [45.56, 54.94], "i3": [22.92, 32.02], "i6": [5.77, 6.73], "i1": [null, 8.11],
+      "parts": { "refilter": 0.46, "scene": 5.50, "canvasUpdate": 1.05, "tree": 1.07, "layerPaint": 12.52, "imagePaint": 1.07, "treePaint": 1.49 } },
+    { "key": "100", "name": "＋優化 1 字形快取（ff1f262）", "u3": [13.55, 17.55], "layer": [1.15, 1.38], "scene": [3.46, 3.82], "canvasPaint": [2.61, 3.24], "bg": [21.00, 24.88], "i3": [7.08, 15.55], "i6": [4.40, 6.95], "i1": [null, 4.49],
+      "parts": { "refilter": 0.46, "scene": 3.46, "canvasUpdate": 0.67, "tree": 0.54, "layerPaint": 1.15, "imagePaint": 0.93, "treePaint": 1.49 } },
+    { "key": "110", "name": "＋優化 2 延後格式化（a92ac95）", "u3": [8.75, 11.22], "layer": null, "scene": [0.89, 1.31], "canvasPaint": [3.61, 4.98], "bg": [17.85, 22.81], "i3": [4.36, 5.61], "i6": [1.67, 1.94], "i1": null,
+      "parts": { "refilter": 0.46, "scene": 0.89, "canvasUpdate": 0.59, "tree": 0.37, "layerPaint": 1.15, "imagePaint": 0.93, "treePaint": 1.91 } },
+    { "key": "111", "name": "＋優化 3 文件快取（a317131）", "u3": [6.49, 7.65], "layer": null, "scene": [0.94, 1.23], "canvasPaint": null, "bg": [7.21, 8.66], "i3": [5.50, 9.58], "i6": [3.01, 3.68], "i1": null,
+      "parts": { "refilter": 0.46, "scene": 0.94, "canvasUpdate": 0.59, "tree": 0.37, "layerPaint": 1.15, "imagePaint": 0.93, "treePaint": 1.91 } }
+  ],
+  "partLabels": { "refilter": "重新過濾", "scene": "場景重建", "canvasUpdate": "畫布分桶", "tree": "物件樹更新", "layerPaint": "框層繪製", "imagePaint": "影像繪製", "treePaint": "物件樹重繪" },
+  "notDone": [
+    ["HALCON 每次搜尋都 create_shape_model", "13–47 ms（T5:halcon 的三分之一）", "教新樣本的固有成本；樣本庫的快取等樣本庫 UI 那一步；T5 在預算內"],
+    ["OpenCV ±180° 的角度範圍", "239 ms（±5° 31 ms）", "產品預設 ±5°；減少角度步數會動到準確度，要另開一步配契約測試"],
+    ["HALCON 的 T4", "p95 42.9 ms 對 60", "在預算內，沒有單一瓶頸"],
+    ["AB-U3（A/B 視窗改門檻）", "p95 48.8–63.4 ms", "沒有預算；框層已被優化 1 涵蓋"],
+    ["dpr ≠ 1 的字形", "2 倍縮放時仍快 2 倍", "像素等價沒有驗證，高 DPI 照舊填色矩形"],
+    ["I1 真實視窗", "ADR-009：22 ms", "沒有重量（-Window）；offscreen 8.1 → 4.5 ms"]
+  ],
+  "sections": [
+    { "title": "Purpose",
+      "ste": { "text": "This step makes the slowest measured part faster. We change only what the numbers show as slow. Each change has a number before and after." },
+      "zh": "只改實測證明慢的地方；每個優化都有同一天、同一台機器的 before／after。" },
+    { "title": "Reason",
+      "ste": { "text": "A guess about speed is often wrong. S04 said the repaint is the main cost, but did not split it. The new diagnostics show the image takes 1 ms and the boxes take 12.5 ms. The scene builder formatted a label for each object on each change. The canvas shows labels only when you zoom in." },
+      "zh": "S04 只說重繪是主因；S11 先拆開：影像 1 ms、框層 12.5 ms；場景重建每次替 5 832 個物件格式化字串，但標籤只在放大時才畫；背景有已接受的元件時每次都重算它們。" },
+    { "title": "Effect",
+      "ste": { "text": "Three changes, three commits. The box layer paints each small box as a cached glyph. The scene builder formats a label only when the canvas paints it. The presenter keeps the document part of the scene in a cache. U3 is now inside its budget. The gate enforces the budget from now on." },
+      "zh": "三個優化、三個 commit：字形快取（框層 12.5 → 1.15 ms）、延後格式化（場景重建 3.5 → 0.9 ms）、文件快取（U3-bg 17.8 → 7.2 ms）。U3 進入預算（p95 7.6–11.2 ms 對 16），budgets.json 標成 calibrated，閘門開始擋它。" }
+  ]
+}
+</script>
+<script>
+(() => {
+  const data = JSON.parse(document.getElementById('aoi-data').textContent);
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const f1 = (v) => v == null ? '—' : (Math.round(v * 100) / 100).toFixed(2);
+  const pair = (p) => p ? `${f1(p[0])} / ${f1(p[1])}` : '—';
+
+  // ---- 1. toggles ----
+  const boxes = ['o1', 'o2', 'o3'].map((id) => document.getElementById(id));
+  const segColors = { refilter: 'var(--seg3)', scene: 'var(--seg2)', canvasUpdate: 'var(--seg3)', tree: 'var(--seg3)', layerPaint: 'var(--seg1)', imagePaint: 'var(--seg5)', treePaint: 'var(--seg4)' };
+  const legend = document.getElementById('legend');
+  legend.innerHTML = Object.keys(data.partLabels).map((k) => `<span><i style="background:${segColors[k]}"></i>${esc(data.partLabels[k])}</span>`).join('') + '<span><i style="background:var(--bad);width:2px"></i>預算 16 ms</span>';
+
+  function render() {
+    const key = boxes.map((b) => (b.checked ? '1' : '0')).join('');
+    const stage = data.stages.find((s) => s.key === key);
+    const combo = document.getElementById('combo');
+    const big = document.getElementById('u3Big');
+    const sub = document.getElementById('u3Sub');
+    const bars = document.getElementById('bars');
+    const table = document.getElementById('metricTable');
+    if (!stage) {
+      combo.className = 'note small warn';
+      combo.textContent = '這個組合沒有量過：三個優化是累加做的（1 → 1＋2 → 1＋2＋3），每一步只量了當時的程式。把開關依序打開才有數字。';
+      big.textContent = '—';
+      sub.textContent = '';
+      bars.innerHTML = '';
+      table.innerHTML = '';
+      return;
+    }
+    combo.className = 'note small';
+    combo.textContent = `${stage.name}：U3 中位數 ${f1(stage.u3[0])} ms、p95 ${f1(stage.u3[1])} ms（預算 ${data.budgetU3} ms）。`;
+    const over = stage.u3[1] > data.budgetU3;
+    big.innerHTML = `<span class="${over ? 'bad' : 'ok'}">${f1(stage.u3[1])}</span> <small>ms p95 ・ 中位數 ${f1(stage.u3[0])} ・ 預算 ${data.budgetU3}（${over ? '超標' : '通過'}）</small>`;
+    sub.textContent = 'U3 ＝ 分數滑桿變動到重繪，5 832 個元件；下面是各部分的中位數（不同的測試函式量的，加總不等於 U3）。';
+    const max = 20;
+    const rows = Object.keys(data.partLabels).map((k) => {
+      const v = stage.parts[k];
+      const w = Math.min(100, (v / max) * 100);
+      return `<div>${esc(data.partLabels[k])}</div><div class="bar"><span class="seg" style="left:0;width:${w}%;background:${segColors[k]};border-radius:5px"></span></div><div>${f1(v)} ms</div>`;
+    });
+    const u3w = Math.min(100, (stage.u3[0] / max) * 100);
+    rows.push(`<div><b>U3 中位數</b></div><div class="bar"><span class="seg" style="left:0;width:${u3w}%;background:${over ? 'var(--bad)' : 'var(--ok)'};border-radius:5px;opacity:.85"></span><span class="lim" style="left:${(data.budgetU3 / max) * 100}%"></span></div><div><b>${f1(stage.u3[0])} ms</b></div>`);
+    bars.innerHTML = rows.join('');
+    const metrics = [
+      ['U3（5 832 個元件）', stage.u3, 16],
+      ['框層一次 paint（U3-canvas-paint-layer）', stage.layer, null],
+      ['一次畫布重繪（U3-canvas-paint）', stage.canvasPaint, null],
+      ['場景重建（ui.scene.build）', stage.scene, null],
+      ['U3-bg（背景 4 883 個已接受的元件）', stage.bg, null],
+      ['I3 搜尋期間最長阻塞', stage.i3, 50],
+      ['I6 復原 1 054 個框', stage.i6, 50],
+      ['I1 平移縮放 p95', stage.i1, 16.7]
+    ];
+    table.innerHTML = '<tr><th>指標（中位數 / p95，ms）</th><th>值</th><th>預算</th></tr>' + metrics.map(([n, v, b]) => {
+      const cls = v && b != null ? (v[1] > b ? 'bad' : 'ok') : '';
+      return `<tr><td>${esc(n)}</td><td class="${cls}">${pair(v)}</td><td>${b == null ? '—' : b}</td></tr>`;
+    }).join('');
+  }
+  boxes.forEach((b) => b.addEventListener('change', render));
+  render();
+
+  // ---- 2. glyph demo (browser canvas; illustration only) ----
+  const demo = document.getElementById('demo');
+  const ctx = demo.getContext('2d');
+  const nRange = document.getElementById('nBoxes'), wRange = document.getElementById('boxW');
+  const labelN = () => { document.getElementById('nLabel').textContent = `${nRange.value} 個`; document.getElementById('wLabel').textContent = `${wRange.value} × ${Math.max(3, Math.round(wRange.value * 0.6))} px`; };
+  nRange.addEventListener('input', labelN); wRange.addEventListener('input', labelN); labelN();
+  function frameRects(c, x, y, w, h, t, color) {
+    c.fillStyle = color;
+    c.fillRect(x, y, w, t); c.fillRect(x, y + h - t, w, t);
+    if (h - 2 * t > 0) { c.fillRect(x, y + t, t, h - 2 * t); c.fillRect(x + w - t, y + t, t, h - 2 * t); }
+  }
+  function paintDemo() {
+    const n = +nRange.value, w = +wRange.value, h = Math.max(3, Math.round(w * 0.6));
+    const useGlyph = document.getElementById('useGlyph').checked;
+    const cols = Math.max(1, Math.floor((demo.width - 4) / (w + 4)));
+    ctx.fillStyle = '#1a5c3a'; ctx.fillRect(0, 0, demo.width, demo.height);
+    const t0 = performance.now();
+    let glyph = null;
+    if (useGlyph) {
+      glyph = document.createElement('canvas'); glyph.width = w + 2; glyph.height = h + 2;
+      const g = glyph.getContext('2d');
+      frameRects(g, 0, 0, w + 2, h + 2, Math.min(4, Math.max(1, Math.min(w + 2, h + 2))), '#0d1117');
+      frameRects(g, 1, 1, w, h, Math.min(2, Math.max(1, Math.min(w, h))), '#3fb950');
+    }
+    for (let i = 0; i < n; ++i) {
+      const x = 2 + (i % cols) * (w + 4), y = 2 + Math.floor(i / cols) * (h + 4);
+      if (y > demo.height) break;
+      if (useGlyph) ctx.drawImage(glyph, x - 1, y - 1);
+      else { frameRects(ctx, x - 1, y - 1, w + 2, h + 2, Math.min(4, Math.max(1, Math.min(w + 2, h + 2))), '#0d1117'); frameRects(ctx, x, y, w, h, Math.min(2, Math.max(1, Math.min(w, h))), '#3fb950'); }
+    }
+    const ms = performance.now() - t0;
+    document.getElementById('demoMs').innerHTML = `${ms.toFixed(2)} <small>ms（瀏覽器，示意）</small>`;
+    document.getElementById('demoNote').textContent = useGlyph ? '一張小圖、每個框一次 drawImage' : '每個框 8 個 fillRect（外框 4 ＋ 描邊 4）';
+    document.getElementById('demoStats').textContent = `框數 ${n}（畫得下的才畫）、框 ${w} × ${h} px\n` + (useGlyph ? `字形 ${w + 2} × ${h + 2} px，1 張；drawImage ${n} 次` : `fillRect ${n * 8} 次`) + `\nQt 的實測：perf_paint_micro 2 600 個框 5.13 ms → 0.35 ms；perf_ui_s04 框層 12.52 → 1.15 ms`;
+  }
+  document.getElementById('paintBtn').addEventListener('click', paintDemo);
+  paintDemo();
+
+  // ---- 3. not done ----
+  document.getElementById('notDone').innerHTML = '<tr><th>候選</th><th>數字</th><th>為什麼沒改</th></tr>' + data.notDone.map((r) => `<tr><td>${esc(r[0])}</td><td>${esc(r[1])}</td><td style="text-align:left">${esc(r[2])}</td></tr>`).join('');
+
+  // ---- text ----
+  document.getElementById('text').innerHTML = data.sections
+    .map((s) => `<h3>${esc(s.title)}</h3><p lang="en">${esc(s.ste.text)}</p><p class="zh" lang="zh-Hant">${esc(s.zh)}</p>`).join('');
+})();
+</script>
+</body>
+</html>

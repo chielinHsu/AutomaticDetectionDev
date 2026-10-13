@@ -92,7 +92,7 @@ flowchart TB
 四個提速手段（**都是設計假設，由 S10 驗證**）：視窗搜尋、影像零複製、worker 執行緒、批次繪製。
 
 三大類測試：**搜索比對時間**（T1–T6）、**介面更新時間**（U1–U4）、**介面互動**（I1–I6）。
-預算在 S02–S08 逐項用本機實測校準，S10（2026-10-13）校準最後一項 T5 並把閘門做成一個指令（`scripts/dev/perf.ps1`，[ADR-023](adr/023-perf-regression-gate.md)）；數字只在這台機器可比較。完整方法、矩陣、門檻見 [perf-test-plan.md](perf-test-plan.md)，機器可讀版見 [../perf/budgets.json](../perf/budgets.json)。
+預算在 S02–S08 逐項用本機實測校準，S10（2026-10-13）校準最後一項 T5 並把閘門做成一個指令（`scripts/dev/perf.ps1`，[ADR-023](adr/023-perf-regression-gate.md)）；S11（2026-10-13）把唯一超出預算的 U3 做進預算（三個優化各有 before／after，[ADR-024](adr/024-box-glyph-cache.md)）；數字只在這台機器可比較。完整方法、矩陣、門檻見 [perf-test-plan.md](perf-test-plan.md)，機器可讀版見 [../perf/budgets.json](../perf/budgets.json)。
 
 ## 6. 實作步驟（由介面 → 系統 → 底層 → 驗證 → 發行）
 

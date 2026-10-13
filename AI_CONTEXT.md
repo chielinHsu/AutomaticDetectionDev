@@ -106,7 +106,7 @@ AOI 教學工具：使用者在影像上框一個樣本 ROI → 程式找出相�
 - 不要在 `JobRunner` 的 `work`／`done` 裡解構那個 `JobRunner`（解構會等所有工作結束，等到自己）。
 - 不要讓 `cv::Mat`、`HalconCpp::HImage`、`QImage` 跨過 port（用 `ImageView`）。
 - 不要沒量測就做效能優化（S11 規則：先有 before 數字）。
-- 效能預算（`perf/budgets.json`）S10 起全部在本機校準過（頂層 `status: calibrated`，limit 一個都沒有改），但只在這台機器可比較：換機器要先用 `perf.ps1 -Runs 3 -WriteBaseline` 建那台的基準線，報表會在機器或 Qt 版本不同時警告。U3 超標、I1 在邊緣是已知（待使用者決定、S11）。
+- 效能預算（`perf/budgets.json`）S10 起全部在本機校準過（頂層 `status: calibrated`，limit 一個都沒有改），但只在這台機器可比較：換機器要先用 `perf.ps1 -Runs 3 -WriteBaseline` 建那台的基準線，報表會在機器或 Qt 版本不同時警告。U3 在 S11（2026-10-13）做進預算並標 `calibrated`（p95 7.6–11.2 ms 對 16；ADR-024 的字形快取、延後格式化、文件的場景快取），`perf_ui_s04` 不再有 `knownOver`；只剩 I1 的 `calibrated-at-limit`（真實視窗沒有重量，ADR-009 待使用者決定）。
 - 真實產線影像（`/data/`）、`build/`、`perf/results/` 不入版控。
 
 ## Context Routing（任務 → 先讀什麼）
