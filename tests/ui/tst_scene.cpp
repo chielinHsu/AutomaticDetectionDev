@@ -135,6 +135,65 @@ private slots:
         QCOMPARE(byId(scene, kProposalIdBase + 3)->outline.topLeft(), QPointF(200 - 20 + 10, 100 - 10 + 5));
     }
 
+    // S11：文件那一部分的快取——文件沒變就共用上一次的結果，變了（Command、復原、換語言）就重算。
+    void theDocumentPartIsReusedUntilTheDocumentOrTheLabelsChange() {
+        InspectionSession s = previewOf({0.95, 0.75}, 1);
+        s.accept();
+        DocumentSceneCache cache;
+        const Scene first = buildScene(s, labels(), &cache);
+        QVERIFY(cache.valid);
+        QCOMPARE(cache.revision, s.document().revision());
+        QCOMPARE(first.snapshot->components.size(), std::size_t{4});
+
+        const Scene again = buildScene(s, labels(), &cache);
+        QVERIFY(again.rows == first.rows);          // 同一份：沒有重建
+        QVERIFY(again.snapshot == first.snapshot);  // 沒有提案時連快照都共用
+        QCOMPARE(again.counts.components, std::size_t{4});
+
+        // 文件變了：刪掉一個 → 重算，結果反映新的文件
+        s.select({2});
+        QCOMPARE(s.deleteSelection(), std::size_t{1});
+        const Scene afterDelete = buildScene(s, labels(), &cache);
+        QVERIFY(afterDelete.rows != first.rows);
+        QCOMPARE(afterDelete.snapshot->components.size(), std::size_t{3});
+        QVERIFY(byId(afterDelete, 2) == nullptr);
+        QCOMPARE(cache.revision, s.document().revision());
+
+        // 復原：又是一次變更 → 重算，四個都回來
+        QVERIFY(s.undo());
+        const Scene afterUndo = buildScene(s, labels(), &cache);
+        QCOMPARE(afterUndo.snapshot->components.size(), std::size_t{4});
+        QVERIFY(byId(afterUndo, 2) != nullptr);
+
+        // 標籤變了（換語言）：板子的標題跟著變
+        SceneLabels english = labels();
+        english.board = QStringLiteral("Board board.png");
+        const Scene translated = buildScene(s, english, &cache);
+        QCOMPARE(translated.rows->boardTitle, QStringLiteral("Board board.png"));
+        QVERIFY(translated.rows != afterUndo.rows);
+
+        // 有提案時：文件的元件在前（共用快取）、提案的在後；快照是新的一份
+        s.beginRegion(RegionMode::Sample);
+        s.endRegion(Rect{300, 300, 60, 32}, RegionMode::Sample);
+        s.searchSucceeded(makeProposal({0.9}, 0));
+        const Scene withProposal = buildScene(s, english, &cache);
+        QVERIFY(withProposal.snapshot != cache.snapshot);
+        QCOMPARE(withProposal.snapshot->components.size(), std::size_t{4 + 2});
+        QVERIFY(!isProposalId(withProposal.snapshot->components[3].id));
+        QVERIFY(isProposalId(withProposal.snapshot->components[4].id));
+        QVERIFY(withProposal.rows->proposal);
+        QCOMPARE(cache.revision, s.document().revision());
+
+        // 沒有快取的呼叫和有快取的結果一樣
+        const Scene plain = buildScene(s, english);
+        QCOMPARE(plain.snapshot->components.size(), withProposal.snapshot->components.size());
+        for (std::size_t i = 0; i < plain.snapshot->components.size(); ++i) {
+            QCOMPARE(plain.snapshot->components[i].id, withProposal.snapshot->components[i].id);
+            QCOMPARE(plain.snapshot->components[i].outline, withProposal.snapshot->components[i].outline);
+            QCOMPARE(plain.snapshot->components[i].label(), withProposal.snapshot->components[i].label());
+        }
+    }
+
     void boardComponentsKeepTheirIdsAndNamesAndAnnounceTheirType() {
         InspectionSession s = previewOf({0.95, 0.75}, 1);
         s.accept();

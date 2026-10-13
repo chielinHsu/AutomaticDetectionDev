@@ -2,6 +2,8 @@
 
 #include <QString>
 #include <cstddef>
+#include <cstdint>
+#include <vector>
 
 #include "application/interaction/InspectionSession.h"
 #include "presentation/canvas/ComponentSnapshot.h"
@@ -33,10 +35,23 @@ struct Scene {
     SceneCounts counts;    // 同上：統計的是 rows 的那一邊
 };
 
+// 文件那一部分（已接受的元件）的快取（S11）。門檻一動只有提案變，文件的框、名稱與列不必重算：
+// 4 883 個已接受的元件每次重算要 9 ms（展開框、名稱、列）。鍵是文件的修訂號（InspectionDocument::revision）與
+// 標籤文字（語言切換時會變）。由呼叫端保存（Presenter 一份），buildScene 自己判斷能不能用、用完更新。
+struct DocumentSceneCache {
+    bool valid = false;
+    std::uint64_t revision = 0;
+    SceneLabels labels;
+    SnapshotPtr snapshot;  // 只有文件元件的快照；沒有提案時整份直接共用
+    ObjectRowsPtr rows;
+    SceneCounts counts;
+};
+
 // 把工作階段目前的內容轉成畫面要的資料。純函式：不碰 Qt Widgets，只做資料轉換，所以可以直接測、直接量。
 //
 // 框是從元件類型的框群組與元件位姿推導出來的（domain/box_expander.h）；提案物件還沒有類型，每個只有一個主體框。
 // 提案物件的編號加上 kProposalIdBase，與文件裡的元件編號分開。
-Scene buildScene(const InspectionSession& session, const SceneLabels& labels);
+// cache 給了就用（命中時文件那一部分不重算；沒命中時重算並更新快取）；nullptr ＝ 每次全部重算。
+Scene buildScene(const InspectionSession& session, const SceneLabels& labels, DocumentSceneCache* cache = nullptr);
 
 }  // namespace aoi::ui

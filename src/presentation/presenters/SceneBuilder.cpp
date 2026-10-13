@@ -53,26 +53,23 @@ int groupBoxCount(const ComponentType& type, const BoxGroup& group) {
     return 0;
 }
 
-void addToCounts(SceneCounts& counts, OverlayState state) {
-    switch (state) {
-        case OverlayState::Sample:
-        case OverlayState::Found: ++counts.found; break;
-        case OverlayState::Inferred: ++counts.inferred; break;
-        case OverlayState::Rejected: ++counts.rejected; break;
-    }
+void addToCounts(SceneCounts& counts, OverlayState state);
+
+bool sameLabels(const SceneLabels& a, const SceneLabels& b) {
+    return a.sample == b.sample && a.inferred == b.inferred && a.manual == b.manual && a.board == b.board;
 }
 
-}  // namespace
+// 文件那一部分：已接受的元件的框、標籤與物件樹的列。
+struct DocumentPart {
+    std::shared_ptr<ComponentsSnapshot> snapshot;
+    std::shared_ptr<ObjectRows> rows;
+    SceneCounts counts;
+};
 
-Scene buildScene(const InspectionSession& session, const SceneLabels& labels) {
-    const InspectionDocument& document = session.document();
-    const Board& board = document.board();
-    const ProposalSession* proposal = session.proposal();
-
-    auto snapshot = std::make_shared<ComponentsSnapshot>();
-    snapshot->components.reserve(board.components.size() + (proposal ? proposal->proposal().candidates.size() : 0));
-
-    // ---- 文件裡的元件 ----
+DocumentPart buildDocumentPart(const Board& board, const SceneLabels& labels) {
+    DocumentPart part;
+    part.snapshot = std::make_shared<ComponentsSnapshot>();
+    part.snapshot->components.reserve(board.components.size());
     auto docRows = std::make_shared<ObjectRows>();
     docRows->boardTitle = labels.board;
     SceneCounts docCounts;
@@ -126,16 +123,64 @@ Scene buildScene(const InspectionSession& session, const SceneLabels& labels) {
         row.typeIndex = typeIndex < board.types.size() ? static_cast<int>(typeIndex) : -1;
         docRows->rows.push_back(std::move(row));
         ++docRows->stateCounts[static_cast<std::size_t>(stateIndex(state))];
-        snapshot->components.push_back(std::move(view));
+        part.snapshot->components.push_back(std::move(view));
+    }
+    part.rows = std::move(docRows);
+    part.counts = docCounts;
+    return part;
+}
+
+void addToCounts(SceneCounts& counts, OverlayState state) {
+    switch (state) {
+        case OverlayState::Sample:
+        case OverlayState::Found: ++counts.found; break;
+        case OverlayState::Inferred: ++counts.inferred; break;
+        case OverlayState::Rejected: ++counts.rejected; break;
+    }
+}
+
+}  // namespace
+
+Scene buildScene(const InspectionSession& session, const SceneLabels& labels, DocumentSceneCache* cache) {
+    const InspectionDocument& document = session.document();
+    const Board& board = document.board();
+    const ProposalSession* proposal = session.proposal();
+
+    // ---- 文件裡的元件（快取命中就不重算）----
+    const bool hit = cache && cache->valid && cache->revision == document.revision() && sameLabels(cache->labels, labels);
+    SnapshotPtr docSnapshot;
+    ObjectRowsPtr docRows;
+    SceneCounts docCounts;
+    if (hit) {
+        docSnapshot = cache->snapshot;
+        docRows = cache->rows;
+        docCounts = cache->counts;
+    } else {
+        DocumentPart part = buildDocumentPart(board, labels);
+        docSnapshot = std::move(part.snapshot);
+        docRows = std::move(part.rows);
+        docCounts = part.counts;
+        if (cache) {
+            cache->valid = true;
+            cache->revision = document.revision();
+            cache->labels = labels;
+            cache->snapshot = docSnapshot;
+            cache->rows = docRows;
+            cache->counts = docCounts;
+        }
     }
 
     Scene scene;
     if (proposal == nullptr) {
-        scene.snapshot = std::move(snapshot);
-        scene.rows = std::move(docRows);
+        scene.snapshot = docSnapshot;  // 沒有提案：快照整份共用（快取命中時連複製都省）
+        scene.rows = docRows;
         scene.counts = docCounts;
         return scene;
     }
+
+    auto snapshot = std::make_shared<ComponentsSnapshot>();
+    snapshot->components = docSnapshot->components;  // 文件的元件複製一份（QString 是隱式共享；框的向量很小）
+    snapshot->components.reserve(docSnapshot->components.size() + proposal->proposal().candidates.size());
 
     // ---- 目前的提案（尚未接受）----
     const ProposalObjects objects = proposal->objects();

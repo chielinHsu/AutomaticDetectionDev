@@ -367,6 +367,31 @@ private slots:
         QCOMPARE(d.components().size(), std::size_t{1001});
     }
 
+    // S11：修訂號和變更通知同步（讀取端用它判斷快取還能不能用），不改板子內容的操作不算。
+    void theRevisionCountsEveryChangeAndNothingElse() {
+        InspectionDocument d = freshDocument();
+        const std::uint64_t start = d.revision();
+        d.accept(session({0.95, 0.90}));
+        QCOMPARE(d.revision(), start + 1);
+        d.removeComponents({1});
+        QCOMPARE(d.revision(), start + 2);
+        d.undo();
+        QCOMPARE(d.revision(), start + 3);
+        d.redo();
+        QCOMPARE(d.revision(), start + 4);
+        d.undo();  // 什麼都沒變的復原不通知，也不加
+        d.undo();
+        QCOMPARE(d.revision(), start + 6);
+        QVERIFY(!d.undo().performed);
+        QCOMPARE(d.revision(), start + 6);
+        d.markSaved();
+        d.dropRedo();
+        QVERIFY(d.setSignificantBits(12));
+        QCOMPARE(d.revision(), start + 6);
+        d.reset("b.png", 10, 10, 1.0);
+        QCOMPARE(d.revision(), start + 7);
+    }
+
     void anUndoThatChangesNothingDoesNotNotify() {
         InspectionDocument d = freshDocument();
         Counting n;
