@@ -71,7 +71,9 @@ AOI_PERF_TESTS = \
     ui/perf_ui_s04 \
     ui/perf_ui_baseline \
     ui/perf_compare_ui \
-    contract/perf_ab
+    contract/perf_ab \
+    perf/perf_matrix \
+    perf/perf_e2e
 
 # S06、S07：OpenCV 的影像 adapter 與 back end。
 equals(AOI_WITH_OPENCV, ON) {

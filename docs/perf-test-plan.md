@@ -1,7 +1,9 @@
 # 效能測試計畫（Performance Test Plan）
 
 對應需求 4：測量**搜索比對時間**、**介面更新時間**、**介面互動**。
-預算數字在 [`perf/budgets.json`](../perf/budgets.json)，目前是**提議值**（status = `proposed`），要在 S02（UI）與 S07（OpenCV）用本機實測校準。
+預算數字在 [`perf/budgets.json`](../perf/budgets.json)：S02–S08 在本機逐項校準，**S10（2026-10-13）校準了最後一項 T5，頂層 `status` 改成 `calibrated`**（limit 一個都沒有改；U3 仍是 `measured-over-limit`、I1 仍是 `calibrated-at-limit`）。
+
+> **S10 起的做法（2026-10-13，[ADR-023](adr/023-perf-regression-gate.md)）**：一個指令 `scripts/dev/perf.ps1` 建置 → 跑所有效能量測（`test.ps1 -Perf`）→ `tools/perf-compare.mjs collect` 彙整成一份執行紀錄 `perf/results/<日期>-<commit>-<機器>.json` → `compare` 和基準線 `perf/baseline/<機器>-harness.json` 與預算比（結束碼 0 通過、1 失敗、2 輸入有問題、3 無法判定）→ 互動式報表 `perf/results/<同名>.html`。本文件第「量測方法」節的第 4 條（單次慢 15% 就失敗）**改成**：中位數比基準線「幾次執行的範圍上緣」還高超過 15% 才算回歸；已知的超標（`budgets.json` 的 `status` 與 `knownIssues`）列出不擋；跳過的執行檔列成「未驗證」、XFAIL 列成「已知、待修」；一半以上的指標同時變慢時判定 INCONCLUSIVE。新的量測：搜尋矩陣 `tests/perf/perf_matrix`（下面「測試矩陣」的實作）與 T5 `tests/perf/perf_e2e`。數字與雜訊在 `docs/steps/S10-perf-harness/perf.md`。
 
 <!--STE-->
 ## Purpose
@@ -49,7 +51,7 @@ Each step has a number to compare with a budget. A slow change fails a test befo
 | T5 | 端到端：放開滑鼠 → 提案就緒 | use case 入口到出口，`PerfProbe` 各階段切片 |
 | T6 | 準確度：召回率、位置誤差 | 與 ground truth 比對 |
 
-**測試矩陣**（S10 實作，每格 × 兩個 back end）：
+**測試矩陣**（S10 實作：`tests/perf/perf_matrix`，每格 × 每個會讀像素的 back end；quick 是基準格加每個維度各變動一次共 15 格，`AOI_PERF_PROFILE=full` 跑整個外積；元件數由格距推、放不下時變少並記實際數量；難度多一個「缺件 5%」與「雜訊 4」的標準板子）：
 
 | 維度 | 值 |
 |---|---|
@@ -88,7 +90,7 @@ Each step has a number to compare with a budget. A slow change fails a test befo
   - `QT_QPA_PLATFORM=offscreen`：CI 與回歸用，穩定、不需要顯示器。
   - 真機視窗模式：量 GPU 與實際顯示相關的指標（I1、I5），結果另外標示。
 - 計時：`std::chrono::steady_clock`；UI 端用 `QElapsedTimer`。`PerfProbe` 關閉時成本應可忽略（S03 驗證，目標 < 1 µs／次）。
-- 回歸比較：`tools/perf-compare.mjs`（S10）。
+- 回歸比較：`tools/perf-compare.mjs`（S10；`collect`、`compare`、`baseline`、`noise`、`html`、`--self-test`，規則在 ADR-023）；一鍵流程 `scripts/dev/perf.ps1`（`-Runs N` 連跑並算雜訊、`-WriteBaseline` 建基準線、`-Window` 真機視窗、`-Profile full`、`-InjectDelayMs` 自我測試）。
 - 建置與執行（2026-10-07 起，[ADR-018](adr/018-qmake-only-build.md)）：`scripts/dev/test.ps1 -Perf` 在 qmake 的 Release 建置（OpenCV＋HALCON 預設開）跑 `AiInspTool/tests/tests.pro` 的 `AOI_PERF_TESTS`；新的效能量測執行檔要加 `.pro` 並列進那份清單。`offscreen` 由編進每個測試的 `tests/support/test_environment.cpp` 設定（已經有設定時不覆寫，所以真機視窗模式先設 `QT_QPA_PLATFORM=windows`）。
 
 ## 每一步要量什麼
@@ -103,6 +105,6 @@ Each step has a number to compare with a budget. A slow change fails a test befo
 | S07 | T1、T2a、T4、T6（OpenCV） |
 | S08 | T2b、T6（HALCON） |
 | S09 | 兩個 back end 的 A/B 時間與準確度對照 |
-| S10 | 完整矩陣、T5、回歸閘門、報表 |
+| S10 | 完整矩陣、T5、回歸閘門、報表（2026-10-13 完成：`perf_matrix`、`perf_e2e`、`perf-compare.mjs`、`perf.ps1`、`explainer.html`；基準線 `perf/baseline/casparhsu1-harness.json`） |
 | S11 | 每個優化的 before / after |
 | S12 | 發行版（Release）重跑全套，更新 baseline |
