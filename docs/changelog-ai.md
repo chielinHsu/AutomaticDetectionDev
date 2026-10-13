@@ -24,6 +24,40 @@
 - 下一位 agent 需要知道的限制、否決的做法、不要還原的修改
 ```
 
+## 2026-10-13 — Claude Code (Claude Fable 5.1)（S10：效能測試 harness 與回歸閘門）
+
+### 完成
+- 分支 `step/10-perf-harness`（從 `main` 37463db 開），`--no-ff` 合併到 `main`，tag `step-10-done`，沒有 push。
+- 一鍵流程 `scripts/dev/perf.ps1`：量測當下的環境快照（電源計畫、接電源、CPU 負載、處理器對額定速度的百分比、最忙的行程）→ `test.ps1 -Perf` → `perf-compare collect` → `compare`（→ `.html` 報表）；`-Runs N`（連跑並算雜訊）、`-WriteBaseline`、`-Filter`、`-Window`、`-Profile full`、`-InjectDelayMs`（自我測試）。
+- 閘門 `tools/perf-compare.mjs`（[ADR-023](adr/023-perf-regression-gate.md)）：`collect` 把 11 種結果檔（S03–S09 的 `perf_*` 與 S10 的）與測試 log（Totals、SKIP、XFAIL、XPASS）正規化成一份執行紀錄 `perf/results/<日期>-<commit>-<機器>.json`；`compare`（預算看 p95；基準線記範圍、中位數比上緣高超過 15% 才算回歸；已知的只在 `budgets.json`、列出不擋；跳過＝未驗證、XFAIL＝已知待修；一半以上變慢＝INCONCLUSIVE；結束碼 0／1／2／3）；`baseline`、`noise`、`html`、`--self-test`（20 項，也是 `test.ps1` 的第 5 個 node 檢查 `perf_compare_self_test`）。
+- 新的量測 `tests/perf/`：`perf_matrix`（搜尋矩陣：4 種影像大小 × 3 種樣本 × 3 種角度 × 3 種元件數 × 6 種難度 × 每個會讀像素的 back end；quick 15 格／full 648 格；時間、四個階段、峰值〔熱機之後〕、召回率、位置誤差；`H-overhead`、`H-noise`）、`perf_e2e`（T5：放開滑鼠 → `searchApplied`，走產品的接線，每個 back end 一列，`PerfProbe` 的切片）、`HarnessSupport.h`；`.pro` 在 `AiInspTool/tests/perf/`，列進 `tests.pro` 的 `AOI_PERF_TESTS`。
+- 報表 ＝ `docs/steps/S10-perf-harness/explainer.html`（嵌入第 3 次執行與基準線；篩選、搜尋、拖門檻重算、載入別次的 JSON；在瀏覽器確認過）。基準線 `perf/baseline/casparhsu1-harness.json`（整套跑 3 次，637 個指標的範圍）。
+- `perf/budgets.json`：T5 標 `calibrated`（OpenCV p95 28.7–39.2 ms、HALCON 17.5–22.1 ms，預算 300）、頂層 `status` 改 `calibrated`（limit 一個都沒改）、新增 `knownIssues`（ADR-004 §5 的 B1–B3）與 `harnessCalibrationS10`。
+- 文件：四種輸出與 `perf.md`、ADR-023、`decisions.md`、`architecture.md`、`perf-test-plan.md`、`AI_CONTEXT.md`（測試數 57、`tests/perf/`、效能閘門的列）、`00-master-plan.md`、S11／S12 計畫的提醒、`current-status.md`、交接單。
+
+### 修改的檔案
+- 新增：`tests/perf/{HarnessSupport.h,perf_matrix.cpp,perf_e2e.cpp}`、`AiInspTool/tests/perf/{perf_tests.pri,perf_matrix.pro,perf_e2e.pro}`、`tools/perf-compare.mjs`、`scripts/dev/perf.ps1`、`perf/baseline/casparhsu1-harness.json`、`docs/adr/023-perf-regression-gate.md`、`docs/steps/S10-perf-harness/{spec,diagram,storyboard,perf}.md`、`explainer.html`
+- 修改：`AiInspTool/tests/tests.pro`、`scripts/dev/test.ps1`（node 檢查 ＋ 說明）、`perf/budgets.json`、`AI_CONTEXT.md`、`docs/{architecture,decisions,perf-test-plan,00-master-plan,current-status,changelog-ai}.md`、`docs/plan/{S11-optimize,S12-release}.md`、`.ai/handoff.md`
+- 沒有改：`src/`、S02–S09 的量測程式、`ContractTolerances.h`、兩個 back end 的預設
+
+### 驗證
+- `test.ps1` 預設（Release，OpenCV＋HALCON）：**57／57**（HALCON 0 跳過；`tst_contract_end_to_end` 4 列 XFAIL、`tst_image_sources_agree` 1 列 XFAIL 照舊）。
+- `test.ps1 -Config Debug -Filter perf_e2e`（整個 Debug 建置通過，兩個新執行檔也編得過）＋ `test.ps1 -Config Debug -Perf -NoBuild -Filter perf_e2e`：`perf_e2e` 在 Debug 跑完、三個 back end 都有列（Debug 的數字沒有意義）。
+- `node tools/perf-compare.mjs --self-test` 20 項通過；`node tools/ste-lint.mjs --strict` 0 errors；`node tools/check-deps.mjs` 在 `test.ps1` 裡通過。
+- 效能：整套 `test.ps1 -Perf` 跑 3 次（每次約 15 分鐘）建基準線；第 3 次對基準線 PASS（0 回歸）；`perf.ps1 -NoBuild -Filter perf_matrix -InjectDelayMs 60` 閘門 FAIL（35 個回歸）、`baseline` 拒收。數字在 `docs/steps/S10-perf-harness/perf.md`。
+- 跨行程的雜訊中位數 44%（第 1 次整台慢 1.5–2.5 倍，處理器只跑在額定速度的 54–67%）：計畫的「雜訊低於閾值」沒有達成，改以範圍與 INCONCLUSIVE 處理（ADR-023）。
+
+### 未完成
+- `-Window`（真機視窗）、`-Profile full`、真實影像（`AOI_REAL_IMAGE_DIR`）沒有跑過。
+- 基準線含一次慢的執行，範圍偏寬：機器狀態正常時重建。
+- AB-U3、T7 的預算仍等使用者決定；U3、I1 仍是已知。
+
+### 注意事項
+- 已知的超標只登記在 `perf/budgets.json`（`status`、`knownIssues`）與 `perf_matrix.cpp` 的 `knownIssue()`；修好要拿掉，否則閘門不會擋。
+- 量測時關掉 Visual Studio、Chrome、遠端桌面；報表上處理器的實際速度 < 90% 會警告。
+- `perf.ps1` 第一次的 env 檔有 BOM 讓 `collect` 失敗（已修：`readJson` 去 BOM）；`CallNtPowerInformation` 只回報基礎時脈（2 200 MHz），看不到 turbo，所以另外用 `% Processor Performance` 計數器。
+- HALCON 第一次處理某個大小的影像配置很大的工作緩衝（5 MP 約 1.1 GB、12 MP 約 1.9 GB），一次性；峰值從熱機之後取樣。
+
 ## 2026-10-12 — Claude Code (Claude Fable 5.1)（B1–B3 的回歸測試）
 
 ### 完成

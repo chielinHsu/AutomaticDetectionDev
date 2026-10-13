@@ -12,7 +12,8 @@
 #
 # 建置資料夾：build\qmake-<config>[-noopencv][-nohalcon]（執行檔在 bin\，log 在 test-logs\，測試的工作資料夾 test-work\）。
 # 跑哪些測試：qmake 寫的 aoi-tests.txt（-Perf 時 aoi-perf-tests.txt），清單本身在 AiInspTool/tests/tests.pro；
-# 不是 -Perf 時再加 4 個 node 的檢查（依賴方向 3 個、S00 示範頁的 fixture 1 個）。
+# 不是 -Perf 時再加 5 個 node 的檢查（依賴方向 3 個、S00 示範頁的 fixture 1 個、S10 效能閘門的自我測試 1 個）。
+# 一鍵的效能測試（建置 → -Perf → 彙整 → 和基準線與預算比 → 報表）是 scripts/dev/perf.ps1（S10）。
 # 環境（CMake 時代由 CTest 設定）：QT_QPA_PLATFORM=offscreen、QT_QPA_FONTDIR、PATH（Qt、HALCON 的 bin；OpenCV 的 DLL 已複製到 bin\）、
 # 每個項目逾時 -TimeoutSec 秒、參數 -o <log>,txt（這台機器的 Qt Test 純文字輸出不寫到被接走的 stdout）。
 param(
@@ -81,7 +82,8 @@ if (-not $Perf) {
         @{ Name = 'check_deps'; Args = @('tools/check-deps.mjs', '--root', $root); ExpectFail = $false },
         @{ Name = 'check_deps_self_test'; Args = @('tools/check-deps.mjs', '--self-test'); ExpectFail = $false },
         @{ Name = 'check_deps_catches_a_violation'; Args = @('tools/check-deps.mjs', '--root', 'tests/core/fixtures/deps/domain-qt'); ExpectFail = $true },
-        @{ Name = 's00_demo_fixture_is_current'; Args = @('tools/s00-demo-fixture.mjs', '--check'); ExpectFail = $false }
+        @{ Name = 's00_demo_fixture_is_current'; Args = @('tools/s00-demo-fixture.mjs', '--check'); ExpectFail = $false },
+        @{ Name = 'perf_compare_self_test'; Args = @('tools/perf-compare.mjs', '--self-test'); ExpectFail = $false }
     ) | Where-Object { $_.Name -like $Filter }
 }
 

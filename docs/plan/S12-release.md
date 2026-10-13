@@ -17,6 +17,8 @@
 
 > **建置改 qmake 之後的提醒（2026-10-07，[ADR-018](../adr/018-qmake-only-build.md)）**：建置只用 qmake（`AiInspTool/AiInspTool.pro`；CMake、preset、CTest 都已移除，S02–S08 文件裡的那些指令是歷史紀錄，對照表在 ADR-018），執行檔叫 `AiInspTool.exe`（GUI 子系統），在 `<建置>/bin`。OpenCV 與 HALCON **預設編進去**（以前的 preset `release-halcon`）；關掉用 qmake 變數 `AOI_WITH_OPENCV=OFF`／`AOI_WITH_HALCON=OFF`。命令列：`scripts/dev/test.ps1`（建置＋測試；`-Config Debug|Profile`、`-NoOpenCv`、`-NoHalcon`、`-Perf`、`-Filter`、`-NoBuild`）；Qt Creator 開 `AiInspTool/AiInspTool.pro` 也能建置、執行與跑測試。**新增測試**：在 `AiInspTool/tests/<資料夾>/` 加一個 `.pro`（照同資料夾的寫法：`TARGET`、需要時 `AOI_LINK_EXTRA`、`include(<資料夾>_tests.pri)`、`SOURCES`），再列進 `AiInspTool/tests/tests.pro` 的 `AOI_TESTS`（效能量測列進 `AOI_PERF_TESTS`；只有某個 back end 才有的放進對應的 `equals(AOI_WITH_…, ON)` 區塊）。**新增原始碼**要加進對應的 `.pro`（不會自動納入）。S09 之前還有一個 session B（授權提醒的卡片、執行中切換 back end、Designer 的 `.ui`），開工時先看 `.ai/handoff.md`。打包取 `<建置>/bin/AiInspTool.exe` 與它旁邊的 `opencv_world490.dll`（`bin/` 裡也有測試執行檔，不要一起打包），`windeployqt` 對 `AiInspTool.exe` 執行。`AiInspTool.exe` 是 GUI 子系統：啟動失敗的原因寫在 stderr，使用者雙擊執行時看不到（要不要改成對話框，是 S12 的決定）。
 
+> **S10 完成後的提醒（2026-10-13，[ADR-023](../adr/023-perf-regression-gate.md)）**：發行版重跑全套效能測試並更新基準線 ＝ `scripts/dev/perf.ps1 -Runs 3 -WriteBaseline`（約 35 分鐘；寫 `perf/baseline/<機器>-harness.json`，入版控），報表在 `perf/results/<日期>-<commit>-<機器>.html`。在目標機器上跑時，HALCON 的列不可以是「未驗證」（跳過）；`perf/budgets.json` 的 `knownIssues` 到那時應該已經清空（U3 在 S11、B1–B3 在 `fix/halcon-accuracy`），還在的要在發行說明裡列出。`tests/perf/` 的兩個執行檔和其他測試一樣在 `bin/`，不要打包。
+
 > **S09 完成後的提醒（2026-10-09）**：主視窗多了〔A/B 比較…〕（檢視選單與工具列）與比較視窗（`presentation/compare/`）：它是給工程與驗收用的工具，要不要留在發行版（或藏起來）由使用者決定。契約測試（`tests/contract/`）在每一種建置都有；發行前在目標機器上跑一次，HALCON 的列不可以是 SKIPPED。`copy.json` 新增 46 個 `ui.compare.*` 的 key（兩種語言）。
 
 <!--STE-->
