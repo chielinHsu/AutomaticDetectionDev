@@ -574,7 +574,7 @@ private slots:
         QVERIFY(added.origin == ObjectOrigin::Manual);
         QVERIFY(!added.score.has_value());
         QCOMPARE(added.pose.x, 100.0);
-        QVERIFY(r.scene().snapshot->components.back().label.contains(zh("origin.manual")));
+        QVERIFY(r.scene().snapshot->components.back().label().contains(zh("origin.manual")));
     }
 
     // ---- 門檻：重新過濾，不重新搜尋（U3）----

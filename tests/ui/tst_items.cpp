@@ -21,10 +21,13 @@ namespace {
 const ThemeTokens& tokens() { return ThemeTokens::builtin(); }
 
 // 把一個元件快照用 RoiLayerItem 畫到 QImage（可指定 devicePixelRatio 與縮放）。像素用來驗證實際畫出的粗細與線型。
-QImage renderLayer(const SnapshotPtr& snapshot, const QSizeF& sceneSize, qreal dpr, double scale = 1.0) {
+// glyphs ＝ false 時關掉 S11 的字形，全部走填色矩形；stats 可以拿到這次 paint 的統計。
+QImage renderLayer(const SnapshotPtr& snapshot, const QSizeF& sceneSize, qreal dpr, double scale = 1.0, bool glyphs = true,
+                   RoiLayerItem::PaintStats* stats = nullptr) {
     OverlayStyle style(tokens());
     QGraphicsScene scene;  // 比 style 晚建立、先解構
     auto* layer = new RoiLayerItem(style);
+    layer->setGlyphsEnabled(glyphs);
     layer->setBounds(QRectF(QPointF(0, 0), sceneSize));
     layer->setSnapshot(snapshot);
     scene.addItem(layer);
@@ -35,6 +38,7 @@ QImage renderLayer(const SnapshotPtr& snapshot, const QSizeF& sceneSize, qreal d
     img.fill(QColor(0x1A, 0x5C, 0x3A));
     QPainter p(&img);
     scene.render(&p, QRectF(QPointF(0, 0), logical), QRectF(QPointF(0, 0), sceneSize));
+    if (stats) *stats = layer->lastPaintStats();
     return img;
 }
 
@@ -462,6 +466,85 @@ private slots:
         QVERIFY(runLengths.size() >= 9);
         QCOMPARE(runLengths.front(), 8);  // 畫 8
         QCOMPARE(runLengths[1], 8);       // 每 12 像素重複：空 4
+    }
+
+    // S11：小框用字形（每種狀態、種類、螢幕大小一張小圖，blit）畫，像素必須和填色矩形完全一樣；
+    // 太大的框與 devicePixelRatio ≠ 1 仍用填色矩形。
+    void glyphsGiveTheSamePixelsAsFilledRects_data() {
+        QTest::addColumn<double>("scale");
+        QTest::addColumn<int>("expectedGlyphBoxes");
+        QTest::newRow("scale 1") << 1.0 << 12;
+        QTest::newRow("scale 0.37 (fit)") << 0.37 << 12;
+        QTest::newRow("scale 1.6") << 1.6 << 12;
+        QTest::newRow("scale 2.1 (wider than kGlyphMaxSide: rects)") << 2.1 << 0;
+    }
+    void glyphsGiveTheSamePixelsAsFilledRects() {
+        QFETCH(double, scale);
+        QFETCH(int, expectedGlyphBoxes);
+        auto snapshot = std::make_shared<ComponentsSnapshot>();
+        const OverlayState states[] = {OverlayState::Sample, OverlayState::Found, OverlayState::Inferred, OverlayState::Rejected};
+        const BoxKind kinds[] = {BoxKind::Body, BoxKind::Pin, BoxKind::Window};
+        int id = 1;
+        for (int si = 0; si < 4; ++si) {
+            for (int ki = 0; ki < 3; ++ki) {
+                ComponentView c;
+                c.id = id++;
+                c.state = states[si];
+                const QRectF r(10.3 + ki * 70, 10.6 + si * 50, 52.4, 31.7);  // 非整數：和填色矩形一樣四捨五入
+                c.outline = r;
+                c.boxes.push_back({r, kinds[ki]});
+                snapshot->components.push_back(c);
+            }
+        }
+        RoiLayerItem::PaintStats withGlyphs, withRects;
+        const QImage glyphs = renderLayer(snapshot, QSizeF(230, 220), 1.0, scale, true, &withGlyphs);
+        const QImage rects = renderLayer(snapshot, QSizeF(230, 220), 1.0, scale, false, &withRects);
+        QCOMPARE(withGlyphs.boxesDrawn, 12);
+        QCOMPARE(withGlyphs.boxesDrawnAsGlyphs, expectedGlyphBoxes);
+        QCOMPARE(withRects.boxesDrawnAsGlyphs, 0);
+        QCOMPARE(withRects.boxesDrawn, 12);
+        QCOMPARE(glyphs.size(), rects.size());
+        QCOMPARE(glyphs, rects);
+        // 同一個桶裡的框大小相同：每種（狀態、種類）只建一張字形。
+        if (expectedGlyphBoxes > 0) QCOMPARE(withGlyphs.glyphsBuilt, 12);
+    }
+
+    void glyphsAreNotUsedAtDevicePixelRatio2() {
+        RoiLayerItem::PaintStats stats;
+        renderLayer(oneBox(OverlayState::Found, QRectF(20, 20, 50, 30)), QSizeF(100, 80), 2.0, 1.0, true, &stats);
+        QCOMPARE(stats.boxesDrawn, 1);
+        QCOMPARE(stats.boxesDrawnAsGlyphs, 0);
+    }
+
+    void glyphCacheIsReusedAcrossPaints() {
+        OverlayStyle style(tokens());
+        QGraphicsScene scene;
+        auto* layer = new RoiLayerItem(style);
+        layer->setBounds(QRectF(0, 0, 200, 100));
+        auto snapshot = std::make_shared<ComponentsSnapshot>();
+        for (int i = 0; i < 20; ++i) {
+            ComponentView c;
+            c.id = i + 1;
+            c.state = i % 2 ? OverlayState::Found : OverlayState::Rejected;
+            const QRectF r(5 + (i % 10) * 19, 5 + (i / 10) * 40, 15, 9);
+            c.outline = r;
+            c.boxes.push_back({r, BoxKind::Body});
+            snapshot->components.push_back(c);
+        }
+        layer->setSnapshot(snapshot);
+        scene.addItem(layer);
+        QImage img(200, 100, QImage::Format_ARGB32_Premultiplied);
+        img.fill(Qt::black);
+        for (int pass = 0; pass < 3; ++pass) {
+            QPainter p(&img);
+            scene.render(&p, QRectF(0, 0, 200, 100), QRectF(0, 0, 200, 100));
+            const RoiLayerItem::PaintStats stats = layer->lastPaintStats();
+            QCOMPARE(stats.boxesDrawnAsGlyphs, 20);
+            QCOMPARE(stats.glyphsBuilt, pass == 0 ? 2 : 0);  // 兩種狀態各一張；之後全部命中
+            QCOMPARE(layer->glyphCacheSize(), std::size_t{2});
+        }
+        layer->setGlyphsEnabled(false);
+        QCOMPARE(layer->glyphCacheSize(), std::size_t{0});
     }
 
     void tinyBoxesStayVisibleAsABlob() {

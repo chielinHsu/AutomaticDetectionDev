@@ -43,6 +43,10 @@ public:
         bool valid() const { return visible > 0 && period > visible; }
     };
 
+    // 螢幕矩形 → 整數像素的框：左上角四捨五入，寬高至少 1 px（再小的框也要看得到，Body 永遠畫）。
+    // append／appendDashed 都用它；RoiLayerItem 的字形（S11）也用同一個規則取大小，所以兩種畫法的像素一樣。
+    static QRect snap(const QRectF& screen);
+
     // 描邊粗細（整數像素）：max(1, floor(寬度 + 0.25))。
     // tokens 的寬度有 0.5 的差（Pin ＝ 狀態寬度 − 0.5），整數像素表示不了：Found 的主體 2、Pin 1、窗 1。
     static int thickness(double widthPx);

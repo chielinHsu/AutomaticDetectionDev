@@ -38,7 +38,7 @@ RoiGraphicsItem::RoiGraphicsItem(OverlayStyle& style, QGraphicsItem* parent) : Q
 void RoiGraphicsItem::setComponent(const ComponentView& component) {
     look_ = Look::Component;
     state_ = component.state;
-    label_ = component.label;
+    label_ = component.label();
     boxes_ = component.boxes;
     std::stable_sort(boxes_.begin(), boxes_.end(),
                      [](const BoxView& a, const BoxView& b) { return kindOrder(a.kind) < kindOrder(b.kind); });

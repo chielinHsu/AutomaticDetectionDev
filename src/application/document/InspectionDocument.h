@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 #include <functional>
 #include <map>
 #include <optional>
@@ -96,6 +97,11 @@ public:
     bool isDirty() const { return !history_.isClean(); }
     void markSaved() { history_.markClean(); }
 
+    // 修訂號：每次變更通知（Command、復原、重做、reset）加 1；板子的內容（元件、類型、校正值）只會在這些時候變。
+    // 讀取端拿它判斷「上次看過的還是不是現在的」（S11：Presenter 快取文件那一部分的場景）。
+    // 有效位元數、markSaved、dropRedo 不改板子的內容，不算。
+    std::uint64_t revision() const { return revision_; }
+
     // 每個 Command（含復原、重做）通知一次。只有一個觀察者；空 function ＝ 不通知。
     void setObserver(std::function<void(const DocumentChange&)> observer) { observer_ = std::move(observer); }
 
@@ -110,6 +116,7 @@ private:
     std::string lastTypeId_;
     UndoStack<InspectionDocument> history_;
     std::function<void(const DocumentChange&)> observer_;
+    std::uint64_t revision_ = 0;
 };
 
 }  // namespace aoi

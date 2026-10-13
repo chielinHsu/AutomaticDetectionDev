@@ -19,7 +19,7 @@ constexpr bool isProposalId(int sceneId) noexcept { return sceneId >= kProposalI
 // 物件樹的一列＝一個元件（Board › Component）。框群組是它的子節點，由 ObjectTypeRow 提供。
 struct ObjectRow {
     int id = 0;                    // 畫布編號（提案物件已加上 kProposalIdBase）
-    QString name;                  // R12、X3…；提案物件還沒有名稱，顯示 #編號
+    QString name;                  // R12、X3…；提案物件還沒有名稱（空字串），顯示時用 displayName 組成 #編號
     OverlayState state = OverlayState::Found;
     double score = -1.0;           // < 0 ＝ 沒有分數（手動補的、推算的）
     bool manual = false;
@@ -35,6 +35,12 @@ struct ObjectTypeRow {
     QString label;                      // 料號；暫時類型沒有料號時是空字串
     std::vector<ObjectGroupRow> groups;
 };
+
+// 列的顯示名稱：有名稱就是名稱；提案物件是「#提案編號」（顯示時才組，S11）。
+inline QString displayName(const ObjectRow& row) {
+    if (!row.name.isEmpty()) return row.name;
+    return QLatin1Char('#') + QString::number(isProposalId(row.id) ? row.id - kProposalIdBase : row.id);
+}
 
 // Presenter 交給物件樹的資料：不可變的快照，由 UI 執行緒建立、UI 執行緒讀。
 struct ObjectRows {

@@ -238,6 +238,7 @@ private:
 
     // 畫面
     Scene scene_;
+    DocumentSceneCache sceneCache_;  // 文件那一部分的場景（S11）：門檻、選取、提案的編輯都不必重算已接受的元件
     CardSpec card_;
     bool cardVisible_ = false;
     InteractionState lastNotified_ = InteractionState::Empty;

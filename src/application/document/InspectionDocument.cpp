@@ -239,6 +239,7 @@ const ComponentType* InspectionDocument::findType(const std::string& typeId) con
 }
 
 void InspectionDocument::notify(DocumentChange::Cause cause, CommandKind kind, std::size_t count) {
+    ++revision_;
     if (observer_) observer_(DocumentChange{cause, kind, count});
 }
 

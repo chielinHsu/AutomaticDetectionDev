@@ -666,7 +666,7 @@ void AutoRoiPresenter::publishScene() {
     ScopedTimer timer(services_.probe, "ui.publishScene");
     {
         ScopedTimer t(services_.probe, "ui.scene.build");
-        scene_ = buildScene(session_, labels_);
+        scene_ = buildScene(session_, labels_, &sceneCache_);
     }
     {
         ScopedTimer t(services_.probe, "ui.scene.canvas");

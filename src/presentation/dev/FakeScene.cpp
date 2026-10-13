@@ -36,7 +36,7 @@ ComponentView makeChip(int id, const QRectF& body, OverlayState state, const QSt
     c.id = id;
     c.state = state;
     c.outline = body;
-    c.label = label;
+    c.text = label;
     c.boxes.push_back({body, BoxKind::Body});
     return c;
 }
@@ -45,7 +45,7 @@ ComponentView makeIc(int id, const QRectF& body, OverlayState state, const QStri
     ComponentView c;
     c.id = id;
     c.state = state;
-    c.label = label;
+    c.text = label;
     c.boxes.reserve(kIcBoxes);
     c.boxes.push_back({body, BoxKind::Body});
     const double pinW = body.width() / 10.0 * 0.55;
