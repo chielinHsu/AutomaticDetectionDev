@@ -72,8 +72,9 @@ const QRectF kSample5000(1200, 900, 24, 16);
 
 // 已記載、超出預算的項目：照樣量測、記錄、超標時在 log 裡警告，但不當成測試失敗（和 S02 的 I1 同一個做法）。
 // 原因與選項見 docs/steps/S04-presenter/perf.md；等 S11 優化後，從這裡移除。
-//   U3  5 832 個元件的門檻拖動：p95 約 46 ms，預算 16 ms（畫布重繪約 20 ms 就超過；場景重建約 6 ms）。
-bool knownOver(const QString& id) { return id == QLatin1String("U3"); }
+//   U3  5 832 個元件的門檻拖動：S04 p95 約 46 ms（預算 16 ms）；S11 之後 p95 約 8–11 ms（字形快取、延後格式化、文件快取）。
+// S11 之前 U3 是已知的超標（knownOver 讓它不擋住其他退步的偵測）；S11 把它做進預算，現在沒有已知超標的項目。
+bool knownOver(const QString&) { return false; }
 
 }  // namespace
 
