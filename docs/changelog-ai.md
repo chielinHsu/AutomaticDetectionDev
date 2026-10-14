@@ -24,6 +24,38 @@
 - 下一位 agent 需要知道的限制、否決的做法、不要還原的修改
 ```
 
+## 2026-10-14 — Claude Code (Claude Fable 5.1)（CAD 樣本建立的四個問題：樣本的建立與搜尋分開，ADR-025）
+
+### 完成
+- 分支 `feat/cad-sample-editing`（從 `main` 4986070 開）。先從程式碼確認四個問題的現況與根因（重複是跨提案的：`accept` 不比對既有元件、每次建新類型、use case 不知道板子；框由類型推導、把手只有幾何沒人用；`SelectTool` 已有整組拖曳但沒有框選；流程 B 沒接），畫現況流程圖，提出選項，使用者決定做法（[ADR-025](adr/025-sample-creation-separate-from-search.md)）。
+- **application**：新增 `usecases/BoardProposal`（幾個樣本的結果依位置合併：手動元件佔位先剔除、樣本自己佔位、有分數的依分數由高到低、重疊 > 0.5 壓掉、預測的最後）、`usecases/SearchBoardWithSamples`（每個樣本各跑一次 `GenerateObjectsFromSample` 再合併，進度 (i + f) ÷ n）；`ProposalSession` 改持有 `BoardProposal`（`addManual` 帶類型與大小、`typeOf`）；`InspectionDocument` 多 `addSample`（一個類型＋一個樣本元件）、`setBodySize`、`addBoxGroup`、`samples()`、`componentsOfType`、`bodySizePx`，`accept` 改成「上一次自動產生的整批換掉、樣本與手動的留著、不建新類型」；狀態機多 `ReleaseSample`（`DrawingRegion` → `Idle`）與 `SearchRequested`（`Idle`、`Searching`、`Preview`、`NoMatch` → `Searching`）；`InspectionSession` 多 `startSearch`、`resizeBody`、`addBoxGroup`、`selectAll`、`selectSameType`，`endRegion(Sample)` 回 `SampleAdded`；`CommandKind` 多 `AddSample`、`ResizeType`、`AddBoxGroup`；domain 的 `InspectionObject` 多 `typeId`。
+- **presentation**：`SelectTool` 多拖把手改大小（角改兩邊、邊改一邊）與空白處框選（Shift 加入）；新 `BoxTool`（`B`，`DraftMode::Box`）；`ToolEvent` 多把手資訊、`IToolHost::componentsIn`；`ImageCanvas` 多把手 Item（單一選取、工具沒暫停時）；`ICanvasController::onComponentResized`、`ISelectionController::selectAll`／`selectSameType`、`IProposalController::search`；`MainWindow` 多〔搜尋〕（`F5`，上方工具列與編輯選單）、〔全選〕、〔選取同類型〕、`B` 工具；`AutoRoiPresenter` 的搜尋改走 `searchBoardWithSamples`，S 放開建立樣本後切回選取工具並用吐司說「F5 搜尋」，Idle 有樣本時提示換成 `ui.sample.hintIdle`，樣本不再留拖曳中的框（只有區域掃描留）；`SceneBuilder` 的提案物件用類型展開框（子框在預覽就看得到）、`SceneCounts` 多 `merged`／`excluded`／`replaced`，預覽卡片多三行說明；`MessageBar::cardAdvice()`（測試用）。`copy.json` 新增 17 個 key、改 `ui.idle.hint`、`ui.sample.hint`。
+- **測試**：`tst_state_machine` 表 47 列；`tst_session`、`tst_document`、`tst_proposal_session`、`tst_scene` 改成新流程並各加新測試（建立樣本、搜尋需要樣本、合併後接受取代、改大小、子框、全選／同類型、`addSample`／`setBodySize`／`addBoxGroup` 的復原）；`tst_tools` 加把手、框選、`B` 工具；`tst_presenter` 加 F5 流程、兩個樣本同一片網格合併且接受不疊加、拖把手改大小、`B` 貼印、框選＋`Ctrl+A`＋同類型；`tst_messages`、`tst_shell` 跟著更新；`perf_ui_s04`、`perf_e2e` 改成樣本建一次、每回合按 F5。
+- 文件：ADR-025、`decisions.md`、`ux-spec.md`（§3、§6、§8）、`architecture.md`、`AI_CONTEXT.md`、`current-status.md`、S12 計畫的提醒。
+
+### 修改的檔案
+- `src/domain/match.h`；`src/application/`（`document/InspectionDocument.*`、`document/ProposalSession.*`、`document/UndoStack.h`、`interaction/InspectionSession.*`、`interaction/InteractionStateMachine.*`、`usecases/BoardProposal.*`（新）、`usecases/SearchBoardWithSamples.*`（新）、`usecases/ProposalView.*`）；`AiInspTool/src/application/application.pro`
+- `src/presentation/`（`canvas/ICanvasController.h`、`canvas/ImageCanvas.*`、`canvas/OverlayTypes.h`、`canvas/RoiGraphicsItem.cpp`、`canvas/RoiLayerItem.*`、`presenters/AutoRoiPresenter.*`、`presenters/ControllerInterfaces.h`、`presenters/MessageTexts.cpp`、`presenters/SceneBuilder.*`、`shell/MainWindow.*`、`shell/MainWindow.ui`、`shell/MessageBar.*`、`tools/ITool.h`、`tools/ToolId.h`、`tools/ToolRegistry.cpp`、`tools/Tools.*`）
+- `tests/core/`（`ProposalTestSupport.h`、`tst_document.cpp`、`tst_proposal_session.cpp`、`tst_session.cpp`、`tst_state_machine.cpp`）、`tests/ui/`（`PresenterRig.h`、`TestSupport.h`、`perf_ui_s04.cpp`、`tst_messages.cpp`、`tst_presenter.cpp`、`tst_scene.cpp`、`tst_shell.cpp`、`tst_tools.cpp`）、`tests/perf/perf_e2e.cpp`
+- `docs/adr/025-sample-creation-separate-from-search.md`（新）、`docs/decisions.md`、`docs/ux/ux-spec.md`、`docs/ux/copy.json`、`docs/architecture.md`、`docs/current-status.md`、`docs/plan/S12-release.md`、`AI_CONTEXT.md`、`docs/changelog-ai.md`、`.ai/handoff.md`
+
+### 驗證
+- `scripts/dev/test.ps1`（預設 Release＋OpenCV＋HALCON）：**57／57 通過**；有跳過項目的測試：`tst_backend_registry`、`tst_shell`、`tst_presenter`（`screenshotsForReview`，要 `AOI_SCREENSHOT_DIR`）、`tst_opencv_image`、`tst_image_sources_agree`（和改之前相同）；XFAIL 2 列和之前相同（opencv B1、`tst_image_sources_agree` 的 1 列）。`tst_tools` 的三個新測試在這次之後才加，單獨重跑的結果見交接單。
+- `test.ps1 -Config Debug`：**57／57 通過**（log 2 362 項 passed、0 failed）；`test.ps1 -Filter tst_tools`（含三個新測試）：Totals 38 passed。
+- `node tools/ste-lint.mjs`：979 sentences、0 errors；`node tools/check-deps.mjs`：216 files、0 violations。
+- 效能測試（`-Perf`）與基準線**沒有跑**：T5 的定義變了（按〔搜尋〕→ 提案就緒），基準線要重建。
+
+### 未完成
+- P2（完整流程 B：`Backend` 加比對器、流程 B 的 use case、樣本庫的組裝與面板、參考影像、各層檔案位置）：使用者決定另開 session。
+- 刪除單一子框（目前只能 `Ctrl+Z`）、Pin 矩陣的列數欄數 UI、只改這一個元件（ADR-006 未決 #3）。
+- 效能基準線重建（`perf.ps1 -Runs 3 -WriteBaseline`）。
+
+### 注意事項
+- `accept` 的語意變了：上一次自動產生的元件（來源 `Auto`、不是樣本）整批換掉。`ProposalSession` 的 Sample 物件不再被接受（樣本已經在板子上）；合併過的提案根本不含樣本自己。
+- 樣本元件是 `state = Sample`、`origin = Manual`、沒有分數；它的框由類型的主體框決定，所以改大小會讓 `samples()` 的框跟著變、下次搜尋用新的框。
+- 預覽時不顯示把手、不能改大小（ADR-002 規則 5 的堆疊路由）。
+- 一個 commit 放不下「一個意圖」的切法：`ToolEvent`、`ICanvasController`、`ISelectionController` 的介面變更同時被四件事用到，拆開會有建不起來的中間 commit；所以程式一個 commit、文件一個 commit。
+
 ## 2026-10-13 — Claude Code (Claude Fable 5.1)（S11：效能優化，先量再改）
 
 ### 完成

@@ -4,42 +4,39 @@
 > 流程見 `ai-handoff` skill。
 
 - 最後一位 agent：Claude Code (Claude Fable 5.1)
-- 日期：2026-10-13
+- 日期：2026-10-14
 
 ## 正在做
 
-無。**S11（效能優化，先量再改）完成**（分支 `step/11-optimize`，`--no-ff` 合併到 `main`，tag `step-11-done`，沒有 push）。**接下來是 S12**（這個 session 收工時用 `spawn_task` 開；Start prompt 在 `docs/plan/S12-release.md` 底部）。
+無。**CAD 樣本建立的四個問題（[ADR-025](../docs/adr/025-sample-creation-separate-from-search.md)）完成**：分支 `feat/cad-sample-editing`（兩個 commit：程式、文件），`--no-ff` 合併到 `main` 由使用者在主 checkout 執行（這個 session 在 worktree，`main` 在主 checkout 上簽出，不能在這裡合併），沒有 tag、沒有 push。**接下來仍是 S12**（Start prompt 在 `docs/plan/S12-release.md` 底部），或使用者指定的 P2（完整流程 B 與樣本庫 UI，另開 session）。
 
-## 這次做了什麼（細節在 `docs/changelog-ai.md` 最上面那一筆、`docs/steps/S11-optimize/`、ADR-024）
+## 這次做了什麼（細節在 `docs/changelog-ai.md` 最上面那一筆、ADR-025、`docs/current-status.md` 的「樣本的建立與搜尋分開」）
 
-- 挑選：S10 報表裡只有 U3（門檻滑桿 → 重繪，5 832 個元件）超出預算；搜尋類與互動類都在預算內，所以只做 U3，搜尋類列成候選沒有改（perf.md §5）。
-- 先量：`perf_ui_s04` 的新診斷把一次重繪拆成影像 1.1 ms、框層 12.5 ms；場景重建 3.5–5.5 ms；背景有已接受的元件再多 9 ms。
-- 三個優化、三個 commit：（1）`RoiLayerItem` 小框用字形快取畫（像素和填色矩形相同，測試逐像素比對；dpr ≠ 1 或框超過 96 px 照舊）：框層 12.5 → 1.15 ms；（2）`ComponentView::label()`、`displayName()` 延後格式化：場景重建 3.46 → 0.89 ms，U3 進入預算；（3）`InspectionDocument::revision()` ＋ `DocumentSceneCache`：U3-bg 17.8 → 7.2 ms。最後 U3 中位數 6.5／p95 7.6 ms（預算 16）；I1 p95 4.5、I3 5–7、I6 3.0 ms。
-- `perf/budgets.json` 的 U3 改 `calibrated`（limit 沒有改）、`perf_ui_s04` 的 `knownOver("U3")` 拿掉：U3 超標從現在起會讓測試失敗、閘門也會擋。基準線重建：三次都 0 項超出預算，U3 p95 6.5–10.9 ms。
+- 使用者的決定：樣本建立是建立、搜尋是搜尋。`S` 放開只建立樣本（每個樣本自己一個類型、一個 Command），〔搜尋〕（`F5`）用板子上全部樣本各搜一次、結果依位置合併（同位置留分數最高的），接受時上一次自動產生的元件整批換掉（樣本與手動補的留著）；改大小＝改類型的主體框（同類型一起，只在 Idle）；框選、`Ctrl+A`、`Ctrl+Shift+A`；`B` 在所選元件上畫子框（存成 Pin 1×1，同類型一起貼上、預覽就看得到）。P2 另開 session，R 工具維持現狀。
+- 新檔：`application/usecases/BoardProposal.*`（合併規則）、`SearchBoardWithSamples.*`；狀態機多 `ReleaseSample`、`SearchRequested`；`InspectionDocument` 多 `addSample`、`setBodySize`、`addBoxGroup`、`samples()`；工具多 `BoxTool`、`SelectTool` 的把手與框選；主視窗多〔搜尋〕〔全選〕〔選取同類型〕與 `B`。
 
 ## 建置與測試
 
-- `test.ps1` 預設 57／57（HALCON 0 跳過；XFAIL 2 列和之前相同：opencv B1、`tst_image_sources_agree` 的 1 列）；`-Config Debug` **57／57**（HALCON 0 跳過；跳過與 XFAIL 的清單和 Release 相同）。
-- 效能的數字（每個優化之後各量一次、同一天）在 `docs/steps/S11-optimize/perf.md` §3；這台機器同一份程式兩次差約 2 ms，改善的幅度（5、5、10 ms）遠大於雜訊。
+- `test.ps1` 預設 Release：**57／57**（HALCON 0 跳過；跳過與 XFAIL 的清單和改之前相同）。
+- `test.ps1 -Config Debug`：**57／57**。
+- `-Perf` 與基準線**沒有跑**：T5 的定義改成「按〔搜尋〕→ 提案就緒」（`perf_e2e`、`perf_ui_s04` 已改成樣本建一次、每回合按 F5），下一個動效能的 session 先 `perf.ps1 -Runs 3 -WriteBaseline`。
 
 ## 不要動
 
-- `RoiLayerItem` 的字形路徑與 `BoxFrames` 要產生相同的像素（`tst_items` 的 `glyphsGiveTheSamePixelsAsFilledRects`）；`kGlyphMaxSide`、`kGlyphCacheLimit` 是量過的起點，要改先量。
-- `DocumentSceneCache` 的鍵只有修訂號與標籤：改板子內容的新路徑一律做成 Command（經 `InspectionDocument::notify`），否則畫面會過期。
-- `HalconSearchOptions` 的預設（使用者確認過）；`OpenCvSearchOptions` 的預設；`ContractTolerances.h` 的數字；`tst_contract_end_to_end` 的 opencv B1 `QEXPECT_FAIL`（D6）。
-- `ai-project-template/`；`docs/ux/tokens.json`；`copy.json` 只新增 key；`perf/budgets.json` 的 limit；`knownOver("I1")` 等 ADR-009 的決定。
-- `third_party/halcon/`；`tests/infra/fixtures/*.json`；`AOI_SYNTHETIC_REFERENCE_HASH`；`PresenterRig.h` 的視窗閘門；晶格的門檻與 ADR-013；port 契約的語意、`ImageView`、`SearchParams`。
-- `AiInspTool/main.cpp`、`mainwindow.*`；`aoi_target.pri` 的 `/IGNORE:4199`；表單的文字不要改成可翻譯（ADR-022）。
-- `perf/baseline/casparhsu1-harness.json`：只用 `perf.ps1 -WriteBaseline` 重建，不要手改。
+- `mergeSampleProposals` 的四條規則與順序（ADR-025 §2）；`InspectionDocument::accept` 的「整批換掉」語意；樣本元件的 `state = Sample`、`origin = Manual`。
+- 預覽時不顯示把手、不能改大小（ADR-002 規則 5）。
+- `tst_presenter` 的 `twoSamplesOnTheSameGridAreMergedAndAcceptReplacesTheLastResult`：第二個樣本放在第一個右邊一格（假世界的格距 1.5 × 樣本大小），兩個樣本看到同一片網格。
+- 上一次交接的清單照舊：`RoiLayerItem` 的字形路徑、`DocumentSceneCache` 的鍵（改板子內容一律做成 Command）、`HalconSearchOptions`／`OpenCvSearchOptions` 的預設、`ContractTolerances.h`、opencv B1 的 `QEXPECT_FAIL`、`tokens.json`、`copy.json` 只新增 key、`budgets.json` 的 limit、`ai-project-template/`、`third_party/halcon/`、fixture JSON、`PresenterRig.h` 的視窗閘門、晶格的門檻與 ADR-013、port 契約、`perf/baseline/*.json` 只用 `-WriteBaseline` 重建。
 
 ## 已知問題與風險
 
-- 字形快取只在 devicePixelRatio ＝ 1 生效（這台 96 DPI）；高 DPI 的機器上 U3 會回到填色矩形的速度（S04 的數字）。S12 在目標機器上看一次。
-- U3 的 `knownOver` 已拿掉：整台機器變慢時（S10 第 1 次那種，處理器 54–67%）`perf_ui_s04` 可能因 U3 超標失敗，看報表上處理器的實際速度再判斷。
-- `perf.ps1 -Window`、`-Profile full`、真實影像（`AOI_REAL_IMAGE_DIR`）仍沒有跑過；I1 真實視窗的數字（ADR-009）沒有重量。
-- 等使用者決定（ADR-004、S09、S10）：分數門檻要不要依 back end 分開、`nativeGray16`、AB-U3 與 T7 的預算、I1（ADR-009）、真實影像 HA 的位置、use case 驗證階段的漏洞（`current-status.md` 待決定（10））。
+- 子框目前只能用 `Ctrl+Z` 拿掉；Pin 矩陣的列數欄數沒有 UI（同一個群組改 `rows`／`cols` 就有）；只改這一個元件（實例覆寫）延後。
+- 兩個 back end 的分數不是同一把尺（ADR-004）：合併時「分數最高者」在同一個 back end 內比較才有意義；一次搜尋只用一個 back end，所以目前沒有問題。
+- 樣本框到不只一個元件時 back end 仍會回 `SampleCoversMany`（區域樣本是刻意的用法時，使用者可以忽略那個提示）；真實 back end 上區域樣本的效果沒有量。
+- 等使用者決定的事沒有變（ADR-004、S09、S10、待決定（10））。
 
 ## 驗證（實際執行）
 
-- `test.ps1` 預設 Release 57／57；`-Config Debug` **57／57**（HALCON 0 跳過；跳過與 XFAIL 的清單和 Release 相同）；`node tools/ste-lint.mjs` 979 sentences、0 errors；`check-ai-structure.ps1` OK（既有警告：`current-status.md` 超過 80 行）。
-- 每個優化之後 `test.ps1 -Perf -NoBuild -Filter perf_ui_s04`，優化 1 之後 `perf_ui_baseline`；收工時 `perf.ps1 -NoBuild -Runs 3 -WriteBaseline`：三次都 0 項超出預算、0 個測試失敗；對舊基準線的閘門三次 FAIL，是 UI 的改善與機器的飄移（perf.md §6）；新基準線 641 個指標。
+- `test.ps1` 預設 Release：57／57 通過；`node tools/ste-lint.mjs`：979 sentences、0 errors；`node tools/check-deps.mjs`：216 files、0 violations。
+- `test.ps1 -Filter tst_tools`（含三個新測試）：1／1，Totals 38 passed。
+- `test.ps1 -Config Debug`：**57／57**（log 2 362 項 passed、0 failed；跳過與 XFAIL 的清單和 Release 相同）。

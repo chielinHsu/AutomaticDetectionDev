@@ -9,6 +9,7 @@
 
 | 日期 | 修改者 | 說明 |
 |---|---|---|
+| 2026-10-14 | Claude Code (Claude Fable 5.1) | 使用者決定（[ADR-025](../adr/025-sample-creation-separate-from-search.md)）：**樣本的建立與搜尋分開**——`S` 放開只建立樣本（一個類型＋一個樣本元件，回到 `Idle`），〔搜尋〕（`F5`）用板子上全部樣本各搜一次整張板子、結果依位置合併（同位置留分數最高的），接受時上一次自動產生的元件整批換掉；第 3 節的流程 A、第 6 節新增 `ReleaseSample`、`SearchRequested` 兩個事件、第 8 節新增 `F5`、`B`（子框）、把手改大小（改類型、同類型一起）、框選、`Ctrl+A`、`Ctrl+Shift+A`。`copy.json` 新增 17 個 key、改 `ui.idle.hint`、`ui.sample.hint` |
 | 2026-10-09 | Claude Code (Claude Opus 5.5) | 使用者要求修掉 session B 的已知問題：（1）搜尋時 back end 無法使用的錯誤卡片：標題是 back end 的名稱、原因在做法清單，加上第 10 節原本就寫的〔改用 …〕（建議可用的、最完整的另一個，HALCON 不能用時是 OpenCV），換好之後用新的 back end 再試一次；（2）切換失敗的卡片多〔再試一次〕（插上 dongle 之後不必重新啟動程式）；（3）`copy.json` 刪掉不再使用的 `ui.status.summary`、`ui.status.none`，新增 `ui.backend.switchTo`（[ADR-021](../adr/021-runtime-backend-switching.md) 的「後續（2026-10-09）」） |
 | 2026-10-08 | Claude Code (Claude Opus 5.5) | 使用者決定（S09 之前的 session B，第 2 件）：上方的 back end 選單可以在執行中切換（[ADR-021](../adr/021-runtime-backend-switching.md)）。切換在背景建立（HALCON 第一次約 1.5 秒），期間選單停用、狀態列「切換到 HALCON…」；搜尋中先取消；**畫面上有提案時用新的 back end 重新搜尋同一個區域**；失敗時回到原本的 back end，訊息列的卡片（`ui.error.backend.*`＋原因＋「仍使用 …」）按〔關閉〕才收起。**啟動時用上次用的**（沒有記錄時 fake；`--backend` 照舊優先）。第 12.3 節的 `IBackendController::selectBackend` 實作了；`copy.json` 新增 `ui.backend.switching`、`ui.backend.reverted`。換 back end 不進復原堆疊（ADR-002 規則 6） |
 | 2026-10-08 | Claude Code (Claude Opus 5.5) | 使用者決定（S09 之前的 session B，第 1 件）：back end 的提醒（例如 HALCON 用的是 runtime 授權）改成訊息列的**提醒卡片**（不會自己消失，按〔關閉〕才收起；搜尋的卡片與進度列優先，它們收起之後再出現）與**狀態列最左邊的 back end 標示**（「HALCON · runtime 授權」，滑鼠移上去看完整說明，搜尋中也看得到）；原本的 4 秒吐司拿掉，stderr 那一行保留（第 5、9 節）。狀態列的摘要因此不再重複 back end 名稱。`copy.json` 新增 5 個 key（`ui.backend.halcon.runtimeLicense`、`ui.backend.notice.title`、`ui.backend.status.tip`、`ui.status.counts`、`ui.status.noObjects`）；`ui.status.summary`、`ui.status.none` 不再使用（只新增 key，沒有刪）。第 12.2 節多了 `IBackendView`；第 12.3 節的 `IBackendController` 由新的 `BackendPresenter` 實作（第 12.4 節原本放在 `ParamsPresenter`），多一個 `applyNoticeAction`（提醒卡片上的按鈕） |
@@ -60,11 +61,11 @@ ComponentType 元件類型（= 樣本庫條目）   料號 8371、別名、名�
 
 | 流程 | 工具 | 使用者做什麼 | 程式做什麼 |
 |---|---|---|---|
-| **A 教樣本** | `S` | 在一個元件上框一個樣本 | 在整張板子找相同的元件（再用晶格補漏）→ Preview。接受後這些元件是同一個**暫時的類型**（只有主體框）；可〔接受並存入樣本庫…〕 |
+| **A 教樣本** | `S`，再按〔搜尋〕（`F5`） | 在一個元件（或一塊區域）上框一個樣本；可以框好幾個；可用 `B` 在樣本上畫子框、拖把手改大小 | **2026-10-14 起（ADR-025）**：放開只**建立樣本**（一個類型＋一個樣本元件，不搜尋）。按〔搜尋〕時板子上的**每個樣本各搜一次**整張板子（再用晶格補漏），結果**依位置合併**（同一個位置留分數最高的）→ Preview。接受後上一次自動產生的元件整批換成這一次的，每個元件指向它的樣本的類型（框由類型展開，子框一起貼上）；可〔接受並存入樣本庫…〕 |
 | **B 區域掃描** | `R` | 框任意區域（可含很多元件） | 把區域跟樣本庫的類型比對（**預設先比板子已有的類型，找不到再擴大到整個庫**，見第 9 節）→ 每個認得的元件成為一個元件實例，附候選類型分數。庫裡沒有的元件只計數，並建議〔教一個新樣本〕 |
 | **C 編輯元件類型** | 雙擊元件，或 `E`（編輯**板子的複本**）；樣本庫〔編輯〕（編輯**庫條目**） | 畫 Body、Pin 矩陣、加檢測窗；可選「只改這一個矩陣」或「此類型中所有相同種類的框」 | 即時預覽。儲存板子的複本＝板上所有同類型元件一起更新（可同時存入樣本庫）；儲存庫條目＝板上已有的複本不變 |
 
-「三個動作教一個元件」：**開啟影像、拖一個框、按 Enter**（流程 A）。「框一下就出現全部框」：**R 拖一個區域、按 Enter**（流程 B，前提是庫裡已有樣本）。
+「三個動作教一個元件」（2026-10-14 起）：**拖一個樣本框、按 F5、按 Enter**（流程 A；開啟影像之後）。「框一下就出現全部框」：**R 拖一個區域、按 Enter**（流程 B，前提是庫裡已有樣本）。
 
 流程圖在 [`diagram.md`](../steps/S01-ux-spec/diagram.md) §1。
 
@@ -136,11 +137,11 @@ S04 的狀態機照這張表實作。原型使用的就是這張表（原型的�
 | 狀態 | 事件 → 下一狀態 |
 |---|---|
 | `Empty` | `ImageOpened` → `Idle`；`ImageFailed` → `Error` |
-| `Idle` | `PressRegion` → `DrawingRegion`；`EditType` → `EditingType`；`UndoToPreview` → `Preview`；`ImageOpened` → `Idle`；`ImageFailed` → `Error` |
-| `DrawingRegion` | `Release` → `Searching`；`ReleaseTooSmall`、`Esc` → 進入前的狀態（`Idle`／`Preview`／`NoMatch`） |
-| `Searching` | `ResultFound` → `Preview`；`ResultEmpty` → `NoMatch`；`Failure` → `Error`；`Cancel` → `Idle`；`ParamsChanged` → `Searching`（重新搜尋，最新的優先）；`ImageOpened` → `Idle` |
-| `Preview` | `ThresholdChanged` → `Preview`；`ParamsChanged` → `Searching`；`Accept`、`Discard` → `Idle`；`PressRegion` → `DrawingRegion`；`ImageOpened` → `Idle`；`ImageFailed` → `Error` |
-| `NoMatch` | `ThresholdChanged` → `Preview`（有 ≥ 1 個找到）或 `NoMatch`；`ParamsChanged` → `Searching`；`Dismiss` → `Idle`；`PressRegion` → `DrawingRegion`；`ImageOpened` → `Idle`；`ImageFailed` → `Error` |
+| `Idle` | `PressRegion` → `DrawingRegion`；`SearchRequested` → `Searching`；`EditType` → `EditingType`；`UndoToPreview` → `Preview`；`ImageOpened` → `Idle`；`ImageFailed` → `Error` |
+| `DrawingRegion` | `Release` → `Searching`（區域掃描）；`ReleaseSample` → `Idle`（樣本建立好了，是文件堆疊上的 Command）；`ReleaseTooSmall`、`Esc` → 進入前的狀態（`Idle`／`Preview`／`NoMatch`） |
+| `Searching` | `ResultFound` → `Preview`；`ResultEmpty` → `NoMatch`；`Failure` → `Error`；`Cancel` → `Idle`；`SearchRequested`、`ParamsChanged` → `Searching`（重新搜尋，最新的優先）；`ImageOpened` → `Idle` |
+| `Preview` | `ThresholdChanged` → `Preview`；`SearchRequested`、`ParamsChanged` → `Searching`；`Accept`、`Discard` → `Idle`；`PressRegion` → `DrawingRegion`；`ImageOpened` → `Idle`；`ImageFailed` → `Error` |
+| `NoMatch` | `ThresholdChanged` → `Preview`（有 ≥ 1 個找到）或 `NoMatch`；`SearchRequested`、`ParamsChanged` → `Searching`；`Dismiss` → `Idle`；`PressRegion` → `DrawingRegion`；`ImageOpened` → `Idle`；`ImageFailed` → `Error` |
 | `Error` | `Dismiss` → `Idle`（影像開啟失敗且沒有舊影像時 → `Empty`）；`Retry` → `Searching`；`ImageOpened` → `Idle` |
 | `EditingType` | `Save` → `Idle`；`Cancel` → `Idle` |
 
@@ -153,6 +154,7 @@ S04 的狀態機照這張表實作。原型使用的就是這張表（原型的�
 5. **`DrawingRegion` 記得來源**：從 `Preview` 或 `NoMatch` 開始畫新的，按 Esc 回到原狀態，不丟掉提案。
 6. **`UndoToPreview`**：接受或捨棄之後復原，回到 `Preview` 並還原提案（ADR-002）。
 7. **`EditingType` 只能從 `Idle` 進入**：預覽中要編輯類型，先接受（或〔接受並存入樣本庫…〕，它依序觸發 `Accept` 與 `EditType`）。
+8. **2026-10-14（ADR-025）新增 `ReleaseSample` 與 `SearchRequested`**：`S` 放開只建立樣本（`DrawingRegion` → `Idle`，一個 Command），搜尋另外按〔搜尋〕（`F5`：`Idle`、`Preview`、`NoMatch` → `Searching`，用板子上全部樣本）。`Release` 只剩區域掃描用。改大小、畫子框、框選都在 `Idle` 內完成，不經過狀態機。
 
 ## 7. 視覺狀態語言
 
@@ -189,13 +191,18 @@ S04 的狀態機照這張表實作。原型使用的就是這張表（原型的�
 | Space＋拖曳、中鍵拖曳 | 平移 | 左鍵留給畫框與移動，不需要另一個「平移模式」 |
 | `F` | 適配視窗（邊界 24 px）；在類型編輯器是適配該類型 | 放大後一個鍵回到已知視圖 |
 | `W` | 適配寬度：影像寬度撐滿畫布（左右邊界 24 px），上下超出的部分靠平移看；保留畫布中央那一列，但上緣、下緣不離開邊界；影像比畫布扁時垂直置中。視窗大小改變時照樣適配寬度，縮放或平移後就不再跟著 | 正方形或直式影像在橫長的畫布上，適配視窗會在左右留下大片空白；載入影像仍是適配視窗 |
-| `S` | 教樣本：框**一個**元件 | 流程 A；框到多個元件會提示改用 `R` |
+| `S` | 建立樣本：框**一個**元件（或一塊區域）；放開只建立樣本、不搜尋，建完回到選取工具（2026-10-14，ADR-025） | 流程 A；「樣本建立是建立、搜尋是搜尋」（使用者）；框到多個元件時 back end 會提示改用 `R`，區域樣本是刻意的用法時可以忽略 |
+| 〔搜尋〕、`F5` | 用板子上**全部樣本**各搜一次整張板子，結果依位置合併（同一個位置留分數最高的、過門檻的）→ Preview；沒有樣本時吐司說明 | 一次搜尋得到全部結果、同一個位置不會有兩筆（ADR-025） |
+| `B` | 畫子框：先選取一個元件，再在它上面框一個框；存成類型的 Pin 群組（1×1），同類型全部元件一起多出這個框 | 「區域上有 N 個 CAD 框，找到就整組貼上」（ADR-025 §6） |
 | `R` | 區域掃描：框任意區域 | 流程 B；用庫辨識，一次得到全部元件與它們的全部框 |
 | `Enter`，或畫布下方的〔接受 (Enter)〕 | 接受提案。預覽時訊息列另有〔接受並存入樣本庫…〕（只有教樣本的提案才有）和〔捨棄 (Esc)〕 | 流程的目的，路徑最短；**不能只靠鍵盤**，只用滑鼠也要走得完（使用者實測時找不到存入樣本庫的按鈕後補上） |
 | `Esc` | 退回一層：取消畫框／取消搜尋 → 清除選取 → 捨棄提案；在類型編輯器：清除選取 → 回到選取工具 → 取消（有未儲存的修改時**不**取消） | 一個鍵永遠是「往回一步」；捨棄也能復原，所以不必跳確認；但丟掉未存的類型草稿不能復原，所以要明確按〔取消〕 |
 | 點擊元件 | 選取**整個元件**（所有框）；Shift＋點擊加入或移除 | 板上的編輯單位是元件，框是它的類型的一部分 |
 | 雙擊元件，或 `E` | 開啟它的類型編輯器；雙擊時**預選點到的那個框的群組** | 從「我看到這個 Pin 不對」直達「改這個 Pin」 |
-| 拖曳元件 | 移動元件（位姿），整組框一起走 | — |
+| 拖曳元件 | 移動元件（位姿），整組框一起走；按在已選取的元件上拖＝整個選取一起走 | — |
+| 在空白處拖曳（`V`） | 框選：外框和框相交的元件；Shift＋框選＝加入；沒拖動就是點空白處（清除選取） | 「整組一起拖」要先能一次選很多個（ADR-025 §5） |
+| `Ctrl+A`、`Ctrl+Shift+A` | 全選；選取同類型（所選元件的類型） | 同上 |
+| 拖把手（單一選取的元件） | 改**類型的主體框**大小：同類型全部元件一起變；拖單邊時被拖的那個元件的中心跟著移，其他不動。一次拖曳一個 Command；只在板子（`Idle`） | ADR-006 §3「此類型全部一起」；ADR-025 §4 |
 | `Del`、`Backspace` | 板上：刪除所選元件；類型編輯器：刪除所選群組（連同依附它的窗）；在矩陣中選單一格再刪＝只略過那一格 | 先選、再刪，按鍵順序與思考順序一致；主體框不能刪 |
 | `A`、`＋` | 補一個元件（用目前選取元件的類型，沒有就用最近一次的類型）；來源標示「手動」 | 缺件時直接補，不必重新搜尋 |
 | `B`（編輯器） | 畫框：第一個是 Body，之後是 Pin | 先主體、後腳位，和 TRI 的順序一致 |
@@ -208,7 +215,7 @@ S04 的狀態機照這張表實作。原型使用的就是這張表（原型的�
 | 〔一次產生標準檢測框〕 | Body 上一組 Void 窗、每個 Pin 群組一組 Solder 窗（已有的不重複建立） | 對應 TRI 的「所有檢測框 (Add All)」 |
 | `Ctrl+Z`、`Ctrl+Y`（`Ctrl+Shift+Z`） | 復原、重做；對象依狀態：類型編輯器→草稿；預覽→提案；已載入→文件 | 自動結果一定有錯，修正要便宜（ADR-002） |
 | `V`、`S`、`R`、`A` | 選取／移動、教樣本、區域掃描、補一個 | — |
-| 把手 | 看起來 8 px，**點擊區 24 px**（WCAG 2.2 目標尺寸 24×24）；只在類型編輯器出現 | 好點中又不遮住框 |
+| 把手 | 看起來 8 px，**點擊區 24 px**（WCAG 2.2 目標尺寸 24×24）；板子上恰好一個元件被選取時出現在它的外框上（2026-10-14 起），類型編輯器也用同一套 | 好點中又不遮住框 |
 | 小框 | 框的螢幕邊長 < 72 px：只放 4 個角的把手，並往外推 12 px；≥ 72 px：8 個把手在邊上 | 小框的把手點擊區會互相重疊、蓋住框內部，內部要留給拖曳移動 |
 | 最小樣本 | 邊長 < 8 影像像素：不搜尋，提示太小 | 太小的樣本不可能比對 |
 | 比對範圍（參數 dock） | 〔先用板子已有的類型，找不到再擴大（建議）〕、〔只用板子已有的類型〕、〔整個樣本庫〕；改了會重新搜尋 | 樣本庫變大時，不要每次都拿整個庫去比（第 9 節） |
