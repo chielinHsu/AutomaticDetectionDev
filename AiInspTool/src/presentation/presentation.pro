@@ -17,6 +17,7 @@ SOURCES += \
     $$DIR/compare/ComparePresenter.cpp \
     $$DIR/compare/CompareWindow.cpp \
     $$DIR/i18n/Translations.cpp \
+    $$DIR/library/SamplePanel.cpp \
     $$DIR/objects/ObjectsModel.cpp \
     $$DIR/objects/ObjectsPanel.cpp \
     $$DIR/params/ParamsPanel.cpp \
@@ -25,6 +26,7 @@ SOURCES += \
     $$DIR/presenters/BackendPresenter.cpp \
     $$DIR/presenters/MessageTexts.cpp \
     $$DIR/presenters/ParamsPresenter.cpp \
+    $$DIR/presenters/SampleListBuilder.cpp \
     $$DIR/presenters/SceneBuilder.cpp \
     $$DIR/shell/EmptyCard.cpp \
     $$DIR/shell/MainWindow.cpp \
@@ -51,6 +53,7 @@ HEADERS += \
     $$DIR/compare/ComparePresenter.h \
     $$DIR/compare/CompareWindow.h \
     $$DIR/i18n/Translations.h \
+    $$DIR/library/SamplePanel.h \
     $$DIR/objects/ObjectRows.h \
     $$DIR/objects/ObjectsModel.h \
     $$DIR/objects/ObjectsPanel.h \
@@ -61,6 +64,7 @@ HEADERS += \
     $$DIR/presenters/ControllerInterfaces.h \
     $$DIR/presenters/MessageTexts.h \
     $$DIR/presenters/ParamsPresenter.h \
+    $$DIR/presenters/SampleListBuilder.h \
     $$DIR/presenters/SceneBuilder.h \
     $$DIR/presenters/UiPoster.h \
     $$DIR/presenters/ViewInterfaces.h \
@@ -77,8 +81,10 @@ HEADERS += \
 # Qt Designer 的表單（session B，ADR-022）：和類別放在一起。uic 的輸出在建置資料夾（.uic/aoi_presentation），qmake 會加進 include 路徑。
 # 表單裡的文字只是佔位（notr，不翻譯）：執行時由各類別的 retranslate 從 copy.json 設定。提升的佔位元件：ImageCanvas、MessageBar、ObjectsPanel、ParamsPanel。
 # S09：A/B 比較的視窗 compare/CompareWindow.ui（畫布是提升的 ImageCanvas）。
+# 2026-10-14：樣本庫 dock 的面板 library/SamplePanel.ui（主視窗裡是提升元件）；ObjectsPanel.ui 多了選取資訊的表單。
 FORMS += \
     $$DIR/compare/CompareWindow.ui \
+    $$DIR/library/SamplePanel.ui \
     $$DIR/objects/ObjectsPanel.ui \
     $$DIR/params/ParamsPanel.ui \
     $$DIR/shell/EmptyCard.ui \

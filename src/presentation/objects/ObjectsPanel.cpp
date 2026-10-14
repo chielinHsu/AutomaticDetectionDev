@@ -1,14 +1,20 @@
 #include "presentation/objects/ObjectsPanel.h"
 
+#include <QCheckBox>
+#include <QDoubleSpinBox>
 #include <QEvent>
 #include <QFontMetrics>
+#include <QGroupBox>
 #include <QHeaderView>
 #include <QItemSelection>
 #include <QItemSelectionModel>
 #include <QLabel>
+#include <QPushButton>
+#include <QSignalBlocker>
 #include <QToolButton>
 #include <QTreeView>
 #include <algorithm>
+#include <cmath>
 
 #include "presentation/i18n/Translations.h"
 #include "ui_ObjectsPanel.h"
@@ -53,8 +59,122 @@ ObjectsPanel::ObjectsPanel(QWidget* parent) : QWidget(parent), ui_(std::make_uni
         if (syncing_) return;
         emit selectionChangedByUser(selectedIds());
     });
+
+    // 選取資訊表單（2026-10-14）。spin box 的 keyboardTracking 關（.ui）：打字時不觸發，按 Enter 或離開欄位（editingFinished）才送出一次。
+    selectionBox_ = ui_->selectionBox;
+    selectionSummary_ = ui_->selectionSummary;
+    centerLabel_ = ui_->centerLabel;
+    centerX_ = ui_->centerX;
+    centerY_ = ui_->centerY;
+    sizeLabel_ = ui_->sizeLabel;
+    sizeW_ = ui_->sizeW;
+    sizeH_ = ui_->sizeH;
+    sizeUm_ = ui_->sizeUm;
+    lockRatio_ = ui_->lockRatio;
+    angleLabel_ = ui_->angleLabel;
+    angleValue_ = ui_->angleValue;
+    boxesLabel_ = ui_->boxesLabel;
+    boxesValue_ = ui_->boxesValue;
+    applyToAll_ = ui_->applyToAll;
+    selectionNote_ = ui_->selectionNote;
+    selectionNote_->setForegroundRole(QPalette::PlaceholderText);
+    sizeUm_->setForegroundRole(QPalette::PlaceholderText);
+    connect(centerX_, &QDoubleSpinBox::editingFinished, this, &ObjectsPanel::commitCenter);
+    connect(centerY_, &QDoubleSpinBox::editingFinished, this, &ObjectsPanel::commitCenter);
+    connect(sizeW_, &QDoubleSpinBox::editingFinished, this, &ObjectsPanel::commitSize);
+    connect(sizeH_, &QDoubleSpinBox::editingFinished, this, &ObjectsPanel::commitSize);
+    // 〔鎖定寬高比〕：改一邊、另一邊跟著（只是表單的行為；valueChanged 在 keyboardTracking 關時只在步進或 Enter／離開時發出）。
+    connect(sizeW_, &QDoubleSpinBox::valueChanged, this, [this] { followRatio(true); });
+    connect(sizeH_, &QDoubleSpinBox::valueChanged, this, [this] { followRatio(false); });
+    connect(applyToAll_, &QPushButton::clicked, this, [this] {
+        if (info_.count == 1 && info_.canResize) emit applySizeToAllRequested();
+    });
+    setSelectionInfo(SelectionInfoView{});
+
     retranslate();
     updateChips();
+}
+
+// ---- 選取資訊表單 ----------------------------------------------------------------------------------------
+
+void ObjectsPanel::followRatio(bool widthChanged) {
+    if (infoSyncing_ || !lockRatio_->isChecked() || info_.width <= 0.0 || info_.height <= 0.0) return;
+    const double ratio = info_.width / info_.height;
+    infoSyncing_ = true;
+    if (widthChanged) sizeH_->setValue(sizeW_->value() / ratio);
+    else sizeW_->setValue(sizeH_->value() * ratio);
+    infoSyncing_ = false;
+    updateSelectionTexts();
+}
+
+void ObjectsPanel::commitCenter() {
+    if (infoSyncing_ || info_.count != 1 || !info_.canMove) return;
+    const double x = centerX_->value();
+    const double y = centerY_->value();
+    if (std::abs(x - info_.x) < 1e-6 && std::abs(y - info_.y) < 1e-6) return;
+    emit centerEdited(x, y);
+}
+
+void ObjectsPanel::commitSize() {
+    if (infoSyncing_ || info_.count != 1 || !info_.canResize) return;
+    const double w = sizeW_->value();
+    const double h = sizeH_->value();
+    if (std::abs(w - info_.width) < 1e-6 && std::abs(h - info_.height) < 1e-6) return;
+    emit sizeEdited(w, h);
+}
+
+void ObjectsPanel::updateSelectionTexts() {
+    if (info_.count != 1) {
+        selectionSummary_->setText(info_.count == 0 ? uiText("ui.selection.none")
+                                                    : uiText("ui.selection.multi", {{"count", QString::number(info_.count)}}));
+        sizeUm_->clear();
+        selectionNote_->clear();
+        selectionNote_->setVisible(false);
+        return;
+    }
+    selectionSummary_->setText(info_.typeLabel.isEmpty()
+                                   ? info_.name
+                                   : uiText("ui.selection.summary", {{"name", info_.name}, {"type", info_.typeLabel}}));
+    if (info_.umPerPixel > 0.0) {
+        sizeUm_->setText(uiText("ui.selection.um", {{"w", QString::number(qRound(sizeW_->value() * info_.umPerPixel))},
+                                                     {"h", QString::number(qRound(sizeH_->value() * info_.umPerPixel))}}));
+    } else {
+        sizeUm_->clear();
+    }
+    sizeUm_->setVisible(info_.umPerPixel > 0.0);
+    angleValue_->setText(QStringLiteral("%1°").arg(QString::number(info_.angleDeg, 'f', 1)));
+    boxesValue_->setText(QString::number(info_.boxCount));
+    selectionNote_->setText(info_.canResize ? QString() : uiText("ui.selection.previewOnlyMove"));
+    selectionNote_->setVisible(!info_.canResize);
+}
+
+void ObjectsPanel::setSelectionInfo(const SelectionInfoView& info) {
+    infoSyncing_ = true;
+    info_ = info;
+    const bool one = info.count == 1;
+    {
+        const QSignalBlocker bx(centerX_);
+        const QSignalBlocker by(centerY_);
+        const QSignalBlocker bw(sizeW_);
+        const QSignalBlocker bh(sizeH_);
+        centerX_->setValue(one ? info.x : 0.0);
+        centerY_->setValue(one ? info.y : 0.0);
+        sizeW_->setValue(one ? info.width : 0.0);
+        sizeH_->setValue(one ? info.height : 0.0);
+    }
+    for (QWidget* w : {static_cast<QWidget*>(centerX_), static_cast<QWidget*>(centerY_)}) w->setEnabled(one && info.canMove);
+    for (QWidget* w : {static_cast<QWidget*>(sizeW_), static_cast<QWidget*>(sizeH_), static_cast<QWidget*>(lockRatio_),
+                       static_cast<QWidget*>(applyToAll_)})
+        w->setEnabled(one && info.canResize);
+    for (QWidget* w : {static_cast<QWidget*>(centerLabel_), static_cast<QWidget*>(sizeLabel_), static_cast<QWidget*>(angleLabel_),
+                       static_cast<QWidget*>(boxesLabel_), static_cast<QWidget*>(angleValue_), static_cast<QWidget*>(boxesValue_)})
+        w->setEnabled(one);
+    if (!one) {
+        angleValue_->clear();
+        boxesValue_->clear();
+    }
+    updateSelectionTexts();
+    infoSyncing_ = false;
 }
 
 ObjectsPanel::~ObjectsPanel() = default;
@@ -147,6 +267,17 @@ void ObjectsPanel::updateChips() {
 
 void ObjectsPanel::retranslate() {
     empty_->setText(uiText("ui.objects.empty"));
+    selectionBox_->setTitle(uiText("ui.selection.title"));
+    centerLabel_->setText(uiText("ui.selection.center"));
+    sizeLabel_->setText(uiText("ui.selection.size"));
+    angleLabel_->setText(uiText("ui.selection.angle"));
+    boxesLabel_->setText(uiText("ui.selection.boxes"));
+    lockRatio_->setText(uiText("ui.selection.lockRatio"));
+    applyToAll_->setText(uiText("ui.selection.applyToAll"));
+    applyToAll_->setToolTip(uiText("ui.selection.applyToAll.tip"));
+    const QString px = QStringLiteral(" px");
+    for (QDoubleSpinBox* s : {centerX_, centerY_, sizeW_, sizeH_}) s->setSuffix(px);
+    updateSelectionTexts();
     model_.retranslate();
     if (model_.rows()) tree_->expand(model_.boardIndex());
     resizeColumns();

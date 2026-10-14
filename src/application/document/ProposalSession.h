@@ -85,6 +85,9 @@ public:
         Size2D partSize;
     };
     std::optional<TypeAndSize> typeOf(int objectId) const;
+    // 這個物件現在的位姿（候選的位姿加上累計的移動，或手動補的位姿）；不存在時 nullopt。只算這一個，不像 objects() 掃全部
+    // （選取資訊的表單每次選取、每次門檻變動都要問）。
+    std::optional<Pose2D> poseOf(int objectId) const;
 
     // ---- 修改（各是一個 Command）----
     // 刪除：不存在或已刪除的編號略過；回傳實際刪除的個數，0 ＝ 沒有任何改變（也不進堆疊）。

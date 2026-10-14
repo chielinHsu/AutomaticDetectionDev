@@ -1,8 +1,11 @@
 #pragma once
 
+#include <QImage>
 #include <QList>
 #include <QString>
 #include <QStringList>
+#include <cstddef>
+#include <memory>
 #include <vector>
 
 #include "presentation/objects/ObjectRows.h"
@@ -101,6 +104,58 @@ public:
     virtual void setRows(ObjectRowsPtr rows) = 0;
     virtual void setSelection(const std::vector<int>& sceneIds) = 0;
     virtual void setFilter(StateFilter filter) = 0;
+};
+
+// 選取資訊的表單（物件樹下方，ux-spec 第 4 節）：選了幾個；恰好一個時它的名稱、類型、中心、大小、角度、框數，
+// 以及現在能不能改位置、改大小（規則由 application 的 InspectionSession::selectionInfo 決定，這裡只是顯示用的複本）。
+// 數字都是影像像素；umPerPixel > 0 時 View 在旁邊同時顯示 µm。多選時 View 停用表單、只顯示「已選 N 個」。
+struct SelectionInfoView {
+    std::size_t count = 0;
+    int sceneId = 0;
+    QString name;       // 「X1」；提案物件是「#3」
+    QString typeLabel;  // 料號；暫時類型沒有料號時是類型編號
+    double x = 0.0;
+    double y = 0.0;
+    double width = 0.0;
+    double height = 0.0;
+    double angleDeg = 0.0;
+    std::size_t boxCount = 0;
+    double umPerPixel = 0.0;
+    bool canMove = false;
+    bool canResize = false;
+};
+
+class ISelectionInfoView {
+public:
+    virtual ~ISelectionInfoView() = default;
+    virtual void setSelectionInfo(const SelectionInfoView& info) = 0;
+};
+
+// 樣本庫 dock 裡「板子上的樣本」清單（2026-10-14）：每一筆是從目前影像裁下來的縮圖（疊上主體框與子框）、名稱、大小、框數。
+// 資料只來自板子（InspectionDocument::samples），不讀寫樣本庫檔案。點一筆 ＝ 在畫布上選取它（ISelectionController::select）。
+struct SampleEntry {
+    int sceneId = 0;
+    QString name;
+    QString typeLabel;
+    QImage thumbnail;  // 已縮到固定寬度
+    double width = 0.0;   // 主體框（影像像素）
+    double height = 0.0;
+    std::size_t boxCount = 0;
+};
+
+struct SampleList {
+    std::vector<SampleEntry> entries;
+    double umPerPixel = 0.0;
+};
+
+using SampleListPtr = std::shared_ptr<const SampleList>;
+
+class ISampleListView {
+public:
+    virtual ~ISampleListView() = default;
+    // 同一個指標再交一次 ＝ 沒有變（View 可以略過）。
+    virtual void setSamples(SampleListPtr samples) = 0;
+    virtual void setSelection(const std::vector<int>& sceneIds) = 0;
 };
 
 // 畫布的輸入閘門：搜尋中、錯誤時畫布暫停（ux-spec 第 5 節），忙碌時游標變 progress。

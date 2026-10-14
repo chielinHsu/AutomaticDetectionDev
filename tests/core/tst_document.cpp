@@ -310,6 +310,41 @@ private slots:
         QVERIFY(!d.setBodySize("t1", {60, 30}, 99, Pose2D{}));   // 沒有這個元件
     }
 
+    // ---- 套用大小到所有樣本（2026-10-14，選取資訊表單）----
+    void setBodySizeForTypesIsOneCommandAndUndoRestoresEachType() {
+        InspectionDocument d = freshDocument();  // t1：40 × 20
+        d.addSample(Rect{200, 200, 60, 30});     // t2（元件 2）
+        d.addSample(Rect{300, 300, 50, 25});     // t3（元件 3）：已經是 50 × 25
+        d.accept(session({0.95}));               // 元件 4（t1）
+        Counting n;
+        n.attach(d);
+        const Pose2D pose2 = d.find(2)->pose;
+        const Pose2D pose4 = d.find(4)->pose;
+        // t3 已是這個大小、t2 重複、nope 不存在：只有 t1、t2 改，一個 Command、一次通知。
+        QVERIFY(d.setBodySizeForTypes({"t1", "t2", "t3", "t2", "nope"}, {50, 25}));
+        QCOMPARE(n.total, 1);
+        QVERIFY(d.undoInfo()->kind == CommandKind::ResizeTypes);
+        QCOMPARE(d.undoInfo()->count, std::size_t{2});
+        for (const char* t : {"t1", "t2", "t3"}) {
+            QCOMPARE(d.bodySizePx(t)->w, 50.0);
+            QCOMPARE(d.bodySizePx(t)->h, 25.0);
+        }
+        QVERIFY(samePose(d.find(2)->pose, pose2));  // 位姿都不動（中心不變）
+        QVERIFY(samePose(d.find(4)->pose, pose4));
+        QCOMPARE(d.samples()[0].rect.w, 50.0);      // 樣本的框跟著類型變
+        QVERIFY(d.undo().performed);
+        QCOMPARE(d.bodySizePx("t1")->w, 40.0);
+        QCOMPARE(d.bodySizePx("t2")->w, 60.0);
+        QCOMPARE(d.bodySizePx("t3")->w, 50.0);
+        QVERIFY(d.redo().performed);
+        QCOMPARE(d.bodySizePx("t2")->h, 25.0);
+        QCOMPARE(n.total, 3);
+        QVERIFY(!d.setBodySizeForTypes({"t1"}, {0, 25}));                 // 不合法的大小
+        QVERIFY(!d.setBodySizeForTypes({"nope"}, {50, 25}));              // 沒有這個類型
+        QVERIFY(!d.setBodySizeForTypes({"t1", "t2", "t3"}, {50, 25}));    // 已經都是：不進堆疊
+        QCOMPARE(n.total, 3);
+    }
+
     // ---- 子框（ADR-025 §6）----
     void addBoxGroupAddsAPinGroupToTheTypeAndEveryPartExpandsIt() {
         InspectionDocument d = freshDocument();

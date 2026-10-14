@@ -112,6 +112,23 @@ std::optional<ProposalSession::TypeAndSize> ProposalSession::typeOf(int objectId
     return TypeAndSize{m->typeId, m->partSize};
 }
 
+std::optional<Pose2D> ProposalSession::poseOf(int objectId) const {
+    if (!contains(objectId)) return std::nullopt;
+    const ProposalEdits& edits = *state_.edits;
+    if (objectId >= 1 && objectId <= static_cast<int>(proposal_->candidates.size())) {
+        Pose2D pose = proposal_->candidates[static_cast<std::size_t>(objectId - 1)].pose;
+        const auto it = std::lower_bound(edits.moved.begin(), edits.moved.end(), objectId,
+                                         [](const auto& entry, int key) { return entry.first < key; });
+        if (it != edits.moved.end() && it->first == objectId) {
+            pose.x += it->second.x;
+            pose.y += it->second.y;
+        }
+        return pose;
+    }
+    const ProposalEdits::Manual* m = findManual(edits, objectId);
+    return m->pose;
+}
+
 std::size_t ProposalSession::deleteObjects(const std::vector<int>& ids) {
     const ProposalEdits& current = *state_.edits;
     std::vector<int> fresh;  // 真的要刪的（存在、還沒刪、不重複）

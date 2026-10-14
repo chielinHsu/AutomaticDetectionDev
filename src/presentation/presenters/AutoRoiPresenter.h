@@ -20,6 +20,7 @@
 #include "presentation/compare/CompareInterfaces.h"
 #include "presentation/presenters/ControllerInterfaces.h"
 #include "presentation/presenters/MessageTexts.h"
+#include "presentation/presenters/SampleListBuilder.h"
 #include "presentation/presenters/SceneBuilder.h"
 #include "presentation/presenters/UiPoster.h"
 #include "presentation/presenters/ViewInterfaces.h"
@@ -37,6 +38,8 @@ struct PresenterViews {
     IHistoryView& history;
     IComponentTreeView& tree;
     IParamsView& params;
+    ISelectionInfoView& selectionInfo;  // 選取資訊的表單（2026-10-14）
+    ISampleListView& samples;           // 樣本庫 dock 裡「板子上的樣本」
 };
 
 // Presenter 用到的核心（都是 application 層的型別；具體的 back end 在組裝根接好，這裡不認識）。
@@ -71,6 +74,7 @@ struct PresenterSettings {
 class AutoRoiPresenter : public QObject,
                          public ICanvasController,
                          public ISelectionController,
+                         public ISelectionEditController,
                          public IKeyboardController,
                          public IProposalController,
                          public IMessageController,
@@ -92,6 +96,8 @@ public:
     void setSettings(const PresenterSettings& settings) { settings_ = settings; }
     // 最近一次 publish 的場景（測試用）。
     const Scene& lastScene() const { return scene_; }
+    // 最近一次交給樣本庫 dock 的清單（測試用）。
+    SampleListPtr lastSamples() const { return sampleCache_.list; }
 
     // ---- ICanvasController ----
     void onRegionDrawn(const QRectF& rect, DraftMode mode) override;
@@ -106,6 +112,13 @@ public:
     void deleteSelected() override;
     void selectAll() override;
     void selectSameType() override;
+
+    // ---- ISelectionEditController（選取資訊表單，2026-10-14）----
+    // 規則在 InspectionSession（selectionInfo、moveSelection、resizeBodyKeepingCenter、applyBodySizeToSamples）；
+    // 這裡只做吐司與重新發布。不收的輸入（太小、預覽中改大小）會重新發布選取資訊，表單的數字回到實際的值。
+    void setSelectionCenter(double x, double y) override;
+    void setSelectionBodySize(double width, double height) override;
+    void applySizeToAllSamples() override;
 
     // ---- IKeyboardController ----
     bool onKeyPressed(int key, Qt::KeyboardModifiers modifiers) override;
@@ -183,6 +196,8 @@ private:
     void publishScene();
     void publishChrome();
     void publishSelection();
+    void publishSamples();
+    SelectionInfoView selectionInfoView() const;
     void publishDraft();
     void publishMessage();
     void publishStatus();
@@ -244,6 +259,7 @@ private:
     // 畫面
     Scene scene_;
     DocumentSceneCache sceneCache_;  // 文件那一部分的場景（S11）：門檻、選取、提案的編輯都不必重算已接受的元件
+    SampleListCache sampleCache_;    // 樣本庫 dock 的清單與縮圖：文件的修訂號與影像沒變就不重做
     CardSpec card_;
     bool cardVisible_ = false;
     InteractionState lastNotified_ = InteractionState::Empty;

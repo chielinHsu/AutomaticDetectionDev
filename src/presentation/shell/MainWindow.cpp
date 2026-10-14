@@ -24,6 +24,7 @@
 #include "presentation/canvas/ImageCanvas.h"
 #include "presentation/compare/CompareWindow.h"
 #include "presentation/i18n/Translations.h"
+#include "presentation/library/SamplePanel.h"
 #include "presentation/shell/EmptyCard.h"
 #include "presentation/objects/ObjectsPanel.h"
 #include "presentation/params/ParamsPanel.h"
@@ -56,6 +57,7 @@ MainWindow::MainWindow(ThemeManager& theme, QWidget* parent)
     messageBar_ = ui_->messageBar;
     objectsPanel_ = ui_->objectsPanel;
     paramsPanel_ = ui_->paramsPanel;
+    samplePanel_ = ui_->samplePanel;
 
     emptyCard_ = new EmptyCard(canvas_->viewport());
     // A/B 比較的視窗（S09）：另一個頂層視窗，主視窗擁有它（一起關、一起解構）；顯示與內容由 ComparePresenter 決定。
@@ -107,6 +109,22 @@ MainWindow::MainWindow(ThemeManager& theme, QWidget* parent)
     objectsPanel_->view()->installEventFilter(this);  // 焦點在物件樹上時，Enter、Esc、Del 也要到得了 Presenter
     connect(objectsPanel_, &ObjectsPanel::selectionChangedByUser, this, [this](const std::vector<int>& ids) {
         if (controllers_.selection) controllers_.selection->select(ids);
+    });
+    // 選取資訊表單（2026-10-14）：一次輸入一個 Command；按過按鈕之後焦點還給畫布。
+    connect(objectsPanel_, &ObjectsPanel::centerEdited, this, [this](double x, double y) {
+        if (controllers_.selectionEdit) controllers_.selectionEdit->setSelectionCenter(x, y);
+    });
+    connect(objectsPanel_, &ObjectsPanel::sizeEdited, this, [this](double w, double h) {
+        if (controllers_.selectionEdit) controllers_.selectionEdit->setSelectionBodySize(w, h);
+    });
+    connect(objectsPanel_, &ObjectsPanel::applySizeToAllRequested, this, [this] {
+        if (controllers_.selectionEdit) controllers_.selectionEdit->applySizeToAllSamples();
+        canvas_->setFocus(Qt::OtherFocusReason);
+    });
+    // 樣本庫 dock：點一筆 ＝ 在畫布上選取它（和點畫布相同）。
+    connect(samplePanel_, &SamplePanel::sampleClicked, this, [this](int id) {
+        if (controllers_.selection) controllers_.selection->select({id});
+        canvas_->setFocus(Qt::OtherFocusReason);
     });
     connect(paramsPanel_, &ParamsPanel::thresholdChanged, this, [this](double v) {
         if (controllers_.params) controllers_.params->setScoreThreshold(v);
@@ -310,15 +328,12 @@ void MainWindow::buildToolbars() {
 
 void MainWindow::buildDocks() {
     // 三個 dock 的配置（右側，由上而下：樣本庫、物件樹、比對參數）在 MainWindow.ui；最小寬度來自 tokens.json。
-    //  - 樣本庫（空殼：篩選欄與空狀態文字）。清單與縮圖還沒有。
-    //  - 物件樹：Board › Component › 框群組，可依狀態篩選，與畫布雙向選取同步（S04）。
+    //  - 樣本庫（SamplePanel，2026-10-14）：板子上的樣本與縮圖；篩選欄仍是停用的佔位（樣本庫檔案是 P2）。
+    //  - 物件樹：Board › Component › 框群組，可依狀態篩選，與畫布雙向選取同步（S04）；下方是選取資訊的表單（2026-10-14）。
     //  - 比對參數：分數門檻（拖動即時重新過濾）、進階的角度範圍（防抖後重新搜尋）、比對範圍、影像位元數。
     libraryDock_ = ui_->libraryDock;
     objectsDock_ = ui_->objectsDock;
     paramsDock_ = ui_->paramsDock;
-    libraryFilter_ = ui_->libraryFilter;
-    libraryEmpty_ = ui_->libraryEmpty;
-    libraryEmpty_->setForegroundRole(QPalette::PlaceholderText);
     const int minWidth = theme_.tokens().sizes.dockMinWidth;
     for (QDockWidget* dock : {libraryDock_, objectsDock_, paramsDock_}) {
         dock->setMinimumWidth(minWidth);
@@ -387,8 +402,7 @@ void MainWindow::retranslateUi() {
     libraryDock_->setWindowTitle(qtTrId("ui.library.title"));
     objectsDock_->setWindowTitle(qtTrId("ui.objects.title"));
     paramsDock_->setWindowTitle(qtTrId("ui.params.title"));
-    libraryFilter_->setPlaceholderText(qtTrId("ui.library.filter"));
-    libraryEmpty_->setText(qtTrId("ui.library.empty"));
+    samplePanel_->retranslate();
     objectsPanel_->retranslate();
     paramsPanel_->retranslate();
     updateHistoryTips();

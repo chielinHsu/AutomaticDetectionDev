@@ -2,6 +2,7 @@
 
 #include "presentation/canvas/ImageCanvas.h"
 #include "presentation/compare/CompareWindow.h"
+#include "presentation/library/SamplePanel.h"
 #include "presentation/objects/ObjectsPanel.h"
 #include "presentation/params/ParamsPanel.h"
 
@@ -10,7 +11,9 @@ namespace aoi::ui {
 AppPresenters::AppPresenters(MainWindow& window, PresenterServices services, BackendServices backend, const ThemeTokens& tokens)
     : window_(window) {
     ImageCanvas* canvas = window.canvas();
-    PresenterViews views{*canvas, *canvas, window, window, window, *window.objectsPanel(), *window.paramsPanel()};
+    // 物件面板同時是物件樹與選取資訊表單（2026-10-14）；樣本庫 dock 的面板列出板子上的樣本。
+    PresenterViews views{*canvas,  *canvas, window, window, window, *window.objectsPanel(), *window.paramsPanel(),
+                         *window.objectsPanel(), *window.samplePanel()};
     autoRoi_ = std::make_unique<AutoRoiPresenter>(views, std::move(services), PresenterSettings::fromTokens(tokens));
     params_ = std::make_unique<ParamsPresenter>(*autoRoi_, tokens.timing.paramDebounce);
     // A/B 比較（S09）：同一份 back end 的清單與工廠、同一個執行緒池；啟動時建好的那一個直接用。A 預設是主視窗目前的 back end。
@@ -27,6 +30,7 @@ AppPresenters::AppPresenters(MainWindow& window, PresenterServices services, Bac
     MainWindow::Controllers controllers;
     controllers.canvas = autoRoi_.get();
     controllers.selection = autoRoi_.get();
+    controllers.selectionEdit = autoRoi_.get();
     controllers.keyboard = autoRoi_.get();
     controllers.proposal = autoRoi_.get();
     controllers.message = autoRoi_.get();

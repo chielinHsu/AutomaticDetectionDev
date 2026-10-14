@@ -31,6 +31,7 @@ class ImageCanvas;
 class MessageBar;
 class ObjectsPanel;
 class ParamsPanel;
+class SamplePanel;
 class ThemeManager;
 
 namespace Ui {
@@ -38,7 +39,7 @@ class MainWindow;
 }
 
 // 主視窗骨架（docs/ux/ux-spec.md 第 4 節；版面在 MainWindow.ui，用 Qt Designer 編輯）：上方工具列、左側工具、中央畫布與訊息列、
-// 右側三個 dock（樣本庫：S06 之前是空殼；物件樹；比對參數）、狀態列。
+// 右側三個 dock（樣本庫：2026-10-14 起列出板子上的樣本與縮圖，SamplePanel；物件樹與選取資訊表單，ObjectsPanel；比對參數）、狀態列。
 // 這一層只負責組裝與事件接線，不含業務規則。S04 起它同時是 Presenter 的幾個 View：
 // 狀態列與提示（IStatusView）、訊息卡（IMessageView）、復原／重做按鈕（IHistoryView）、back end 的選單、標示與提醒卡片
 // （IBackendView）、A/B 比較的入口（ICompareEntryView，S09）；Presenter 只看到這些窄介面。
@@ -59,6 +60,7 @@ public:
     struct Controllers {
         ICanvasController* canvas = nullptr;
         ISelectionController* selection = nullptr;
+        ISelectionEditController* selectionEdit = nullptr;  // 選取資訊表單（2026-10-14）
         IKeyboardController* keyboard = nullptr;
         IProposalController* proposal = nullptr;
         IMessageController* message = nullptr;
@@ -72,6 +74,7 @@ public:
     ImageCanvas* canvas() const { return canvas_; }
     ObjectsPanel* objectsPanel() const { return objectsPanel_; }
     ParamsPanel* paramsPanel() const { return paramsPanel_; }
+    SamplePanel* samplePanel() const { return samplePanel_; }  // 樣本庫 dock：板子上的樣本（2026-10-14）
     MessageBar* messageBar() const { return messageBar_; }
     EmptyCard* emptyCard() const { return emptyCard_; }
     CompareWindow* compareWindow() const { return compareWindow_; }
@@ -167,6 +170,7 @@ private:
     CompareWindow* compareWindow_ = nullptr;
     ObjectsPanel* objectsPanel_ = nullptr;
     ParamsPanel* paramsPanel_ = nullptr;
+    SamplePanel* samplePanel_ = nullptr;
     Controllers controllers_;
 
     QActionGroup* toolGroup_ = nullptr;
@@ -209,8 +213,6 @@ private:
     QDockWidget* libraryDock_ = nullptr;
     QDockWidget* objectsDock_ = nullptr;
     QDockWidget* paramsDock_ = nullptr;
-    QLabel* libraryEmpty_ = nullptr;
-    QLineEdit* libraryFilter_ = nullptr;
 
     QLabel* backendStatus_ = nullptr;
     QLabel* summaryLabel_ = nullptr;

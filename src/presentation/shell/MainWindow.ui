@@ -161,51 +161,7 @@
    <attribute name="dockWidgetArea">
     <number>2</number>
    </attribute>
-   <widget class="QWidget" name="libraryBody">
-    <layout class="QVBoxLayout" name="libraryColumn" stretch="0,1">
-     <property name="leftMargin">
-      <number>8</number>
-     </property>
-     <property name="topMargin">
-      <number>8</number>
-     </property>
-     <property name="rightMargin">
-      <number>8</number>
-     </property>
-     <property name="bottomMargin">
-      <number>8</number>
-     </property>
-     <item>
-      <widget class="QLineEdit" name="libraryFilter">
-       <property name="enabled">
-        <bool>false</bool>
-       </property>
-       <property name="placeholderText">
-        <string notr="true">篩選（佔位）</string>
-       </property>
-       <property name="clearButtonEnabled">
-        <bool>true</bool>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <widget class="QLabel" name="libraryEmpty">
-       <property name="text">
-        <string notr="true">樣本庫是空的（佔位）</string>
-       </property>
-       <property name="alignment">
-        <set>Qt::AlignmentFlag::AlignLeading|Qt::AlignmentFlag::AlignLeft|Qt::AlignmentFlag::AlignTop</set>
-       </property>
-       <property name="wordWrap">
-        <bool>true</bool>
-       </property>
-       <property name="margin">
-        <number>12</number>
-       </property>
-      </widget>
-     </item>
-    </layout>
-   </widget>
+   <widget class="aoi::ui::SamplePanel" name="samplePanel"/>
   </widget>
   <widget class="QDockWidget" name="objectsDock">
    <property name="windowTitle">
@@ -415,6 +371,12 @@
    <class>aoi::ui::ParamsPanel</class>
    <extends>QWidget</extends>
    <header>presentation/params/ParamsPanel.h</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>aoi::ui::SamplePanel</class>
+   <extends>QWidget</extends>
+   <header>presentation/library/SamplePanel.h</header>
    <container>1</container>
   </customwidget>
  </customwidgets>

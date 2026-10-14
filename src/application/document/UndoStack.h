@@ -30,6 +30,7 @@ enum class CommandKind {
     AddSample,         // 建立一個樣本（一個新類型與它的樣本元件；S 工具放開時）
     ResizeType,        // 改類型的主體框大小（同類型全部元件一起變）
     AddBoxGroup,       // 在類型上加一個框群組（子框；同類型全部元件一起多出這些框）
+    ResizeTypes,       // 把幾個類型的主體框設成同一個大小（選取資訊的〔套用大小到所有樣本〕；元件的中心不動）
 };
 
 template <class Target>

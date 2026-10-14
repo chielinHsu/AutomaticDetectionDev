@@ -1066,6 +1066,86 @@
     "ui.objects.col.score": {
       "zh_TW": "分數",
       "en": "Score"
+    },
+    "ui.selection.title": {
+      "zh_TW": "選取資訊",
+      "en": "Selection"
+    },
+    "ui.selection.none": {
+      "zh_TW": "沒有選取元件。",
+      "en": "No part is selected."
+    },
+    "ui.selection.multi": {
+      "zh_TW": "已選 {count} 個元件",
+      "en": "{count} parts selected"
+    },
+    "ui.selection.summary": {
+      "zh_TW": "{name} · 類型 {type}",
+      "en": "{name} · type {type}"
+    },
+    "ui.selection.center": {
+      "zh_TW": "中心",
+      "en": "Center"
+    },
+    "ui.selection.size": {
+      "zh_TW": "寬 × 高",
+      "en": "Width × height"
+    },
+    "ui.selection.um": {
+      "zh_TW": "≈ {w} × {h} µm",
+      "en": "≈ {w} × {h} µm"
+    },
+    "ui.selection.angle": {
+      "zh_TW": "角度",
+      "en": "Angle"
+    },
+    "ui.selection.boxes": {
+      "zh_TW": "框數",
+      "en": "Boxes"
+    },
+    "ui.selection.lockRatio": {
+      "zh_TW": "鎖定寬高比",
+      "en": "Lock aspect ratio"
+    },
+    "ui.selection.applyToAll": {
+      "zh_TW": "套用大小到所有樣本",
+      "en": "Apply size to all samples"
+    },
+    "ui.selection.applyToAll.tip": {
+      "zh_TW": "把這個寬 × 高套到板子上每一個樣本的類型（一個步驟，可以復原）",
+      "en": "Set every sample type on the board to this width × height (one step, can be undone)"
+    },
+    "ui.selection.previewOnlyMove": {
+      "zh_TW": "預覽中只能改位置；要改大小，先接受或捨棄提案。",
+      "en": "In preview you can only move it. Accept or discard the proposal to resize."
+    },
+    "ui.resize.appliedAll": {
+      "zh_TW": "已把 {w} × {h} px 套到 {count} 個樣本的類型 · Ctrl+Z 復原",
+      "en": "{w} × {h} px applied to {count} sample types · Ctrl+Z to undo"
+    },
+    "ui.resize.nothingToApply": {
+      "zh_TW": "所有樣本已經是這個大小。",
+      "en": "Every sample already has this size."
+    },
+    "ui.history.resizeTypes": {
+      "zh_TW": "把 {count} 個類型的框設成同樣大小",
+      "en": "Set the boxes of {count} types to one size"
+    },
+    "ui.library.boardSamples": {
+      "zh_TW": "板子上的 {count} 個樣本 · 點一筆在畫布上選取它",
+      "en": "{count} samples on the board · click one to select it on the canvas"
+    },
+    "ui.library.sample.summary": {
+      "zh_TW": "{w} × {h} px · {boxes} 個框",
+      "en": "{w} × {h} px · {boxes} boxes"
+    },
+    "ui.library.sample.summaryUm": {
+      "zh_TW": "{w} × {h} px（{wum} × {hum} µm） · {boxes} 個框",
+      "en": "{w} × {h} px ({wum} × {hum} µm) · {boxes} boxes"
+    },
+    "ui.library.sample.tip": {
+      "zh_TW": "點一下在畫布上選取 {name}",
+      "en": "Click to select {name} on the canvas"
     }
   }
 }

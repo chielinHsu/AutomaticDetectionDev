@@ -289,6 +289,38 @@ private:
     std::size_t affected_;
 };
 
+// 把幾個類型的主體框設成同一個大小；每個類型記「前」的大小，復原時各自還原。元件的位姿不動。
+class ResizeTypesCommand final : public DocumentCommand {
+public:
+    struct Entry {
+        std::string typeId;
+        Size2D beforeUm;
+    };
+    ResizeTypesCommand(std::vector<Entry> entries, Size2D afterUm) : entries_(std::move(entries)), afterUm_(afterUm) {}
+
+    void redo(InspectionDocument& d) const override {
+        for (const Entry& e : entries_) apply(d, e.typeId, afterUm_);
+    }
+    void undo(InspectionDocument& d) const override {
+        for (const Entry& e : entries_) apply(d, e.typeId, e.beforeUm);
+    }
+    CommandKind kind() const override { return CommandKind::ResizeTypes; }
+    std::size_t count() const override { return entries_.size(); }
+
+private:
+    static void apply(InspectionDocument& d, const std::string& typeId, Size2D um) {
+        if (ComponentType* type = findTypeMutable(Access::board(d), typeId)) {
+            if (BoxGroup* body = bodyOf(*type)) {
+                body->widthUm = um.w;
+                body->heightUm = um.h;
+            }
+        }
+    }
+
+    std::vector<Entry> entries_;
+    Size2D afterUm_;
+};
+
 // 在類型上加一個框群組（接在最後；復原時拿掉最後一個）。
 class AddBoxGroupCommand final : public DocumentCommand {
 public:
@@ -528,6 +560,30 @@ bool InspectionDocument::setBodySize(const std::string& typeId, Size2D sizePx, i
     const Size2D afterUm{sizePx.w * um, sizePx.h * um};
     const std::size_t affected = componentsOfType(typeId).size();
     push(std::make_shared<ResizeTypeCommand>(typeId, beforeUm, afterUm, anchorId, anchor->pose, anchorPose, affected));
+    return true;
+}
+
+bool InspectionDocument::setBodySizeForTypes(const std::vector<std::string>& typeIds, Size2D sizePx) {
+    if (!(sizePx.w > 0.0) || !(sizePx.h > 0.0)) return false;
+    const double um = effectiveUmPerPixel(board_.umPerPixel);
+    const Size2D afterUm{sizePx.w * um, sizePx.h * um};
+    std::vector<ResizeTypesCommand::Entry> entries;
+    for (const std::string& typeId : typeIds) {
+        // 同一個類型只處理一次（幾個樣本可以是同一個類型）。
+        bool seen = false;
+        for (const ResizeTypesCommand::Entry& e : entries) seen = seen || e.typeId == typeId;
+        if (seen) continue;
+        const ComponentType* type = findType(typeId);
+        if (type == nullptr) continue;
+        for (const BoxGroup& g : type->groups) {
+            if (g.kind != BoxGroupKind::Body) continue;
+            if (g.widthUm == afterUm.w && g.heightUm == afterUm.h) break;  // 已經是這個大小
+            entries.push_back({typeId, Size2D{g.widthUm, g.heightUm}});
+            break;
+        }
+    }
+    if (entries.empty()) return false;
+    push(std::make_shared<ResizeTypesCommand>(std::move(entries), afterUm));
     return true;
 }
 

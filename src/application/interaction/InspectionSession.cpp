@@ -312,6 +312,60 @@ bool InspectionSession::resizeBody(int componentId, const Rect& rectPx) {
     return document_.setBodySize(c->typeId, rectPx.size(), componentId, Pose2D{center.x, center.y, c->pose.angleDeg});
 }
 
+bool InspectionSession::resizeBodyKeepingCenter(int componentId, Size2D sizePx) {
+    const ComponentInstance* c = document_.find(componentId);
+    if (c == nullptr) return false;
+    return resizeBody(componentId, rectFromCenter(c->pose.position(), sizePx));
+}
+
+std::size_t InspectionSession::applyBodySizeToSamples(Size2D sizePx) {
+    if (state() != InteractionState::Idle) return 0;
+    if (std::min(sizePx.w, sizePx.h) < config_.minSamplePx) return 0;
+    std::vector<std::string> typeIds;
+    for (const SampleOnBoard& s : document_.samples()) typeIds.push_back(s.typeId);
+    if (typeIds.empty()) return 0;
+    if (!document_.setBodySizeForTypes(typeIds, sizePx)) return 0;
+    const std::optional<CommandInfo> info = document_.undoInfo();
+    return info ? info->count : 0;
+}
+
+SelectionInfo InspectionSession::selectionInfo() const {
+    SelectionInfo info;
+    info.count = selection_.size();
+    if (info.count != 1) return info;
+    const int id = selection_.front();
+    if (state() == InteractionState::Idle) {
+        const ComponentInstance* c = document_.find(id);
+        if (c == nullptr) return info;
+        info.id = id;
+        info.name = c->name;
+        info.typeId = c->typeId;
+        info.pose = c->pose;
+        if (const std::optional<Size2D> size = document_.bodySizePx(c->typeId)) info.bodyPx = *size;
+        if (const ComponentType* type = document_.findType(c->typeId)) info.boxCount = countBoxes(*type);
+        info.canMove = true;
+        info.canResize = true;
+        return info;
+    }
+    if (previewAcceptsEdits()) {
+        const std::optional<Pose2D> pose = proposal_->poseOf(id);
+        const std::optional<ProposalSession::TypeAndSize> type = proposal_->typeOf(id);
+        if (!pose || !type) return info;
+        info.id = id;
+        info.proposal = true;
+        info.typeId = type->typeId;
+        info.pose = *pose;
+        info.bodyPx = type->partSize;
+        info.boxCount = 1;
+        if (const ComponentType* t = document_.findType(type->typeId)) {
+            info.boxCount = countBoxes(*t);
+            if (const std::optional<Size2D> size = document_.bodySizePx(type->typeId)) info.bodyPx = *size;
+        }
+        info.canMove = true;  // 預覽只能改位置（改大小是文件堆疊上的事，ADR-025 §4）
+    }
+    return info;
+}
+
 bool InspectionSession::addBoxGroup(int componentId, const Rect& rectPx) {
     if (state() != InteractionState::Idle) return false;
     if (rectPx.empty()) return false;
