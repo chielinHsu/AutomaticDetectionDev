@@ -6,6 +6,7 @@
 #include "QtTestPrinters.h"
 #include "application/interaction/InspectionSession.h"
 #include "application/usecases/GenerateObjectsFromSample.h"
+#include "domain/box_expander.h"
 
 using namespace aoi;
 using namespace aoi::test;
@@ -20,10 +21,22 @@ struct Fixture {
     InspectionSession session;
     Fixture() { session.imageOpened("board.png", 1000, 800, 0.0); }
 
-    // 畫一個區域並放開（進入 Searching）。
+    // 建立一個樣本（S 工具放開，ADR-025）：回到 Idle，板上多一個樣本元件（第一個的類型是 t1，和 makeProposal 的相同）。
+    // 回傳樣本元件的編號；失敗回 0。
+    int addSample(Rect region = kBig) {
+        if (!session.beginRegion(RegionMode::Sample)) return 0;
+        if (session.endRegion(region, RegionMode::Sample) != InspectionSession::Release::SampleAdded) return 0;
+        return session.selection().empty() ? 0 : session.selection().front();
+    }
+    // 進入 Searching。Sample ＝ 板上還沒有樣本就先建一個，再按〔搜尋〕；Region ＝ 畫一個區域放開。
     void search(RegionMode mode = RegionMode::Sample, Rect region = kBig) {
-        QVERIFY(session.beginRegion(mode));
-        QVERIFY(session.endRegion(region, mode) == InspectionSession::Release::Search);
+        if (mode == RegionMode::Sample) {
+            if (!session.hasSamples()) QVERIFY(addSample(region) > 0);
+            QVERIFY(session.startSearch());
+        } else {
+            QVERIFY(session.beginRegion(mode));
+            QVERIFY(session.endRegion(region, mode) == InspectionSession::Release::Search);
+        }
     }
     // 走到 Preview。
     void toPreview(const std::vector<double>& scores = {0.95, 0.75, 0.50}, std::size_t predicted = 0) {
@@ -90,15 +103,86 @@ private slots:
     }
 
     // ---- 區域 ----
-    void releasingABigRegionStartsASearchAndRemembersIt() {
+    // ADR-025：S 放開只建立樣本（一個類型＋一個樣本元件的 Command），回到 Idle；搜尋另外按。
+    void releasingASampleCreatesItAndGoesBackToIdle() {
         Fixture f;
         QVERIFY(f.session.beginRegion(RegionMode::Sample));
         QCOMPARE_STATE(f.session.state(), S::DrawingRegion);
-        QVERIFY(f.session.endRegion(kBig, RegionMode::Sample) == InspectionSession::Release::Search);
+        QVERIFY(f.session.endRegion(kBig, RegionMode::Sample) == InspectionSession::Release::SampleAdded);
+        QCOMPARE_STATE(f.session.state(), S::Idle);
+        QVERIFY(!f.session.lastSearch().has_value());
+        QVERIFY(f.session.hasSamples());
+        const std::vector<SampleOnBoard> samples = f.session.document().samples();
+        QCOMPARE(samples.size(), std::size_t{1});
+        QCOMPARE(samples[0].typeId, std::string("t1"));
+        QCOMPARE(samples[0].rect.w, 60.0);
+        QCOMPARE(samples[0].rect.x, 20.0);
+        const ComponentInstance* c = f.session.document().find(samples[0].componentId);
+        QVERIFY(c != nullptr);
+        QVERIFY(c->state == ObjectState::Sample);
+        QVERIFY(c->origin == ObjectOrigin::Manual);
+        QVERIFY(!c->score.has_value());
+        QCOMPARE(f.session.selection(), std::vector<int>{c->id});  // 建完就是選取的：接著可以改大小、畫子框
+        QVERIFY(f.session.undoInfo().has_value());
+        QVERIFY(f.session.undoInfo()->kind == CommandKind::AddSample);
+        QVERIFY(f.session.undo());
+        QVERIFY(!f.session.hasSamples());
+        QVERIFY(f.session.document().board().types.empty());
+    }
+
+    void releasingARegionStartsAScanAndRemembersIt() {
+        Fixture f;
+        QVERIFY(f.session.beginRegion(RegionMode::Region));
+        QVERIFY(f.session.endRegion(kBig, RegionMode::Region) == InspectionSession::Release::Search);
         QCOMPARE_STATE(f.session.state(), S::Searching);
         QVERIFY(f.session.lastSearch().has_value());
         QCOMPARE(f.session.lastSearch()->region.w, 60.0);
-        QVERIFY(f.session.lastSearch()->mode == RegionMode::Sample);
+        QVERIFY(f.session.lastSearch()->mode == RegionMode::Region);
+        QVERIFY(f.session.lastSearch()->samples.empty());
+    }
+
+    void searchNeedsASampleOnTheBoard() {
+        Fixture f;
+        QVERIFY(!f.session.startSearch());
+        QCOMPARE_STATE(f.session.state(), S::Idle);
+        QVERIFY(f.addSample() > 0);
+        QVERIFY(f.session.startSearch());
+        QCOMPARE_STATE(f.session.state(), S::Searching);
+        QVERIFY(f.session.selection().empty());
+        QVERIFY(f.session.startSearch());  // 搜尋中再按：重新搜尋，最新的優先
+    }
+
+    void searchUsesEverySampleOnTheBoardAndRemembersTheFirstAsTheRegion() {
+        Fixture f;
+        QVERIFY(f.addSample(Rect{20, 20, 60, 32}) > 0);
+        QVERIFY(f.addSample(Rect{300, 300, 40, 20}) > 0);
+        QVERIFY(f.session.startSearch());
+        const SearchTarget& t = *f.session.lastSearch();
+        QVERIFY(t.mode == RegionMode::Sample);
+        QCOMPARE(t.samples.size(), std::size_t{2});
+        QCOMPARE(t.samples[0].typeId, std::string("t1"));
+        QCOMPARE(t.samples[1].typeId, std::string("t2"));
+        QCOMPARE(t.region.w, 60.0);
+    }
+
+    void aMovedSampleIsSearchedAtItsNewPlace() {
+        Fixture f;
+        const int id = f.addSample();
+        f.session.select({id});
+        QCOMPARE(f.session.moveSelection({10, 5}), std::size_t{1});
+        QVERIFY(f.session.startSearch());
+        QCOMPARE(f.session.lastSearch()->samples[0].rect.x, 30.0);
+        QCOMPARE(f.session.lastSearch()->samples[0].rect.y, 25.0);
+    }
+
+    void aDeletedSampleIsNotSearchedButItsTypeStays() {
+        Fixture f;
+        const int id = f.addSample();
+        f.session.select({id});
+        QCOMPARE(f.session.deleteSelection(), std::size_t{1});
+        QVERIFY(!f.session.hasSamples());
+        QVERIFY(!f.session.startSearch());
+        QCOMPARE(f.session.document().board().types.size(), std::size_t{1});
     }
 
     void aTooSmallRegionGoesBackToTheStateItStartedFrom() {
@@ -115,7 +199,7 @@ private slots:
         // 8 × 8 剛好夠；7.9 × 50 不夠（兩邊都要 ≥ 8）。
         QVERIFY(f.session.endRegion(Rect{0, 0, 7.9, 50}, RegionMode::Sample) == InspectionSession::Release::TooSmall);
         QVERIFY(f.session.beginRegion(RegionMode::Sample));
-        QVERIFY(f.session.endRegion(Rect{0, 0, 8, 8}, RegionMode::Sample) == InspectionSession::Release::Search);
+        QVERIFY(f.session.endRegion(Rect{0, 0, 8, 8}, RegionMode::Sample) == InspectionSession::Release::SampleAdded);
     }
 
     void escWhileDrawingFromPreviewKeepsTheProposal() {
@@ -139,13 +223,15 @@ private slots:
         QVERIFY(f.session.noMatch().has_value());
     }
 
-    void releasingANewRegionDropsTheOldProposal() {
+    void creatingASampleInPreviewDropsTheProposalAndGoesIdle() {
         Fixture f;
         f.toPreview();
         QVERIFY(f.session.beginRegion(RegionMode::Sample));
-        f.session.endRegion(kBig, RegionMode::Sample);
-        QCOMPARE_STATE(f.session.state(), S::Searching);
-        QVERIFY(f.session.proposal() == nullptr);
+        QVERIFY(f.session.endRegion(Rect{300, 300, 40, 20}, RegionMode::Sample) == InspectionSession::Release::SampleAdded);
+        QCOMPARE_STATE(f.session.state(), S::Idle);
+        QVERIFY(f.session.proposal() == nullptr);  // 舊提案是用舊的樣本集合搜尋的，不再有意義
+        QCOMPARE(f.session.document().samples().size(), std::size_t{2});
+        QVERIFY(!f.session.lastSearch().has_value());
     }
 
     void drawingIsRefusedWhileSearchingOrInAnError() {
@@ -168,9 +254,7 @@ private slots:
     void aSampleProblemGoesToNoMatchWithTheReason() {
         Fixture f;
         f.search();
-        auto p = std::make_shared<SampleProposal>();
-        p->sampleProblem = NoMatchInfo{NoMatchReason::SampleTooSmall, 0, 0, 0};
-        QVERIFY(f.session.searchSucceeded(p));
+        QVERIFY(f.session.searchSucceeded(makeProblemProposal(NoMatchReason::SampleTooSmall)));
         QCOMPARE_STATE(f.session.state(), S::NoMatch);
         QVERIFY(f.session.noMatch()->reason == NoMatchReason::SampleTooSmall);
     }
@@ -295,7 +379,7 @@ private slots:
         f.toPreview({0.95, 0.75, 0.50}, 1);  // Sample、2 個 Found、1 個 Rejected、1 個 Inferred
         const auto count = f.session.accept();
         QVERIFY(count.has_value());
-        QCOMPARE(*count, std::size_t{4});
+        QCOMPARE(*count, std::size_t{3});  // Sample 已經在板子上，不再加（ADR-025）
         QCOMPARE_STATE(f.session.state(), S::Idle);
         QVERIFY(f.session.proposal() == nullptr);
         QCOMPARE(f.session.document().components().size(), std::size_t{4});
@@ -319,7 +403,7 @@ private slots:
         QVERIFY(count.has_value());
         QCOMPARE(*count, std::size_t{0});
         QCOMPARE_STATE(f.session.state(), S::Preview);
-        QVERIFY(!f.session.document().canUndo());
+        QCOMPARE(f.session.document().historyDepth(), std::size_t{1});  // 只有建立樣本那一步
     }
 
     void discardGoesToIdleWithoutTouchingTheBoard() {
@@ -327,12 +411,12 @@ private slots:
         f.toPreview();
         QVERIFY(f.session.discard());
         QCOMPARE_STATE(f.session.state(), S::Idle);
-        QVERIFY(f.session.document().components().empty());
+        QCOMPARE(f.session.document().components().size(), std::size_t{1});  // 只剩樣本
     }
 
     void undoAfterAcceptReturnsToPreviewWithTheSameProposal() {
         Fixture f;
-        f.toPreview({0.95, 0.75});
+        f.toPreview({0.95, 0.85, 0.75});  // 刪掉 2 之後還有 0.85 過門檻，接受才不會是 0 個
         f.session.setThreshold(0.80);
         f.session.select({2});
         f.session.deleteSelection();                     // 預覽中刪掉 id 2
@@ -343,7 +427,7 @@ private slots:
         QVERIFY(f.session.proposal()->proposalPtr() == proposal);
         QCOMPARE(f.session.threshold(), 0.80);
         QVERIFY(!f.session.proposal()->contains(2));     // 刪掉的還是刪掉的
-        QVERIFY(f.session.document().components().empty());
+        QCOMPARE(f.session.document().components().size(), std::size_t{1});  // 只剩樣本
         QVERIFY(f.session.lastSearch().has_value());     // 區域也回來了
         ProposalSession copy = *f.session.proposal();
         QVERIFY(copy.undo());                            // 提案堆疊也回來了
@@ -377,7 +461,7 @@ private slots:
         f.session.undo();
         QVERIFY(f.session.redo());
         QCOMPARE_STATE(f.session.state(), S::Idle);
-        QVERIFY(f.session.document().components().empty());
+        QCOMPARE(f.session.document().components().size(), std::size_t{1});  // 只剩樣本
     }
 
     // ADR-002 規則 4：接受時先清掉提案堆疊的可重做部分，否則復原回預覽後 Ctrl+Y 會先重做殘留的舊動作。
@@ -412,7 +496,7 @@ private slots:
         QVERIFY(f.session.redo());             // Ctrl+Y 重做那個刪除，而不是重新接受
         QCOMPARE_STATE(f.session.state(), S::Preview);
         QVERIFY(!f.session.proposal()->contains(2));
-        QVERIFY(f.session.document().components().empty());
+        QCOMPARE(f.session.document().components().size(), std::size_t{1});  // 只剩樣本
     }
 
     void changingTheThresholdAfterUndoToPreviewMakesTheOldAcceptUnredoable() {
@@ -431,13 +515,12 @@ private slots:
         f.session.accept();
         f.session.undo();                           // 回預覽（提案 A）；文件堆疊有一個可重做的「接受 A」
         QVERIFY(f.session.document().nextRedoProposal() != nullptr);
-        QVERIFY(f.session.beginRegion(RegionMode::Sample));
-        f.session.endRegion(kBig, RegionMode::Sample);
+        QVERIFY(f.session.startSearch());
         QVERIFY(f.session.searchSucceeded(makeProposal({0.90, 0.85})));  // 新的提案 B
         QCOMPARE_STATE(f.session.state(), S::Preview);
         QVERIFY(!f.session.redo());                 // 這個 Ctrl+Y 不能把 A 接受進來：預覽中的是 B
         QCOMPARE_STATE(f.session.state(), S::Preview);
-        QVERIFY(f.session.document().components().empty());
+        QCOMPARE(f.session.document().components().size(), std::size_t{1});  // 只剩樣本
         QVERIFY(!f.session.redoInfo().has_value());
     }
 
@@ -513,8 +596,8 @@ private slots:
         f.toPreview({0.95, 0.75});
         f.session.select({2});
         QCOMPARE(f.session.deleteSelection(), std::size_t{1});
-        QVERIFY(f.session.document().components().empty());
-        QVERIFY(!f.session.document().canUndo());
+        QCOMPARE(f.session.document().components().size(), std::size_t{1});  // 只剩樣本
+        QCOMPARE(f.session.document().historyDepth(), std::size_t{1});  // 文件只有建立樣本那一步
     }
 
     void deleteDoesNothingWithoutASelectionOrInOtherStates() {
@@ -557,15 +640,18 @@ private slots:
 
     void addManualUsesTheTypeOfTheSelectedComponent() {
         Fixture f;
-        f.toPreview({0.95});
-        f.session.accept();
-        f.toPreview({0.90});  // 第二份提案，產生第二個類型
+        f.addSample();                                            // t1
+        const int second = f.addSample(Rect{300, 300, 40, 20});  // t2（每個樣本一個類型，ADR-025）
+        f.toPreview({0.95});  // 找到的都是 t1
         f.session.accept();
         QCOMPARE(f.session.document().board().types.size(), std::size_t{2});
-        f.session.select({1});  // 第一個類型的元件
+        f.session.select({second});  // 第二個類型的樣本
         f.session.addManual({400, 300, 0});
         const int id = f.session.selection().front();
-        QCOMPARE(f.session.document().find(id)->typeId, f.session.document().find(1)->typeId);
+        QCOMPARE(f.session.document().find(id)->typeId, std::string("t2"));
+        f.session.select({});
+        f.session.addManual({450, 300, 0});  // 沒有選取：最近一次用的類型（剛補的 t2）
+        QCOMPARE(f.session.document().find(f.session.selection().front())->typeId, std::string("t2"));
     }
 
     void addManualInPreviewAddsAProposalObject() {
@@ -573,7 +659,7 @@ private slots:
         f.toPreview({0.95});
         QCOMPARE(f.session.addManual({400, 300, 0}), InspectionSession::AddResult::Added);
         QCOMPARE(f.session.proposal()->objects().manual, std::size_t{1});
-        QVERIFY(f.session.document().components().empty());
+        QCOMPARE(f.session.document().components().size(), std::size_t{1});  // 只剩樣本
     }
 
     void addManualIsNotAllowedWhileSearching() {
@@ -608,10 +694,91 @@ private slots:
             }
         }
         QVERIFY(found);
-        QVERIFY(f.session.document().components().empty());
+        QCOMPARE(f.session.document().components().size(), std::size_t{1});  // 只剩樣本
     }
 
     // ---- 用真的 use case 與假 back end 走一遍 ----
+    // ---- 接受＝換掉上一次自動產生的（ADR-025）----
+    void acceptingASecondSearchReplacesTheFirstResultSoNoPositionIsListedTwice() {
+        Fixture f;
+        f.toPreview({0.95, 0.75});
+        f.session.accept();
+        QCOMPARE(f.session.document().components().size(), std::size_t{3});
+        f.toPreview({0.90, 0.80, 0.70});  // 再搜尋一次（同一批位置）
+        QCOMPARE(*f.session.accept(), std::size_t{3});
+        QCOMPARE(f.session.document().components().size(), std::size_t{4});  // 樣本 ＋ 這一次的 3 個；上一次的 2 個換掉
+        QVERIFY(f.session.undo());
+        QCOMPARE_STATE(f.session.state(), S::Preview);
+        QCOMPARE(f.session.document().components().size(), std::size_t{3});
+    }
+
+    // ---- 改大小（ADR-025 §4）----
+    void resizingAPartChangesItsTypeForEveryPartOfThatTypeOnlyInIdle() {
+        Fixture f;
+        const int sample = f.addSample();  // kBig：中心 (50, 36)、60 × 32
+        f.toPreview({0.95});
+        QVERIFY(!f.session.resizeBody(sample, Rect{0, 0, 80, 40}));  // 預覽中不改
+        f.session.accept();                                           // 樣本 ＋ 1 個找到的（編號 2）
+        QVERIFY(f.session.resizeBody(sample, Rect{10, 10, 80, 40}));
+        QCOMPARE(f.session.document().bodySizePx("t1")->w, 80.0);
+        QCOMPARE(f.session.document().find(sample)->pose.x, 50.0);  // 拖的那一個中心跟著框
+        QCOMPARE(f.session.document().find(sample)->pose.y, 30.0);
+        QCOMPARE(f.session.document().find(2)->pose.x, 150.0);                         // 其他的不動
+        QCOMPARE(f.session.document().samples()[0].rect.w, 80.0);                      // 下次搜尋用新的框
+        QVERIFY(!f.session.resizeBody(sample, Rect{0, 0, 5, 40}));  // 太小
+        QVERIFY(!f.session.resizeBody(99, Rect{0, 0, 80, 40}));
+        QVERIFY(f.session.undoInfo()->kind == CommandKind::ResizeType);
+        QVERIFY(f.session.undo());
+        QCOMPARE(f.session.document().bodySizePx("t1")->w, 60.0);
+    }
+
+    // ---- 子框（ADR-025 §6）----
+    void drawingABoxOnAPartAddsAPinGroupInTypeCoordinates() {
+        Fixture f;
+        const int sample = f.addSample(Rect{80, 90, 40, 20});  // 中心 (100, 100)
+        f.session.select({sample});
+        // 樣本的角度是 0：類型座標 ＝ 影像座標減去元件中心（未校正：1 µm ＝ 1 像素）。
+        QVERIFY(f.session.addBoxGroup(sample, Rect{105, 95, 10, 6}));  // 中心 (110, 98)：相對 (10, −2)
+        const ComponentType* t = f.session.document().findType("t1");
+        QCOMPARE(t->groups.size(), std::size_t{2});
+        QVERIFY(t->groups[1].kind == BoxGroupKind::Pin);
+        QCOMPARE(t->groups[1].matrix.rows, 1);
+        QCOMPARE(t->groups[1].matrix.cols, 1);
+        QCOMPARE(t->groups[1].centerXUm, 10.0);
+        QCOMPARE(t->groups[1].centerYUm, -2.0);
+        QCOMPARE(t->groups[1].widthUm, 10.0);
+        QCOMPARE(t->groups[1].heightUm, 6.0);
+        QVERIFY(!f.session.addBoxGroup(sample, Rect{0, 0, 0, 6}));
+        QVERIFY(!f.session.addBoxGroup(99, Rect{0, 0, 5, 6}));
+        f.toPreview({0.95});
+        QVERIFY(!f.session.addBoxGroup(sample, Rect{105, 95, 10, 6}));  // 只在 Idle
+        // 預覽的物件也帶著類型：接受之後每個元件都有兩個框。
+        f.session.accept();
+        QCOMPARE(countBoxes(*f.session.document().findType("t1")), std::size_t{2});
+    }
+
+    // ---- 全選、選取同類型（ADR-025 §5）----
+    void selectAllAndSelectSameTypeWorkOnTheBoardAndOnTheProposal() {
+        Fixture f;
+        f.addSample();                                            // t1，編號 1
+        const int second = f.addSample(Rect{300, 300, 40, 20});  // t2，編號 2
+        f.toPreview({0.95, 0.75});
+        QCOMPARE(f.session.selectAll(), std::size_t{3});  // 預覽：提案的 3 個物件
+        f.session.select({2});
+        QCOMPARE(f.session.selectSameType(), std::size_t{3});  // 都是 t1
+        f.session.accept();                                    // 板上：1、2、3、4（3、4 是 t1）
+        QCOMPARE(f.session.selectAll(), std::size_t{4});
+        f.session.select({second});
+        QCOMPARE(f.session.selectSameType(), std::size_t{1});
+        f.session.select({3});
+        QCOMPARE(f.session.selectSameType(), std::size_t{3});
+        QCOMPARE(f.session.selection(), (std::vector<int>{1, 3, 4}));
+        f.session.select({});
+        QCOMPARE(f.session.selectSameType(), std::size_t{0});
+        f.search();
+        QCOMPARE(f.session.selectAll(), std::size_t{0});  // 搜尋中不選
+    }
+
     void theFullFlowWorksWithTheRealUseCaseAndTheFakeBackend() {
         TestImage image(400, 300);
         fake::FakeSpec spec;
@@ -626,17 +793,17 @@ private slots:
         const Result<SampleProposal> result =
             useCase.run(makeRequest(image, f.session.lastSearch()->region), CancelToken());
         QVERIFY(result.ok());
-        QVERIFY(f.session.searchSucceeded(std::make_shared<const SampleProposal>(result.value())));
+        QVERIFY(f.session.searchSucceeded(std::make_shared<const BoardProposal>(boardProposalFrom(result.value(), kTestTypeId))));
         QCOMPARE_STATE(f.session.state(), S::Preview);
         const ProposalObjects objects = f.session.proposal()->objects();
         QVERIFY(objects.found >= 2);
         const auto count = f.session.accept();
         QVERIFY(count.has_value());
-        QVERIFY(*count >= 3);
-        QCOMPARE(f.session.document().components().size(), *count);
+        QVERIFY(*count >= 2);
+        QCOMPARE(f.session.document().components().size(), *count + 1);  // 加上樣本
         QVERIFY(f.session.undo());
         QCOMPARE_STATE(f.session.state(), S::Preview);
-        QVERIFY(f.session.document().components().empty());
+        QCOMPARE(f.session.document().components().size(), std::size_t{1});  // 只剩樣本
     }
 };
 

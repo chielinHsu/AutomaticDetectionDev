@@ -27,6 +27,10 @@ struct ToolEvent {
     QRectF imageBounds;        // 影像矩形；沒有影像時是空的
     int hitComponent = -1;     // 只有 Press 與 DoubleClick 會算（點擊判定要走過所有元件）
     std::vector<int> selected; // 目前選取的元件編號
+    // 只有 Press 會算：按在「單一選取的元件」的把手上時是哪一個把手（RoiGraphicsItem::Handle 的值，0 ＝ 沒有），
+    // 以及那個元件的外框（改大小的起點）。ADR-025。
+    int hitHandle = 0;
+    QRectF hitHandleRect;
 
     bool insideImage() const { return imageBounds.contains(scenePos); }
 };
@@ -41,6 +45,8 @@ public:
     virtual void showRegionDraft(std::optional<QRectF> rect, DraftMode mode) = 0;
     // 這些元件的外框聯集（影像像素）；找不到任何一個時回傳空的矩形。拖曳移動時用它畫「放開後會落在哪裡」的外框。
     virtual QRectF outlineOf(const std::vector<int>& componentIds) = 0;
+    // 外框和 rect（影像像素）相交的元件編號（框選用；ADR-025）。
+    virtual std::vector<int> componentsIn(const QRectF& rect) = 0;
 };
 
 // 一個工具一個類別（SOLID 的 S）；新增工具＝新增類別＋在 ToolRegistry 註冊，不改畫布（O）。

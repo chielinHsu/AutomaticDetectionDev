@@ -378,15 +378,13 @@ private slots:
                 maxGap = std::max(maxGap, std::chrono::duration<double, std::milli>(now - last).count());
                 last = now;
             });
-            r.window.toolAction(ToolId::Sample)->trigger();
-            press(r.vp(), r.at(sample.left(), sample.top()));
-            move(r.vp(), r.at(sample.right(), sample.bottom()));
+            QVERIFY(r.drawSample(sample));  // ADR-025：放開只建立樣本；搜尋按 F5
             QEventLoop loop;
             QObject::connect(&r.presenter(), &AutoRoiPresenter::searchApplied, &loop, [&] { QTimer::singleShot(120, &loop, &QEventLoop::quit); });
             QTimer::singleShot(20000, &loop, &QEventLoop::quit);
             heartbeat.start();
             last = std::chrono::steady_clock::now();
-            release(r.vp(), r.at(sample.right(), sample.bottom()));
+            r.window.searchAction()->trigger();  // F5：同步執行 search → startSearch → 發布 Searching 的畫面
             loop.exec();
             heartbeat.stop();
             QVERIFY(r.state() == InteractionState::Preview);
@@ -420,6 +418,7 @@ private slots:
         Rig r(bigWorld(), false);
         r.window.resize(1280, 800);
         r.open(kBoardW, kBoardH);
+        QVERIFY(r.drawSample(kSample5000));  // ADR-025：樣本建一次，每回合按 F5 搜尋
         std::vector<double> perSearchMax, handlerMs;
         double overallMax = 0;
         const int searches = 20;
@@ -430,11 +429,6 @@ private slots:
             QCoreApplication::processEvents();
             paintPending(r);
 
-            r.window.toolAction(ToolId::Sample)->trigger();
-            const QRectF s = kSample5000;
-            press(r.vp(), r.at(s.left(), s.top()));
-            move(r.vp(), r.at(s.center().x(), s.center().y()));
-            move(r.vp(), r.at(s.right(), s.bottom()));
 
             // 心跳：1 ms 計時器。兩次心跳之間的最大間隔 ＝ 事件迴圈被擋住的最長時間。
             QTimer heartbeat;
@@ -463,7 +457,7 @@ private slots:
 
             QElapsedTimer release_;
             release_.start();
-            release(r.vp(), r.at(s.right(), s.bottom()));  // 放開滑鼠：同步執行 onRegionDrawn → startSearch → 發布 Searching 的畫面
+            r.window.searchAction()->trigger();  // F5：同步執行 search → startSearch → 發布 Searching 的畫面
             const double handler = msSince(release_);
             loop.exec();
             heartbeat.stop();
@@ -496,7 +490,8 @@ private slots:
             r.open(kBoardW, kBoardH);
             std::vector<double> samples;
             for (int i = 0; i < kWarmup + kRuns; ++i) {
-                r.drag(ToolId::Sample, kSample5000);
+                if (i == 0) QVERIFY(r.drawSample(kSample5000));  // ADR-025：樣本建一次，每回合按 F5
+                r.window.searchAction()->trigger();
                 QVERIFY(QTest::qWaitFor([&] { return r.presenter().busyLevel() == BusyLevel::Progress; }, 5000));
                 QPushButton* cancel = r.window.messageBar()->findChild<QPushButton*>(QStringLiteral("messageCancel"));
                 QVERIFY(cancel != nullptr);

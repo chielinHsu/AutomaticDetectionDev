@@ -117,7 +117,7 @@ private slots:
     // ---- 補一個 ----
     void addManualCreatesAFoundObjectWithoutAScore() {
         ProposalSession s = make({0.95});
-        const int id = s.addManual({300, 120, 0});
+        const int id = s.addManual({300, 120, 0}, kTestTypeId, {40, 20});
         QCOMPARE(id, 3);  // 候選是 1..2，手動補的接在後面
         const ProposalObjects o = s.objects();
         const InspectionObject* m = byId(o, id);
@@ -133,8 +133,8 @@ private slots:
 
     void manualIdsDoNotCollideAndSurviveThresholdChanges() {
         ProposalSession s = make({0.95, 0.75});
-        const int a = s.addManual({300, 120, 0});
-        const int b = s.addManual({360, 120, 0});
+        const int a = s.addManual({300, 120, 0}, kTestTypeId, {40, 20});
+        const int b = s.addManual({360, 120, 0}, kTestTypeId, {40, 20});
         QVERIFY(a != b);
         s.setThreshold(0.99);
         QVERIFY(byId(s.objects(), a) != nullptr);  // 手動補的不受門檻影響
@@ -143,18 +143,18 @@ private slots:
 
     void undoOfAddManualRemovesItAndRedoRestoresTheSameId() {
         ProposalSession s = make({0.95});
-        const int id = s.addManual({300, 120, 0});
+        const int id = s.addManual({300, 120, 0}, kTestTypeId, {40, 20});
         QVERIFY(s.undo());
         QVERIFY(byId(s.objects(), id) == nullptr);
         QVERIFY(s.redo());
         QVERIFY(byId(s.objects(), id) != nullptr);
-        const int again = s.addManual({10, 10, 0});
+        const int again = s.addManual({10, 10, 0}, kTestTypeId, {40, 20});
         QVERIFY(again != id);  // 重做之後再補，編號不重複
     }
 
     void deletingAManualObjectLeavesNoTrace() {
         ProposalSession s = make({0.95});
-        const int id = s.addManual({300, 120, 0});
+        const int id = s.addManual({300, 120, 0}, kTestTypeId, {40, 20});
         QCOMPARE(s.deleteObjects({id}), std::size_t{1});
         QVERIFY(byId(s.objects(), id) == nullptr);
         QVERIFY(s.undo());
@@ -178,7 +178,7 @@ private slots:
 
     void movingAManualObjectMovesItsPose() {
         ProposalSession s = make({0.95});
-        const int id = s.addManual({300, 120, 0});
+        const int id = s.addManual({300, 120, 0}, kTestTypeId, {40, 20});
         s.moveObjects({id}, {10, 5});
         QCOMPARE(byId(s.objects(), id)->rect.pose.x, 310.0);
         QCOMPARE(byId(s.objects(), id)->rect.pose.y, 125.0);
@@ -234,14 +234,14 @@ private slots:
         s.deleteObjects({2});
         s.undo();
         QVERIFY(s.canRedo());
-        s.addManual({10, 10, 0});
+        s.addManual({10, 10, 0}, kTestTypeId, {40, 20});
         QVERIFY(!s.canRedo());
     }
 
     void dropRedoClearsOnlyTheRedoPart() {
         ProposalSession s = make({0.95, 0.75});
         s.deleteObjects({2});
-        s.addManual({10, 10, 0});
+        s.addManual({10, 10, 0}, kTestTypeId, {40, 20});
         s.undo();
         s.dropRedo();
         QVERIFY(!s.canRedo());
@@ -252,7 +252,7 @@ private slots:
         ProposalSession s = make({0.95, 0.75});
         s.deleteObjects({2});
         ProposalSession copy = s;  // 接受／捨棄會帶走一份
-        s.addManual({10, 10, 0});
+        s.addManual({10, 10, 0}, kTestTypeId, {40, 20});
         s.undo();
         s.undo();
         QCOMPARE(s.objects().objects.size(), std::size_t{3});  // 原本的回到最初
@@ -269,9 +269,7 @@ private slots:
     }
 
     void aProposalWithASampleProblemHasNoObjectsAndExplainsWhy() {
-        auto p = std::make_shared<SampleProposal>();
-        p->sampleProblem = NoMatchInfo{NoMatchReason::SampleTooSmall, 0.0, 0.0, 0};
-        ProposalSession s(p, Rect{0, 0, 5, 5}, RegionMode::Sample, 0.7);
+        ProposalSession s(makeProblemProposal(NoMatchReason::SampleTooSmall), Rect{0, 0, 5, 5}, RegionMode::Sample, 0.7);
         const ProposalObjects o = s.objects();
         QVERIFY(o.objects.empty());
         QVERIFY(o.noMatch.has_value());

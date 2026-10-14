@@ -34,13 +34,14 @@ struct Candidate {
     bool hasScore() const noexcept { return source != CandidateSource::Predicted; }
 };
 
-// 套過門檻的結果：一個檢測框與它的狀態。流程 A 接受後，每個框就是一個元件的主體框。
+// 套過門檻的結果：一個候選元件與它的狀態。rect 是主體框；接受後成為那個類型的一個元件（框由類型展開）。
 struct InspectionObject {
     int id = 0;  // 從 1 起，依候選順序；每次 classify 重新編號
     RectObj rect;
     ObjectState state = ObjectState::Found;
     std::optional<double> score;  // 手動補的、Predicted 的沒有
     ObjectOrigin origin = ObjectOrigin::Auto;
+    std::string typeId;  // 板子上的類型（2026-10-14 起每個樣本一個類型）；空字串 ＝ 還沒有類型（只有測試會這樣）
 };
 
 // 流程 B：一個辨識出的元件，附每個候選類型的分數（由高到低）。

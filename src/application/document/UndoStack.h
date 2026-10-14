@@ -22,11 +22,14 @@ namespace aoi {
 
 // Command 的種類：presentation 用它與 count 組出「復原：刪除 12 個元件」之類的文字（文字不在 application 層）。
 enum class CommandKind {
-    Accept,            // 接受提案
+    Accept,            // 接受提案（2026-10-14 起：上一次自動產生的元件整批換成這一次的，ADR-025）
     Discard,           // 捨棄提案
     DeleteComponents,  // 刪除元件（板上或提案內）
     AddComponent,      // 補一個元件
     MoveComponents,    // 移動元件
+    AddSample,         // 建立一個樣本（一個新類型與它的樣本元件；S 工具放開時）
+    ResizeType,        // 改類型的主體框大小（同類型全部元件一起變）
+    AddBoxGroup,       // 在類型上加一個框群組（子框；同類型全部元件一起多出這些框）
 };
 
 template <class Target>

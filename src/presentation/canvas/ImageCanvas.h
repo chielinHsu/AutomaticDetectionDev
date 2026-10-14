@@ -57,6 +57,7 @@ public:
     ICanvasController* canvasController() override { return controller_; }
     ISelectionController* selectionController() override { return selectionController_; }
     QRectF outlineOf(const std::vector<int>& componentIds) override { return layerItem_->outlineOf(componentIds); }
+    std::vector<int> componentsIn(const QRectF& rect) override { return layerItem_->componentsIn(rect); }
 
     // 兩個 controller 都不歸畫布所有。
     void setController(ICanvasController* controller) { controller_ = controller; }
@@ -90,6 +91,8 @@ public:
     ImageItem* imageItem() { return imageItem_; }
     RoiLayerItem* layerItem() { return layerItem_; }
     RoiGraphicsItem* draftItem() { return draftItem_; }
+    // 單一選取元件的把手（ADR-025）：只有一個元件被選取、而且工具沒有暫停時才看得到。
+    RoiGraphicsItem* handleItem() { return handleItem_; }
     QGraphicsScene* canvasScene() { return scene_; }
     int paintCount() const { return paintCount_; }
     double lastPaintMs() const { return lastPaintMs_; }
@@ -130,6 +133,7 @@ private:
     void applyScale(double newScale, const QPointF& anchorViewPos);
     void applyFitWidth();  // 用 fitWidthRow_ 當垂直的錨點
     void notifyScale();
+    void updateHandles();  // 依選取與工具的狀態顯示或隱藏把手
 
     const ThemeTokens& tokens_;
     OverlayStyle style_;
@@ -137,6 +141,7 @@ private:
     ImageItem* imageItem_;
     RoiLayerItem* layerItem_;
     RoiGraphicsItem* draftItem_;
+    RoiGraphicsItem* handleItem_;
 
     ToolRegistry tools_;
     ToolId activeTool_ = ToolId::Select;

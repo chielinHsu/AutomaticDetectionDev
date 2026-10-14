@@ -38,12 +38,16 @@ const std::vector<Row>& table() {
         {"Empty ImageFailed", S::Empty, E::ImageFailed, S::Error},
         // Idle
         {"Idle PressRegion", S::Idle, E::PressRegion, S::DrawingRegion},
+        {"Idle SearchRequested", S::Idle, E::SearchRequested, S::Searching},
         {"Idle EditType", S::Idle, E::EditType, S::EditingType},
         {"Idle UndoToPreview", S::Idle, E::UndoToPreview, S::Preview},
         {"Idle ImageOpened", S::Idle, E::ImageOpened, S::Idle},
         {"Idle ImageFailed", S::Idle, E::ImageFailed, S::Error},
         // DrawingRegion
         {"DrawingRegion Release", S::DrawingRegion, E::Release, S::Searching},
+        {"DrawingRegion ReleaseSample (from Idle)", S::DrawingRegion, E::ReleaseSample, S::Idle, true, false, S::Idle},
+        {"DrawingRegion ReleaseSample (from Preview)", S::DrawingRegion, E::ReleaseSample, S::Idle, true, false, S::Preview},
+        {"DrawingRegion ReleaseSample (from NoMatch)", S::DrawingRegion, E::ReleaseSample, S::Idle, true, false, S::NoMatch},
         {"DrawingRegion ReleaseTooSmall (from Idle)", S::DrawingRegion, E::ReleaseTooSmall, S::Idle, true, false, S::Idle},
         {"DrawingRegion ReleaseTooSmall (from Preview)", S::DrawingRegion, E::ReleaseTooSmall, S::Preview, true, false, S::Preview},
         {"DrawingRegion ReleaseTooSmall (from NoMatch)", S::DrawingRegion, E::ReleaseTooSmall, S::NoMatch, true, false, S::NoMatch},
@@ -56,9 +60,11 @@ const std::vector<Row>& table() {
         {"Searching Failure", S::Searching, E::Failure, S::Error},
         {"Searching Cancel", S::Searching, E::Cancel, S::Idle},
         {"Searching ParamsChanged", S::Searching, E::ParamsChanged, S::Searching},
+        {"Searching SearchRequested", S::Searching, E::SearchRequested, S::Searching},
         {"Searching ImageOpened", S::Searching, E::ImageOpened, S::Idle},
         // Preview
         {"Preview ThresholdChanged", S::Preview, E::ThresholdChanged, S::Preview},
+        {"Preview SearchRequested", S::Preview, E::SearchRequested, S::Searching},
         {"Preview ParamsChanged", S::Preview, E::ParamsChanged, S::Searching},
         {"Preview Accept", S::Preview, E::Accept, S::Idle},
         {"Preview Discard", S::Preview, E::Discard, S::Idle},
@@ -68,6 +74,7 @@ const std::vector<Row>& table() {
         // NoMatch
         {"NoMatch ThresholdChanged (found one)", S::NoMatch, E::ThresholdChanged, S::Preview, true, true},
         {"NoMatch ThresholdChanged (found none)", S::NoMatch, E::ThresholdChanged, S::NoMatch, true, false},
+        {"NoMatch SearchRequested", S::NoMatch, E::SearchRequested, S::Searching},
         {"NoMatch ParamsChanged", S::NoMatch, E::ParamsChanged, S::Searching},
         {"NoMatch Dismiss", S::NoMatch, E::Dismiss, S::Idle},
         {"NoMatch PressRegion", S::NoMatch, E::PressRegion, S::DrawingRegion},
@@ -121,9 +128,10 @@ private slots:
     }
 
     void theTableHasEveryRowOfTheSpec() {
-        // 計數：ux-spec §6 的 8 個狀態共 2+5+3+6+7+6+3+2 ＝ 34 個事件格；DrawingRegion 的兩格各依來源展開成 3 列，
+        // 計數：ux-spec §6 的 8 個狀態共 2+6+4+7+8+7+3+2 ＝ 39 個事件格（2026-10-14 加了 Idle／Preview／NoMatch 的
+        // SearchRequested 與 DrawingRegion 的 ReleaseSample，ADR-025）；DrawingRegion 的三格各依來源展開成 3 列，
         // NoMatch 的 ThresholdChanged 與 Error 的 Dismiss 各依條件展開成 2 列。
-        QCOMPARE(static_cast<int>(table().size()), 40);
+        QCOMPARE(static_cast<int>(table().size()), 47);
     }
 
     void everyTransitionInTheSpec_data() {
@@ -172,8 +180,8 @@ private slots:
                 }
             }
         }
-        // 8 × 19 ＝ 152 組 (狀態, 事件)，其中 34 組在表裡；其餘 118 組各 4 種條件。
-        QCOMPARE(checked, 118 * 4);
+        // 8 × 21 ＝ 168 組 (狀態, 事件)，其中 39 組在表裡；其餘 129 組各 4 種條件。
+        QCOMPARE(checked, 129 * 4);
     }
 
     void aRefusedEventKeepsTheDrawingOrigin() {

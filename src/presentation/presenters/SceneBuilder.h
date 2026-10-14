@@ -27,6 +27,9 @@ struct SceneCounts {
     std::size_t rejected = 0;
     std::size_t lowConfidence = 0;  // 推算的，加上分數離門檻不到 0.10 的找到的（S01 原型的 LOWCONF）
     bool fromProposal = false;
+    std::size_t merged = 0;    // 提案：合併時被壓掉的候選（同一個位置被不只一個樣本找到；ADR-025）
+    std::size_t excluded = 0;  // 提案：被手動補的元件佔住、剔除的候選
+    std::size_t replaced = 0;  // 提案：接受時會被換掉的元件數（板子上上一次自動產生的，ADR-025）
 };
 
 struct Scene {

@@ -47,7 +47,7 @@ void RoiGraphicsItem::setComponent(const ComponentView& component) {
 }
 
 void RoiGraphicsItem::setDraft(const QRectF& rect, DraftMode mode) {
-    look_ = mode == DraftMode::Sample ? Look::SampleDraft : Look::RegionDraft;
+    look_ = mode == DraftMode::Sample ? Look::SampleDraft : Look::RegionDraft;  // 子框（Box）的畫法和區域相同
     state_ = OverlayState::Sample;
     label_.clear();
     boxes_.clear();

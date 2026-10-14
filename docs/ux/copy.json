@@ -112,12 +112,12 @@
       "en": "You can also drop an image file on this window."
     },
     "ui.idle.hint": {
-      "zh_TW": "S 教一個新樣本 · R 框選區域，用樣本庫找出元件",
-      "en": "S teaches a new sample · R scans a region with the library"
+      "zh_TW": "S 在一個元件上框一個樣本 · 再按 F5 搜尋 · R 框選區域，用樣本庫找出元件",
+      "en": "S draws a sample on one part · then F5 searches · R scans a region with the library"
     },
     "ui.sample.hint": {
-      "zh_TW": "放開滑鼠開始搜尋 · Esc 取消",
-      "en": "Release to start the search · Esc to cancel"
+      "zh_TW": "放開滑鼠建立樣本（不搜尋） · Esc 取消",
+      "en": "Release to create the sample (no search yet) · Esc to cancel"
     },
     "ui.sample.tooSmall": {
       "zh_TW": "樣本太小（至少 {min} px）",
@@ -154,6 +154,74 @@
     "ui.preview.discarded": {
       "zh_TW": "已捨棄提案 · Ctrl+Z 復原",
       "en": "Proposal discarded · Ctrl+Z to undo"
+    },
+    "ui.preview.merged": {
+      "zh_TW": "{count} 個位置被不只一個樣本找到，只留分數最高的。",
+      "en": "{count} positions were found by more than one sample. Only the best score stays."
+    },
+    "ui.preview.excluded": {
+      "zh_TW": "{count} 個位置已有手動補的元件，不列入。",
+      "en": "{count} positions already hold a manual part. They are left out."
+    },
+    "ui.preview.replaces": {
+      "zh_TW": "接受時，上一次自動產生的 {count} 個元件會換成這一次的結果。",
+      "en": "Accept replaces the {count} parts from the last search with this result."
+    },
+    "ui.sample.added": {
+      "zh_TW": "已建立樣本 {name} · 板上有 {count} 個樣本 · F5 搜尋",
+      "en": "Sample {name} created · {count} samples on the board · F5 to search"
+    },
+    "ui.sample.hintIdle": {
+      "zh_TW": "F5 搜尋（{count} 個樣本） · S 再建立一個樣本 · B 在所選元件上畫框 · 拖把手改大小",
+      "en": "F5 to search ({count} samples) · S to add a sample · B to draw a box on the selected part · drag a handle to resize"
+    },
+    "ui.search.noSamples": {
+      "zh_TW": "還沒有樣本：先用 S 在一個元件上框一個樣本。",
+      "en": "There is no sample yet. Draw one on a part with S first."
+    },
+    "ui.box.hint": {
+      "zh_TW": "在所選的元件上框一個子框 · 放開後同類型的元件都會多出這個框 · Esc 取消",
+      "en": "Draw a box on the selected part · every part of that type gets it · Esc to cancel"
+    },
+    "ui.box.needOne": {
+      "zh_TW": "先選取一個元件，再在它上面畫子框。",
+      "en": "Select one part first, then draw the box on it."
+    },
+    "ui.box.added": {
+      "zh_TW": "已加上子框：同類型的 {count} 個元件一起更新 · Ctrl+Z 復原",
+      "en": "Box added: {count} parts of this type updated · Ctrl+Z to undo"
+    },
+    "ui.resize.applied": {
+      "zh_TW": "已改大小：同類型的 {count} 個元件一起更新 · Ctrl+Z 復原",
+      "en": "Resized: {count} parts of this type updated · Ctrl+Z to undo"
+    },
+    "ui.history.addSample": {
+      "zh_TW": "建立樣本",
+      "en": "Create a sample"
+    },
+    "ui.history.resizeType": {
+      "zh_TW": "改 {count} 個元件的框大小",
+      "en": "Resize the boxes of {count} parts"
+    },
+    "ui.history.addBoxGroup": {
+      "zh_TW": "在 {count} 個元件上加子框",
+      "en": "Add a box to {count} parts"
+    },
+    "action.search": {
+      "zh_TW": "搜尋",
+      "en": "Search"
+    },
+    "action.selectAll": {
+      "zh_TW": "全選",
+      "en": "Select all"
+    },
+    "action.selectSameType": {
+      "zh_TW": "選取同類型",
+      "en": "Select same type"
+    },
+    "tool.box": {
+      "zh_TW": "畫子框：在所選的元件上框一個框，同類型一起更新",
+      "en": "Draw box: add a box to the selected part and every part of its type"
     },
     "ui.noMatch.title": {
       "zh_TW": "沒有找到相似的元件",

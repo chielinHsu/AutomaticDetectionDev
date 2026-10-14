@@ -15,9 +15,11 @@
 namespace aoi::ui {
 
 // 提案的生命週期。接受並存入樣本庫（acceptAndSave）與改選樣本（chooseAlternative）要等樣本庫（S06、S07）。
+// search（ADR-025）：〔搜尋〕按鈕與 F5——用板子上全部樣本搜尋；沒有樣本時 Presenter 用吐司說明。
 class IProposalController {
 public:
     virtual ~IProposalController() = default;
+    virtual void search() = 0;
     virtual void accept() = 0;
     virtual void discard() = 0;
     virtual void cancelSearch() = 0;

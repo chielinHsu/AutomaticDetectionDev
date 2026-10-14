@@ -76,6 +76,9 @@ public:
     EmptyCard* emptyCard() const { return emptyCard_; }
     CompareWindow* compareWindow() const { return compareWindow_; }
     QAction* toolAction(ToolId id) const;
+    QAction* searchAction() const { return searchAction_; }  // 〔搜尋〕（F5；ADR-025）
+    QAction* selectAllAction() const { return selectAllAction_; }
+    QAction* selectSameTypeAction() const { return selectSameTypeAction_; }
     QAction* fitAction() const { return fitAction_; }
     QAction* fitWidthAction() const { return fitWidthAction_; }
     QAction* openAction() const { return openAction_; }
@@ -171,6 +174,10 @@ private:
     QAction* toolSample_ = nullptr;
     QAction* toolRegion_ = nullptr;
     QAction* toolAdd_ = nullptr;
+    QAction* toolBox_ = nullptr;
+    QAction* searchAction_ = nullptr;
+    QAction* selectAllAction_ = nullptr;
+    QAction* selectSameTypeAction_ = nullptr;
     QAction* openAction_ = nullptr;
     QAction* saveAction_ = nullptr;
     QAction* exportAction_ = nullptr;

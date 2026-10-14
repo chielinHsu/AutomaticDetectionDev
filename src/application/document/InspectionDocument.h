@@ -37,12 +37,20 @@ struct UndoOutcome {
     bool consumedProposal = false;                    // 重做了接受／捨棄
 };
 
+// 板子上的一個樣本：它的類型與樣本框（影像像素；由樣本元件的位姿與類型的主體框算出）。
+struct SampleOnBoard {
+    std::string typeId;
+    int componentId = 0;
+    Rect rect;
+};
+
 // 已接受的文件：一塊板子的元件，以及對它的全部修改（ADR-002 的「文件堆疊」）。
 //
 //  - 所有修改都是一個 Command（一個使用者意圖一個），執行時發出**一次**變更通知（規則 11，I6 的前提）。
 //  - 板子的資料模型是 domain 的 Board（Board › Component › Box）：元件依編號由小到大排列，編號只增不減，
 //    所以刪除再復原會回到同一個位置，名稱與編號都不會變。
-//  - 接受提案時，板子得到一個新的「暫時類型」（流程 A：只有主體框），元件指向它。
+//  - 2026-10-14 起（ADR-025）：**建立樣本**是一個 Command（一個新類型＋一個樣本元件；S 工具放開時）；**接受**提案時，
+//    上一次自動產生的元件整批換成這一次的（樣本與手動補的留著），元件指向各自的類型，不再建新類型。
 //  - 不執行緒安全：只在 UI 執行緒使用（工作執行緒只傳不可變的快照）。
 class InspectionDocument {
 public:
@@ -67,11 +75,21 @@ public:
     const std::vector<ComponentInstance>& components() const { return board_.components; }
     const ComponentInstance* find(int componentId) const;
     const ComponentType* findType(const std::string& typeId) const;
-    // 最近一次接受（或補一個）用的類型；A 工具補元件的預設類型。空字串 ＝ 板子上還沒有類型。
+    // 最近一次建立樣本、接受（或補一個）用的類型；A 工具補元件的預設類型。空字串 ＝ 板子上還沒有類型。
     std::string lastTypeId() const { return lastTypeId_; }
+    // 板子上的樣本（狀態是 Sample 的元件，依編號）：搜尋時每個樣本搜一次。樣本被移動過，框跟著位姿走。
+    std::vector<SampleOnBoard> samples() const;
+    // 這個類型的所有元件編號（依編號）；〔選取同類型〕用。
+    std::vector<int> componentsOfType(const std::string& typeId) const;
+    // 類型的主體框大小（影像像素）；沒有這個類型或沒有主體框時 nullopt。
+    std::optional<Size2D> bodySizePx(const std::string& typeId) const;
 
     // ---- 修改（各是一個 Command）----
-    // 接受提案：Sample、Found、Inferred 變成元件，Rejected 不要；指派名稱。回傳元件數。沒有任何元件可接受時回 0（不進堆疊）。
+    // 建立樣本（ADR-025）：一個新類型（只有主體框，大小＝樣本框，µm）＋一個樣本元件（中心在框的中心、角度 0、狀態 Sample、
+    // 來源 Manual、沒有分數）。回傳樣本元件的編號；框不合法（寬或高 ≤ 0）回 0。
+    int addSample(const Rect& samplePx);
+    // 接受提案：Found、Inferred 變成元件（指向各自的類型；Sample 已經在板子上，不再加；Rejected 不要），**上一次自動產生的元件
+    //（來源 Auto）整批移除**，樣本與手動補的留著；指派名稱。回傳新元件數。沒有任何元件可接受時回 0（不進堆疊，什麼都不動）。
     std::size_t accept(const ProposalSession& session);
     // 捨棄提案：板子不變，但這一步帶著提案，復原時還給預覽。
     void discard(const ProposalSession& session);
@@ -80,6 +98,13 @@ public:
     int addManualComponent(const Pose2D& pose, const std::string& typeId);
     // 移動；allowMerge ＝ true 且上一步是對同一組元件的移動時併成一步。
     std::size_t moveComponents(const std::vector<int>& ids, Point2D delta, bool allowMerge = false);
+    // 改主體框的大小（ADR-025；ADR-006 §3 的「此類型全部一起」）：類型的主體框改成 size（影像像素→µm），同類型全部元件一起變；
+    // 拖的是 anchorId 那個元件時，它的位姿改成 anchorPose（拖單邊時中心會移），其他元件的位姿不動。
+    // 類型或元件不存在、大小不合法時回 false。
+    bool setBodySize(const std::string& typeId, Size2D sizePx, int anchorId, const Pose2D& anchorPose);
+    // 在類型上加一個框群組（子框，B 工具）：group 的座標是類型座標（µm，相對主體中心）；id 由文件指派。同類型全部元件一起多出這些框。
+    // 類型不存在時回 false。
+    bool addBoxGroup(const std::string& typeId, BoxGroup group);
 
     // ---- 歷史 ----
     UndoOutcome undo();

@@ -55,6 +55,11 @@
     </property>
     <addaction name="actionUndo"/>
     <addaction name="actionRedo"/>
+    <addaction name="separator"/>
+    <addaction name="actionSearch"/>
+    <addaction name="separator"/>
+    <addaction name="actionSelectAll"/>
+    <addaction name="actionSelectSameType"/>
    </widget>
    <widget class="QMenu" name="viewMenu">
     <property name="title">
@@ -114,6 +119,8 @@
    <addaction name="actionOpen"/>
    <addaction name="actionSave"/>
    <addaction name="separator"/>
+   <addaction name="actionSearch"/>
+   <addaction name="separator"/>
    <addaction name="actionUndo"/>
    <addaction name="actionRedo"/>
    <addaction name="actionFit"/>
@@ -140,6 +147,7 @@
    <addaction name="actionToolSample"/>
    <addaction name="actionToolRegion"/>
    <addaction name="actionToolAdd"/>
+   <addaction name="actionToolBox"/>
   </widget>
   <widget class="QStatusBar" name="statusBar">
    <property name="sizeGripEnabled">
@@ -310,6 +318,38 @@
    </property>
    <property name="text">
     <string notr="true">＋</string>
+   </property>
+  </action>
+  <action name="actionToolBox">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string notr="true">B</string>
+   </property>
+  </action>
+  <action name="actionSearch">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string notr="true">▶ 搜尋</string>
+   </property>
+  </action>
+  <action name="actionSelectAll">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string notr="true">全選</string>
+   </property>
+  </action>
+  <action name="actionSelectSameType">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string notr="true">選取同類型</string>
    </property>
   </action>
   <action name="actionThemeLight">

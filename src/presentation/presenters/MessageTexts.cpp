@@ -22,6 +22,10 @@ CardSpec previewCard(const SceneCounts& counts) {
     spec.card.body = uiText("ui.preview.hint");
     if (counts.lowConfidence > 0)
         spec.card.advice << uiText("ui.preview.lowConfidence", {{"count", QString::number(counts.lowConfidence)}});
+    // 幾個樣本合併的結果（ADR-025）：同一個位置被不只一個樣本找到的留分數高的；手動補的元件佔住的位置剔除。
+    if (counts.merged > 0) spec.card.advice << uiText("ui.preview.merged", {{"count", QString::number(counts.merged)}});
+    if (counts.excluded > 0) spec.card.advice << uiText("ui.preview.excluded", {{"count", QString::number(counts.excluded)}});
+    if (counts.replaced > 0) spec.card.advice << uiText("ui.preview.replaces", {{"count", QString::number(counts.replaced)}});
     spec.card.actions << withKey("action.accept", "Enter") << withKey("action.discard", "Esc");
     spec.actions = {CardAction::Accept, CardAction::Discard};
     return spec;
@@ -137,6 +141,9 @@ QString historyLabel(CommandKind kind, std::size_t count) {
         case CommandKind::DeleteComponents: return uiText("ui.history.delete", {{"count", n}});
         case CommandKind::AddComponent: return uiText("ui.history.add");
         case CommandKind::MoveComponents: return uiText("ui.history.move", {{"count", n}});
+        case CommandKind::AddSample: return uiText("ui.history.addSample");
+        case CommandKind::ResizeType: return uiText("ui.history.resizeType", {{"count", n}});
+        case CommandKind::AddBoxGroup: return uiText("ui.history.addBoxGroup", {{"count", n}});
     }
     return QString();
 }

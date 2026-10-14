@@ -179,7 +179,7 @@ private slots:
                 for (const QString& a : spec.card.actions) check(a);
             }
             for (CommandKind k : {CommandKind::Accept, CommandKind::Discard, CommandKind::DeleteComponents, CommandKind::AddComponent,
-                                  CommandKind::MoveComponents})
+                                  CommandKind::MoveComponents, CommandKind::AddSample, CommandKind::ResizeType, CommandKind::AddBoxGroup})
                 check(historyLabel(k, 3));
         }
     }
@@ -194,7 +194,12 @@ private slots:
                                 // session B（2026-10-08／09）：back end 的提醒、切換、錯誤卡片的〔改用 …〕、狀態列的摘要
                                 "ui.backend.halcon.runtimeLicense", "ui.backend.notice.title", "ui.backend.status.tip",
                                 "ui.backend.switching", "ui.backend.reverted", "ui.backend.switchTo", "ui.status.counts",
-                                "ui.status.noObjects"}) {
+                                "ui.status.noObjects",
+                                // 2026-10-14（ADR-025）：樣本的建立與搜尋分開、改大小、子框、框選
+                                "ui.preview.merged", "ui.preview.excluded", "ui.sample.added", "ui.sample.hintIdle", "ui.search.noSamples",
+                                "ui.box.hint", "ui.box.needOne", "ui.box.added", "ui.resize.applied", "ui.history.addSample",
+                                "ui.history.resizeType", "ui.history.addBoxGroup", "action.search", "action.selectAll",
+                                "action.selectSameType", "tool.box"}) {
             const QJsonObject entry = keys.value(QLatin1String(key)).toObject();
             QVERIFY2(!entry.value("zh_TW").toString().isEmpty() && !entry.value("en").toString().isEmpty(), key);
         }

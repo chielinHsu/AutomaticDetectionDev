@@ -22,12 +22,17 @@ ImageCanvas::ImageCanvas(const ThemeTokens& tokens, QWidget* parent)
     imageItem_ = new ImageItem;
     layerItem_ = new RoiLayerItem(style_);
     draftItem_ = new RoiGraphicsItem(style_);
+    handleItem_ = new RoiGraphicsItem(style_);
     imageItem_->setZValue(0);
     layerItem_->setZValue(1);
-    draftItem_->setZValue(2);
+    handleItem_->setZValue(2);
+    draftItem_->setZValue(3);
     draftItem_->setVisible(false);
+    handleItem_->setHandlesVisible(true);
+    handleItem_->setVisible(false);
     scene_->addItem(imageItem_);
     scene_->addItem(layerItem_);
+    scene_->addItem(handleItem_);
     scene_->addItem(draftItem_);
     setScene(scene_);
 
@@ -65,11 +70,28 @@ void ImageCanvas::setImage(const QImage& image) {
     selected_.clear();
     layerItem_->setSelection({});
     draftItem_->setVisible(false);
+    handleItem_->setVisible(false);
     fit();
     emit imageChanged(!image.isNull());
 }
 
-void ImageCanvas::showComponents(SnapshotPtr snapshot) { layerItem_->setSnapshot(std::move(snapshot)); }
+void ImageCanvas::showComponents(SnapshotPtr snapshot) {
+    layerItem_->setSnapshot(std::move(snapshot));
+    updateHandles();  // 選取的元件可能換了大小或位置
+}
+
+// 把手只在「恰好一個元件被選取、工具沒有暫停」時出現；畫在它的外框上（RoiGraphicsItem 的定義框外觀）。
+void ImageCanvas::updateHandles() {
+    const bool show = selected_.size() == 1 && toolsEnabled_ && hasImage();
+    const QRectF outline = show ? layerItem_->outlineOf(selected_) : QRectF();
+    if (!show || outline.isNull()) {
+        handleItem_->setVisible(false);
+        return;
+    }
+    handleItem_->setViewScale(viewScale());
+    handleItem_->setDefinition(outline, BoxKind::Body);
+    handleItem_->setVisible(true);
+}
 
 void ImageCanvas::showRegionDraft(std::optional<QRectF> rect, DraftMode mode) {
     if (!rect) {
@@ -84,6 +106,7 @@ void ImageCanvas::showRegionDraft(std::optional<QRectF> rect, DraftMode mode) {
 void ImageCanvas::setSelection(const std::vector<int>& componentIds) {
     selected_ = componentIds;
     layerItem_->setSelection(componentIds);
+    updateHandles();
 }
 
 void ImageCanvas::setInteraction(ToolId tool) {
@@ -110,6 +133,7 @@ void ImageCanvas::setToolsEnabled(bool enabled) {
     } else if (ITool* tool = tools_.find(activeTool_)) {
         tool->activate(*this);
     }
+    updateHandles();
     updateCursor();
 }
 
@@ -193,6 +217,7 @@ void ImageCanvas::panBy(const QPoint& delta) {
 
 void ImageCanvas::notifyScale() {
     if (draftItem_->isVisible()) draftItem_->setViewScale(viewScale());
+    if (handleItem_->isVisible()) handleItem_->setViewScale(viewScale());
     emit zoomChanged(zoomPercent());
 }
 
@@ -217,6 +242,11 @@ ToolEvent ImageCanvas::makeToolEvent(ToolEvent::Type type, const QPointF& viewPo
     if (withHit) {
         e.hitComponent = layerItem_->componentAt(e.scenePos);
         e.selected = selected_;
+        // 把手先於元件：把手可能在小框的外面，也可能蓋在別的元件上（ADR-025）。
+        if (handleItem_->isVisible()) {
+            e.hitHandle = static_cast<int>(handleItem_->handleAt(e.scenePos, viewScale()));
+            e.hitHandleRect = handleItem_->rect();
+        }
     }
     return e;
 }

@@ -183,30 +183,59 @@ Scene buildScene(const InspectionSession& session, const SceneLabels& labels, Do
     snapshot->components.reserve(docSnapshot->components.size() + proposal->proposal().candidates.size());
 
     // ---- 目前的提案（尚未接受）----
+    // 每個物件帶著它的類型（ADR-025）：框從類型展開（和已接受的元件一樣，所以子框在預覽就看得到）；
+    // 類型不在板子上（只有測試會這樣）就只畫一個主體框。物件樹的類型列和文件的一樣，列指向各自的類型。
     const ProposalObjects objects = proposal->objects();
     auto propRows = std::make_shared<ObjectRows>();
     propRows->boardTitle = labels.board;
     propRows->proposal = true;
     propRows->rows.reserve(objects.objects.size());
+    propRows->types = docRows->types;
+    const int bodyOnlyType = static_cast<int>(propRows->types.size());
     propRows->types.push_back(ObjectTypeRow{QString(), {ObjectGroupRow{BoxGroupKind::Body, 1}}});
     SceneCounts counts;
     counts.fromProposal = true;
+    counts.merged = proposal->proposal().merged;
+    counts.excluded = proposal->proposal().excluded;
+    for (const ComponentInstance& c : board.components) {
+        if (c.origin == ObjectOrigin::Auto && c.state != ObjectState::Sample) ++counts.replaced;
+    }
     const double lowBelow = proposal->threshold() + kLowConfidenceMargin;
 
     for (const InspectionObject& o : objects.objects) {
         const OverlayState state = toOverlay(o.state);
         const int sceneId = kProposalIdBase + o.id;
-        const QRectF rect = toQRect(o.rect);
 
+        std::size_t typeIndex = board.types.size();
+        for (std::size_t i = 0; i < board.types.size(); ++i) {
+            if (board.types[i].id == o.typeId) {
+                typeIndex = i;
+                break;
+            }
+        }
         ComponentView view;
         view.id = sceneId;
         view.state = state;
-        view.outline = rect;
-        view.boxes.push_back({rect, BoxKind::Body});
+        if (typeIndex < board.types.size()) {
+            const std::vector<ExpandedBox> boxes = expandBoxes(board.types[typeIndex], o.rect.pose, board.umPerPixel);
+            view.boxes.reserve(boxes.size());
+            QRectF outline;
+            for (const ExpandedBox& b : boxes) {
+                const QRectF r = toQRect(b.rect);
+                view.boxes.push_back({r, toBoxKind(b.kind)});
+                outline = outline.isNull() ? r : outline.united(r);
+            }
+            view.outline = outline;
+        } else {
+            const QRectF rect = toQRect(o.rect);
+            view.outline = rect;
+            view.boxes.push_back({rect, BoxKind::Body});
+        }
         if (o.origin == ObjectOrigin::Manual) view.text = labels.manual;
         else if (o.state == ObjectState::Sample) view.text = labels.sample;
         else if (o.state == ObjectState::Inferred) view.text = labels.inferred;
         else if (o.score) view.score = *o.score;
+        counts.boxes += view.boxes.size();
         snapshot->components.push_back(std::move(view));
 
         ObjectRow row;
@@ -215,12 +244,11 @@ Scene buildScene(const InspectionSession& session, const SceneLabels& labels, Do
         row.state = state;
         row.score = o.score ? *o.score : -1.0;
         row.manual = o.origin == ObjectOrigin::Manual;
-        row.typeIndex = 0;
+        row.typeIndex = typeIndex < board.types.size() ? static_cast<int>(typeIndex) : bodyOnlyType;
         propRows->rows.push_back(std::move(row));
         ++propRows->stateCounts[static_cast<std::size_t>(stateIndex(state))];
 
         ++counts.components;
-        ++counts.boxes;
         addToCounts(counts, state);
         const bool lowFound = o.state == ObjectState::Found && o.origin == ObjectOrigin::Auto && o.score && *o.score < lowBelow;
         if (o.state == ObjectState::Inferred || lowFound) ++counts.lowConfidence;

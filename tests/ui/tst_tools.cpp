@@ -65,10 +65,10 @@ class TstTools : public QObject {
     Q_OBJECT
 private slots:
     // ---- 註冊表 ----
-    void registryHasTheFourDefaultTools() {
+    void registryHasTheFiveDefaultTools() {
         ToolRegistry r = ToolRegistry::makeDefault();
-        QCOMPARE(static_cast<int>(r.ids().size()), 4);
-        for (ToolId id : {ToolId::Select, ToolId::Sample, ToolId::Region, ToolId::Add}) {
+        QCOMPARE(static_cast<int>(r.ids().size()), 5);
+        for (ToolId id : {ToolId::Select, ToolId::Sample, ToolId::Region, ToolId::Add, ToolId::Box}) {
             QVERIFY(r.find(id));
             QCOMPARE(r.find(id)->id(), id);
         }
@@ -347,6 +347,80 @@ private slots:
         QVERIFY(!f.canvas.draftItem()->isVisible());
         QCOMPARE(static_cast<int>(f.rec.moves.size()), 1);
         QVERIFY(f.rec.moves[0].second.isNull());
+    }
+
+    // ---- ADR-025：把手改大小、框選、B 工具 ----
+    void draggingAHandleOfTheSingleSelectedComponentReportsTheNewRect() {
+        Fixture f;
+        QVERIFY(!f.canvas.handleItem()->isVisible());
+        f.canvas.setSelection({1});  // A：(100,100,200,100)，螢幕上 ≥ 72 px → 8 個把手在邊上
+        QVERIFY(f.canvas.handleItem()->isVisible());
+        QCOMPARE(f.canvas.handleItem()->rect(), QRectF(100, 100, 200, 100));
+        press(f.vp(), f.at(300, 200));  // 右下角的把手
+        QVERIFY(f.rec.selections.empty());  // 不是點擊元件：選取不變
+        move(f.vp(), f.at(320, 210));
+        QVERIFY(f.canvas.draftItem()->isVisible());  // 拖曳中畫新的框
+        QCOMPARE(f.canvas.draftItem()->look(), RoiGraphicsItem::Look::SampleDraft);
+        move(f.vp(), f.at(340, 220));
+        release(f.vp(), f.at(340, 220));
+        QCOMPARE(static_cast<int>(f.rec.resizes.size()), 1);
+        QCOMPARE(f.rec.resizes[0].first, 1);
+        QVERIFY2(near(f.rec.resizes[0].second, QRectF(100, 100, 240, 120)), qPrintable(QString::number(f.rec.resizes[0].second.width())));
+        QVERIFY(f.rec.moves.empty());
+        QVERIFY(!f.canvas.draftItem()->isVisible());
+
+        // 拖左邊的把手：只有左邊動；翻過去也不會是負的寬。
+        press(f.vp(), f.at(100, 150));
+        move(f.vp(), f.at(150, 150));
+        release(f.vp(), f.at(150, 150));
+        QCOMPARE(static_cast<int>(f.rec.resizes.size()), 2);
+        QVERIFY(near(f.rec.resizes[1].second, QRectF(150, 100, 150, 100)));
+
+        f.canvas.setSelection({1, 2});  // 多選：沒有把手
+        QVERIFY(!f.canvas.handleItem()->isVisible());
+        f.canvas.setSelection({});
+        QVERIFY(!f.canvas.handleItem()->isVisible());
+    }
+
+    void draggingOnEmptySpaceSelectsTheComponentsInTheBox() {
+        Fixture f;
+        press(f.vp(), f.at(400, 50));  // 空白處
+        move(f.vp(), f.at(550, 200));
+        QVERIFY(f.canvas.draftItem()->isVisible());  // 框選中的框
+        QCOMPARE(f.canvas.draftItem()->look(), RoiGraphicsItem::Look::RegionDraft);
+        move(f.vp(), f.at(700, 400));
+        release(f.vp(), f.at(700, 400));
+        QCOMPARE(f.rec.selections.back(), (std::vector<int>{2}));  // 只有 B 和框相交
+        QVERIFY(!f.canvas.draftItem()->isVisible());
+        QVERIFY(f.rec.moves.empty());
+
+        // Shift＋框選：加入既有的選取。
+        f.canvas.setSelection({1});
+        press(f.vp(), f.at(400, 50), Qt::LeftButton, Qt::ShiftModifier);
+        move(f.vp(), f.at(700, 400));
+        release(f.vp(), f.at(700, 400));
+        QCOMPARE(f.rec.selections.back(), (std::vector<int>{2, 1}));
+
+        // 框到什麼都沒有：選取清空。
+        press(f.vp(), f.at(700, 50));
+        move(f.vp(), f.at(900, 90));
+        release(f.vp(), f.at(900, 90));
+        QVERIFY(f.rec.selections.back().empty());
+        QVERIFY(f.canvas.componentsIn(QRectF(0, 0, 1200, 800)).size() == 2);
+    }
+
+    void theBoxToolReportsTheRectWithTheBoxMode() {
+        Fixture f;
+        f.canvas.setInteraction(ToolId::Box);
+        QCOMPARE(f.canvas.activeTool(), ToolId::Box);
+        press(f.vp(), f.at(120, 120));
+        move(f.vp(), f.at(160, 150));
+        QVERIFY(f.canvas.draftItem()->isVisible());
+        release(f.vp(), f.at(160, 150));
+        QCOMPARE(static_cast<int>(f.rec.regions.size()), 1);
+        QVERIFY(f.rec.regions[0].mode == DraftMode::Box);
+        QVERIFY(near(f.rec.regions[0].rect, QRectF(120, 120, 40, 30)));
+        QVERIFY(f.rec.selections.empty());  // 不是選取
     }
 
     void outlineOfUnitesTheOutlinesAndIgnoresUnknownIds() {

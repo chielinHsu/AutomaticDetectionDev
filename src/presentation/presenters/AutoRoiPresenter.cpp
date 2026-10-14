@@ -6,6 +6,8 @@
 #include <algorithm>
 #include <chrono>
 
+#include "application/usecases/SearchBoardWithSamples.h"
+#include "domain/box_expander.h"
 #include "presentation/i18n/Translations.h"
 
 namespace aoi::ui {
@@ -21,7 +23,7 @@ PresenterSettings PresenterSettings::fromTokens(const ThemeTokens& tokens) {
 
 // 搜尋中的工作送回來的結果。work 寫、UI 執行緒讀；done 之後才讀，所以不需要另外的鎖。
 struct AutoRoiPresenter::JobOutcome {
-    std::optional<Result<SampleProposal>> result;
+    std::optional<Result<BoardProposal>> result;
 };
 
 // use case 的進度 → UI 執行緒。report 在 worker 上被呼叫（IProgressSink 的契約：要很快、不丟例外），
@@ -143,6 +145,24 @@ void AutoRoiPresenter::onPointerDragChanged(bool active, ToolId tool) {
 // ---- ICanvasController ---------------------------------------------------------------------------------
 
 void AutoRoiPresenter::onRegionDrawn(const QRectF& rect, DraftMode mode) {
+    if (mode == DraftMode::Box) {
+        // B 工具（ADR-025）：在所選的那一個元件上加子框。不經過狀態機（Idle 的一個 Command）。
+        views_.canvas.showRegionDraft(std::nullopt, mode);
+        if (session_.selection().size() != 1 || state() != InteractionState::Idle) {
+            views_.status.showToast(uiText("ui.box.needOne"));
+            return;
+        }
+        const int id = session_.selection().front();
+        if (!session_.addBoxGroup(id, toRect(rect))) {
+            views_.status.showToast(uiText("ui.box.needOne"));
+            return;
+        }
+        const ComponentInstance* c = session_.document().find(id);
+        const std::size_t affected = c ? session_.document().componentsOfType(c->typeId).size() : 1;
+        publishAll();
+        views_.status.showToast(uiText("ui.box.added", {{"count", QString::number(affected)}}));
+        return;
+    }
     const RegionMode regionMode = toRegionMode(mode);
     // 工具只在放開時回報；按下時的 onPointerDragChanged 沒有送達（例如測試直接呼叫）也要能走完。
     if (session_.state() != InteractionState::DrawingRegion && !session_.beginRegion(regionMode)) {
@@ -157,11 +177,54 @@ void AutoRoiPresenter::onRegionDrawn(const QRectF& rect, DraftMode mode) {
             publishChrome();
             publishDraft();  // 回到進入前的狀態：Idle 時清掉框，Preview／NoMatch 時還原該提案的區域
             break;
+        case InspectionSession::Release::SampleAdded: {
+            // 樣本建立好了（ADR-025）：它是板子上的元件（畫在框層），拖曳中的框不必留著；搜尋另外按 F5。
+            views_.canvas.showRegionDraft(std::nullopt, mode);
+            const std::vector<SampleOnBoard> samples = session_.document().samples();
+            QString name;
+            if (!session_.selection().empty()) {
+                if (const ComponentInstance* c = session_.document().find(session_.selection().front())) name = QString::fromStdString(c->name);
+            }
+            publishAll();
+            views_.status.showToast(uiText("ui.sample.added", {{"name", name}, {"count", QString::number(samples.size())}}));
+            emit toolRequested(ToolId::Select);  // 建完就回到選取工具：接著多半是改大小、畫子框或按 F5
+            break;
+        }
         case InspectionSession::Release::Search:
             if (regionMode == RegionMode::Region) finishRegionScan();
             else startSearch();
             break;
     }
+}
+
+void AutoRoiPresenter::onComponentResized(int sceneId, const QRectF& rect) {
+    nudgeClock_.invalidate();
+    if (isProposalId(sceneId) || state() != InteractionState::Idle) {
+        publishDraft();
+        return;
+    }
+    if (!session_.resizeBody(sceneId, toRect(rect))) {
+        views_.status.showToast(uiText("ui.sample.tooSmall", {{"min", QString::number(settings_.minSamplePx)}}));
+        publishDraft();
+        return;
+    }
+    const ComponentInstance* c = session_.document().find(sceneId);
+    const std::size_t affected = c ? session_.document().componentsOfType(c->typeId).size() : 1;
+    publishAll();
+    views_.status.showToast(uiText("ui.resize.applied", {{"count", QString::number(affected)}}));
+}
+
+// ---- IProposalController：搜尋（ADR-025）-------------------------------------------------------------------
+
+void AutoRoiPresenter::search() {
+    nudgeClock_.invalidate();
+    if (!session_.hasImage()) return;
+    if (!session_.hasSamples()) {
+        views_.status.showToast(uiText("ui.search.noSamples"));
+        return;
+    }
+    if (!session_.startSearch()) return;  // 目前的狀態不收（搜尋中、錯誤、畫框中）
+    startSearch();
 }
 
 void AutoRoiPresenter::onRegionAborted() {
@@ -209,6 +272,18 @@ void AutoRoiPresenter::deleteSelected() {
     publishAll();
 }
 
+void AutoRoiPresenter::selectAll() {
+    nudgeClock_.invalidate();
+    if (session_.selectAll() == 0) return;
+    publishSelection();
+}
+
+void AutoRoiPresenter::selectSameType() {
+    nudgeClock_.invalidate();
+    if (session_.selectSameType() == 0) return;
+    publishSelection();
+}
+
 // ---- IKeyboardController -------------------------------------------------------------------------------
 
 bool AutoRoiPresenter::onKeyPressed(int key, Qt::KeyboardModifiers modifiers) {
@@ -233,6 +308,15 @@ bool AutoRoiPresenter::onKeyPressed(int key, Qt::KeyboardModifiers modifiers) {
         case Qt::Key_E:
             if (session_.selection().size() != 1 || state() != InteractionState::Idle) return false;
             onOpenTypeEditor(session_.selection().front(), QPointF());
+            return true;
+        case Qt::Key_F5:
+            search();
+            return true;
+        case Qt::Key_A:
+            // Ctrl+A 全選、Ctrl+Shift+A 選取同類型（主視窗的動作也有這兩個快捷鍵；畫布有焦點時先到這裡）。
+            if (!(modifiers & Qt::ControlModifier)) return false;
+            if (modifiers & Qt::ShiftModifier) selectSameType();
+            else selectAll();
             return true;
         default: return false;
     }
@@ -460,6 +544,7 @@ std::optional<CompareRequest> AutoRoiPresenter::compareRequest() const {
         return std::nullopt;
     }
     if (s == InteractionState::Error && session_.errorSource() != ErrorSource::Search) return std::nullopt;
+    // A/B 比較一次只比一個樣本：用這次搜尋的第一個樣本（ADR-025；region 就是它的框）。
     CompareRequest request;
     request.image = image_;
     request.sample = target->region;
@@ -477,10 +562,17 @@ void AutoRoiPresenter::startSearch() {
     const std::uint64_t generation = generation_;
     progress_ = 0.0;
 
-    SampleRequest request;
+    // 用板子上全部樣本搜尋（ADR-025）：每個樣本一個請求，手動補的元件佔住的位置從結果剔除。
+    BoardSearchRequest request;
     request.image = image_;  // 帶著 owner：像素活到工作結束
-    request.sample = target.region;
     request.search = searchParams_;
+    for (const SampleOnBoard& s : target.samples) request.samples.push_back(SampleSearch{s.typeId, s.rect});
+    const Board& board = session_.document().board();
+    for (const ComponentInstance& c : board.components) {
+        if (c.origin != ObjectOrigin::Manual || c.state == ObjectState::Sample) continue;
+        const std::optional<Size2D> size = session_.document().bodySizePx(c.typeId);
+        if (size) request.occupied.push_back(RectObj{c.pose, size->w, size->h});
+    }
 
     auto outcome = std::make_shared<JobOutcome>();
     auto bridge = std::make_shared<ProgressBridge>(poster_, this, generation);
@@ -491,7 +583,7 @@ void AutoRoiPresenter::startSearch() {
     // work 與 done 都在 worker 上跑，只捕獲「自己的」資料（請求的複本、結果盒、橋、use case）；不捕獲 this 的可變狀態。
     services_.runner.submit(
         [request, useCase = std::move(useCase), outcome, bridge](const CancelToken& cancel) {
-            outcome->result.emplace(useCase->run(request, cancel, bridge.get()));
+            outcome->result.emplace(searchBoardWithSamples(*useCase, request, cancel, bridge.get()));
         },
         [poster = poster_, this, generation, outcome](const JobReport& report) {
             poster->post([this, generation, report, outcome] { onJobFinished(generation, report, outcome); });
@@ -522,9 +614,9 @@ void AutoRoiPresenter::onJobFinished(std::uint64_t generation, const JobReport& 
         if (error.code == ErrorCode::Cancelled) return;
         session_.searchFailed(error);
     } else {
-        SampleProposal& proposal = outcome->result->value();
+        BoardProposal& proposal = outcome->result->value();
         lastMs_ = proposal.timings.totalMs;
-        session_.searchSucceeded(std::make_shared<const SampleProposal>(std::move(proposal)));
+        session_.searchSucceeded(std::make_shared<const BoardProposal>(std::move(proposal)));
     }
     publishAll();
     emit searchApplied(generation);
@@ -644,7 +736,12 @@ ParamsState AutoRoiPresenter::currentParams() const {
 
 QString AutoRoiPresenter::hintText() const {
     switch (session_.state()) {
-        case InteractionState::Idle:
+        case InteractionState::Idle: {
+            // 有樣本之後，提示換成「F5 搜尋、再建一個、畫子框、改大小」（ADR-025）。
+            const std::size_t samples = session_.document().samples().size();
+            if (samples > 0) return uiText("ui.sample.hintIdle", {{"count", QString::number(samples)}});
+            return uiText("ui.idle.hint");
+        }
         case InteractionState::Searching: return uiText("ui.idle.hint");
         case InteractionState::DrawingRegion: return uiText(drawMode_ == RegionMode::Sample ? "ui.sample.hint" : "ui.scan.hint");
         default: return QString();  // 空白沒有提示；預覽、無匹配、錯誤的提示在卡片裡
@@ -692,7 +789,8 @@ void AutoRoiPresenter::publishDraft() {
     if (s == InteractionState::DrawingRegion) return;  // 拖曳中的框歸工具
     const bool show = s == InteractionState::Searching || s == InteractionState::Preview || s == InteractionState::NoMatch ||
                       (s == InteractionState::Error && session_.errorSource() == ErrorSource::Search);
-    if (!show || !session_.lastSearch()) {
+    // 樣本是板子上的元件（框層會畫），只有區域掃描的框要留著（ADR-025）。
+    if (!show || !session_.lastSearch() || session_.lastSearch()->mode != RegionMode::Region) {
         views_.canvas.showRegionDraft(std::nullopt, DraftMode::Sample);
         return;
     }
