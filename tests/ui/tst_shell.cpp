@@ -5,6 +5,8 @@
 #include <QDragEnterEvent>
 #include <QDropEvent>
 #include <QLabel>
+#include <QLineEdit>
+#include <QListWidget>
 #include <QMimeData>
 #include <QPushButton>
 #include <QSet>
@@ -24,6 +26,7 @@
 #include "presentation/canvas/ImageCanvas.h"
 #include "presentation/dev/FakeScene.h"
 #include "presentation/i18n/Translations.h"
+#include "presentation/library/SamplePanel.h"
 #include "presentation/shell/EmptyCard.h"
 #include "presentation/shell/MainWindow.h"
 #include "presentation/shell/MessageBar.h"
@@ -471,6 +474,24 @@ private slots:
         QVERIFY(Translations::install(QStringLiteral("zh_TW")));
         QCoreApplication::processEvents();
         QCOMPARE(f.window.openAction()->text(), QStringLiteral("開啟"));
+    }
+
+    // 2026-10-14：樣本庫 dock 裡是 SamplePanel；沒有樣本時照舊顯示「樣本庫是空的」，語言切換時一起換。
+    void theLibraryDockHoldsTheSamplePanelWithItsEmptyText() {
+        Fixture f;
+        SamplePanel* panel = f.window.samplePanel();
+        QVERIFY(panel != nullptr);
+        QVERIFY(f.window.libraryDock()->isAncestorOf(panel));
+        QVERIFY(panel->emptyLabel()->isVisibleTo(panel));
+        QVERIFY(!panel->list()->isVisibleTo(panel));
+        QCOMPARE(panel->emptyLabel()->text(), qtTrId("ui.library.empty"));
+        QVERIFY(!panel->filter()->isEnabled());  // 樣本庫檔案的篩選是 P2：仍是停用的佔位
+        QVERIFY(Translations::install(QStringLiteral("en")));
+        QCoreApplication::processEvents();
+        QCOMPARE(panel->emptyLabel()->text(), QStringLiteral("The library has no sample yet. Teach one with the Sample tool."));
+        QVERIFY(Translations::install(QStringLiteral("zh_TW")));
+        QCoreApplication::processEvents();
+        QCOMPARE(panel->emptyLabel()->text(), qtTrId("ui.library.empty"));
     }
 
     void emptyCardIsRetranslatedToo() {

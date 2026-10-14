@@ -1,8 +1,10 @@
 // Presenter 的整合測試：使用者的操作（滑鼠、鍵盤、按鈕）進去，畫面上的結果出來。
 // 用產品的接線（core → MainWindow → AppPresenters）加上假 back end，在 offscreen 平台跑真的 QThreadPool。
+#include <QCheckBox>
 #include <QComboBox>
 #include <QDir>
 #include <QElapsedTimer>
+#include <QListWidget>
 #include <QThread>
 #include <QTimer>
 #include <algorithm>
@@ -11,6 +13,7 @@
 #include "PresenterRig.h"
 #include "domain/image_buffer.h"
 #include "domain/image_depth.h"
+#include "presentation/library/SamplePanel.h"
 #include "presentation/params/ParamsPanel.h"
 #include "QtTestPrinters.h"
 
@@ -1565,6 +1568,212 @@ private slots:
         for (int id : r.canvas()->selection()) QCOMPARE(r.document().find(id)->typeId, std::string("t1"));
         r.window.selectAllAction()->trigger();  // 選單上的動作一樣
         QCOMPARE(r.canvas()->selection().size(), all);
+    }
+
+    // ---- 選取資訊表單與樣本庫 dock（2026-10-14）----
+    void typingASizeInTheSelectionFormResizesTheTypeForEveryPartWithTheCenterFixed() {
+        Rig r;
+        r.open();
+        QVERIFY(r.teachSample(QRectF(560, 360, 60, 32)));
+        r.key(Qt::Key_Return);
+        ObjectsPanel* panel = r.window.objectsPanel();
+        QVERIFY(!panel->sizeW()->isEnabled());  // 沒有選取：表單停用
+        QCOMPARE(panel->selectionSummary()->text(), zh("ui.selection.none"));
+        r.clickComponent(0);  // 樣本 X1（編號 1）
+        QVERIFY(panel->sizeW()->isEnabled());
+        QVERIFY(panel->centerX()->isEnabled());
+        QVERIFY(panel->applyToAll()->isEnabled());
+        QCOMPARE(panel->sizeW()->value(), 60.0);
+        QCOMPARE(panel->sizeH()->value(), 32.0);
+        QCOMPARE(panel->centerX()->value(), 590.0);
+        QCOMPARE(panel->centerY()->value(), 376.0);
+        QVERIFY(panel->selectionSummary()->text().contains(QStringLiteral("X1")));
+        QCOMPARE(panel->boxesValue()->text(), QStringLiteral("1"));
+        QVERIFY(!panel->sizeUm()->isVisibleTo(panel));  // 假板子沒有校正值：不顯示 µm
+        QVERIFY(!panel->selectionNote()->isVisibleTo(panel));
+        const std::size_t parts = r.document().components().size();
+        const std::size_t depth = r.document().historyDepth();
+
+        // 輸入寬 80、按 Enter（editingFinished）：改類型、同類型全部一起、中心不動、一個 Command。
+        panel->sizeW()->setValue(80);
+        emit panel->sizeW()->editingFinished();
+        QCOMPARE(r.document().historyDepth(), depth + 1);
+        QCOMPARE(r.document().bodySizePx("t1")->w, 80.0);
+        QCOMPARE(r.document().bodySizePx("t1")->h, 32.0);
+        QCOMPARE(r.document().find(1)->pose.x, 590.0);
+        QCOMPARE(r.document().components().size(), parts);
+        for (const ComponentView& v : r.scene().snapshot->components) QVERIFY(std::abs(v.outline.width() - 80.0) < 1e-6);
+        QVERIFY(r.hint().contains(QStringLiteral("已改大小")));
+        QVERIFY(r.window.undoAction()->toolTip().contains(QStringLiteral("框大小")));
+
+        // 太小：不收、吐司說明，表單的數字回到實際的值。
+        panel->sizeH()->setValue(4);
+        emit panel->sizeH()->editingFinished();
+        QCOMPARE(r.document().historyDepth(), depth + 1);
+        QCOMPARE(panel->sizeH()->value(), 32.0);
+        QVERIFY(r.hint().contains(QStringLiteral("太小")));
+
+        // 鎖定寬高比：改寬，高跟著變（80 : 32 ＝ 2.5）；送出的是兩個數字。
+        panel->lockRatio()->setChecked(true);
+        panel->sizeW()->setValue(40);
+        QCOMPARE(panel->sizeH()->value(), 16.0);
+        emit panel->sizeW()->editingFinished();
+        QCOMPARE(r.document().bodySizePx("t1")->w, 40.0);
+        QCOMPARE(r.document().bodySizePx("t1")->h, 16.0);
+
+        // 中心 X：移動這一個元件（一個 MoveComponents），其他元件不動。
+        const double otherX = r.document().find(2)->pose.x;
+        panel->centerX()->setValue(600);
+        emit panel->centerX()->editingFinished();
+        QCOMPARE(r.document().find(1)->pose.x, 600.0);
+        QCOMPARE(r.document().find(1)->pose.y, 376.0);
+        QCOMPARE(r.document().find(2)->pose.x, otherX);
+        QCOMPARE(r.document().historyDepth(), depth + 3);
+        QVERIFY(r.window.undoAction()->toolTip().contains(zh("ui.history.move", {{"count", QStringLiteral("1")}})));
+        // 同樣的值再按一次 Enter：沒有改變，不產生 Command。
+        emit panel->centerX()->editingFinished();
+        QCOMPARE(r.document().historyDepth(), depth + 3);
+    }
+
+    void applyToAllSamplesMakesEverySampleTheSameSizeAsOneCommand() {
+        Rig r;
+        r.open();
+        QVERIFY(r.drawSample(QRectF(560, 360, 60, 32)));  // t1
+        QVERIFY(r.drawSample(QRectF(200, 150, 40, 24)));  // t2（元件 2，中心 (220, 162)）
+        QVERIFY(r.drawSample(QRectF(300, 500, 50, 30)));  // t3
+        ObjectsPanel* panel = r.window.objectsPanel();
+        r.clickComponent(0);  // X1：60 × 32
+        QVERIFY(panel->applyToAll()->isEnabled());
+        const std::size_t depth = r.document().historyDepth();
+        panel->applyToAll()->click();
+        QCOMPARE(r.document().historyDepth(), depth + 1);
+        for (const char* t : {"t1", "t2", "t3"}) {
+            QCOMPARE(r.document().bodySizePx(t)->w, 60.0);
+            QCOMPARE(r.document().bodySizePx(t)->h, 32.0);
+        }
+        for (const SampleOnBoard& s : r.document().samples()) QCOMPARE(s.rect.w, 60.0);
+        QCOMPARE(r.document().find(2)->pose.x, 220.0);  // 中心不動
+        QVERIFY(r.window.undoAction()->toolTip().contains(zh("ui.history.resizeTypes", {{"count", QStringLiteral("2")}})));
+        QVERIFY(r.hint().contains(QStringLiteral("2 個樣本")));
+        // 樣本庫 dock 跟著：三筆都是 60 × 32。
+        for (int i = 0; i < 3; ++i) QVERIFY(r.window.samplePanel()->list()->item(i)->text().contains(QStringLiteral("60 × 32 px")));
+        // 再按一次：都一樣了，不進堆疊。
+        panel->applyToAll()->click();
+        QCOMPARE(r.document().historyDepth(), depth + 1);
+        QCOMPARE(r.hint(), zh("ui.resize.nothingToApply"));
+        r.window.undoAction()->trigger();
+        QCOMPARE(r.document().bodySizePx("t2")->w, 40.0);
+        QCOMPARE(r.document().bodySizePx("t3")->w, 50.0);
+        QVERIFY(r.window.samplePanel()->list()->item(1)->text().contains(QStringLiteral("40 × 24 px")));
+    }
+
+    void theSamplePanelListsBoardSamplesWithThumbnailsAndClickingOneSelectsIt() {
+        Rig r;
+        r.open();
+        SamplePanel* panel = r.window.samplePanel();
+        QVERIFY(panel->emptyLabel()->isVisibleTo(panel));
+        QCOMPARE(panel->emptyLabel()->text(), zh("ui.library.empty"));
+        QVERIFY(!panel->list()->isVisibleTo(panel));
+
+        QVERIFY(r.drawSample(QRectF(560, 360, 60, 32)));
+        QVERIFY(r.drawSample(QRectF(200, 150, 40, 24)));
+        QCOMPARE(panel->list()->count(), 2);
+        QVERIFY(!panel->emptyLabel()->isVisibleTo(panel));
+        QVERIFY(panel->headerLabel()->text().contains(QStringLiteral("2 個樣本")));
+        const SampleListPtr list = r.presenter().lastSamples();
+        QVERIFY(list != nullptr);
+        QCOMPARE(list->entries.size(), std::size_t{2});
+        QCOMPARE(list->entries[0].sceneId, 1);
+        QCOMPARE(list->entries[0].name, QStringLiteral("X1"));
+        QCOMPARE(list->entries[0].width, 60.0);
+        QCOMPARE(list->entries[0].height, 32.0);
+        QCOMPARE(list->entries[0].boxCount, std::size_t{1});
+        QCOMPARE(list->entries[0].thumbnail.width(), 96);  // 縮到固定寬度；從影像裁下來的
+        QVERIFY(list->entries[0].thumbnail.height() > 0);
+        QVERIFY(panel->list()->item(0)->text().contains(QStringLiteral("60 × 32 px")));
+        QVERIFY(panel->list()->item(1)->text().contains(QStringLiteral("X2")));
+        QCOMPARE(panel->selectedIds(), std::vector<int>{2});  // 剛建的樣本是選取的：清單跟著
+
+        // 點第一筆 ＝ 畫布選取 X1（物件樹與表單也跟著）。
+        QTest::mouseClick(panel->list()->viewport(), Qt::LeftButton, {}, panel->list()->visualItemRect(panel->list()->item(0)).center());
+        QCOMPARE(r.canvas()->selection(), std::vector<int>{1});
+        QCOMPARE(r.window.objectsPanel()->sizeW()->value(), 60.0);
+        QCOMPARE(panel->selectedIds(), std::vector<int>{1});
+
+        // 改大小、復原：清單即時更新；門檻拖動不重做（同一份）。
+        const SampleListPtr before = r.presenter().lastSamples();
+        r.window.objectsPanel()->sizeW()->setValue(70);
+        emit r.window.objectsPanel()->sizeW()->editingFinished();
+        QVERIFY(r.presenter().lastSamples() != before);
+        QVERIFY(panel->list()->item(0)->text().contains(QStringLiteral("70 × 32 px")));
+        r.window.undoAction()->trigger();
+        QVERIFY(panel->list()->item(0)->text().contains(QStringLiteral("60 × 32 px")));
+        QVERIFY(r.searchAndWait());
+        const SampleListPtr during = r.presenter().lastSamples();
+        r.presenter().applyThreshold(0.80);
+        QVERIFY(r.presenter().lastSamples() == during);
+        QCOMPARE(panel->list()->count(), 2);  // 預覽中清單照舊是板子上的樣本
+
+        // 子框：框數跟著變。
+        r.key(Qt::Key_Escape);  // 捨棄提案
+        QCOMPARE_STATE(r.state(), S::Idle);
+        r.clickComponent(0);
+        r.window.toolAction(ToolId::Box)->trigger();
+        press(r.vp(), r.at(565, 365));
+        move(r.vp(), r.at(575, 372));
+        release(r.vp(), r.at(575, 372));
+        QCOMPARE(r.presenter().lastSamples()->entries[0].boxCount, std::size_t{2});
+        QVERIFY(panel->list()->item(0)->text().contains(QStringLiteral("2 個框")));
+        QCOMPARE(r.window.objectsPanel()->boxesValue()->text(), QStringLiteral("2"));
+
+        // 刪掉樣本：清單少一筆；開新影像：清單清空。
+        r.key(Qt::Key_Delete);
+        QCOMPARE(panel->list()->count(), 1);
+        r.open();
+        QCOMPARE(panel->list()->count(), 0);
+        QVERIFY(panel->emptyLabel()->isVisibleTo(panel));
+    }
+
+    void aMultiSelectionDisablesTheFormAndAPreviewObjectCanOnlyBeMoved() {
+        Rig r;
+        r.open();
+        QVERIFY(r.teachSample(QRectF(560, 360, 60, 32)));
+        ObjectsPanel* panel = r.window.objectsPanel();
+        // 預覽中選一個提案物件（索引 0 是板子上的樣本，預覽時只是背景）：只能改位置。
+        r.clickComponent(1);
+        QCOMPARE(r.canvas()->selection().size(), std::size_t{1});
+        QVERIFY(isProposalId(r.canvas()->selection().front()));
+        QVERIFY(panel->centerX()->isEnabled());
+        QVERIFY(!panel->sizeW()->isEnabled());
+        QVERIFY(!panel->lockRatio()->isEnabled());
+        QVERIFY(!panel->applyToAll()->isEnabled());
+        QVERIFY(panel->selectionNote()->isVisibleTo(panel));
+        QCOMPARE(panel->selectionNote()->text(), zh("ui.selection.previewOnlyMove"));
+        QVERIFY(panel->selectionSummary()->text().startsWith(QLatin1Char('#')));
+        QCOMPARE(panel->sizeW()->value(), 60.0);  // 類型的主體框
+        const double x = panel->centerX()->value();
+        panel->centerX()->setValue(x + 5);
+        emit panel->centerX()->editingFinished();
+        QCOMPARE(r.document().components().size(), std::size_t{1});  // 板子沒動：改的是提案
+        QCOMPARE(r.presenter().session().proposal()->editCount(), std::size_t{1});
+        QCOMPARE(panel->centerX()->value(), x + 5);
+        r.key(Qt::Key_Return);  // 接受
+
+        // 多選：表單停用、只顯示「已選 N 個」；按鈕也停用。
+        r.key(Qt::Key_A, Qt::ControlModifier);
+        const std::size_t all = r.canvas()->selection().size();
+        QVERIFY(all > 1);
+        QCOMPARE(panel->selectionSummary()->text(), zh("ui.selection.multi", {{"count", QString::number(all)}}));
+        QVERIFY(!panel->centerX()->isEnabled());
+        QVERIFY(!panel->sizeW()->isEnabled());
+        QVERIFY(!panel->applyToAll()->isEnabled());
+        QVERIFY(panel->angleValue()->text().isEmpty());
+        const std::size_t depth = r.document().historyDepth();
+        panel->applyToAll()->click();  // 停用的按鈕：什麼都不做
+        emit panel->sizeW()->editingFinished();
+        QCOMPARE(r.document().historyDepth(), depth);
+        r.key(Qt::Key_Escape);  // 清除選取
+        QCOMPARE(panel->selectionSummary()->text(), zh("ui.selection.none"));
     }
 };
 

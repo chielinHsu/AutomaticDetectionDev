@@ -34,6 +34,19 @@ public:
     virtual void applyAdvice(int actionIndex) = 0;
 };
 
+// 選取資訊表單上的修改（2026-10-14）：按 Enter 或離開欄位時 View 呼叫一次（ADR-002 規則 7：一次輸入一個 Command）。
+//  - setSelectionCenter：移動所選的那一個元件到新的中心（一個 MoveComponents）。
+//  - setSelectionBodySize：改它的類型的主體框、中心不動、同類型全部一起（ResizeType）；小於最小樣本時不收、用吐司說明。
+//  - applySizeToAllSamples：把它目前的寬高套到板子上每一個樣本的類型（ResizeTypes，一個 Command）。
+// 能不能做由 InspectionSession 判斷（預覽中只能改位置；多選時 View 已停用表單）。
+class ISelectionEditController {
+public:
+    virtual ~ISelectionEditController() = default;
+    virtual void setSelectionCenter(double x, double y) = 0;
+    virtual void setSelectionBodySize(double width, double height) = 0;
+    virtual void applySizeToAllSamples() = 0;
+};
+
 class IHistoryController {
 public:
     virtual ~IHistoryController() = default;

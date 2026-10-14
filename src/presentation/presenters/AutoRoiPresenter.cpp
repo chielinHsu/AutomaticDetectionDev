@@ -5,6 +5,7 @@
 #include <QMetaObject>
 #include <algorithm>
 #include <chrono>
+#include <cmath>
 
 #include "application/usecases/SearchBoardWithSamples.h"
 #include "domain/box_expander.h"
@@ -282,6 +283,54 @@ void AutoRoiPresenter::selectSameType() {
     nudgeClock_.invalidate();
     if (session_.selectSameType() == 0) return;
     publishSelection();
+}
+
+// ---- ISelectionEditController（選取資訊表單，2026-10-14）---------------------------------------------------
+
+void AutoRoiPresenter::setSelectionCenter(double x, double y) {
+    nudgeClock_.invalidate();
+    const SelectionInfo info = session_.selectionInfo();
+    if (info.count != 1 || !info.canMove) {
+        publishSelection();
+        return;
+    }
+    const Point2D delta{x - info.pose.x, y - info.pose.y};
+    if (std::abs(delta.x) < 1e-9 && std::abs(delta.y) < 1e-9) return;
+    // 一次輸入一個 Command（和一次拖曳放開一樣，不和方向鍵的微調合併）。
+    if (session_.moveSelection(delta, false) > 0) publishAll();
+    else publishSelection();
+}
+
+void AutoRoiPresenter::setSelectionBodySize(double width, double height) {
+    nudgeClock_.invalidate();
+    const SelectionInfo info = session_.selectionInfo();
+    if (info.count != 1 || !info.canResize) {
+        publishSelection();  // 預覽中、多選：表單應該已經停用；保險起見把數字放回去
+        return;
+    }
+    if (std::min(width, height) < settings_.minSamplePx || !session_.resizeBodyKeepingCenter(info.id, Size2D{width, height})) {
+        views_.status.showToast(uiText("ui.sample.tooSmall", {{"min", QString::number(settings_.minSamplePx)}}));
+        publishSelection();  // 不收：表單的數字回到實際的值
+        return;
+    }
+    const std::size_t affected = session_.document().componentsOfType(info.typeId).size();
+    publishAll();
+    views_.status.showToast(uiText("ui.resize.applied", {{"count", QString::number(affected)}}));
+}
+
+void AutoRoiPresenter::applySizeToAllSamples() {
+    nudgeClock_.invalidate();
+    const SelectionInfo info = session_.selectionInfo();
+    if (info.count != 1 || !info.canResize) return;
+    const std::size_t types = session_.applyBodySizeToSamples(info.bodyPx);
+    if (types == 0) {
+        views_.status.showToast(uiText("ui.resize.nothingToApply"));
+        return;
+    }
+    publishAll();
+    views_.status.showToast(uiText("ui.resize.appliedAll", {{"count", QString::number(types)},
+                                                             {"w", QString::number(info.bodyPx.w, 'f', 1)},
+                                                             {"h", QString::number(info.bodyPx.h, 'f', 1)}}));
 }
 
 // ---- IKeyboardController -------------------------------------------------------------------------------
@@ -774,6 +823,36 @@ void AutoRoiPresenter::publishScene() {
         views_.tree.setRows(scene_.rows);
     }
     views_.status.showSummary(summaryText());
+    publishSamples();
+}
+
+// 樣本庫 dock：板子上的樣本與縮圖。文件的修訂號與影像沒變時是同一份（View 略過），所以門檻拖動不花時間。
+void AutoRoiPresenter::publishSamples() {
+    ScopedTimer timer(services_.probe, "ui.samples");
+    views_.samples.setSamples(sampleListFor(sampleCache_, session_, image_));
+}
+
+SelectionInfoView AutoRoiPresenter::selectionInfoView() const {
+    const SelectionInfo info = session_.selectionInfo();
+    SelectionInfoView view;
+    view.count = info.count;
+    if (info.count != 1) return view;
+    view.sceneId = info.proposal ? info.id + kProposalIdBase : info.id;
+    view.name = info.proposal ? QLatin1Char('#') + QString::number(info.id) : QString::fromStdString(info.name);
+    if (const ComponentType* type = session_.document().findType(info.typeId))
+        view.typeLabel = QString::fromStdString(type->partNumber.empty() ? type->id : type->partNumber);
+    else
+        view.typeLabel = QString::fromStdString(info.typeId);
+    view.x = info.pose.x;
+    view.y = info.pose.y;
+    view.angleDeg = info.pose.angleDeg;
+    view.width = info.bodyPx.w;
+    view.height = info.bodyPx.h;
+    view.boxCount = info.boxCount;
+    view.umPerPixel = session_.document().board().umPerPixel;
+    view.canMove = info.canMove;
+    view.canResize = info.canResize;
+    return view;
 }
 
 void AutoRoiPresenter::publishSelection() {
@@ -781,6 +860,8 @@ void AutoRoiPresenter::publishSelection() {
     const std::vector<int> ids = toSceneIds(session_.selection());
     views_.canvas.setSelection(ids);
     views_.tree.setSelection(ids);
+    views_.samples.setSelection(ids);
+    views_.selectionInfo.setSelectionInfo(selectionInfoView());
 }
 
 void AutoRoiPresenter::publishDraft() {

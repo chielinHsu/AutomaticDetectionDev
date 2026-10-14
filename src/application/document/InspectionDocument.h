@@ -102,6 +102,10 @@ public:
     // 拖的是 anchorId 那個元件時，它的位姿改成 anchorPose（拖單邊時中心會移），其他元件的位姿不動。
     // 類型或元件不存在、大小不合法時回 false。
     bool setBodySize(const std::string& typeId, Size2D sizePx, int anchorId, const Pose2D& anchorPose);
+    // 把幾個類型的主體框設成同一個大小（選取資訊的〔套用大小到所有樣本〕）：每個類型的主體框改成 sizePx（影像像素→µm），
+    // 元件的位姿都不動（中心不變）。一個 Command（ResizeTypes，count ＝ 改了幾個類型）；已經是這個大小、或不存在的類型略過。
+    // 沒有任何類型改變、大小不合法時回 false（不進堆疊）。
+    bool setBodySizeForTypes(const std::vector<std::string>& typeIds, Size2D sizePx);
     // 在類型上加一個框群組（子框，B 工具）：group 的座標是類型座標（µm，相對主體中心）；id 由文件指派。同類型全部元件一起多出這些框。
     // 類型不存在時回 false。
     bool addBoxGroup(const std::string& typeId, BoxGroup group);

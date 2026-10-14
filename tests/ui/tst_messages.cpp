@@ -148,6 +148,7 @@ private slots:
         QCOMPARE(historyLabel(CommandKind::MoveComponents, 2), QStringLiteral("移動 2 個元件"));
         QCOMPARE(historyLabel(CommandKind::Discard, 0), QStringLiteral("捨棄提案"));
         QCOMPARE(historyLabel(CommandKind::AddComponent, 1), QStringLiteral("補一個元件"));
+        QCOMPARE(historyLabel(CommandKind::ResizeTypes, 3), QStringLiteral("把 3 個類型的框設成同樣大小"));
     }
 
     // ---- 文案齊全 ----
@@ -179,7 +180,8 @@ private slots:
                 for (const QString& a : spec.card.actions) check(a);
             }
             for (CommandKind k : {CommandKind::Accept, CommandKind::Discard, CommandKind::DeleteComponents, CommandKind::AddComponent,
-                                  CommandKind::MoveComponents, CommandKind::AddSample, CommandKind::ResizeType, CommandKind::AddBoxGroup})
+                                  CommandKind::MoveComponents, CommandKind::AddSample, CommandKind::ResizeType, CommandKind::AddBoxGroup,
+                                  CommandKind::ResizeTypes})
                 check(historyLabel(k, 3));
         }
     }
@@ -199,7 +201,14 @@ private slots:
                                 "ui.preview.merged", "ui.preview.excluded", "ui.sample.added", "ui.sample.hintIdle", "ui.search.noSamples",
                                 "ui.box.hint", "ui.box.needOne", "ui.box.added", "ui.resize.applied", "ui.history.addSample",
                                 "ui.history.resizeType", "ui.history.addBoxGroup", "action.search", "action.selectAll",
-                                "action.selectSameType", "tool.box"}) {
+                                "action.selectSameType", "tool.box",
+                                // 2026-10-14：選取資訊表單與樣本庫 dock 的樣本清單
+                                "ui.selection.title", "ui.selection.none", "ui.selection.multi", "ui.selection.summary",
+                                "ui.selection.center", "ui.selection.size", "ui.selection.um", "ui.selection.angle",
+                                "ui.selection.boxes", "ui.selection.lockRatio", "ui.selection.applyToAll",
+                                "ui.selection.applyToAll.tip", "ui.selection.previewOnlyMove", "ui.resize.appliedAll",
+                                "ui.resize.nothingToApply", "ui.history.resizeTypes", "ui.library.boardSamples",
+                                "ui.library.sample.summary", "ui.library.sample.summaryUm", "ui.library.sample.tip"}) {
             const QJsonObject entry = keys.value(QLatin1String(key)).toObject();
             QVERIFY2(!entry.value("zh_TW").toString().isEmpty() && !entry.value("en").toString().isEmpty(), key);
         }

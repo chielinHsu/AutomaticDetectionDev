@@ -732,6 +732,77 @@ private slots:
         QCOMPARE(f.session.document().bodySizePx("t1")->w, 60.0);
     }
 
+    // ---- 選取資訊與套用大小到所有樣本（2026-10-14）----
+    void applyingASizeToAllSamplesResizesEverySampleTypeInOneStepOnlyInIdle() {
+        Fixture f;
+        f.addSample();                        // t1：60 × 32（元件 1）
+        f.addSample(Rect{300, 300, 40, 20});  // t2（元件 2，中心 (320, 310)）
+        f.addSample(Rect{500, 300, 60, 32});  // t3：已經是 60 × 32
+        f.session.select({});
+        const std::size_t depth = f.session.document().historyDepth();
+        QCOMPARE(f.session.applyBodySizeToSamples({60, 32}), std::size_t{1});  // 只有 t2 要改
+        QCOMPARE(f.session.document().historyDepth(), depth + 1);
+        QCOMPARE(f.session.document().bodySizePx("t2")->w, 60.0);
+        QCOMPARE(f.session.document().find(2)->pose.x, 320.0);  // 中心不動
+        QVERIFY(f.session.undoInfo()->kind == CommandKind::ResizeTypes);
+        QCOMPARE(f.session.undoInfo()->count, std::size_t{1});
+        QCOMPARE(f.session.applyBodySizeToSamples({60, 32}), std::size_t{0});  // 全部一樣：不進堆疊
+        QCOMPARE(f.session.applyBodySizeToSamples({5, 32}), std::size_t{0});   // 太小
+        QCOMPARE(f.session.document().historyDepth(), depth + 1);
+        QCOMPARE(f.session.applyBodySizeToSamples({80, 40}), std::size_t{3});
+        for (const SampleOnBoard& s : f.session.document().samples()) QCOMPARE(s.rect.w, 80.0);
+        QVERIFY(f.session.undo());
+        QCOMPARE(f.session.document().bodySizePx("t2")->w, 60.0);
+        QCOMPARE(f.session.document().bodySizePx("t3")->w, 60.0);
+        f.toPreview({0.95});
+        QCOMPARE(f.session.applyBodySizeToSamples({90, 40}), std::size_t{0});  // 預覽中不改
+    }
+
+    void selectionInfoDescribesTheSingleSelectionAndWhatCanBeEdited() {
+        Fixture f;
+        const int sample = f.addSample();  // kBig：中心 (50, 36)、60 × 32；建完就是選取的
+        SelectionInfo info = f.session.selectionInfo();
+        QCOMPARE(info.count, std::size_t{1});
+        QCOMPARE(info.id, sample);
+        QVERIFY(!info.proposal);
+        QCOMPARE(info.name, std::string("X1"));
+        QCOMPARE(info.typeId, std::string("t1"));
+        QCOMPARE(info.pose.x, 50.0);
+        QCOMPARE(info.pose.y, 36.0);
+        QCOMPARE(info.bodyPx.w, 60.0);
+        QCOMPARE(info.bodyPx.h, 32.0);
+        QCOMPARE(info.boxCount, std::size_t{1});
+        QVERIFY(info.canMove);
+        QVERIFY(info.canResize);
+        // 表單輸入寬高：中心不動
+        QVERIFY(f.session.resizeBodyKeepingCenter(sample, {80, 40}));
+        info = f.session.selectionInfo();
+        QCOMPARE(info.bodyPx.w, 80.0);
+        QCOMPARE(info.pose.x, 50.0);
+        QCOMPARE(info.pose.y, 36.0);
+        QVERIFY(!f.session.resizeBodyKeepingCenter(sample, {5, 40}));  // 太小
+        QVERIFY(!f.session.resizeBodyKeepingCenter(99, {80, 40}));
+        f.session.select({});
+        QCOMPARE(f.session.selectionInfo().count, std::size_t{0});
+        // 預覽：多選只有數量；單一的提案物件只能改位置
+        f.toPreview({0.95, 0.75});
+        f.session.selectAll();
+        QCOMPARE(f.session.selectionInfo().count, std::size_t{3});
+        f.session.select({2});
+        f.session.moveSelection({10, 0});
+        info = f.session.selectionInfo();
+        QCOMPARE(info.count, std::size_t{1});
+        QVERIFY(info.proposal);
+        QCOMPARE(info.id, 2);
+        QCOMPARE(info.pose.x, 160.0);  // 候選的位姿加上移動
+        QCOMPARE(info.typeId, std::string("t1"));
+        QCOMPARE(info.bodyPx.w, 80.0);  // 類型現在的主體框
+        QVERIFY(info.canMove);
+        QVERIFY(!info.canResize);  // 預覽只能改位置（ADR-025 §4）
+        f.search();
+        QCOMPARE(f.session.selectionInfo().count, std::size_t{0});
+    }
+
     // ---- 子框（ADR-025 §6）----
     void drawingABoxOnAPartAddsAPinGroupInTypeCoordinates() {
         Fixture f;

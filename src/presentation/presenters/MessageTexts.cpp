@@ -144,6 +144,7 @@ QString historyLabel(CommandKind kind, std::size_t count) {
         case CommandKind::AddSample: return uiText("ui.history.addSample");
         case CommandKind::ResizeType: return uiText("ui.history.resizeType", {{"count", n}});
         case CommandKind::AddBoxGroup: return uiText("ui.history.addBoxGroup", {{"count", n}});
+        case CommandKind::ResizeTypes: return uiText("ui.history.resizeTypes", {{"count", n}});
     }
     return QString();
 }

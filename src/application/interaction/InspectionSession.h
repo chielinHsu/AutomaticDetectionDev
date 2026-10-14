@@ -29,6 +29,24 @@ struct SearchTarget {
 
 enum class ErrorSource { Image, Search };
 
+// 選取資訊（右側 dock 的「選取資訊」表單，ux-spec §4）：選了幾個；恰好一個時它的名稱、類型、位姿、主體框、框數，
+// 以及**現在**能不能改位置、改大小。規則在這裡，不在 Presenter（ADR-011）：
+//  - Idle（板子上的元件）：可以改位置（moveSelection）與大小（resizeBodyKeepingCenter：改類型、同類型一起）。
+//  - Preview（提案的物件）：只能改位置；改大小是文件堆疊上的事，預覽時不做（ADR-025 §4）。
+//  - 多選或沒有選取：count 不是 1，其餘欄位沒有意義。
+struct SelectionInfo {
+    std::size_t count = 0;     // 選了幾個（0 ＝ 沒有選取）
+    int id = 0;                // 文件的元件編號，或提案物件的編號（proposal ＝ true 時）
+    bool proposal = false;
+    std::string name;          // 提案物件沒有名稱（空字串）
+    std::string typeId;
+    Pose2D pose;               // 影像像素
+    Size2D bodyPx;             // 主體框（影像像素）
+    std::size_t boxCount = 0;  // 類型展開的框數（含主體）
+    bool canMove = false;
+    bool canResize = false;
+};
+
 // 互動狀態的唯一擁有者：狀態機、已接受的文件、目前的提案、選取。
 //
 // 為什麼放在 application 層：「按 Enter 之後什麼會發生」「Ctrl+Z 作用在哪個堆疊」「刪除作用在提案還是文件」是規則，
@@ -124,6 +142,13 @@ public:
     // 改主體框（ADR-025）：Idle 時把 componentId 的類型的主體框改成 rect 的大小（同類型全部元件一起變），這個元件的中心移到
     // rect 的中心（角度不變）。其他狀態、元件不存在、框太小（minSamplePx）回 false。
     bool resizeBody(int componentId, const Rect& rectPx);
+    // 同上，但中心不動（選取資訊表單輸入寬高）：規則和 resizeBody 相同。
+    bool resizeBodyKeepingCenter(int componentId, Size2D sizePx);
+    // 〔套用大小到所有樣本〕：把 sizePx 套到板子上每一個樣本的類型（InspectionDocument::setBodySizeForTypes，一個 Command）。
+    // 只在 Idle、邊長 ≥ minSamplePx；回傳改了幾個類型（0 ＝ 沒有改：狀態不對、太小、或全部已經是這個大小）。
+    std::size_t applyBodySizeToSamples(Size2D sizePx);
+    // 選取資訊（見 SelectionInfo）。
+    SelectionInfo selectionInfo() const;
     // 子框（ADR-025，B 工具）：Idle 時在 componentId 的類型上加一個 Pin 1×1 的群組，位置與大小由 rectPx（影像像素）換成
     // 類型座標（µm、相對主體中心、反旋轉）。同類型全部元件一起多出這個框。其他狀態、元件不存在、框不合法回 false。
     bool addBoxGroup(int componentId, const Rect& rectPx);
