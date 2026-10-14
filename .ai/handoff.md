@@ -8,35 +8,35 @@
 
 ## 正在做
 
-無。**CAD 樣本建立的四個問題（[ADR-025](../docs/adr/025-sample-creation-separate-from-search.md)）完成**：分支 `feat/cad-sample-editing`（兩個 commit：程式、文件），`--no-ff` 合併到 `main` 由使用者在主 checkout 執行（這個 session 在 worktree，`main` 在主 checkout 上簽出，不能在這裡合併），沒有 tag、沒有 push。**接下來仍是 S12**（Start prompt 在 `docs/plan/S12-release.md` 底部），或使用者指定的 P2（完整流程 B 與樣本庫 UI，另開 session）。
+無。**選取資訊表單與樣本庫面板（ADR-025 的「後續（2026-10-14）」）完成**：分支 `feat/selection-info-panel`（從 `main` 600c757 開；兩個 commit：程式與測試、文件），這個 session 在 worktree 執行，`main` 在主 checkout（`D:\AOI_Project\Qt\AutoCadCreated`）上簽出，所以用 `git -C <主 checkout> merge --no-ff` 合併（合併前確認主 checkout 乾淨），沒有 tag、沒有 push。**接下來仍是 S12**（Start prompt 在 `docs/plan/S12-release.md` 底部），或使用者指定的 P2（完整流程 B 與樣本庫檔案，另開 session）。
 
-## 這次做了什麼（細節在 `docs/changelog-ai.md` 最上面那一筆、ADR-025、`docs/current-status.md` 的「樣本的建立與搜尋分開」）
+## 這次做了什麼（細節在 `docs/changelog-ai.md` 最上面那一筆、ADR-025 的後續一節、`docs/current-status.md` 的「選取資訊表單與樣本庫面板」）
 
-- 使用者的決定：樣本建立是建立、搜尋是搜尋。`S` 放開只建立樣本（每個樣本自己一個類型、一個 Command），〔搜尋〕（`F5`）用板子上全部樣本各搜一次、結果依位置合併（同位置留分數最高的），接受時上一次自動產生的元件整批換掉（樣本與手動補的留著）；改大小＝改類型的主體框（同類型一起，只在 Idle）；框選、`Ctrl+A`、`Ctrl+Shift+A`；`B` 在所選元件上畫子框（存成 Pin 1×1，同類型一起貼上、預覽就看得到）。P2 另開 session，R 工具維持現狀。
-- 新檔：`application/usecases/BoardProposal.*`（合併規則）、`SearchBoardWithSamples.*`；狀態機多 `ReleaseSample`、`SearchRequested`；`InspectionDocument` 多 `addSample`、`setBodySize`、`addBoxGroup`、`samples()`；工具多 `BoxTool`、`SelectTool` 的把手與框選；主視窗多〔搜尋〕〔全選〕〔選取同類型〕與 `B`。
+- 使用者回報：編輯只能拉框，要能用數字改樣本的長寬、讓幾個樣本一致；建立樣本時要看得到樣本的圖。做法由使用者確認。
+- application：`InspectionDocument::setBodySizeForTypes`（新 Command `ResizeTypes`）、`InspectionSession::selectionInfo`（`SelectionInfo`：能不能改位置、改大小的規則在這裡）、`resizeBodyKeepingCenter`、`applyBodySizeToSamples`；`ProposalSession::poseOf`。
+- presentation：`ObjectsPanel` 多選取資訊的表單（`ISelectionInfoView`；`editingFinished` 才送出、值沒變不送）、新 `library/SamplePanel`（`ISampleListView`，放進 `libraryDock`）、新 `presenters/SampleListBuilder`（縮圖與快取）、`AutoRoiPresenter` 實作新的 `ISelectionEditController`、`MainWindow` 多 `samplePanel()` 與接線。`copy.json` 新增 20 個 key。
 
 ## 建置與測試
 
-- `test.ps1` 預設 Release：**57／57**（HALCON 0 跳過；跳過與 XFAIL 的清單和改之前相同）。
-- `test.ps1 -Config Debug`：**57／57**。
-- `-Perf` 與基準線**沒有跑**：T5 的定義改成「按〔搜尋〕→ 提案就緒」（`perf_e2e`、`perf_ui_s04` 已改成樣本建一次、每回合按 F5），下一個動效能的 session 先 `perf.ps1 -Runs 3 -WriteBaseline`。
+- `test.ps1` 預設 Release：**57／57**（HALCON 0 跳過；有跳過項目的 5 個測試與 2 個 XFAIL 和改之前相同）。
+- `test.ps1 -Config Debug`：**57／57**（`tst_presenter` 82 passed、1 skipped ＝ 截圖那一項）。
+- `node tools/ste-lint.mjs`：979 sentences、0 errors；`node tools/check-deps.mjs`：220 files、0 violations。
+- `-Perf` 與基準線**沒有跑**（上一個 session 已經要重建；這次 `publishSelection` 多了 `selectionInfo()`（單一選取 O(1)）與樣本清單的快取判斷）：下一個動效能的 session 先 `perf.ps1 -Runs 3 -WriteBaseline`。
 
 ## 不要動
 
-- `mergeSampleProposals` 的四條規則與順序（ADR-025 §2）；`InspectionDocument::accept` 的「整批換掉」語意；樣本元件的 `state = Sample`、`origin = Manual`。
-- 預覽時不顯示把手、不能改大小（ADR-002 規則 5）。
-- `tst_presenter` 的 `twoSamplesOnTheSameGridAreMergedAndAcceptReplacesTheLastResult`：第二個樣本放在第一個右邊一格（假世界的格距 1.5 × 樣本大小），兩個樣本看到同一片網格。
-- 上一次交接的清單照舊：`RoiLayerItem` 的字形路徑、`DocumentSceneCache` 的鍵（改板子內容一律做成 Command）、`HalconSearchOptions`／`OpenCvSearchOptions` 的預設、`ContractTolerances.h`、opencv B1 的 `QEXPECT_FAIL`、`tokens.json`、`copy.json` 只新增 key、`budgets.json` 的 limit、`ai-project-template/`、`third_party/halcon/`、fixture JSON、`PresenterRig.h` 的視窗閘門、晶格的門檻與 ADR-013、port 契約、`perf/baseline/*.json` 只用 `-WriteBaseline` 重建。
+- `SampleListCache`／`DocumentSceneCache` 的鍵（文件的修訂號；改板子內容一律做成 Command）。
+- 表單「Enter 或離開欄位才生效、值沒變不送出」（ADR-002 規則 7）；預覽中不能改大小（ADR-025 §4）。
+- `ResizeTypes` 略過已經一樣的類型、全部一樣不進堆疊（`tst_document`、`tst_session` 鎖住）。
+- 樣本庫 dock 的篩選欄仍是停用的佔位；不讀寫樣本庫檔案（P2）。
+- 上一次交接的清單照舊：`mergeSampleProposals` 的規則、`accept` 的整批換掉、`RoiLayerItem` 的字形路徑、`HalconSearchOptions`／`OpenCvSearchOptions` 的預設、`ContractTolerances.h`、opencv B1 的 `QEXPECT_FAIL`、`tokens.json`、`copy.json` 只新增 key、`budgets.json` 的 limit、`ai-project-template/`、`third_party/halcon/`、fixture JSON、`PresenterRig.h` 的視窗閘門、晶格的門檻與 ADR-013、port 契約、`perf/baseline/*.json` 只用 `-WriteBaseline` 重建。
 
 ## 已知問題與風險
 
-- 子框目前只能用 `Ctrl+Z` 拿掉；Pin 矩陣的列數欄數沒有 UI（同一個群組改 `rows`／`cols` 就有）；只改這一個元件（實例覆寫）延後。
-- 兩個 back end 的分數不是同一把尺（ADR-004）：合併時「分數最高者」在同一個 back end 內比較才有意義；一次搜尋只用一個 back end，所以目前沒有問題。
-- 樣本框到不只一個元件時 back end 仍會回 `SampleCoversMany`（區域樣本是刻意的用法時，使用者可以忽略那個提示）；真實 back end 上區域樣本的效果沒有量。
+- 表單的角度只顯示；只改這一個元件（實例覆寫）仍延後；子框仍只能 `Ctrl+Z` 拿掉。
+- 樣本縮圖的框用固定色（藍＝主體、橙＝子框），不走畫布的主題。
 - 等使用者決定的事沒有變（ADR-004、S09、S10、待決定（10））。
 
 ## 驗證（實際執行）
 
-- `test.ps1` 預設 Release：57／57 通過；`node tools/ste-lint.mjs`：979 sentences、0 errors；`node tools/check-deps.mjs`：216 files、0 violations。
-- `test.ps1 -Filter tst_tools`（含三個新測試）：1／1，Totals 38 passed。
-- `test.ps1 -Config Debug`：**57／57**（log 2 362 項 passed、0 failed；跳過與 XFAIL 的清單和 Release 相同）。
+- `test.ps1`（Release）57／57、`test.ps1 -Config Debug` 57／57、`ste-lint` 0 errors、`check-deps` 0 violations；`-Perf` 沒有跑。

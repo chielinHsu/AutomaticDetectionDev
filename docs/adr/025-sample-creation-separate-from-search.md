@@ -85,3 +85,14 @@
 - A/B 比較（S09）一次只比一個樣本：用這次搜尋的第一個樣本。
 - 效能量測 T5（放開滑鼠 → 提案就緒）改成「按 F5 → 提案就緒」（`perf_e2e`、`perf_ui_s04`）；基準線要重建（`perf.ps1 -Runs 3 -WriteBaseline`）。
 - ux-spec 的「樣本框到多個元件會提示改用 R」仍成立（`SampleCoversMany` 由 back end 判斷）；區域樣本是刻意的用法時，使用者可以忽略那個提示。
+
+## 後續（2026-10-14）：選取資訊表單與樣本庫面板
+
+使用者用了上面的版本之後回報：編輯只能拉框，要能**明確看到並用數字改**樣本的長寬，讓幾個樣本的尺寸可以調成一致；而且建立樣本時要**有地方看到樣本的圖**。使用者確認的做法（分支 `feat/selection-info-panel`）：
+
+1. **選取資訊表單**（ux-spec §4 預留的位置：物件樹下方，`ObjectsPanel` 實作 `ISelectionInfoView`）。選到一個元件時顯示名稱與類型（只顯示）、中心 X、Y（可改＝移動這一個元件，走 `moveSelection`）、寬、高（可改＝改類型的主體框、**中心不動**、同類型一起，走新的 `InspectionSession::resizeBodyKeepingCenter` → 既有的 `resizeBody`／`setBodySize`；有校正值時旁邊顯示 µm）、角度、框數。**按 Enter 或離開欄位才生效**（`QDoubleSpinBox` 的 `editingFinished`，`keyboardTracking` 關；值沒變不送出），一次輸入一個 Command（ADR-002 規則 7）；< `minSamplePx` 不收、吐司、表單的數字回到實際的值。〔套用大小到所有樣本〕＝新的 Command **`ResizeTypes`**（`InspectionDocument::setBodySizeForTypes`：每個類型記「前」的大小，復原各自還原；已經一樣的略過；全部一樣就不進堆疊）。〔鎖定寬高比〕只是表單的行為。多選時表單停用、只顯示「已選 N 個」；預覽中的物件只能改 X、Y（改大小只在 `Idle`，§4 的理由不變）。
+2. **樣本庫面板**（`SamplePanel` 實作 `ISampleListView`，放進主視窗原本空殼的 `libraryDock`）：列出板子上的樣本（`InspectionDocument::samples`），每一筆是從目前影像裁下來的縮圖（`SampleListBuilder`：主體框外加 25% 的邊界，`subView` 零複製裁下、`ImageItem::wrap` 換到 8 bit 的只有那一小塊、縮到 96 px 寬、疊上類型展開的框）、名稱、類型、寬 × 高（像素；有校正值時加 µm）、框數。點一筆＝`ISelectionController::select`。清單跟著文件的修訂號走（`SampleListCache`：修訂號與影像沒變就是同一份，View 略過），所以建立、刪除、改大小、加子框、復原都即時更新，門檻拖動不重做。資料只來自板子；**不讀寫樣本庫檔案**（存檔是 P2）。「樣本庫是空的」的文字照舊。
+3. **規則在 application 層**（ADR-011）：能不能改位置、改大小由 `InspectionSession::selectionInfo()`（`SelectionInfo`）決定；最小尺寸、預覽中不改大小、多選都在那裡；Presenter 只做吐司與重新發布。`ProposalSession` 多 `poseOf(id)`：只算那一個物件的位姿（表單每次選取、每次門檻變動都要問；`objects()` 是掃全部）。
+4. 介面照 ux-spec §12 的做法用窄介面：`ISelectionInfoView`（1 個方法）、`ISampleListView`（2 個）、`ISelectionEditController`（3 個：`setSelectionCenter`、`setSelectionBodySize`、`applySizeToAllSamples`）。
+
+否決：把「套用到所有樣本」做成 N 次 `setBodySize`（N 個 Command，復原要按 N 次）；把選取資訊放在樣本庫 dock（它是元件的資訊，不只樣本的；ux-spec §4 本來就放在物件樹下方）；縮圖用整張影像 `wrap` 再裁（12 bit 的影像每次都要轉整張，5 MP 約 5 ms，裁一小塊才轉只要微秒）。

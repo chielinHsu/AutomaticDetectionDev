@@ -24,6 +24,36 @@
 - 下一位 agent 需要知道的限制、否決的做法、不要還原的修改
 ```
 
+## 2026-10-14 — Claude Code (Claude Fable 5.1)（選取資訊表單與樣本庫面板：ADR-025 的「後續（2026-10-14）」）
+
+### 完成
+- 分支 `feat/selection-info-panel`（從 `main` 600c757 開；session 在 worktree，`main` 在主 checkout 簽出，合併用 `git -C`）。使用者回報「編輯只能拉框，要能用數字改長寬、讓幾個樣本一致；建立樣本時要看得到樣本的圖」，做法由使用者確認，記在 ADR-025 的「後續（2026-10-14）」。
+- application：`InspectionDocument::setBodySizeForTypes`（新 Command `ResizeTypes`：幾個類型的主體框設成同一個大小、位姿不動、各自記「前」；已經一樣的略過、全部一樣不進堆疊）；`InspectionSession` 多 `SelectionInfo`／`selectionInfo()`（規則：`Idle` 能改位置與大小、預覽只能改位置、多選只有數量）、`resizeBodyKeepingCenter`、`applyBodySizeToSamples`；`ProposalSession::poseOf`（只算一個物件）。
+- presentation：`ObjectsPanel` 多選取資訊的表單（`ISelectionInfoView`：名稱與類型、中心 X／Y、寬 × 高、µm、角度、框數、〔鎖定寬高比〕、〔套用大小到所有樣本〕；`QDoubleSpinBox` 的 `editingFinished` 才送出、值沒變不送、不收時數字回到實際的值）；新 `library/SamplePanel`（`ISampleListView`，放進主視窗的 `libraryDock`，原本的 `libraryFilter`、`libraryEmpty` 搬進它；點一筆 ＝ `ISelectionController::select`）；新 `presenters/SampleListBuilder`（`subView` 零複製裁下、只轉那一小塊、縮到 96 px、疊上框；`SampleListCache` 依文件修訂號與影像判斷）；`AutoRoiPresenter` 實作新的 `ISelectionEditController`（3 個方法），`publishSelection` 多表單與清單的選取、`publishScene` 多 `publishSamples`；`MainWindow` 多 `samplePanel()`、`Controllers::selectionEdit`。
+- 文案：`copy.json` 新增 20 個 key（`ui.selection.*`、`ui.resize.appliedAll`、`ui.resize.nothingToApply`、`ui.history.resizeTypes`、`ui.library.boardSamples`、`ui.library.sample.*`）。
+- 文件：ADR-025 加「後續（2026-10-14）」、`docs/decisions.md` 的索引、`ux-spec.md` §4（實作的部分）與 §8（四列）、`docs/architecture.md`、`docs/current-status.md`。
+
+### 修改的檔案
+- `src/application/document/{UndoStack.h,InspectionDocument.h,InspectionDocument.cpp,ProposalSession.h,ProposalSession.cpp}`、`src/application/interaction/InspectionSession.{h,cpp}`
+- `src/presentation/presenters/{ViewInterfaces.h,ControllerInterfaces.h,AutoRoiPresenter.h,AutoRoiPresenter.cpp,AppPresenters.cpp,MessageTexts.cpp,SampleListBuilder.h,SampleListBuilder.cpp}`、`src/presentation/objects/ObjectsPanel.{h,cpp,ui}`、`src/presentation/library/SamplePanel.{h,cpp,ui}`（新）、`src/presentation/shell/MainWindow.{h,cpp,ui}`
+- `AiInspTool/src/presentation/presentation.pro`、`docs/ux/copy.json`
+- `tests/core/{tst_document,tst_session}.cpp`、`tests/ui/{tst_messages,tst_shell,tst_presenter}.cpp`
+- `docs/adr/025-sample-creation-separate-from-search.md`、`docs/decisions.md`、`docs/ux/ux-spec.md`、`docs/architecture.md`、`docs/current-status.md`、`.ai/handoff.md`、本檔
+
+### 驗證
+- `scripts/dev/test.ps1`（Release＋OpenCV＋HALCON）：57／57 通過；有跳過項目的測試（5 個）與 XFAIL（2 個）的清單和改之前相同，HALCON 0 跳過。
+- `scripts/dev/test.ps1 -Config Debug`：57／57（`tst_presenter` 82 passed、1 skipped ＝ 截圖）。
+- `node tools/ste-lint.mjs`：979 sentences、0 errors；`node tools/check-deps.mjs`：220 files、0 violations。
+- `-Perf`：沒有跑（基準線上一個 session 已經要重建）。
+- 踩到的坑：拖出來的樣本框寬是 60.0000001（視埠座標換算），清單的文字一度印成「60.0 × 32.0 px」；`SamplePanel` 的格式化改成接近整數就不印小數。
+
+### 未完成
+- 樣本庫檔案的讀寫、篩選、〔編輯〕〔刪除〕（P2）；表單的角度只顯示；實例覆寫延後。
+
+### 注意事項
+- 縮圖只在文件的修訂號或影像變了才重做（`SampleListCache`）；門檻拖動是同一份指標，View 略過。
+- 表單用 `editingFinished`、`keyboardTracking` 關：打字時不送出。〔鎖定寬高比〕靠 `valueChanged` 跟著改另一邊，只是表單的行為。
+
 ## 2026-10-14 — Claude Code (Claude Fable 5.1)（CAD 樣本建立的四個問題：樣本的建立與搜尋分開，ADR-025）
 
 ### 完成
