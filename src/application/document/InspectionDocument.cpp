@@ -32,7 +32,7 @@ public:
 };
 
 // 名稱開頭字元依類別：Chip → R、IC → U、其他 → X（ux-spec §12.1 第 8 項：開頭字元＋流水號，接受時指派）。
-// **暫定**：流程 A 的暫時類型沒有類別（Other），所以接受出來的元件叫 X1、X2…；類型編輯器（流程 C）設定類別後才有 R、U。
+// **暫定**：樣本的類型沒有類別（Other），所以元件叫 X1、X2…；類型編輯器（流程 C）設定類別後才有 R、U。
 const char* namePrefix(ComponentCategory category) {
     switch (category) {
         case ComponentCategory::Chip: return "R";
@@ -54,44 +54,116 @@ std::vector<ComponentInstance>::iterator findById(std::vector<ComponentInstance>
     return it != v.end() && it->id == id ? it : v.end();
 }
 
-class AcceptCommand final : public DocumentCommand {
+ComponentType* findTypeMutable(Board& board, const std::string& typeId) {
+    for (ComponentType& t : board.types) {
+        if (t.id == typeId) return &t;
+    }
+    return nullptr;
+}
+
+BoxGroup* bodyOf(ComponentType& type) {
+    for (BoxGroup& g : type.groups) {
+        if (g.kind == BoxGroupKind::Body) return &g;
+    }
+    return nullptr;
+}
+
+bool byId(const ComponentInstance& a, const ComponentInstance& b) { return a.id < b.id; }
+
+// removed 依編號排序：從 components 拿掉它們。
+void eraseComponents(std::vector<ComponentInstance>& components, const std::vector<ComponentInstance>& removed) {
+    if (removed.empty()) return;
+    std::vector<ComponentInstance> kept;
+    kept.reserve(components.size() - std::min(components.size(), removed.size()));
+    auto gone = removed.begin();
+    for (ComponentInstance& c : components) {
+        while (gone != removed.end() && gone->id < c.id) ++gone;
+        if (gone != removed.end() && gone->id == c.id) {
+            ++gone;
+            continue;
+        }
+        kept.push_back(std::move(c));
+    }
+    components = std::move(kept);
+}
+
+// 把 restored（依編號排序）放回去，保持排序。
+void insertComponents(std::vector<ComponentInstance>& components, const std::vector<ComponentInstance>& restored) {
+    if (restored.empty()) return;
+    const auto middle = static_cast<std::ptrdiff_t>(components.size());
+    components.insert(components.end(), restored.begin(), restored.end());
+    std::inplace_merge(components.begin(), components.begin() + middle, components.end(), byId);
+}
+
+// 建立樣本：一個新類型與它的樣本元件。
+class AddSampleCommand final : public DocumentCommand {
 public:
-    AcceptCommand(ComponentType type, std::vector<ComponentInstance> components, Counters before, Counters after,
-                  ProposalSession session)
-        : type_(std::move(type)), components_(std::move(components)), before_(std::move(before)),
-          after_(std::move(after)), session_(std::move(session)) {}
+    AddSampleCommand(ComponentType type, ComponentInstance sample, Counters before, Counters after, std::string lastTypeBefore)
+        : type_(std::move(type)), sample_(std::move(sample)), before_(std::move(before)), after_(std::move(after)),
+          lastTypeBefore_(std::move(lastTypeBefore)) {}
 
     void redo(InspectionDocument& d) const override {
         Board& board = Access::board(d);
         board.types.push_back(type_);
-        // 新元件的編號都比現有的大（編號只增不減，而且復原會把計數還原），接在最後面就保持排序。
-        board.components.insert(board.components.end(), components_.begin(), components_.end());
+        board.components.push_back(sample_);  // 編號最大，接在最後面就保持排序
         Access::counters(d) = after_;
         Access::lastTypeId(d) = type_.id;
     }
     void undo(InspectionDocument& d) const override {
         Board& board = Access::board(d);
-        board.components.resize(board.components.size() - components_.size());
+        board.components.pop_back();
         board.types.erase(std::remove_if(board.types.begin(), board.types.end(),
                                          [this](const ComponentType& t) { return t.id == type_.id; }),
                           board.types.end());
         Access::counters(d) = before_;
         Access::lastTypeId(d) = lastTypeBefore_;
     }
-    CommandKind kind() const override { return CommandKind::Accept; }
-    std::size_t count() const override { return components_.size(); }
-    const ProposalSession* proposal() const override { return &session_; }
-
-    // 接受之前的 lastTypeId：建構時由文件填入，復原時還原。
-    void setLastTypeBefore(std::string id) { lastTypeBefore_ = std::move(id); }
+    CommandKind kind() const override { return CommandKind::AddSample; }
+    std::size_t count() const override { return 1; }
 
 private:
     ComponentType type_;
-    std::vector<ComponentInstance> components_;
+    ComponentInstance sample_;
+    Counters before_;
+    Counters after_;
+    std::string lastTypeBefore_;
+};
+
+// 接受：拿掉上一次自動產生的元件，放進這一次的（ADR-025）。
+class AcceptCommand final : public DocumentCommand {
+public:
+    AcceptCommand(std::vector<ComponentInstance> removed, std::vector<ComponentInstance> added, Counters before, Counters after,
+                  ProposalSession session, std::string lastTypeBefore, std::string lastTypeAfter)
+        : removed_(std::move(removed)), added_(std::move(added)), before_(std::move(before)), after_(std::move(after)),
+          session_(std::move(session)), lastTypeBefore_(std::move(lastTypeBefore)), lastTypeAfter_(std::move(lastTypeAfter)) {}
+
+    void redo(InspectionDocument& d) const override {
+        Board& board = Access::board(d);
+        eraseComponents(board.components, removed_);
+        // 新元件的編號都比現有的大（編號只增不減，而且復原會把計數還原），接在最後面就保持排序。
+        board.components.insert(board.components.end(), added_.begin(), added_.end());
+        Access::counters(d) = after_;
+        Access::lastTypeId(d) = lastTypeAfter_;
+    }
+    void undo(InspectionDocument& d) const override {
+        Board& board = Access::board(d);
+        board.components.resize(board.components.size() - added_.size());
+        insertComponents(board.components, removed_);
+        Access::counters(d) = before_;
+        Access::lastTypeId(d) = lastTypeBefore_;
+    }
+    CommandKind kind() const override { return CommandKind::Accept; }
+    std::size_t count() const override { return added_.size(); }
+    const ProposalSession* proposal() const override { return &session_; }
+
+private:
+    std::vector<ComponentInstance> removed_;  // 依編號排序
+    std::vector<ComponentInstance> added_;    // 依編號排序（都比 removed 的大）
     Counters before_;
     Counters after_;
     ProposalSession session_;
     std::string lastTypeBefore_;
+    std::string lastTypeAfter_;
 };
 
 class DiscardCommand final : public DocumentCommand {
@@ -111,27 +183,8 @@ class DeleteCommand final : public DocumentCommand {
 public:
     explicit DeleteCommand(std::vector<ComponentInstance> removed) : removed_(std::move(removed)) {}  // 依編號排序
 
-    void redo(InspectionDocument& d) const override {
-        auto& components = Access::board(d).components;
-        std::vector<ComponentInstance> kept;
-        kept.reserve(components.size() - removed_.size());
-        auto gone = removed_.begin();
-        for (ComponentInstance& c : components) {
-            if (gone != removed_.end() && gone->id == c.id) {
-                ++gone;
-                continue;
-            }
-            kept.push_back(std::move(c));
-        }
-        components = std::move(kept);
-    }
-    void undo(InspectionDocument& d) const override {
-        auto& components = Access::board(d).components;
-        const auto middle = static_cast<std::ptrdiff_t>(components.size());
-        components.insert(components.end(), removed_.begin(), removed_.end());
-        std::inplace_merge(components.begin(), components.begin() + middle, components.end(),
-                           [](const ComponentInstance& a, const ComponentInstance& b) { return a.id < b.id; });
-    }
+    void redo(InspectionDocument& d) const override { eraseComponents(Access::board(d).components, removed_); }
+    void undo(InspectionDocument& d) const override { insertComponents(Access::board(d).components, removed_); }
     CommandKind kind() const override { return CommandKind::DeleteComponents; }
     std::size_t count() const override { return removed_.size(); }
 
@@ -201,6 +254,64 @@ private:
     std::vector<Entry> entries_;
 };
 
+// 改類型的主體框大小；拖的那個元件的位姿一起記（拖單邊時中心會移）。
+class ResizeTypeCommand final : public DocumentCommand {
+public:
+    ResizeTypeCommand(std::string typeId, Size2D beforeUm, Size2D afterUm, int anchorId, Pose2D anchorBefore, Pose2D anchorAfter,
+                      std::size_t affected)
+        : typeId_(std::move(typeId)), beforeUm_(beforeUm), afterUm_(afterUm), anchorId_(anchorId), anchorBefore_(anchorBefore),
+          anchorAfter_(anchorAfter), affected_(affected) {}
+
+    void redo(InspectionDocument& d) const override { apply(d, afterUm_, anchorAfter_); }
+    void undo(InspectionDocument& d) const override { apply(d, beforeUm_, anchorBefore_); }
+    CommandKind kind() const override { return CommandKind::ResizeType; }
+    std::size_t count() const override { return affected_; }
+
+private:
+    void apply(InspectionDocument& d, Size2D um, const Pose2D& anchor) const {
+        Board& board = Access::board(d);
+        if (ComponentType* type = findTypeMutable(board, typeId_)) {
+            if (BoxGroup* body = bodyOf(*type)) {
+                body->widthUm = um.w;
+                body->heightUm = um.h;
+            }
+        }
+        const auto it = findById(board.components, anchorId_);
+        if (it != board.components.end()) it->pose = anchor;
+    }
+
+    std::string typeId_;
+    Size2D beforeUm_;
+    Size2D afterUm_;
+    int anchorId_;
+    Pose2D anchorBefore_;
+    Pose2D anchorAfter_;
+    std::size_t affected_;
+};
+
+// 在類型上加一個框群組（接在最後；復原時拿掉最後一個）。
+class AddBoxGroupCommand final : public DocumentCommand {
+public:
+    AddBoxGroupCommand(std::string typeId, BoxGroup group, std::size_t affected)
+        : typeId_(std::move(typeId)), group_(std::move(group)), affected_(affected) {}
+
+    void redo(InspectionDocument& d) const override {
+        if (ComponentType* type = findTypeMutable(Access::board(d), typeId_)) type->groups.push_back(group_);
+    }
+    void undo(InspectionDocument& d) const override {
+        if (ComponentType* type = findTypeMutable(Access::board(d), typeId_)) {
+            if (!type->groups.empty() && type->groups.back().id == group_.id) type->groups.pop_back();
+        }
+    }
+    CommandKind kind() const override { return CommandKind::AddBoxGroup; }
+    std::size_t count() const override { return affected_; }
+
+private:
+    std::string typeId_;
+    BoxGroup group_;
+    std::size_t affected_;
+};
+
 }  // namespace
 
 InspectionDocument::InspectionDocument() = default;
@@ -238,6 +349,35 @@ const ComponentType* InspectionDocument::findType(const std::string& typeId) con
     return nullptr;
 }
 
+std::optional<Size2D> InspectionDocument::bodySizePx(const std::string& typeId) const {
+    const ComponentType* type = findType(typeId);
+    if (type == nullptr) return std::nullopt;
+    const double pxPerUm = 1.0 / effectiveUmPerPixel(board_.umPerPixel);
+    for (const BoxGroup& g : type->groups) {
+        if (g.kind == BoxGroupKind::Body) return Size2D{g.widthUm * pxPerUm, g.heightUm * pxPerUm};
+    }
+    return std::nullopt;
+}
+
+std::vector<SampleOnBoard> InspectionDocument::samples() const {
+    std::vector<SampleOnBoard> out;
+    for (const ComponentInstance& c : board_.components) {
+        if (c.state != ObjectState::Sample) continue;
+        const std::optional<Size2D> size = bodySizePx(c.typeId);
+        if (!size) continue;
+        out.push_back(SampleOnBoard{c.typeId, c.id, rectFromCenter(c.pose.position(), *size)});
+    }
+    return out;
+}
+
+std::vector<int> InspectionDocument::componentsOfType(const std::string& typeId) const {
+    std::vector<int> out;
+    for (const ComponentInstance& c : board_.components) {
+        if (c.typeId == typeId) out.push_back(c.id);
+    }
+    return out;
+}
+
 void InspectionDocument::notify(DocumentChange::Cause cause, CommandKind kind, std::size_t count) {
     ++revision_;
     if (observer_) observer_(DocumentChange{cause, kind, count});
@@ -250,12 +390,11 @@ void InspectionDocument::push(UndoStack<InspectionDocument>::CommandPtr command,
     notify(DocumentChange::Cause::Edit, kind, count);
 }
 
-std::size_t InspectionDocument::accept(const ProposalSession& session) {
-    const ProposalObjects view = session.objects();
+int InspectionDocument::addSample(const Rect& samplePx) {
+    if (samplePx.empty()) return 0;
     Counters before = counters_;
     Counters after = before;
 
-    // 這一批元件共用一個新的暫時類型：只有主體框，大小就是範本大小（µm；換算見 box_expander.h 的 effectiveUmPerPixel）。
     ComponentType type;
     type.id = "t" + std::to_string(after.nextTypeId++);
     type.category = ComponentCategory::Other;
@@ -263,31 +402,56 @@ std::size_t InspectionDocument::accept(const ProposalSession& session) {
     body.id = 1;
     body.kind = BoxGroupKind::Body;
     const double um = effectiveUmPerPixel(board_.umPerPixel);
-    body.widthUm = view.partSize.w * um;
-    body.heightUm = view.partSize.h * um;
+    body.widthUm = samplePx.w * um;
+    body.heightUm = samplePx.h * um;
     type.groups.push_back(body);
 
-    std::vector<ComponentInstance> components;
-    components.reserve(view.objects.size());
+    ComponentInstance sample;
+    sample.id = after.nextComponentId++;
+    sample.name = takeName(after, type.category);
+    const Point2D center = samplePx.center();
+    sample.pose = Pose2D{center.x, center.y, 0.0};
+    sample.typeId = type.id;
+    sample.state = ObjectState::Sample;
+    sample.origin = ObjectOrigin::Manual;
+    const int id = sample.id;
+    push(std::make_shared<AddSampleCommand>(std::move(type), std::move(sample), std::move(before), std::move(after), lastTypeId_));
+    return id;
+}
+
+std::size_t InspectionDocument::accept(const ProposalSession& session) {
+    const ProposalObjects view = session.objects();
+    Counters before = counters_;
+    Counters after = before;
+
+    std::vector<ComponentInstance> added;
+    added.reserve(view.objects.size());
+    std::string lastType = lastTypeId_;
     for (const InspectionObject& object : view.objects) {
-        if (object.state == ObjectState::Rejected) continue;
+        if (object.state == ObjectState::Rejected || object.state == ObjectState::Sample) continue;
+        const ComponentType* type = findType(object.typeId);
+        if (type == nullptr) continue;  // 類型已不在板子上（例如復原了建立樣本）：這個候選沒有地方可以放
         ComponentInstance c;
         c.id = after.nextComponentId++;
-        c.name = takeName(after, type.category);
+        c.name = takeName(after, type->category);
         c.pose = object.rect.pose;
-        c.typeId = type.id;
+        c.typeId = object.typeId;
         c.state = object.state;
         c.score = object.score;
         c.origin = object.origin;
-        components.push_back(std::move(c));
+        lastType = c.typeId;
+        added.push_back(std::move(c));
     }
-    if (components.empty()) return 0;
+    if (added.empty()) return 0;
 
-    const std::size_t accepted = components.size();
-    auto command = std::make_shared<AcceptCommand>(std::move(type), std::move(components), std::move(before),
-                                                   std::move(after), session);
-    command->setLastTypeBefore(lastTypeId_);
-    push(std::move(command));
+    // 上一次自動產生的元件整批換掉（樣本與手動補的留著）。
+    std::vector<ComponentInstance> removed;
+    for (const ComponentInstance& c : board_.components) {
+        if (c.origin == ObjectOrigin::Auto && c.state != ObjectState::Sample) removed.push_back(c);
+    }
+    const std::size_t accepted = added.size();
+    push(std::make_shared<AcceptCommand>(std::move(removed), std::move(added), std::move(before), std::move(after), session,
+                                         lastTypeId_, std::move(lastType)));
     return accepted;
 }
 
@@ -347,6 +511,35 @@ std::size_t InspectionDocument::moveComponents(const std::vector<int>& ids, Poin
     const std::size_t count = entries.size();
     push(std::make_shared<MoveCommand>(std::move(entries)), allowMerge);
     return count;
+}
+
+bool InspectionDocument::setBodySize(const std::string& typeId, Size2D sizePx, int anchorId, const Pose2D& anchorPose) {
+    if (!(sizePx.w > 0.0) || !(sizePx.h > 0.0)) return false;
+    const ComponentType* type = findType(typeId);
+    const ComponentInstance* anchor = find(anchorId);
+    if (type == nullptr || anchor == nullptr || anchor->typeId != typeId) return false;
+    const BoxGroup* body = nullptr;
+    for (const BoxGroup& g : type->groups) {
+        if (g.kind == BoxGroupKind::Body) body = &g;
+    }
+    if (body == nullptr) return false;
+    const double um = effectiveUmPerPixel(board_.umPerPixel);
+    const Size2D beforeUm{body->widthUm, body->heightUm};
+    const Size2D afterUm{sizePx.w * um, sizePx.h * um};
+    const std::size_t affected = componentsOfType(typeId).size();
+    push(std::make_shared<ResizeTypeCommand>(typeId, beforeUm, afterUm, anchorId, anchor->pose, anchorPose, affected));
+    return true;
+}
+
+bool InspectionDocument::addBoxGroup(const std::string& typeId, BoxGroup group) {
+    const ComponentType* type = findType(typeId);
+    if (type == nullptr) return false;
+    int maxId = 0;
+    for (const BoxGroup& g : type->groups) maxId = std::max(maxId, g.id);
+    group.id = maxId + 1;
+    const std::size_t affected = componentsOfType(typeId).size();
+    push(std::make_shared<AddBoxGroupCommand>(typeId, std::move(group), affected));
+    return true;
 }
 
 UndoOutcome InspectionDocument::undo() {

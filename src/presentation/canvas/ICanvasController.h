@@ -21,6 +21,8 @@ public:
     virtual void onAddRequested(const QPointF& imagePoint) = 0;
     virtual void onComponentsMoved(const std::vector<int>& componentIds, const QPointF& delta) = 0;
     virtual void onOpenTypeEditor(int componentId, const QPointF& imagePoint) = 0;
+    // 拖把手改大小（ADR-025）：放開時回報一次，rect 是這個元件新的主體框（影像像素）。
+    virtual void onComponentResized(int componentId, const QRectF& rect) = 0;
 };
 
 // 選取與刪除（ux-spec 的 ISelectionController）。setFilter 等 S04 有了篩選型別再加。
@@ -30,6 +32,9 @@ public:
 
     virtual void select(const std::vector<int>& componentIds) = 0;
     virtual void deleteSelected() = 0;
+    // 全選、選取同類型（所選元件的類型；ADR-025）。
+    virtual void selectAll() = 0;
+    virtual void selectSameType() = 0;
 };
 
 // 工具沒有用到的按鍵（ux-spec 第 8 節）：Enter 接受、Esc 退回一層、Del 刪除所選、方向鍵微調、E 開類型編輯器。

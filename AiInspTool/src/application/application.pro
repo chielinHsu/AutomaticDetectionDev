@@ -16,8 +16,10 @@ SOURCES += \
     $$DIR/interaction/InspectionSession.cpp \
     $$DIR/interaction/InteractionStateMachine.cpp \
     $$DIR/jobs/JobRunner.cpp \
+    $$DIR/usecases/BoardProposal.cpp \
     $$DIR/usecases/GenerateObjectsFromSample.cpp \
-    $$DIR/usecases/ProposalView.cpp
+    $$DIR/usecases/ProposalView.cpp \
+    $$DIR/usecases/SearchBoardWithSamples.cpp
 
 HEADERS += \
     $$DIR/CancelToken.h \
@@ -44,5 +46,7 @@ HEADERS += \
     $$DIR/ports/IProgressSink.h \
     $$DIR/ports/IRecipeStore.h \
     $$DIR/ports/ITemplateBuilder.h \
+    $$DIR/usecases/BoardProposal.h \
     $$DIR/usecases/GenerateObjectsFromSample.h \
-    $$DIR/usecases/ProposalView.h
+    $$DIR/usecases/ProposalView.h \
+    $$DIR/usecases/SearchBoardWithSamples.h

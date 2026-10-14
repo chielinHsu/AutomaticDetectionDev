@@ -166,6 +166,13 @@ private slots:
         const QRectF s(sample.x, sample.y, sample.w, sample.h);
         infra::PerfProbe* probe = r.core.value().probe.get();
 
+        // ADR-025：放開只建立樣本，搜尋按〔搜尋〕。樣本建一次，每回合量「按下〔搜尋〕→ 提案就緒」。
+        r.window.toolAction(ui::ToolId::Sample)->trigger();
+        press(r.vp(), r.at(s.left(), s.top()));
+        move(r.vp(), r.at(s.right(), s.bottom()));
+        release(r.vp(), r.at(s.right(), s.bottom()));
+        QVERIFY2(r.presenter().state() == InteractionState::Idle && r.presenter().session().hasSamples(), "the sample was not created");
+
         std::vector<double> toApplied, toPainted;
         int candidates = 0;
         for (int i = 0; i < config_.warmup + config_.runs; ++i) {
@@ -178,11 +185,6 @@ private slots:
             QVERIFY2(QTest::qWaitFor([&] { return r.presenter().state() == InteractionState::Idle; }, 5000), "the UI did not return to Idle");
             QCoreApplication::processEvents();
             paintPending(r);
-
-            r.window.toolAction(ui::ToolId::Sample)->trigger();
-            press(r.vp(), r.at(s.left(), s.top()));
-            move(r.vp(), r.at(s.center().x(), s.center().y()));
-            move(r.vp(), r.at(s.right(), s.bottom()));
 
             QEventLoop loop;
             QTimer overall;
@@ -199,7 +201,7 @@ private slots:
             overall.start(30000);
             const int paintsBefore = r.window.canvas()->paintCount();
             t.start();
-            release(r.vp(), r.at(s.right(), s.bottom()));  // 放開滑鼠：onRegionDrawn → startSearch（worker）→ 結果回到 UI 執行緒 → 套用
+            r.window.searchAction()->trigger();  // 〔搜尋〕：search → startSearch（worker）→ 結果回到 UI 執行緒 → 套用
             if (!applied) loop.exec();
             QObject::disconnect(c);
             QVERIFY2(applied, "the search did not finish within 30 s");

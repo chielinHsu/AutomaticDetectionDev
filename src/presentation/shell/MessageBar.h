@@ -63,6 +63,7 @@ public:
     bool noticePending() const;  // 有提醒卡片（看不看得到都算），還沒 clearNotice
     QString hintText() const;   // 目前提示列顯示的文字（含吐司）
     QString cardTitle() const;
+    QString cardAdvice() const;  // 卡片上的做法清單（每行一條，測試用）
     QString noticeTitle() const;
 
 signals:

@@ -49,7 +49,7 @@ const ProposalEdits::Manual* findManual(const ProposalEdits& edits, int id) {
 
 }  // namespace
 
-ProposalSession::ProposalSession(std::shared_ptr<const SampleProposal> proposal, Rect region, RegionMode mode,
+ProposalSession::ProposalSession(std::shared_ptr<const BoardProposal> proposal, Rect region, RegionMode mode,
                                  double threshold, double candidateFloor)
     : proposal_(std::move(proposal)), region_(region), mode_(mode), threshold_(threshold), candidateFloor_(candidateFloor) {
     auto edits = std::make_shared<ProposalEdits>();
@@ -63,7 +63,6 @@ ProposalObjects ProposalSession::objects() const {
     const ProposalEdits& edits = *state_.edits;
 
     ProposalObjects out;
-    out.partSize = proposal_->partSize;
     out.noMatch = base.noMatch;
     out.objects.reserve(base.objects.size() + edits.manual.size());
 
@@ -86,9 +85,10 @@ ProposalObjects ProposalSession::objects() const {
     for (const ProposalEdits::Manual& m : edits.manual) {
         InspectionObject object;
         object.id = m.id;
-        object.rect = RectObj{m.pose, proposal_->partSize.w, proposal_->partSize.h};
+        object.rect = RectObj{m.pose, m.partSize.w, m.partSize.h};
         object.state = ObjectState::Found;
         object.origin = ObjectOrigin::Manual;
+        object.typeId = m.typeId;
         out.objects.push_back(object);
         ++out.found;
         ++out.manual;
@@ -100,6 +100,16 @@ bool ProposalSession::contains(int objectId) const {
     const ProposalEdits& edits = *state_.edits;
     if (objectId >= 1 && objectId <= static_cast<int>(proposal_->candidates.size())) return !isDeleted(edits, objectId);
     return findManual(edits, objectId) != nullptr;
+}
+
+std::optional<ProposalSession::TypeAndSize> ProposalSession::typeOf(int objectId) const {
+    if (!contains(objectId)) return std::nullopt;
+    if (objectId >= 1 && objectId <= static_cast<int>(proposal_->candidates.size())) {
+        const BoardCandidate& c = proposal_->candidates[static_cast<std::size_t>(objectId - 1)];
+        return TypeAndSize{c.typeId, c.partSize};
+    }
+    const ProposalEdits::Manual* m = findManual(*state_.edits, objectId);
+    return TypeAndSize{m->typeId, m->partSize};
 }
 
 std::size_t ProposalSession::deleteObjects(const std::vector<int>& ids) {
@@ -127,10 +137,10 @@ std::size_t ProposalSession::deleteObjects(const std::vector<int>& ids) {
     return fresh.size();
 }
 
-int ProposalSession::addManual(const Pose2D& pose) {
+int ProposalSession::addManual(const Pose2D& pose, std::string typeId, Size2D partSize) {
     auto next = std::make_shared<ProposalEdits>(*state_.edits);
     const int id = next->nextManualId++;
-    next->manual.push_back({id, pose});
+    next->manual.push_back({id, pose, std::move(typeId), partSize});
     history_.push(state_, std::make_shared<EditsCommand>(state_.edits, next, CommandKind::AddComponent, 1));
     return id;
 }

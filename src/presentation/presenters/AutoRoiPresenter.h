@@ -99,15 +99,20 @@ public:
     void onAddRequested(const QPointF& imagePoint) override;
     void onComponentsMoved(const std::vector<int>& componentIds, const QPointF& delta) override;
     void onOpenTypeEditor(int componentId, const QPointF& imagePoint) override;
+    void onComponentResized(int componentId, const QRectF& rect) override;
 
     // ---- ISelectionController ----
     void select(const std::vector<int>& sceneIds) override;
     void deleteSelected() override;
+    void selectAll() override;
+    void selectSameType() override;
 
     // ---- IKeyboardController ----
     bool onKeyPressed(int key, Qt::KeyboardModifiers modifiers) override;
 
     // ---- IProposalController ----
+    // 〔搜尋〕（F5；ADR-025）：用板子上全部樣本搜尋整張板子，結果依位置合併。沒有樣本時用吐司說明。
+    void search() override;
     void accept() override;
     void discard() override;
     void cancelSearch() override;

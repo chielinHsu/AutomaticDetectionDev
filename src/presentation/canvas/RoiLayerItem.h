@@ -41,6 +41,8 @@ public:
     int componentAt(const QPointF& scenePos) const;
     // 這些元件的外框聯集；找不到任何一個時回傳空的矩形。
     QRectF outlineOf(const std::vector<int>& componentIds) const;
+    // 外框和 rect 相交的元件編號（依快照順序）；框選用（ADR-025）。
+    std::vector<int> componentsIn(const QRectF& rect) const;
 
     int componentCount() const { return snapshot_ ? static_cast<int>(snapshot_->components.size()) : 0; }
     int boxCount() const { return snapshot_ ? static_cast<int>(snapshot_->boxCount()) : 0; }

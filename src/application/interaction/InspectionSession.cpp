@@ -2,6 +2,8 @@
 
 #include <algorithm>
 
+#include "domain/box_expander.h"
+
 namespace aoi {
 
 InspectionSession::InspectionSession() : InspectionSession(Config{}) {}
@@ -15,7 +17,7 @@ void InspectionSession::clearProposal() {
     noMatch_.reset();
 }
 
-// 回到 Idle（或 Empty）時：提案、錯誤、上次的區域、選取都不再有意義。
+// 回到 Idle（或 Empty）時：提案、錯誤、上次的目標、選取都不再有意義。
 void InspectionSession::enterIdleCleanup() {
     clearProposal();
     error_.reset();
@@ -31,6 +33,17 @@ void InspectionSession::pruneSelection() {
         if (exists) kept.push_back(id);
     }
     selection_ = std::move(kept);
+}
+
+bool InspectionSession::refreshSampleTarget() {
+    std::vector<SampleOnBoard> samples = document_.samples();
+    if (samples.empty()) return false;
+    SearchTarget target;
+    target.mode = RegionMode::Sample;
+    target.region = samples.front().rect;
+    target.samples = std::move(samples);
+    lastSearch_ = std::move(target);
+    return true;
 }
 
 // ---- 影像 ----------------------------------------------------------------------------------------------
@@ -62,11 +75,21 @@ InspectionSession::Release InspectionSession::endRegion(const Rect& region, Regi
         machine_.fire(InteractionEvent::ReleaseTooSmall);
         return Release::TooSmall;
     }
+    if (mode == RegionMode::Sample) {
+        // 建立樣本（ADR-025）：文件堆疊上的一個 Command，回到 Idle。舊的提案不再有意義（它是用舊的樣本集合搜尋的）。
+        machine_.fire(InteractionEvent::ReleaseSample);
+        clearProposal();
+        error_.reset();
+        lastSearch_.reset();
+        const int id = document_.addSample(region);
+        selection_ = id > 0 ? std::vector<int>{id} : std::vector<int>{};
+        return Release::SampleAdded;
+    }
     machine_.fire(InteractionEvent::Release);
     // 新的區域是新的請求：舊的提案、選取不再有意義（ADR-002 規則 3：新結果建立新的提案）。
     clearProposal();
     selection_.clear();
-    lastSearch_ = SearchTarget{region, mode};
+    lastSearch_ = SearchTarget{region, mode, {}};
     return Release::Search;
 }
 
@@ -74,7 +97,16 @@ bool InspectionSession::abortRegion() { return machine_.fire(InteractionEvent::E
 
 // ---- 搜尋 ----------------------------------------------------------------------------------------------
 
-bool InspectionSession::searchSucceeded(std::shared_ptr<const SampleProposal> proposal) {
+bool InspectionSession::startSearch() {
+    if (!machine_.peek(InteractionEvent::SearchRequested)) return false;
+    if (!refreshSampleTarget()) return false;
+    machine_.fire(InteractionEvent::SearchRequested);
+    error_.reset();
+    selection_.clear();
+    return true;
+}
+
+bool InspectionSession::searchSucceeded(std::shared_ptr<const BoardProposal> proposal) {
     if (state() != InteractionState::Searching || !lastSearch_ || !proposal) return false;
     ProposalSession session(std::move(proposal), lastSearch_->region, lastSearch_->mode, threshold_, config_.candidateFloor);
     noMatch_ = session.objects().noMatch;
@@ -109,12 +141,16 @@ bool InspectionSession::cancelSearch() {
 
 bool InspectionSession::restartSearch() {
     if (!lastSearch_) return false;
+    if (!machine_.peek(InteractionEvent::ParamsChanged)) return false;
+    if (lastSearch_->mode == RegionMode::Sample && !refreshSampleTarget()) return false;
     return machine_.fire(InteractionEvent::ParamsChanged);
 }
 
 bool InspectionSession::retrySearch() {
     if (!lastSearch_ || errorSource_ != ErrorSource::Search) return false;
-    if (!machine_.fire(InteractionEvent::Retry)) return false;
+    if (!machine_.peek(InteractionEvent::Retry)) return false;
+    if (lastSearch_->mode == RegionMode::Sample && !refreshSampleTarget()) return false;
+    machine_.fire(InteractionEvent::Retry);
     error_.reset();
     return true;
 }
@@ -175,6 +211,39 @@ void InspectionSession::select(const std::vector<int>& ids) {
     pruneSelection();
 }
 
+std::size_t InspectionSession::selectAll() {
+    std::vector<int> ids;
+    if (state() == InteractionState::Idle) {
+        for (const ComponentInstance& c : document_.components()) ids.push_back(c.id);
+    } else if (previewAcceptsEdits()) {
+        for (const InspectionObject& o : proposal_->objects().objects) ids.push_back(o.id);
+    } else {
+        return 0;
+    }
+    selection_ = std::move(ids);
+    return selection_.size();
+}
+
+std::size_t InspectionSession::selectSameType() {
+    if (selection_.empty()) return 0;
+    std::vector<int> ids;
+    if (state() == InteractionState::Idle) {
+        const ComponentInstance* c = document_.find(selection_.front());
+        if (c == nullptr) return 0;
+        ids = document_.componentsOfType(c->typeId);
+    } else if (previewAcceptsEdits()) {
+        const std::optional<ProposalSession::TypeAndSize> type = proposal_->typeOf(selection_.front());
+        if (!type) return 0;
+        for (const InspectionObject& o : proposal_->objects().objects) {
+            if (o.typeId == type->typeId) ids.push_back(o.id);
+        }
+    } else {
+        return 0;
+    }
+    selection_ = std::move(ids);
+    return selection_.size();
+}
+
 std::size_t InspectionSession::deleteSelection() {
     if (selection_.empty()) return 0;
     std::size_t removed = 0;
@@ -205,7 +274,17 @@ InspectionSession::AddResult InspectionSession::addManual(const Pose2D& pose) {
         return AddResult::Added;
     }
     if (previewAcceptsEdits()) {
-        const int id = proposal_->addManual(pose);
+        std::optional<ProposalSession::TypeAndSize> type;
+        for (int id : selection_) {
+            type = proposal_->typeOf(id);
+            if (type) break;
+        }
+        if (!type && !proposal_->proposal().candidates.empty()) {
+            const BoardCandidate& first = proposal_->proposal().candidates.front();
+            type = ProposalSession::TypeAndSize{first.typeId, first.partSize};
+        }
+        if (!type) return AddResult::NeedType;
+        const int id = proposal_->addManual(pose, type->typeId, type->partSize);
         document_.dropRedo();
         selection_ = {id};
         return AddResult::Added;
@@ -222,6 +301,35 @@ std::size_t InspectionSession::moveSelection(Point2D delta, bool allowMerge) {
         return moved;
     }
     return 0;
+}
+
+bool InspectionSession::resizeBody(int componentId, const Rect& rectPx) {
+    if (state() != InteractionState::Idle) return false;
+    if (std::min(rectPx.w, rectPx.h) < config_.minSamplePx) return false;
+    const ComponentInstance* c = document_.find(componentId);
+    if (c == nullptr) return false;
+    const Point2D center = rectPx.center();
+    return document_.setBodySize(c->typeId, rectPx.size(), componentId, Pose2D{center.x, center.y, c->pose.angleDeg});
+}
+
+bool InspectionSession::addBoxGroup(int componentId, const Rect& rectPx) {
+    if (state() != InteractionState::Idle) return false;
+    if (rectPx.empty()) return false;
+    const ComponentInstance* c = document_.find(componentId);
+    if (c == nullptr) return false;
+    // 影像像素 → 類型座標（µm、相對主體中心、把元件的旋轉轉回去）。
+    const double um = effectiveUmPerPixel(document_.board().umPerPixel);
+    const Point2D center = rectPx.center();
+    const Point2D local = rotate({center.x - c->pose.x, center.y - c->pose.y}, -c->pose.angleDeg);
+    BoxGroup group;
+    group.kind = BoxGroupKind::Pin;
+    group.widthUm = rectPx.w * um;
+    group.heightUm = rectPx.h * um;
+    group.centerXUm = local.x * um;
+    group.centerYUm = local.y * um;
+    group.matrix.rows = 1;
+    group.matrix.cols = 1;
+    return document_.addBoxGroup(c->typeId, std::move(group));
 }
 
 // ---- 歷史 ----------------------------------------------------------------------------------------------
@@ -241,7 +349,7 @@ bool InspectionSession::undo() {
         proposal_ = std::move(outcome.restoredProposal);
         threshold_ = proposal_->threshold();
         noMatch_ = proposal_->objects().noMatch;
-        lastSearch_ = SearchTarget{proposal_->region(), proposal_->mode()};
+        lastSearch_ = SearchTarget{proposal_->region(), proposal_->mode(), {}};
         machine_.fire(InteractionEvent::UndoToPreview);
         selection_.clear();
     } else {

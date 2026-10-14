@@ -149,6 +149,7 @@ QAction* MainWindow::toolAction(ToolId id) const {
         case ToolId::Sample: return toolSample_;
         case ToolId::Region: return toolRegion_;
         case ToolId::Add: return toolAdd_;
+        case ToolId::Box: return toolBox_;
     }
     return nullptr;
 }
@@ -179,6 +180,24 @@ void MainWindow::buildActions() {
         if (controllers_.history) controllers_.history->redo();
     });
 
+    // 〔搜尋〕（F5；ADR-025）：用板子上全部樣本搜尋。有影像就能按；沒有樣本時 Presenter 用吐司說明。
+    searchAction_ = ui_->actionSearch;
+    searchAction_->setShortcut(Qt::Key_F5);
+    connect(searchAction_, &QAction::triggered, this, [this] {
+        if (controllers_.proposal) controllers_.proposal->search();
+    });
+    // 全選（Ctrl+A）、選取同類型（Ctrl+Shift+A）。
+    selectAllAction_ = ui_->actionSelectAll;
+    selectAllAction_->setShortcut(QKeySequence::SelectAll);
+    connect(selectAllAction_, &QAction::triggered, this, [this] {
+        if (controllers_.selection) controllers_.selection->selectAll();
+    });
+    selectSameTypeAction_ = ui_->actionSelectSameType;
+    selectSameTypeAction_->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_A));
+    connect(selectSameTypeAction_, &QAction::triggered, this, [this] {
+        if (controllers_.selection) controllers_.selection->selectSameType();
+    });
+
     fitAction_ = ui_->actionFit;
     fitAction_->setShortcut(Qt::Key_F);
     connect(fitAction_, &QAction::triggered, this, [this] { canvas_->fit(); });
@@ -202,7 +221,8 @@ void MainWindow::buildActions() {
     } tools[] = {{&toolSelect_, ui_->actionToolSelect, ToolId::Select},
                  {&toolSample_, ui_->actionToolSample, ToolId::Sample},
                  {&toolRegion_, ui_->actionToolRegion, ToolId::Region},
-                 {&toolAdd_, ui_->actionToolAdd, ToolId::Add}};
+                 {&toolAdd_, ui_->actionToolAdd, ToolId::Add},
+                 {&toolBox_, ui_->actionToolBox, ToolId::Box}};
     for (const auto& t : tools) {
         QAction* a = t.fromUi;
         toolGroup_->addAction(a);
@@ -214,6 +234,7 @@ void MainWindow::buildActions() {
     toolSample_->setShortcut(Qt::Key_S);
     toolRegion_->setShortcut(Qt::Key_R);
     toolAdd_->setShortcuts({QKeySequence(Qt::Key_A), QKeySequence(Qt::Key_Plus)});
+    toolBox_->setShortcut(Qt::Key_B);
     toolSelect_->setChecked(true);
 }
 
@@ -339,10 +360,15 @@ void MainWindow::retranslateUi() {
     fitWidthAction_->setText(QStringLiteral("↔ ") + qtTrId("action.fitWidth"));
     fitWidthAction_->setToolTip(withShortcut(qtTrId("action.fitWidth"), QStringLiteral("W")));
     compareAction_->setText(qtTrId("ui.compare.action"));
+    searchAction_->setText(QStringLiteral("▶ ") + qtTrId("action.search"));
+    searchAction_->setToolTip(withShortcut(qtTrId("action.search"), QStringLiteral("F5")));
+    selectAllAction_->setText(qtTrId("action.selectAll"));
+    selectSameTypeAction_->setText(qtTrId("action.selectSameType"));
     toolSelect_->setToolTip(withShortcut(qtTrId("tool.select"), QStringLiteral("V")));
     toolSample_->setToolTip(withShortcut(qtTrId("tool.sample"), QStringLiteral("S")));
     toolRegion_->setToolTip(withShortcut(qtTrId("tool.scan"), QStringLiteral("R")));
     toolAdd_->setToolTip(withShortcut(qtTrId("tool.add"), QStringLiteral("A")));
+    toolBox_->setToolTip(withShortcut(qtTrId("tool.box"), QStringLiteral("B")));
 
     fileMenu_->setTitle(qtTrId("menu.file"));
     editMenu_->setTitle(qtTrId("menu.edit"));
@@ -377,7 +403,8 @@ void MainWindow::retranslateUi() {
 
 void MainWindow::refreshState() {
     const bool has = canvas_->hasImage();
-    for (QAction* a : {toolSelect_, toolSample_, toolRegion_, toolAdd_}) a->setEnabled(has);
+    for (QAction* a : {toolSelect_, toolSample_, toolRegion_, toolAdd_, toolBox_, searchAction_, selectAllAction_, selectSameTypeAction_})
+        a->setEnabled(has);
     fitAction_->setEnabled(has);
     fitWidthAction_->setEnabled(has);
     emptyCard_->setVisible(!has);

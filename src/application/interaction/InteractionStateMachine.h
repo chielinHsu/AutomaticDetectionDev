@@ -22,7 +22,8 @@ enum class InteractionEvent {
     ImageOpened,
     ImageFailed,
     PressRegion,      // 在畫布上按下，開始拖出一個區域
-    Release,          // 放開，區域夠大：開始搜尋
+    Release,          // 放開，區域夠大：開始搜尋（流程 B 的區域）
+    ReleaseSample,    // 放開，樣本框夠大：建立樣本，回到 Idle（2026-10-14 起樣本的建立與搜尋分開）
     ReleaseTooSmall,  // 放開，區域太小
     Esc,              // 拖曳中按 Esc
     ResultFound,
@@ -31,6 +32,7 @@ enum class InteractionEvent {
     Cancel,           // 取消搜尋，或取消類型編輯
     ParamsChanged,    // 需要重新搜尋的參數變了
     ThresholdChanged, // 分數門檻變了（只重新過濾快取的候選，不搜尋）
+    SearchRequested,  // 使用者按〔搜尋〕：用板子上所有樣本搜尋（Idle、Preview、NoMatch → Searching）
     Accept,
     Discard,
     Dismiss,
@@ -66,6 +68,7 @@ constexpr std::string_view toString(InteractionEvent e) noexcept {
         case InteractionEvent::ImageFailed: return "ImageFailed";
         case InteractionEvent::PressRegion: return "PressRegion";
         case InteractionEvent::Release: return "Release";
+        case InteractionEvent::ReleaseSample: return "ReleaseSample";
         case InteractionEvent::ReleaseTooSmall: return "ReleaseTooSmall";
         case InteractionEvent::Esc: return "Esc";
         case InteractionEvent::ResultFound: return "ResultFound";
@@ -74,6 +77,7 @@ constexpr std::string_view toString(InteractionEvent e) noexcept {
         case InteractionEvent::Cancel: return "Cancel";
         case InteractionEvent::ParamsChanged: return "ParamsChanged";
         case InteractionEvent::ThresholdChanged: return "ThresholdChanged";
+        case InteractionEvent::SearchRequested: return "SearchRequested";
         case InteractionEvent::Accept: return "Accept";
         case InteractionEvent::Discard: return "Discard";
         case InteractionEvent::Dismiss: return "Dismiss";
@@ -86,7 +90,7 @@ constexpr std::string_view toString(InteractionEvent e) noexcept {
 }
 
 inline constexpr int kInteractionStateCount = 8;
-inline constexpr int kInteractionEventCount = 19;
+inline constexpr int kInteractionEventCount = 21;
 
 // 手寫的列舉狀態機：沒有 Qt、沒有計時器、沒有副作用，所以每個轉移都能直接測。
 // 副作用（畫面、搜尋工作）在 Presenter 與 InspectionSession，它們看轉移的結果。

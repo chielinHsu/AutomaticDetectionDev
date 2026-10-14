@@ -171,9 +171,9 @@ private slots:
         QObject::connect(&r.presenter(), &AutoRoiPresenter::searchApplied, &r.presenter(),
                          [&] { appliedOn = QThread::currentThread(); });
 
-        r.drag(ToolId::Sample, QRectF(560, 360, 60, 32));
-        QCOMPARE_STATE(r.state(), S::Searching);  // 放開滑鼠的瞬間就進入搜尋，UI 沒有被卡住
-        QVERIFY(r.canvas()->draftItem()->isVisible());  // 搜尋中保留拖出的框
+        r.searchByDrag(QRectF(560, 360, 60, 32));
+        QCOMPARE_STATE(r.state(), S::Searching);  // 按 F5 的瞬間就進入搜尋，UI 沒有被卡住
+        QVERIFY(!r.canvas()->draftItem()->isVisible());  // 樣本是板子上的元件（框層會畫），沒有拖曳中的框（ADR-025）
 
         QVERIFY(r.waitState(S::Preview));
         QCOMPARE(applied.count(), 1);
@@ -186,12 +186,12 @@ private slots:
         QVERIFY(r.cardButtons().at(1)->text().contains(QStringLiteral("Esc")));
         QVERIFY(r.componentCount() > 5);
         QCOMPARE(r.componentCount(), static_cast<int>(r.scene().snapshot->components.size()));
-        QCOMPARE(r.treeRows(), r.componentCount());
+        QCOMPARE(r.treeRows(), r.componentCount() - 1);  // 樹列的是提案；畫布另外畫板子上的樣本
         // 狀態列的摘要要等「搜尋中…」收起來：搜尋超過忙碌門檻（測試台 40 ms；Debug 常接近）時，標示至少停留
         // busyMinShowMs 才換成摘要（theBusyLabelStaysForItsMinimumTimeAfterAQuickResult）。所以等最終的狀態，不讀當下。
         QTRY_VERIFY2(r.summary().contains(QStringLiteral("找到")), qPrintable(r.summary()));
         QCOMPARE(r.backendStatus(), QStringLiteral("Fake (test)"));
-        QVERIFY(r.canvas()->draftItem()->isVisible());  // 預覽時留著掃過的區域
+        QVERIFY(!r.canvas()->draftItem()->isVisible());  // 樣本畫在框層，拖曳中的框不留
         QVERIFY(r.window.objectsPanel()->model()->rows()->proposal);
     }
 
@@ -201,7 +201,7 @@ private slots:
         QVERIFY(r.teachSample(QRectF(560, 360, 60, 32)));
         // 假世界：樣本左右各 4 格、上下各 2 格 → 9 × 5 ＝ 45 格；樣本自己是其中一格。
         const SceneCounts& c = r.scene().counts;
-        QCOMPARE(c.components, std::size_t{45 - 0});
+        QCOMPARE(c.components, std::size_t{44});  // 樣本自己已經是板子上的元件，不在提案裡（ADR-025）
         QCOMPARE(c.found + c.inferred + c.rejected, c.components);
         QVERIFY(c.found >= 2);
         QVERIFY(c.rejected >= 1);  // 約 20% 分數低
@@ -249,7 +249,7 @@ private slots:
         release(r.vp(), r.at(100, 100));
         QCOMPARE_STATE(r.state(), S::Preview);
         QCOMPARE(r.componentCount(), before);
-        QVERIFY(r.canvas()->draftItem()->isVisible());
+        QVERIFY(!r.canvas()->draftItem()->isVisible());
         QVERIFY(r.window.messageBar()->cardVisible());
     }
 
@@ -261,8 +261,8 @@ private slots:
         const std::size_t expected = r.scene().counts.found + r.scene().counts.inferred;
         r.key(Qt::Key_Return);
         QCOMPARE_STATE(r.state(), S::Idle);
-        QCOMPARE(r.document().components().size(), expected);
-        QCOMPARE(r.componentCount(), static_cast<int>(expected));
+        QCOMPARE(r.document().components().size(), expected + 1);  // 加上樣本
+        QCOMPARE(r.componentCount(), static_cast<int>(expected + 1));
         QVERIFY(!r.window.messageBar()->cardVisible());
         QVERIFY(r.hint().contains(QStringLiteral("已接受")));
         QVERIFY(r.hint().contains(QString::number(expected)));
@@ -293,10 +293,10 @@ private slots:
 
         r.window.undoAction()->trigger();
         QCOMPARE_STATE(r.state(), S::Preview);       // UndoToPreview
-        QVERIFY(r.document().components().empty());
+        QCOMPARE(r.document().components().size(), std::size_t{1});  // 只剩樣本
         QCOMPARE(r.componentCount(), proposalSize);  // 提案回來了
         QVERIFY(r.window.messageBar()->cardVisible());
-        QVERIFY(r.canvas()->draftItem()->isVisible());
+        QVERIFY(!r.canvas()->draftItem()->isVisible());
         QVERIFY(r.window.redoAction()->isEnabled());
 
         r.window.redoAction()->trigger();
@@ -311,9 +311,9 @@ private slots:
         const int proposalSize = r.componentCount();
         r.key(Qt::Key_Escape);
         QCOMPARE_STATE(r.state(), S::Idle);
-        QCOMPARE(r.componentCount(), 0);
+        QCOMPARE(r.componentCount(), 1);  // 只剩樣本
         QVERIFY(r.hint().contains(QStringLiteral("已捨棄")));
-        QVERIFY(r.document().components().empty());
+        QCOMPARE(r.document().components().size(), std::size_t{1});
 
         r.window.undoAction()->trigger();
         QCOMPARE_STATE(r.state(), S::Preview);
@@ -406,8 +406,8 @@ private slots:
         r.clickComponent(3);
         r.key(Qt::Key_Delete);
         QCOMPARE(r.componentCount(), before - 1);
-        QCOMPARE(r.treeRows(), before - 1);
-        QVERIFY(r.document().components().empty());
+        QCOMPARE(r.treeRows(), before - 2);  // 樹只列提案（畫布的數量含板子上的樣本）
+        QCOMPARE(r.document().components().size(), std::size_t{1});
         QVERIFY(r.window.undoAction()->isEnabled());
         r.window.undoAction()->trigger();
         QCOMPARE(r.componentCount(), before);
@@ -474,40 +474,41 @@ private slots:
         QCOMPARE(r.document().find(id)->pose.x, before.x);  // 精確還原
     }
 
-    void draggingAProposalObjectKeepsTheRegionBoxAndMovesOnlyTheProposal() {
+    void draggingAProposalObjectMovesOnlyTheProposalAndLeavesTheBoardAlone() {
         Rig r;
         r.open();
         QVERIFY(r.teachSample());
-        const QRectF region = r.canvas()->draftItem()->rect();
+        const std::size_t boardBefore = r.document().components().size();  // 只有樣本
+        const std::uint64_t revision = r.document().revision();
         r.window.toolAction(ToolId::Select)->trigger();
-        const QPointF c = r.centerOfComponent(3);
+        const QPointF c = r.centerOfComponent(3);  // 索引 0 是板子上的樣本，之後是提案物件
         press(r.vp(), r.at(c.x(), c.y()));
         move(r.vp(), r.at(c.x() + 30, c.y() + 20));
+        QVERIFY(r.canvas()->draftItem()->isVisible());  // 拖曳中：放開後會落在哪裡的外框
         move(r.vp(), r.at(c.x() + 50, c.y() + 30));
         release(r.vp(), r.at(c.x() + 50, c.y() + 30));
         QCOMPARE_STATE(r.state(), S::Preview);
-        QVERIFY(r.document().components().empty());
-        QVERIFY(r.canvas()->draftItem()->isVisible());
-        QCOMPARE(r.canvas()->draftItem()->rect(), region);  // 拖曳的外框收起來之後，掃過的區域框回來
+        QCOMPARE(r.document().components().size(), boardBefore);
+        QCOMPARE(r.document().revision(), revision);           // 文件沒有動
+        QVERIFY(!r.canvas()->draftItem()->isVisible());        // 拖曳的外框收起來；樣本畫在框層，沒有區域框要還原
         QVERIFY(r.window.undoAction()->isEnabled());
         QVERIFY(r.window.undoAction()->toolTip().contains(QStringLiteral("移動 1 個元件")));
     }
 
-    void escapeDuringADragLeavesEverythingAsItWasAndRestoresTheRegionBox() {
+    void escapeDuringADragLeavesEverythingAsItWas() {
         Rig r;
         r.open();
         QVERIFY(r.teachSample());
-        const QRectF region = r.canvas()->draftItem()->rect();
         const std::size_t depthBefore = r.presenter().session().proposal()->editCount();
         r.window.toolAction(ToolId::Select)->trigger();
         const QPointF c = r.centerOfComponent(3);
         press(r.vp(), r.at(c.x(), c.y()));
         move(r.vp(), r.at(c.x() + 50, c.y() + 30));
-        QVERIFY(r.canvas()->draftItem()->rect() != region);  // 外框蓋掉了區域框
+        QVERIFY(r.canvas()->draftItem()->isVisible());  // 拖曳中的外框
         sendKey(r.canvas(), Qt::Key_Escape);
         release(r.vp(), r.at(c.x() + 50, c.y() + 30));
         QCOMPARE_STATE(r.state(), S::Preview);               // Esc 只放棄拖曳，不捨棄提案
-        QCOMPARE(r.canvas()->draftItem()->rect(), region);
+        QVERIFY(!r.canvas()->draftItem()->isVisible());
         QCOMPARE(r.presenter().session().proposal()->editCount(), depthBefore);  // 沒有 Command
     }
 
@@ -545,7 +546,7 @@ private slots:
         r.window.paramsPanel()->scoreSlider()->setValue(90);
         QCOMPARE(r.presenter().session().threshold(), 0.90);  // 門檻記下來了
         QVERIFY(r.scene().snapshot == before);                // 但場景沒有重建：畫面上沒有東西依賴它
-        r.drag(ToolId::Sample, QRectF(200, 150, 40, 24));
+        r.searchByDrag(QRectF(200, 150, 40, 24));
         QVERIFY(r.waitState(S::Preview));
         QCOMPARE(r.presenter().session().proposal()->threshold(), 0.90);  // 下一份提案用它
     }
@@ -622,11 +623,11 @@ private slots:
         r.open();
         r.window.paramsPanel()->scoreSlider()->setValue(99);  // Idle：只記下
         QCOMPARE_STATE(r.state(), S::Idle);
-        r.drag(ToolId::Sample, QRectF(560, 360, 60, 32));
+        r.searchByDrag(QRectF(560, 360, 60, 32));
         QVERIFY(r.waitState(S::NoMatch));
         QVERIFY(r.window.messageBar()->cardVisible());
         QCOMPARE(r.window.messageBar()->cardTitle(), zh("ui.noMatch.title"));
-        QVERIFY(r.canvas()->draftItem()->isVisible());  // 畫布上保留區域，訊息不蓋在影像上
+        QVERIFY(!r.canvas()->draftItem()->isVisible());  // 樣本畫在框層；訊息照舊不蓋在影像上
         const int builds = r.probe->builds;
 
         // 〔降低門檻到 {suggested}〕：不重新搜尋，直接過濾快取
@@ -682,11 +683,11 @@ private slots:
         Rig r;
         r.open();
         r.probe->fail = true;
-        r.drag(ToolId::Sample, QRectF(560, 360, 60, 32));
+        r.searchByDrag(QRectF(560, 360, 60, 32));
         QVERIFY(r.waitState(S::Error));
         QCOMPARE(r.window.messageBar()->cardTitle(), zh("ui.error.searchFailed.title"));
         QCOMPARE(r.cardButtons().size(), 2);  // 〔關閉〕〔再試一次〕
-        QVERIFY(r.canvas()->draftItem()->isVisible());  // 樣本框已保留
+        QVERIFY(!r.canvas()->draftItem()->isVisible());  // 樣本是元件，拖曳中的框不留
 
         r.probe->fail = false;
         r.cardButtons().at(1)->click();
@@ -698,7 +699,7 @@ private slots:
         Rig r;
         r.open();
         r.probe->fail = true;
-        r.drag(ToolId::Sample, QRectF(560, 360, 60, 32));
+        r.searchByDrag(QRectF(560, 360, 60, 32));
         QVERIFY(r.waitState(S::Error));
         r.cardButtons().first()->click();
         QCOMPARE_STATE(r.state(), S::Idle);
@@ -712,7 +713,7 @@ private slots:
         Rig r(world);
         r.open();
         QSignalSpy applied(&r.presenter(), &AutoRoiPresenter::searchApplied);
-        r.drag(ToolId::Sample, QRectF(560, 360, 60, 32));
+        r.searchByDrag(QRectF(560, 360, 60, 32));
         QCOMPARE_STATE(r.state(), S::Searching);
         QCOMPARE(r.presenter().busyLevel(), BusyLevel::None);  // 剛開始：什麼標示都沒有
 
@@ -736,7 +737,7 @@ private slots:
         QTest::qWait(300);
         QCOMPARE(applied.count(), 0);
         QCOMPARE_STATE(r.state(), S::Idle);
-        QCOMPARE(r.componentCount(), 0);
+        QCOMPARE(r.componentCount(), 1);  // 只有樣本
         QVERIFY(!r.canvas()->busyCursor());
     }
 
@@ -750,7 +751,7 @@ private slots:
         s.progressAfterMs = 5000;  // 只要小標示，不要進度列
         s.busyMinShowMs = 600;
         r.presenter().setSettings(s);
-        r.drag(ToolId::Sample, QRectF(560, 360, 60, 32));
+        r.searchByDrag(QRectF(560, 360, 60, 32));
         QVERIFY(QTest::qWaitFor([&] { return r.presenter().busyLevel() == BusyLevel::Busy; }, 2000));
         QElapsedTimer sinceShown;
         sinceShown.start();
@@ -770,7 +771,7 @@ private slots:
         s.progressAfterMs = 5000;
         s.busyMinShowMs = 600;
         r.presenter().setSettings(s);
-        r.drag(ToolId::Sample, QRectF(560, 360, 60, 32));
+        r.searchByDrag(QRectF(560, 360, 60, 32));
         QVERIFY(QTest::qWaitFor([&] { return r.presenter().busyLevel() == BusyLevel::Busy; }, 2000));
         r.key(Qt::Key_Escape);
         QCOMPARE_STATE(r.state(), S::Idle);
@@ -786,7 +787,7 @@ private slots:
         r.open();
         r.probe->gateWindows = true;
         QSignalSpy applied(&r.presenter(), &AutoRoiPresenter::searchApplied);
-        r.drag(ToolId::Sample, QRectF(560, 360, 60, 32));  // 搜尋 A
+        r.searchByDrag(QRectF(560, 360, 60, 32));  // 搜尋 A
         QVERIFY(QTest::qWaitFor([&] { return r.probe->windowEntered.load() == 1; }, 5000));  // A 卡在最後一步
         const quint64 generationA = r.presenter().generation();
         r.presenters->params().setAngleRange(-12.0, 12.0);
@@ -797,7 +798,7 @@ private slots:
         QTest::qWait(300);                                  // A 的報告（Cancelled、有結果）已經回到 UI 執行緒
         QCOMPARE_STATE(r.state(), S::Searching);            // 還在等 B：A 的結果被丟掉了
         QCOMPARE(applied.count(), 0);
-        QCOMPARE(r.componentCount(), 0);
+        QCOMPARE(r.componentCount(), 1);  // 只有樣本
         r.probe->windowReleased = 2;                        // 放行 B
         QVERIFY(r.waitState(S::Preview));
         QCOMPARE(applied.count(), 1);
@@ -809,7 +810,7 @@ private slots:
         world.latencyMs = 1500;
         Rig r(world);
         r.open();
-        r.drag(ToolId::Sample, QRectF(560, 360, 60, 32));
+        r.searchByDrag(QRectF(560, 360, 60, 32));
         QVERIFY(QTest::qWaitFor([&] { return r.presenter().busyLevel() == BusyLevel::Progress; }, 3000));
         QPushButton* cancel = r.window.messageBar()->findChild<QPushButton*>(QStringLiteral("messageCancel"));
         cancel->setFocus();
@@ -834,7 +835,7 @@ private slots:
         world.latencyMs = 800;
         Rig r(world);
         r.open();
-        r.drag(ToolId::Sample, QRectF(560, 360, 60, 32));
+        r.searchByDrag(QRectF(560, 360, 60, 32));
         QCOMPARE_STATE(r.state(), S::Searching);
         QVERIFY(!r.canvas()->toolsEnabled());
         r.window.toolAction(ToolId::Sample)->trigger();
@@ -874,7 +875,7 @@ private slots:
         Rig r(world);
         r.open();
         QSignalSpy applied(&r.presenter(), &AutoRoiPresenter::searchApplied);
-        r.drag(ToolId::Sample, QRectF(560, 360, 60, 32));
+        r.searchByDrag(QRectF(560, 360, 60, 32));
         QCOMPARE_STATE(r.state(), S::Searching);
         const quint64 first = r.presenter().generation();
         r.presenters->params().setAngleRange(-12.0, 12.0);
@@ -908,7 +909,7 @@ private slots:
         Rig r(world);
         r.open();
         QSignalSpy applied(&r.presenter(), &AutoRoiPresenter::searchApplied);
-        r.drag(ToolId::Sample, QRectF(560, 360, 60, 32));
+        r.searchByDrag(QRectF(560, 360, 60, 32));
         QCOMPARE_STATE(r.state(), S::Searching);
         r.open(640, 480);
         QCOMPARE_STATE(r.state(), S::Idle);
@@ -941,7 +942,7 @@ private slots:
         QVERIFY(Translations::install(QStringLiteral("en")));
         QCoreApplication::processEvents();
         QCoreApplication::processEvents();
-        QVERIFY(r.hint().startsWith(QStringLiteral("S teaches")));
+        QVERIFY(r.hint().startsWith(QStringLiteral("S draws")));
         QVERIFY(Translations::install(QStringLiteral("zh_TW")));
         QCoreApplication::processEvents();
         QCoreApplication::processEvents();
@@ -988,7 +989,7 @@ private slots:
         QVERIFY(!bar->noticeVisible());
         QVERIFY(!r.presenters->backend().noticePending());
         // 提示回來（接受時的吐司還在的話，等它結束）
-        QTRY_COMPARE_WITH_TIMEOUT(r.hint(), zh("ui.idle.hint"), ThemeTokens::builtin().timing.toast + 1000);
+        QTRY_VERIFY_WITH_TIMEOUT(r.hint().contains(QStringLiteral("F5")), ThemeTokens::builtin().timing.toast + 1000);  // 板上有樣本：Idle 的提示
         QVERIFY(r.teachSample());
         r.key(Qt::Key_Escape);
         r.key(Qt::Key_Escape);
@@ -1100,7 +1101,7 @@ private slots:
         QVERIFY(r.otherProbe->builds >= 1);
         QCOMPARE(r.presenter().session().lastSearch()->region.x, region.x);
         QCOMPARE(r.presenter().session().lastSearch()->region.w, region.w);
-        QCOMPARE(r.document().components().size(), std::size_t{0});  // 沒有自動接受
+        QCOMPARE(r.document().components().size(), std::size_t{1});  // 沒有自動接受（只有樣本）
     }
 
     // 搜尋中切換：舊的搜尋先作廢（不等它停下，它的結果被丟掉），換好之後用新的 back end 搜尋同一個區域。
@@ -1109,7 +1110,7 @@ private slots:
         r.open();
         r.probe->gateWindows = true;  // fake 的搜尋卡在最後一步（不可中斷的函式庫呼叫）
         QSignalSpy applied(&r.presenter(), &AutoRoiPresenter::searchApplied);
-        r.drag(ToolId::Sample, QRectF(560, 360, 60, 32));
+        r.searchByDrag(QRectF(560, 360, 60, 32));
         QVERIFY(QTest::qWaitFor([&] { return r.probe->windowEntered >= 1; }, 5000));
         QCOMPARE_STATE(r.state(), S::Searching);
 
@@ -1216,7 +1217,7 @@ private slots:
         Rig r;
         r.open();
         r.probe->unavailable = true;
-        r.drag(ToolId::Sample, QRectF(560, 360, 60, 32));
+        r.searchByDrag(QRectF(560, 360, 60, 32));
         QVERIFY(r.waitState(S::Error));
         MessageBar* bar = r.window.messageBar();
         QCOMPARE(bar->cardTitle(), zh("ui.error.backend.title", {{"backend", "Fake (test)"}}));
@@ -1374,7 +1375,7 @@ private slots:
         grab("p5-nomatch");
         r.cardButtons().last()->click();
         r.probe->fail = true;
-        r.drag(ToolId::Sample, QRectF(100, 100, 60, 32));
+        r.searchByDrag(QRectF(100, 100, 60, 32));
         QVERIFY(r.waitState(S::Error));
         grab("p6-error");
         QVERIFY(true);
@@ -1389,22 +1390,181 @@ private slots:
         QCOMPARE_STATE(r.state(), S::Idle);
     }
 
-    void aSecondProposalOnTheSameBoardLeavesTheFirstComponentsAlone() {
+    // ---- ADR-025：樣本的建立與搜尋分開 ----
+    void drawingASampleOnlyCreatesItAndSearchNeedsF5() {
+        Rig r;
+        r.open();
+        r.window.searchAction()->trigger();  // 還沒有樣本
+        QCOMPARE_STATE(r.state(), S::Idle);
+        QCOMPARE(r.hint(), zh("ui.search.noSamples"));
+        QCOMPARE(r.probe->builds.load(), 0);
+
+        QVERIFY(r.drawSample(QRectF(560, 360, 60, 32)));
+        QCOMPARE_STATE(r.state(), S::Idle);                      // 放開不搜尋
+        QCOMPARE(r.probe->builds.load(), 0);
+        QCOMPARE(r.document().components().size(), std::size_t{1});
+        QVERIFY(r.document().components()[0].state == ObjectState::Sample);
+        QCOMPARE(r.document().board().types.size(), std::size_t{1});
+        QCOMPARE(r.componentCount(), 1);                         // 樣本畫在框層
+        QVERIFY(!r.canvas()->draftItem()->isVisible());
+        QCOMPARE(r.canvas()->selection(), std::vector<int>{1});  // 建完就是選取的
+        QVERIFY(r.canvas()->handleItem()->isVisible());          // 單一選取：有把手
+        QCOMPARE(r.canvas()->activeTool(), ToolId::Select);      // 回到選取工具
+        QVERIFY(r.hint().contains(QStringLiteral("已建立樣本")));
+        QVERIFY(r.window.undoAction()->isEnabled());
+        QVERIFY(r.window.undoAction()->toolTip().contains(zh("ui.history.addSample")));
+
+        QVERIFY(r.drawSample(QRectF(200, 150, 40, 24)));  // 第二個樣本：自己的類型
+        QCOMPARE(r.document().board().types.size(), std::size_t{2});
+        QTRY_VERIFY(r.window.messageBar()->hintText().contains(QStringLiteral("2 個樣本")) ||
+                    r.hint().contains(QStringLiteral("2 個樣本")));
+
+        r.key(Qt::Key_F5);  // 鍵盤也行（畫布有焦點時先到 Presenter）
+        QCOMPARE_STATE(r.state(), S::Searching);
+        QVERIFY(r.waitState(S::Preview));
+        QCOMPARE(r.probe->builds.load(), 2);  // 每個樣本各搜一次
+        QVERIFY(r.scene().rows->proposal);
+    }
+
+    void twoSamplesOnTheSameGridAreMergedAndAcceptReplacesTheLastResult() {
+        // 假世界的格子中心距 ＝ 1.5 × 樣本大小：第二個樣本放在第一個的右邊一格（x + 90），兩個樣本看到同一片網格。
+        Rig r;
+        r.open();
+        QVERIFY(r.drawSample(QRectF(560, 360, 60, 32)));
+        QVERIFY(r.drawSample(QRectF(650, 360, 60, 32)));
+        QVERIFY(r.searchAndWait());
+        QCOMPARE_STATE(r.state(), S::Preview);
+        const SceneCounts& c = r.scene().counts;
+        QVERIFY2(c.merged > 0, "the same positions found by both samples should be merged");
+        QVERIFY(r.window.messageBar()->cardAdvice().contains(QStringLiteral("不只一個樣本找到")));
+        // 同一個位置只有一筆：任兩個提案物件的中心距離都大於半個格子。
+        const auto& comps = r.scene().snapshot->components;
+        for (std::size_t i = 0; i < comps.size(); ++i) {
+            for (std::size_t j = i + 1; j < comps.size(); ++j) {
+                const QPointF d = comps[i].outline.center() - comps[j].outline.center();
+                QVERIFY2(std::hypot(d.x(), d.y()) > 30.0, qPrintable(QStringLiteral("%1 and %2 overlap").arg(comps[i].id).arg(comps[j].id)));
+            }
+        }
+        r.key(Qt::Key_Return);
+        const std::size_t first = r.document().components().size();
+        QVERIFY(first > 10);
+
+        // 再搜尋一次：接受時上一次自動產生的整批換掉，樣本留著，數量不會疊加。
+        QVERIFY(r.searchAndWait());
+        QVERIFY(r.window.messageBar()->cardAdvice().contains(QStringLiteral("會換成這一次的結果")));
+        r.key(Qt::Key_Return);
+        QCOMPARE(r.document().components().size(), first);
+        std::size_t samples = 0;
+        for (const ComponentInstance& comp : r.document().components()) samples += comp.state == ObjectState::Sample ? 1 : 0;
+        QCOMPARE(samples, std::size_t{2});
+        r.window.undoAction()->trigger();
+        QCOMPARE_STATE(r.state(), S::Preview);
+        QCOMPARE(r.document().components().size(), first);  // 復原：換掉的回來
+    }
+
+    void draggingAHandleResizesTheTypeForEveryPartOfIt() {
         Rig r;
         r.open();
         QVERIFY(r.teachSample(QRectF(560, 360, 60, 32)));
         r.key(Qt::Key_Return);
-        const std::size_t first = r.document().components().size();
-        QVERIFY(r.teachSample(QRectF(200, 150, 40, 24)));
-        // 預覽第二份提案時，第一份接受的元件還在畫布上（背景），編號不相撞
-        QVERIFY(r.componentCount() > static_cast<int>(first));
-        QVERIFY(r.scene().snapshot->components.front().id < kProposalIdBase);
-        QVERIFY(r.scene().snapshot->components.back().id >= kProposalIdBase);
-        r.clickComponent(0);  // 預覽時背景的文件元件不能選
-        QVERIFY(r.canvas()->selection().empty());
+        const std::size_t parts = r.document().components().size();
+        r.clickComponent(0);  // 樣本（編號 1）
+        QVERIFY(r.canvas()->handleItem()->isVisible());
+        const QRectF outline = r.canvas()->handleItem()->rect();
+        QCOMPARE(outline.size(), QSizeF(60, 32));
+        // 拖右下角的把手：往右下 20 × 10 像素。框在螢幕上小於 72 px 時把手在角落外面 12 px（場景單位 12 ÷ 縮放）。
+        const double push = 12.0 / r.canvas()->viewScale();
+        const QPointF handle(outline.right() + push, outline.bottom() + push);
+        press(r.vp(), r.at(handle.x(), handle.y()));
+        move(r.vp(), r.at(handle.x() + 10, handle.y() + 5));
+        QVERIFY(r.canvas()->draftItem()->isVisible());  // 拖曳中畫新的框
+        move(r.vp(), r.at(handle.x() + 20, handle.y() + 10));
+        release(r.vp(), r.at(handle.x() + 20, handle.y() + 10));
+        const std::optional<Size2D> size = r.document().bodySizePx("t1");
+        QVERIFY(size.has_value());
+        QVERIFY2(std::abs(size->w - 80) < 1.5 && std::abs(size->h - 42) < 1.5, qPrintable(QStringLiteral("%1 x %2").arg(size->w).arg(size->h)));
+        QCOMPARE(r.document().components().size(), parts);
+        for (const ComponentView& v : r.scene().snapshot->components) QVERIFY(std::abs(v.outline.width() - size->w) < 1e-6);  // 同類型全部一起
+        QVERIFY(r.window.undoAction()->toolTip().contains(QStringLiteral("框大小")));
+        QVERIFY(r.hint().contains(QStringLiteral("已改大小")));
+        r.window.undoAction()->trigger();
+        QCOMPARE(r.document().bodySizePx("t1")->w, 60.0);
+    }
+
+    void theBoxToolStampsASubBoxOnEveryPartOfTheType() {
+        Rig r;
+        r.open();
+        QVERIFY(r.drawSample(QRectF(560, 360, 60, 32)));  // 樣本（選取中）
+        r.window.toolAction(ToolId::Box)->trigger();
+        QCOMPARE(r.canvas()->activeTool(), ToolId::Box);
+        press(r.vp(), r.at(565, 365));
+        move(r.vp(), r.at(575, 372));
+        release(r.vp(), r.at(575, 372));
+        const ComponentType* t = r.document().findType("t1");
+        QVERIFY(t != nullptr);
+        QCOMPARE(t->groups.size(), std::size_t{2});
+        QVERIFY(t->groups[1].kind == BoxGroupKind::Pin);
+        QCOMPARE(r.boxCount(), 2);  // 樣本有兩個框了
+        QVERIFY(r.hint().contains(QStringLiteral("已加上子框")));
+
+        QVERIFY(r.searchAndWait());  // 找到的每一個都貼上兩個框（預覽就看得到）
+        for (const ComponentView& v : r.scene().snapshot->components) QCOMPARE(v.boxes.size(), std::size_t{2});
         r.key(Qt::Key_Return);
-        QVERIFY(r.document().components().size() > first);
-        QCOMPARE(r.document().board().types.size(), std::size_t{2});
+        QCOMPARE(r.boxCount(), 2 * static_cast<int>(r.document().components().size()));
+
+        r.window.toolAction(ToolId::Select)->trigger();
+        r.key(Qt::Key_Escape);  // 清除選取
+        r.window.toolAction(ToolId::Box)->trigger();
+        press(r.vp(), r.at(100, 100));
+        release(r.vp(), r.at(120, 110));
+        QCOMPARE(r.hint(), zh("ui.box.needOne"));  // 沒有選取：說明
+        QCOMPARE(t->groups.size(), std::size_t{2});
+    }
+
+    void marqueeSelectAllAndSameTypeSelectManyParts() {
+        Rig r;
+        r.open();
+        QVERIFY(r.drawSample(QRectF(560, 360, 60, 32)));
+        QVERIFY(r.drawSample(QRectF(200, 150, 40, 24)));  // 第二個類型
+        QVERIFY(r.searchAndWait());
+        r.key(Qt::Key_Return);
+        const std::size_t all = r.document().components().size();
+        r.window.toolAction(ToolId::Select)->trigger();
+
+        // 框選：在空白處拖一個框，框到的元件都選起來。
+        r.key(Qt::Key_Escape);
+        press(r.vp(), r.at(500, 300));
+        move(r.vp(), r.at(600, 350));
+        QVERIFY(r.canvas()->draftItem()->isVisible());  // 框選中的框
+        move(r.vp(), r.at(700, 420));
+        release(r.vp(), r.at(700, 420));
+        const std::size_t boxed = r.canvas()->selection().size();
+        QVERIFY2(boxed >= 2, qPrintable(QString::number(boxed)));
+        QVERIFY(boxed < all);
+        QVERIFY(!r.canvas()->handleItem()->isVisible());  // 多選：沒有把手
+
+        // 框選到的一起拖：一個 Command，每個都移了。
+        const int firstId = r.canvas()->selection().front();
+        const Pose2D before = r.document().find(firstId)->pose;
+        const std::size_t depth = r.document().historyDepth();
+        const QPointF c = r.canvas()->layerItem()->outlineOf({firstId}).center();
+        press(r.vp(), r.at(c.x(), c.y()));
+        move(r.vp(), r.at(c.x() + 30, c.y()));
+        move(r.vp(), r.at(c.x() + 40, c.y()));
+        release(r.vp(), r.at(c.x() + 40, c.y()));
+        QCOMPARE(r.document().historyDepth(), depth + 1);
+        QVERIFY(std::abs(r.document().find(firstId)->pose.x - (before.x + 40)) < 0.6);
+        QCOMPARE(r.canvas()->selection().size(), boxed);
+
+        r.key(Qt::Key_A, Qt::ControlModifier);  // 全選
+        QCOMPARE(r.canvas()->selection().size(), all);
+        r.clickComponent(0);                                       // 第一個樣本（t1）
+        r.key(Qt::Key_A, Qt::ControlModifier | Qt::ShiftModifier);  // 選取同類型
+        const std::size_t sameType = r.canvas()->selection().size();
+        QVERIFY(sameType > 1 && sameType < all);
+        for (int id : r.canvas()->selection()) QCOMPARE(r.document().find(id)->typeId, std::string("t1"));
+        r.window.selectAllAction()->trigger();  // 選單上的動作一樣
+        QCOMPARE(r.canvas()->selection().size(), all);
     }
 };
 

@@ -228,10 +228,25 @@ struct Rig {
         aoi::test::release(vp(), at(scene.right(), scene.bottom()));
     }
 
-    // 教一個樣本，等結果出來。
-    bool teachSample(const QRectF& scene = QRectF(560, 360, 60, 32)) {
+    // 建立一個樣本（S 工具放開；2026-10-14 起不搜尋，ADR-025）：回到 Idle，板上多一個樣本元件。
+    bool drawSample(const QRectF& scene = QRectF(560, 360, 60, 32)) {
         drag(aoi::ui::ToolId::Sample, scene);
+        return waitState(aoi::InteractionState::Idle, 2000) && presenter().session().hasSamples();
+    }
+    // 按〔搜尋〕（F5），等結果出來。
+    bool searchAndWait() {
+        window.searchAction()->trigger();
         return waitState(aoi::InteractionState::Preview) || state() == aoi::InteractionState::NoMatch;
+    }
+    // 畫樣本並按 F5，不等結果（舊的 drag(Sample) 的替代：之後的斷言從 Searching 開始）。
+    void searchByDrag(const QRectF& scene = QRectF(560, 360, 60, 32)) {
+        drawSample(scene);
+        window.searchAction()->trigger();
+    }
+    // 教一個樣本並搜尋：畫樣本、按 F5、等結果（舊的「放開就搜尋」的替代）。
+    bool teachSample(const QRectF& scene = QRectF(560, 360, 60, 32)) {
+        if (!drawSample(scene)) return false;
+        return searchAndWait();
     }
 
     bool waitState(aoi::InteractionState s, int timeoutMs = 8000) {

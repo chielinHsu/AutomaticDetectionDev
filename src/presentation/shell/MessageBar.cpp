@@ -165,6 +165,7 @@ bool MessageBar::noticeVisible() const { return notice_.box->isVisibleTo(this); 
 bool MessageBar::noticePending() const { return noticePending_; }
 QString MessageBar::hintText() const { return hint_->text(); }
 QString MessageBar::cardTitle() const { return card_.title->text(); }
+QString MessageBar::cardAdvice() const { return card_.advice->text(); }
 QString MessageBar::noticeTitle() const { return notice_.title->text(); }
 
 }  // namespace aoi::ui

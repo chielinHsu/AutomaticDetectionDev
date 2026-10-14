@@ -3,11 +3,12 @@
 #include <cstddef>
 #include <memory>
 #include <optional>
+#include <string>
 #include <utility>
 #include <vector>
 
 #include "application/document/UndoStack.h"
-#include "application/usecases/GenerateObjectsFromSample.h"
+#include "application/usecases/BoardProposal.h"
 #include "domain/geometry.h"
 #include "domain/match.h"
 #include "domain/object_state.h"
@@ -15,7 +16,7 @@
 // application 層：只用標準庫。
 namespace aoi {
 
-// 使用者畫出的區域做什麼：Sample ＝ 流程 A「教樣本」，Region ＝ 流程 B「區域掃描」。
+// 使用者畫出的區域做什麼：Sample ＝ 流程 A「教樣本」（2026-10-14 起只建立樣本，搜尋另外按），Region ＝ 流程 B「區域掃描」。
 enum class RegionMode { Sample, Region };
 
 // 這個 Command 是什麼、影響幾個物件。顯示用（「復原：刪除 12 個元件」）；文字在 presentation。
@@ -29,6 +30,8 @@ struct ProposalEdits {
     struct Manual {
         int id = 0;
         Pose2D pose;
+        std::string typeId;  // 補的元件的類型（所選物件的，或提案裡第一個候選的）
+        Size2D partSize;     // 主體框的大小（畫面與分類用）
     };
     std::vector<int> deleted;                      // 被刪掉的候選編號，由小到大
     std::vector<std::pair<int, Point2D>> moved;    // 候選編號 → 累計位移，編號由小到大
@@ -49,7 +52,6 @@ struct ProposalObjects {
     std::size_t inferred = 0;
     std::size_t rejected = 0;
     std::size_t manual = 0;
-    Size2D partSize;
     // 沒有可用結果的原因（取自 classify）；有結果時是 nullopt。修改（刪除、補一個）不會讓它出現或消失。
     std::optional<NoMatchInfo> noMatch;
 };
@@ -60,14 +62,15 @@ struct ProposalObjects {
 // 所以「接受」與「捨棄」可以帶著整個提案一起放進文件堆疊，復原時原樣還給預覽（UndoToPreview）。
 //
 // 分數門檻不是修改：它是對快取候選重新過濾（不進堆疊，拖回去就回來），由 setThreshold 改。
+// 2026-10-14 起提案是「板子的提案」（幾個樣本合併之後，每個候選帶著類型；ADR-025）。
 class ProposalSession {
 public:
     // candidateFloor 要與產生這份提案時的 GenerateOptions::candidateFloor 一致（classify 的建議門檻下限）。
-    ProposalSession(std::shared_ptr<const SampleProposal> proposal, Rect region, RegionMode mode, double threshold,
+    ProposalSession(std::shared_ptr<const BoardProposal> proposal, Rect region, RegionMode mode, double threshold,
                     double candidateFloor = 0.30);
 
-    const SampleProposal& proposal() const { return *proposal_; }
-    const std::shared_ptr<const SampleProposal>& proposalPtr() const { return proposal_; }
+    const BoardProposal& proposal() const { return *proposal_; }
+    const std::shared_ptr<const BoardProposal>& proposalPtr() const { return proposal_; }
     const Rect& region() const { return region_; }
     RegionMode mode() const { return mode_; }
     double threshold() const { return threshold_; }
@@ -76,12 +79,18 @@ public:
     ProposalObjects objects() const;
     // 這個編號現在看得到嗎（沒被刪、存在）。
     bool contains(int objectId) const;
+    // 這個物件的類型與主體框大小（候選或手動補的）；不存在時 nullopt。補一個、接受時用。
+    struct TypeAndSize {
+        std::string typeId;
+        Size2D partSize;
+    };
+    std::optional<TypeAndSize> typeOf(int objectId) const;
 
     // ---- 修改（各是一個 Command）----
     // 刪除：不存在或已刪除的編號略過；回傳實際刪除的個數，0 ＝ 沒有任何改變（也不進堆疊）。
     std::size_t deleteObjects(const std::vector<int>& ids);
-    // 補一個：位姿是影像像素，大小是範本大小；狀態 Found、來源 Manual、沒有分數。回傳新物件的編號。
-    int addManual(const Pose2D& pose);
+    // 補一個：位姿是影像像素；類型與大小由呼叫端決定（所選物件的，或第一個候選的）；狀態 Found、來源 Manual、沒有分數。回傳新物件的編號。
+    int addManual(const Pose2D& pose, std::string typeId, Size2D partSize);
     // 移動：看得到的編號才動。allowMerge ＝ true 且上一步是對同一組物件的移動時，併成一步（方向鍵連續微調）。
     std::size_t moveObjects(const std::vector<int>& ids, Point2D delta, bool allowMerge = false);
 
@@ -95,7 +104,7 @@ public:
     std::size_t editCount() const { return history_.depth(); }
 
 private:
-    std::shared_ptr<const SampleProposal> proposal_;
+    std::shared_ptr<const BoardProposal> proposal_;
     Rect region_;
     RegionMode mode_ = RegionMode::Sample;
     double threshold_ = 0.0;

@@ -4,6 +4,7 @@
 #include <optional>
 #include <vector>
 
+#include "application/usecases/BoardProposal.h"
 #include "application/usecases/GenerateObjectsFromSample.h"
 #include "domain/match.h"
 #include "domain/object_state.h"
@@ -28,6 +29,9 @@ struct ProposalView {
 
 // threshold：0..1。分數 ≥ threshold 是 Found，否則 Rejected；Predicted 一律是 Inferred（沒有分數）；Sample 一律是 Sample。
 // candidateFloor：建議門檻的下限，要與產生這份提案時的 GenerateOptions::candidateFloor 一致。
+// 板子的提案（幾個樣本合併之後，ADR-025）：每個物件帶著它的類型（typeId）。
+ProposalView classify(const BoardProposal& proposal, double threshold, double candidateFloor = 0.30);
+// 單一樣本的提案（A/B 比較與測試）：同一套規則，typeId 是空字串。
 ProposalView classify(const SampleProposal& proposal, double threshold, double candidateFloor = 0.30);
 
 }  // namespace aoi

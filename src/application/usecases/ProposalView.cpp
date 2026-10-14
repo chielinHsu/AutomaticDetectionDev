@@ -5,7 +5,7 @@
 
 namespace aoi {
 
-ProposalView classify(const SampleProposal& proposal, double threshold, double candidateFloor) {
+ProposalView classify(const BoardProposal& proposal, double threshold, double candidateFloor) {
     ProposalView view;
     if (proposal.sampleProblem) {
         view.noMatch = proposal.sampleProblem;
@@ -15,16 +15,19 @@ ProposalView classify(const SampleProposal& proposal, double threshold, double c
     view.objects.reserve(proposal.candidates.size());
     double highestOther = 0.0;
     bool anyOther = false;  // 有沒有 Sample 以外、帶分數的候選
+    bool anySample = false;
     int nextId = 1;
-    for (const Candidate& c : proposal.candidates) {
+    for (const BoardCandidate& c : proposal.candidates) {
         InspectionObject object;
         object.id = nextId++;
-        object.rect = RectObj{c.pose, proposal.partSize.w, proposal.partSize.h};
+        object.rect = RectObj{c.pose, c.partSize.w, c.partSize.h};
         object.origin = ObjectOrigin::Auto;
+        object.typeId = c.typeId;
         switch (c.source) {
             case CandidateSource::Sample:
                 object.state = ObjectState::Sample;
                 object.score = c.score;
+                anySample = true;
                 break;
             case CandidateSource::Predicted:
                 object.state = ObjectState::Inferred;
@@ -43,7 +46,8 @@ ProposalView classify(const SampleProposal& proposal, double threshold, double c
     }
 
     if (view.found == 0) {
-        const bool onlySample = proposal.candidates.size() <= 1;
+        // 只有樣本自己（或什麼都沒有）：板上沒有別的相似元件。合併過的提案不含樣本本身，所以「空的」也算。
+        const bool onlySample = proposal.candidates.size() <= (anySample ? std::size_t{1} : std::size_t{0});
         if (onlySample) {
             view.noMatch = NoMatchInfo{NoMatchReason::OnlyOne, 0.0, 0.0, 0};
         } else if (anyOther) {
@@ -53,6 +57,10 @@ ProposalView classify(const SampleProposal& proposal, double threshold, double c
         }
     }
     return view;
+}
+
+ProposalView classify(const SampleProposal& proposal, double threshold, double candidateFloor) {
+    return classify(boardProposalFrom(proposal, std::string()), threshold, candidateFloor);
 }
 
 }  // namespace aoi

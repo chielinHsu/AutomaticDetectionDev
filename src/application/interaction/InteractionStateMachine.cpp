@@ -15,6 +15,7 @@ std::optional<InteractionState> InteractionStateMachine::peek(InteractionEvent e
         case S::Idle:
             switch (event) {
                 case E::PressRegion: return S::DrawingRegion;
+                case E::SearchRequested: return S::Searching;
                 case E::EditType: return S::EditingType;
                 case E::UndoToPreview: return S::Preview;
                 case E::ImageOpened: return S::Idle;
@@ -24,6 +25,7 @@ std::optional<InteractionState> InteractionStateMachine::peek(InteractionEvent e
         case S::DrawingRegion:
             switch (event) {
                 case E::Release: return S::Searching;
+                case E::ReleaseSample: return S::Idle;  // 樣本建立好了（文件堆疊上的 Command），搜尋另外按
                 case E::ReleaseTooSmall:
                 case E::Esc: return before_;
                 default: return std::nullopt;
@@ -35,12 +37,14 @@ std::optional<InteractionState> InteractionStateMachine::peek(InteractionEvent e
                 case E::Failure: return S::Error;
                 case E::Cancel: return S::Idle;
                 case E::ParamsChanged: return S::Searching;  // 重新搜尋，最新的優先
+                case E::SearchRequested: return S::Searching;  // 再按一次〔搜尋〕：重新搜尋，最新的優先
                 case E::ImageOpened: return S::Idle;
                 default: return std::nullopt;
             }
         case S::Preview:
             switch (event) {
                 case E::ThresholdChanged: return S::Preview;
+                case E::SearchRequested: return S::Searching;
                 case E::ParamsChanged: return S::Searching;
                 case E::Accept:
                 case E::Discard: return S::Idle;
@@ -52,6 +56,7 @@ std::optional<InteractionState> InteractionStateMachine::peek(InteractionEvent e
         case S::NoMatch:
             switch (event) {
                 case E::ThresholdChanged: return ctx.foundAny ? S::Preview : S::NoMatch;
+                case E::SearchRequested: return S::Searching;
                 case E::ParamsChanged: return S::Searching;
                 case E::Dismiss: return S::Idle;
                 case E::PressRegion: return S::DrawingRegion;

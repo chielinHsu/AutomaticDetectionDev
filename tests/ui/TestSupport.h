@@ -84,15 +84,21 @@ public:
     std::vector<std::pair<int, QPointF>> editors;
     std::vector<std::pair<std::vector<int>, QPointF>> moves;
     std::vector<std::vector<int>> selections;
+    std::vector<std::pair<int, QRectF>> resizes;
     int deletes = 0;
+    int selectAlls = 0;
+    int selectSameTypes = 0;
 
     void onRegionDrawn(const QRectF& rect, aoi::ui::DraftMode mode) override { regions.push_back({rect, mode}); }
     void onRegionAborted() override { ++aborted; }
     void onAddRequested(const QPointF& p) override { adds.push_back(p); }
     void onComponentsMoved(const std::vector<int>& ids, const QPointF& delta) override { moves.push_back({ids, delta}); }
     void onOpenTypeEditor(int id, const QPointF& p) override { editors.push_back({id, p}); }
+    void onComponentResized(int id, const QRectF& rect) override { resizes.push_back({id, rect}); }
     void select(const std::vector<int>& ids) override { selections.push_back(ids); }
     void deleteSelected() override { ++deletes; }
+    void selectAll() override { ++selectAlls; }
+    void selectSameType() override { ++selectSameTypes; }
 };
 
 }  // namespace aoi::test

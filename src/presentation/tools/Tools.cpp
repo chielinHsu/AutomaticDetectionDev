@@ -3,12 +3,19 @@
 #include <algorithm>
 #include <cmath>
 
+#include "presentation/canvas/RoiGraphicsItem.h"
+
 namespace aoi::ui {
 
 // ---- SelectTool ------------------------------------------------------------------------------------------
 
 void SelectTool::deactivate(IToolHost& host) {
     if (drag_) cancelDrag(host, true);
+    if (resize_ || marquee_) {
+        resize_.reset();
+        marquee_.reset();
+        host.showRegionDraft(std::nullopt, DraftMode::Region);
+    }
 }
 
 // 放棄拖曳。report ＝ true 時回報位移 0，讓 Presenter 把拖曳中蓋掉的畫面（例如預覽的區域框）還原。
@@ -31,16 +38,57 @@ bool SelectTool::startDrag(const ToolEvent& event, IToolHost& host, const std::v
     return true;
 }
 
+// 拖著某個把手時，框變成什麼樣：角的把手改兩邊，邊的把手只改那一邊；對面的邊不動。翻過去時正規化（寬高不會是負的）。
+QRectF SelectTool::resizedRect(const Resize& resize, const QPointF& scenePos) {
+    using Handle = RoiGraphicsItem::Handle;
+    QRectF r = resize.rect;
+    const QPointF delta = scenePos - resize.start;
+    const auto handle = static_cast<Handle>(resize.handle);
+    const bool left = handle == Handle::TopLeft || handle == Handle::Left || handle == Handle::BottomLeft;
+    const bool right = handle == Handle::TopRight || handle == Handle::Right || handle == Handle::BottomRight;
+    const bool top = handle == Handle::TopLeft || handle == Handle::Top || handle == Handle::TopRight;
+    const bool bottom = handle == Handle::BottomLeft || handle == Handle::Bottom || handle == Handle::BottomRight;
+    if (left) r.setLeft(r.left() + delta.x());
+    if (right) r.setRight(r.right() + delta.x());
+    if (top) r.setTop(r.top() + delta.y());
+    if (bottom) r.setBottom(r.bottom() + delta.y());
+    r = r.normalized();
+    if (r.width() < kMinResizeSidePx) r.setWidth(kMinResizeSidePx);
+    if (r.height() < kMinResizeSidePx) r.setHeight(kMinResizeSidePx);
+    return r;
+}
+
 bool SelectTool::handle(const ToolEvent& event, IToolHost& host) {
     using Type = ToolEvent::Type;
     if (event.type == Type::KeyPress) {
-        if (event.key == Qt::Key_Escape && drag_) {
+        if (event.key == Qt::Key_Escape && (drag_ || resize_ || marquee_)) {
             cancelDrag(host, true);
+            resize_.reset();
+            marquee_.reset();
+            host.showRegionDraft(std::nullopt, DraftMode::Region);
             return true;
         }
         return false;
     }
     if (event.type == Type::Move) {
+        if (resize_) {
+            const QPointF delta = event.scenePos - resize_->start;
+            if (!resize_->moving) {
+                if (std::hypot(delta.x(), delta.y()) * event.viewScale < kDragStartScreenPx) return true;
+                resize_->moving = true;
+            }
+            host.showRegionDraft(resizedRect(*resize_, event.scenePos), DraftMode::Sample);
+            return true;
+        }
+        if (marquee_) {
+            const QPointF delta = event.scenePos - marquee_->start;
+            if (!marquee_->moving) {
+                if (std::hypot(delta.x(), delta.y()) * event.viewScale < kDragStartScreenPx) return true;
+                marquee_->moving = true;
+            }
+            host.showRegionDraft(QRectF(marquee_->start, event.scenePos).normalized(), DraftMode::Region);
+            return true;
+        }
         if (!drag_) return false;
         const QPointF delta = event.scenePos - drag_->start;
         if (!drag_->moving) {
@@ -51,6 +99,35 @@ bool SelectTool::handle(const ToolEvent& event, IToolHost& host) {
         return true;
     }
     if (event.type == Type::Release) {
+        if (resize_) {
+            const Resize resize = *resize_;
+            resize_.reset();
+            if (!resize.moving) return true;  // 只是點了一下把手
+            host.showRegionDraft(std::nullopt, DraftMode::Sample);
+            if (ICanvasController* controller = host.canvasController())
+                controller->onComponentResized(resize.id, resizedRect(resize, event.scenePos));
+            return true;
+        }
+        if (marquee_) {
+            const Marquee marquee = *marquee_;
+            marquee_.reset();
+            if (!marquee.moving) {
+                // 沒拖動：和點空白處一樣（清除選取；Shift 不動）。
+                ISelectionController* selection = host.selectionController();
+                if (selection && !marquee.additive && !marquee.selectedAtPress.empty()) selection->select({});
+                return true;
+            }
+            host.showRegionDraft(std::nullopt, DraftMode::Region);
+            const QRectF rect = QRectF(marquee.start, event.scenePos).normalized();
+            std::vector<int> ids = host.componentsIn(rect);
+            if (marquee.additive) {
+                for (int id : marquee.selectedAtPress) {
+                    if (std::find(ids.begin(), ids.end(), id) == ids.end()) ids.push_back(id);
+                }
+            }
+            if (ISelectionController* selection = host.selectionController()) selection->select(ids);
+            return true;
+        }
         if (!drag_) return false;
         const Drag drag = *drag_;
         const QPointF delta = event.scenePos - drag.start;
@@ -65,10 +142,24 @@ bool SelectTool::handle(const ToolEvent& event, IToolHost& host) {
     if (event.type == Type::Press) {
         ISelectionController* selection = host.selectionController();
         if (!selection) return true;
+        // 把手（單一選取的元件）：改大小。
+        if (event.hitHandle != 0 && event.selected.size() == 1 && !event.hitHandleRect.isNull()) {
+            Resize resize;
+            resize.id = event.selected.front();
+            resize.handle = event.hitHandle;
+            resize.start = event.scenePos;
+            resize.rect = event.hitHandleRect;
+            resize_ = resize;
+            return true;
+        }
         const int hit = event.hitComponent;
         if (hit < 0) {
-            // 點空白處：清除選取；Shift＋點空白處不動，避免手滑丟掉多選。
-            if (!(event.modifiers & Qt::ShiftModifier) && !event.selected.empty()) selection->select({});
+            // 空白處：框選（放開時沒拖動就是清除選取；Shift＋框選＝加入、Shift＋點空白處不動，避免手滑丟掉多選）。
+            Marquee marquee;
+            marquee.start = event.scenePos;
+            marquee.selectedAtPress = event.selected;
+            marquee.additive = event.modifiers & Qt::ShiftModifier;
+            marquee_ = marquee;
             return true;
         }
         std::vector<int> next;
@@ -135,7 +226,7 @@ bool RubberBandTool::handle(const ToolEvent& event, IToolHost& host) {
             if (!anchor_ || event.button != Qt::LeftButton) return false;
             const QRectF rect = currentRect(event);
             anchor_.reset();
-            host.showRegionDraft(rect, mode_);  // 框留著：搜尋中與預覽時都要讓使用者看到掃了哪裡
+            host.showRegionDraft(rect, mode_);  // 框留著：區域掃描的搜尋中與預覽時都要讓使用者看到掃了哪裡
             if (ICanvasController* controller = host.canvasController()) controller->onRegionDrawn(rect, mode_);
             return true;
         }

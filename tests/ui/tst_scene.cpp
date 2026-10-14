@@ -25,8 +25,10 @@ InspectionSession previewOf(const std::vector<double>& scores, std::size_t predi
     InspectionSession s;
     s.imageOpened("board.png", 1000, 800, 0.0);
     s.setThreshold(threshold);
+    // 樣本在 (100, 100)、40 × 20（和 makeProposal 的樣本相同）：建立樣本 → 板上有 t1 與樣本元件 X1 → 按〔搜尋〕（ADR-025）
     s.beginRegion(RegionMode::Sample);
-    s.endRegion(Rect{20, 20, 60, 32}, RegionMode::Sample);
+    s.endRegion(Rect{80, 90, 40, 20}, RegionMode::Sample);
+    s.startSearch();
     s.searchSucceeded(makeProposal(scores, predicted));
     return s;
 }
@@ -58,16 +60,17 @@ private slots:
     void aProposalGetsOffsetIdsOneBodyBoxPerObjectAndItsStates() {
         InspectionSession s = previewOf({0.95, 0.75, 0.50}, 1);  // Sample、Found、Found、Rejected、Inferred
         const Scene scene = buildScene(s, labels());
-        QCOMPARE(scene.snapshot->components.size(), std::size_t{5});
+        QCOMPARE(scene.snapshot->components.size(), std::size_t{6});  // 板子上的樣本元件 ＋ 5 個提案物件
         QVERIFY(scene.rows->proposal);
-        QCOMPARE(scene.snapshot->components.front().id, kProposalIdBase + 1);
-        QVERIFY(isProposalId(scene.snapshot->components.front().id));
+        QCOMPARE(scene.snapshot->components.front().id, 1);  // 文件的元件在前（背景）
+        QCOMPARE(scene.snapshot->components[1].id, kProposalIdBase + 1);
+        QVERIFY(isProposalId(scene.snapshot->components[1].id));
         QVERIFY(byId(scene, kProposalIdBase + 1)->state == OverlayState::Sample);
         QVERIFY(byId(scene, kProposalIdBase + 2)->state == OverlayState::Found);
         QVERIFY(byId(scene, kProposalIdBase + 4)->state == OverlayState::Rejected);
         QVERIFY(byId(scene, kProposalIdBase + 5)->state == OverlayState::Inferred);
         for (const ComponentView& c : scene.snapshot->components) {
-            QCOMPARE(c.boxes.size(), std::size_t{1});
+            QCOMPARE(c.boxes.size(), std::size_t{1});  // 類型 t1 只有主體框
             QVERIFY(c.boxes[0].kind == BoxKind::Body);
             QCOMPARE(c.boxes[0].rect, c.outline);
         }
@@ -95,7 +98,7 @@ private slots:
         QCOMPARE(scene.rows->rows[1].score, 0.95);
         QCOMPARE(scene.rows->rows[2].score, -1.0);  // 推算的沒有分數
         QVERIFY(scene.rows->rows[1].id >= kProposalIdBase);
-        QCOMPARE(scene.rows->types.size(), std::size_t{1});
+        QCOMPARE(scene.rows->types.size(), std::size_t{2});  // 板子的類型 t1，加上「只有主體框」的備用列
         QCOMPARE(scene.rows->types[0].groups.size(), std::size_t{1});
         QCOMPARE(scene.rows->types[0].groups[0].boxCount, 1);
     }
@@ -173,8 +176,7 @@ private slots:
         QVERIFY(translated.rows != afterUndo.rows);
 
         // 有提案時：文件的元件在前（共用快取）、提案的在後；快照是新的一份
-        s.beginRegion(RegionMode::Sample);
-        s.endRegion(Rect{300, 300, 60, 32}, RegionMode::Sample);
+        QVERIFY(s.startSearch());  // 再搜尋一次（板上的樣本）
         s.searchSucceeded(makeProposal({0.9}, 0));
         const Scene withProposal = buildScene(s, english, &cache);
         QVERIFY(withProposal.snapshot != cache.snapshot);
@@ -213,8 +215,7 @@ private slots:
     void aSecondProposalIsDrawnOnTopOfTheBoardButTheTreeListsTheProposal() {
         InspectionSession s = previewOf({0.95});
         s.accept();
-        s.beginRegion(RegionMode::Sample);
-        s.endRegion(Rect{300, 300, 60, 32}, RegionMode::Sample);
+        QVERIFY(s.startSearch());
         s.searchSucceeded(makeProposal({0.90, 0.85}));
         const Scene scene = buildScene(s, labels());
         QCOMPARE(scene.snapshot->components.size(), std::size_t{2 + 3});  // 板子 2 ＋ 提案 3
@@ -238,10 +239,11 @@ private slots:
         InspectionSession s;
         s.imageOpened("board.png", 2592, 1944, 0.0);
         s.beginRegion(RegionMode::Sample);
-        s.endRegion(Rect{0, 0, 60, 40}, RegionMode::Sample);
+        s.endRegion(Rect{0, 0, 60, 40}, RegionMode::Sample);  // 建立樣本（板上 1 個元件）
+        QVERIFY(s.startSearch());
         s.searchSucceeded(makeBigProposal(5000));
         const Scene scene = buildScene(s, labels());
-        QCOMPARE(scene.snapshot->components.size(), std::size_t{5001});
+        QCOMPARE(scene.snapshot->components.size(), std::size_t{5002});  // 樣本 ＋ 5 001 個提案物件
         QCOMPARE(scene.rows->rows.size(), std::size_t{5001});
         QCOMPARE(scene.counts.boxes, std::size_t{5001});
         int total = 0;

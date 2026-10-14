@@ -91,6 +91,15 @@ QRectF RoiLayerItem::outlineOf(const std::vector<int>& componentIds) const {
     return united;
 }
 
+std::vector<int> RoiLayerItem::componentsIn(const QRectF& rect) const {
+    std::vector<int> out;
+    if (!snapshot_ || rect.isEmpty()) return out;
+    for (const ComponentView& c : snapshot_->components) {
+        if (c.outline.intersects(rect)) out.push_back(c.id);
+    }
+    return out;
+}
+
 void RoiLayerItem::setGlyphsEnabled(bool enabled) {
     if (enabled == glyphsEnabled_) return;
     glyphsEnabled_ = enabled;
