@@ -8,7 +8,7 @@
 
 ## 正在做
 
-無。**選取資訊表單與樣本庫面板（ADR-025 的「後續（2026-10-14）」）完成**：分支 `feat/selection-info-panel`（從 `main` 600c757 開；兩個 commit：程式與測試、文件），這個 session 在 worktree 執行，`main` 在主 checkout（`D:\AOI_Project\Qt\AutoCadCreated`）上簽出，所以用 `git -C <主 checkout> merge --no-ff` 合併（合併前確認主 checkout 乾淨），沒有 tag、沒有 push。**接下來仍是 S12**（Start prompt 在 `docs/plan/S12-release.md` 底部），或使用者指定的 P2（完整流程 B 與樣本庫檔案，另開 session）。
+無（這個 session 結束時 `main` 在 3de7bda）。使用者 2026-10-15 回報下一個問題：「建立出來的 CAD 框大小一致，但與鄰近 CAD 框沒有一致；CAD 框的本質是料件的理論位置」——已用 `spawn_task` 開新 session（先確認現況、提做法給使用者決定、再實作；分支建議 `feat/lattice-snapped-positions`）。**選取資訊表單與樣本庫面板（ADR-025 的「後續（2026-10-14）」）完成**：分支 `feat/selection-info-panel`（從 `main` 600c757 開；兩個 commit：程式與測試、文件），這個 session 在 worktree 執行，`main` 在主 checkout（`D:\AOI_Project\Qt\AutoCadCreated`）上簽出，所以用 `git -C <主 checkout> merge --no-ff` 合併（合併前確認主 checkout 乾淨），沒有 tag、沒有 push。**接下來仍是 S12**（Start prompt 在 `docs/plan/S12-release.md` 底部），或使用者指定的 P2（完整流程 B 與樣本庫檔案，另開 session）。
 
 ## 這次做了什麼（細節在 `docs/changelog-ai.md` 最上面那一筆、ADR-025 的後續一節、`docs/current-status.md` 的「選取資訊表單與樣本庫面板」）
 
@@ -21,7 +21,8 @@
 - `test.ps1` 預設 Release：**57／57**（HALCON 0 跳過；有跳過項目的 5 個測試與 2 個 XFAIL 和改之前相同）。
 - `test.ps1 -Config Debug`：**57／57**（`tst_presenter` 82 passed、1 skipped ＝ 截圖那一項）。
 - `node tools/ste-lint.mjs`：979 sentences、0 errors；`node tools/check-deps.mjs`：220 files、0 violations。
-- `-Perf` 與基準線**沒有跑**（上一個 session 已經要重建；這次 `publishSelection` 多了 `selectionInfo()`（單一選取 O(1)）與樣本清單的快取判斷）：下一個動效能的 session 先 `perf.ps1 -Runs 3 -WriteBaseline`。
+- **效能基準線（2026-10-15）**：`perf.ps1 -Runs 3 -WriteBaseline` 跑了一次，結果 **INCONCLUSIVE（結束碼 3）**：623 個指標有 352 個比基準線慢，連沒動過的 domain（T3 中位數 1.89 ms 對基準線 0.64–0.73）與「只做 buildScene」的 U3 診斷（35 ms 對 8.5–9.6）都慢 3–6 倍——當時 Visual Studio、Chrome、遠端桌面都在跑、處理器只跑在 71%。那一輪寫出的基準線已還原成 commit 裡的版本（沒有採用）。**使用者指示：基準線的重建等他說了再做**（他會先關掉 VS 與 Chrome）；U3 的 OVER（p95 35 ms 對 16）在安靜的機器上用 `perf.ps1 -Filter perf_ui_s04 -Runs 3` 再量才能下結論。
+- 那一輪也抓到 `perf_ui_s04` 的 U2、I6 還是 ADR-025 之前的流程（上一個 session 沒改到）：已修（commit 9258f96，合併 3de7bda），`test.ps1 -Perf -Filter perf_ui_s04` 的 U2、I6 通過。
 
 ## 不要動
 
