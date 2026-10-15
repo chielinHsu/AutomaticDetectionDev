@@ -45,6 +45,12 @@ struct SelectionInfo {
     std::size_t boxCount = 0;  // 類型展開的框數（含主體）
     bool canMove = false;
     bool canResize = false;
+    // 晶格（ADR-026；提案的物件才有意義，見 ProposalSession::LatticeRelation）：是不是晶格的成員、使用者有沒有移過、
+    // 現在的位置是不是格點；匹配位置離最近格點多遠（不在任何陣列範圍內的沒有）。
+    bool inLattice = false;
+    bool moved = false;
+    bool onLattice = false;
+    std::optional<double> latticeDeviationPx;
 };
 
 // 互動狀態的唯一擁有者：狀態機、已接受的文件、目前的提案、選取。
@@ -123,6 +129,11 @@ public:
     // ---- 門檻（不進堆疊）----
     // 夾到 [thresholdMin, thresholdMax]。Preview、NoMatch 時重新過濾快取的候選，不搜尋；其餘狀態只記下數值。
     void setThreshold(double threshold);
+    // ---- 位置模式（ADR-026；和門檻一樣不進堆疊）----
+    // Lattice：候選有晶格位姿的用格點（CAD 的理論位置）；Matched：一律用 back end 的匹配位置。Preview、NoMatch 時重新分類
+    // 快取的候選（不搜尋、編號不變）；其餘狀態只記下來給下一份提案。已經接受到板子上的元件不動。
+    void setPositionMode(PositionMode mode);
+    PositionMode positionMode() const { return positionMode_; }
 
     // ---- 提案 ----
     // 接受：回傳接受的元件數；不在預覽中回 nullopt；沒有任何可接受的物件回 0（留在預覽）。
@@ -178,6 +189,7 @@ private:
     std::optional<SearchTarget> lastSearch_;
     std::vector<int> selection_;
     double threshold_;
+    PositionMode positionMode_ = PositionMode::Lattice;
     bool hasImage_ = false;
 };
 

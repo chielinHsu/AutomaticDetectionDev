@@ -50,8 +50,9 @@ const ProposalEdits::Manual* findManual(const ProposalEdits& edits, int id) {
 }  // namespace
 
 ProposalSession::ProposalSession(std::shared_ptr<const BoardProposal> proposal, Rect region, RegionMode mode,
-                                 double threshold, double candidateFloor)
-    : proposal_(std::move(proposal)), region_(region), mode_(mode), threshold_(threshold), candidateFloor_(candidateFloor) {
+                                 double threshold, double candidateFloor, PositionMode positionMode)
+    : proposal_(std::move(proposal)), region_(region), mode_(mode), threshold_(threshold), candidateFloor_(candidateFloor),
+      positionMode_(positionMode) {
     auto edits = std::make_shared<ProposalEdits>();
     // classify 把候選依順序編成 1..N；手動補的接在後面，所以編號不隨門檻或修改改變。
     edits->nextManualId = static_cast<int>(proposal_->candidates.size()) + 1;
@@ -59,7 +60,7 @@ ProposalSession::ProposalSession(std::shared_ptr<const BoardProposal> proposal, 
 }
 
 ProposalObjects ProposalSession::objects() const {
-    ProposalView base = classify(*proposal_, threshold_, candidateFloor_);
+    ProposalView base = classify(*proposal_, threshold_, candidateFloor_, positionMode_);
     const ProposalEdits& edits = *state_.edits;
 
     ProposalObjects out;
@@ -73,6 +74,7 @@ ProposalObjects ProposalSession::objects() const {
         if (moved != edits.moved.end() && moved->first == object.id) {
             object.rect.pose.x += moved->second.x;
             object.rect.pose.y += moved->second.y;
+            object.onLattice = false;  // 使用者移過的，位置是使用者決定的，不再是格點
         }
         switch (object.state) {
             case ObjectState::Sample: ++out.sample; break;
@@ -80,6 +82,9 @@ ProposalObjects ProposalSession::objects() const {
             case ObjectState::Inferred: ++out.inferred; break;
             case ObjectState::Rejected: ++out.rejected; break;
         }
+        if ((object.state == ObjectState::Found || object.state == ObjectState::Inferred) &&
+            !proposal_->candidates[static_cast<std::size_t>(object.id - 1)].onLattice())
+            ++out.offLattice;
         out.objects.push_back(std::move(object));
     }
     for (const ProposalEdits::Manual& m : edits.manual) {
@@ -116,7 +121,9 @@ std::optional<Pose2D> ProposalSession::poseOf(int objectId) const {
     if (!contains(objectId)) return std::nullopt;
     const ProposalEdits& edits = *state_.edits;
     if (objectId >= 1 && objectId <= static_cast<int>(proposal_->candidates.size())) {
-        Pose2D pose = proposal_->candidates[static_cast<std::size_t>(objectId - 1)].pose;
+        const BoardCandidate& c = proposal_->candidates[static_cast<std::size_t>(objectId - 1)];
+        // 和 classify 同一條規則（ADR-026）：Lattice 模式而且有晶格位姿 → 格點，否則匹配位置。
+        Pose2D pose = positionMode_ == PositionMode::Lattice && c.latticePose ? *c.latticePose : c.pose;
         const auto it = std::lower_bound(edits.moved.begin(), edits.moved.end(), objectId,
                                          [](const auto& entry, int key) { return entry.first < key; });
         if (it != edits.moved.end() && it->first == objectId) {
@@ -127,6 +134,21 @@ std::optional<Pose2D> ProposalSession::poseOf(int objectId) const {
     }
     const ProposalEdits::Manual* m = findManual(edits, objectId);
     return m->pose;
+}
+
+ProposalSession::LatticeRelation ProposalSession::latticeOf(int objectId) const {
+    LatticeRelation r;
+    if (!contains(objectId)) return r;
+    if (objectId < 1 || objectId > static_cast<int>(proposal_->candidates.size())) return r;  // 手動補的
+    const BoardCandidate& c = proposal_->candidates[static_cast<std::size_t>(objectId - 1)];
+    const ProposalEdits& edits = *state_.edits;
+    const auto it = std::lower_bound(edits.moved.begin(), edits.moved.end(), objectId,
+                                     [](const auto& entry, int key) { return entry.first < key; });
+    r.moved = it != edits.moved.end() && it->first == objectId;  // 使用者移過的，位置不再是格點
+    r.inLattice = c.onLattice() || c.source == CandidateSource::Predicted;
+    r.onLattice = !r.moved && ((positionMode_ == PositionMode::Lattice && c.latticePose) || c.source == CandidateSource::Predicted);
+    r.deviationPx = c.latticeDeviationPx;
+    return r;
 }
 
 std::size_t ProposalSession::deleteObjects(const std::vector<int>& ids) {

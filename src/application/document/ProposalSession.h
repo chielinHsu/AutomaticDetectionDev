@@ -52,6 +52,7 @@ struct ProposalObjects {
     std::size_t inferred = 0;
     std::size_t rejected = 0;
     std::size_t manual = 0;
+    std::size_t offLattice = 0;  // Found 與 Inferred 之中沒有晶格位姿的（不含手動補的；ADR-026，卡片上提醒）
     // 沒有可用結果的原因（取自 classify）；有結果時是 nullopt。修改（刪除、補一個）不會讓它出現或消失。
     std::optional<NoMatchInfo> noMatch;
 };
@@ -66,8 +67,9 @@ struct ProposalObjects {
 class ProposalSession {
 public:
     // candidateFloor 要與產生這份提案時的 GenerateOptions::candidateFloor 一致（classify 的建議門檻下限）。
+    // positionMode（ADR-026）：候選用格點還是匹配位置；和門檻一樣不是修改（不進堆疊），由 setPositionMode 改。
     ProposalSession(std::shared_ptr<const BoardProposal> proposal, Rect region, RegionMode mode, double threshold,
-                    double candidateFloor = 0.30);
+                    double candidateFloor = 0.30, PositionMode positionMode = PositionMode::Lattice);
 
     const BoardProposal& proposal() const { return *proposal_; }
     const std::shared_ptr<const BoardProposal>& proposalPtr() const { return proposal_; }
@@ -75,6 +77,8 @@ public:
     RegionMode mode() const { return mode_; }
     double threshold() const { return threshold_; }
     void setThreshold(double threshold) { threshold_ = threshold; }
+    PositionMode positionMode() const { return positionMode_; }
+    void setPositionMode(PositionMode mode) { positionMode_ = mode; }
 
     ProposalObjects objects() const;
     // 這個編號現在看得到嗎（沒被刪、存在）。
@@ -88,6 +92,16 @@ public:
     // 這個物件現在的位姿（候選的位姿加上累計的移動，或手動補的位姿）；不存在時 nullopt。只算這一個，不像 objects() 掃全部
     // （選取資訊的表單每次選取、每次門檻變動都要問）。
     std::optional<Pose2D> poseOf(int objectId) const;
+    // 這個物件和晶格的關係（ADR-026；選取資訊的表單）：候選是不是晶格的成員（有晶格位姿，或 Predicted）、使用者有沒有移過它、
+    // 現在的位置是不是格點（成員、沒移過、而且位置模式是 Lattice 或 Predicted），以及匹配位置離最近格點多遠（候選的
+    // latticeDeviationPx）。手動補的、不存在的：全部 false、deviation 是 nullopt。
+    struct LatticeRelation {
+        bool inLattice = false;
+        bool moved = false;
+        bool onLattice = false;
+        std::optional<double> deviationPx;
+    };
+    LatticeRelation latticeOf(int objectId) const;
 
     // ---- 修改（各是一個 Command）----
     // 刪除：不存在或已刪除的編號略過；回傳實際刪除的個數，0 ＝ 沒有任何改變（也不進堆疊）。
@@ -112,6 +126,7 @@ private:
     RegionMode mode_ = RegionMode::Sample;
     double threshold_ = 0.0;
     double candidateFloor_ = 0.30;
+    PositionMode positionMode_ = PositionMode::Lattice;
     ProposalState state_;
     UndoStack<ProposalState> history_;
 };

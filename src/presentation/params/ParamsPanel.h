@@ -46,6 +46,7 @@ public:
     QDoubleSpinBox* angleMax() const { return angleMax_; }
     QComboBox* scopeCombo() const { return scope_; }
     QComboBox* bitsCombo() const { return bits_; }
+    QComboBox* positionCombo() const { return position_; }
     bool angleRowVisible() const;
 
 signals:
@@ -53,6 +54,7 @@ signals:
     void angleRangeChanged(double minDeg, double maxDeg);
     void scopeChanged(int scopeIndex);
     void significantBitsChanged(int bits);  // 0 ＝ 自動
+    void snapToLatticeChanged(bool snap);   // ADR-026：吸附到陣列／用匹配位置
 
 private:
     void updateScoreLabel();
@@ -71,6 +73,8 @@ private:
     QComboBox* scope_;
     QLabel* bitsLabel_;
     QComboBox* bits_;    // 項目的 data 是位元數（0 ＝ 自動）
+    QLabel* positionLabel_;
+    QComboBox* position_;  // 0 ＝ 吸附到陣列、1 ＝ 用匹配位置（ADR-026）
     int detectedBits_ = 0;
     bool syncing_ = false;  // 程式設定的值不算使用者的操作
 };

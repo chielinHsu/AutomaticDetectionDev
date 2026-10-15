@@ -57,6 +57,16 @@ private slots:
         QVERIFY(spec.card.advice.first().contains(QStringLiteral("12")));
     }
 
+    // ADR-026：不在陣列格點上的（單獨的、偏離陣列的）有幾個才提醒。
+    void partsOffTheArrayAreMentionedOnlyWhenThereAreSome() {
+        SceneCounts c;
+        c.offLattice = 3;
+        const CardSpec spec = previewCard(c);
+        QCOMPARE(spec.card.advice.size(), 1);
+        QVERIFY(spec.card.advice.first().contains(QStringLiteral("3")));
+        QVERIFY(spec.card.advice.first().contains(QStringLiteral("格點")));
+    }
+
     // ---- 無匹配 ----
     void everyReasonGivesAnAdviceLineAndEndsWithDismiss() {
         for (NoMatchReason reason : kAllReasons) {
@@ -208,7 +218,12 @@ private slots:
                                 "ui.selection.boxes", "ui.selection.lockRatio", "ui.selection.applyToAll",
                                 "ui.selection.applyToAll.tip", "ui.selection.previewOnlyMove", "ui.resize.appliedAll",
                                 "ui.resize.nothingToApply", "ui.history.resizeTypes", "ui.library.boardSamples",
-                                "ui.library.sample.summary", "ui.library.sample.summaryUm", "ui.library.sample.tip"}) {
+                                "ui.library.sample.summary", "ui.library.sample.summaryUm", "ui.library.sample.tip",
+                                // 2026-10-15（ADR-026）：吸附到陣列、不在格點上的提醒、選取資訊的「位置」
+                                "ui.preview.offLattice", "ui.selection.position", "ui.selection.position.lattice",
+                                "ui.selection.position.member", "ui.selection.position.matched", "ui.selection.position.moved",
+                                "ui.selection.position.noLattice", "ui.selection.position.board", "ui.params.position",
+                                "ui.params.position.lattice", "ui.params.position.matched", "ui.params.position.tip"}) {
             const QJsonObject entry = keys.value(QLatin1String(key)).toObject();
             QVERIFY2(!entry.value("zh_TW").toString().isEmpty() && !entry.value("en").toString().isEmpty(), key);
         }

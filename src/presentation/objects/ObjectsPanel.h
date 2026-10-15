@@ -72,6 +72,7 @@ public:
     QCheckBox* lockRatio() const { return lockRatio_; }
     QLabel* angleValue() const { return angleValue_; }
     QLabel* boxesValue() const { return boxesValue_; }
+    QLabel* positionValue() const { return positionValue_; }
     QPushButton* applyToAll() const { return applyToAll_; }
     QLabel* selectionNote() const { return selectionNote_; }
     const SelectionInfoView& selectionInfo() const { return info_; }
@@ -94,6 +95,7 @@ private:
     void commitSize();
     void followRatio(bool widthChanged);
     void updateSelectionTexts();
+    static QString positionText(const SelectionInfoView& info);
 
     std::unique_ptr<Ui::ObjectsPanel> ui_;
     ObjectsModel model_;
@@ -116,6 +118,8 @@ private:
     QLabel* angleValue_;
     QLabel* boxesLabel_;
     QLabel* boxesValue_;
+    QLabel* positionLabel_;  // ADR-026：格點或匹配位置、離格點多遠
+    QLabel* positionValue_;
     QPushButton* applyToAll_;
     QLabel* selectionNote_;
     SelectionInfoView info_;

@@ -14,6 +14,8 @@ BoardCandidate toBoard(const Candidate& c, const std::string& typeId, Size2D par
     b.score = c.score;
     b.source = c.source;
     b.partSize = partSize;
+    b.latticePose = c.latticePose;
+    b.latticeDeviationPx = c.latticeDeviationPx;
     return b;
 }
 

@@ -26,6 +26,8 @@ CardSpec previewCard(const SceneCounts& counts) {
     if (counts.merged > 0) spec.card.advice << uiText("ui.preview.merged", {{"count", QString::number(counts.merged)}});
     if (counts.excluded > 0) spec.card.advice << uiText("ui.preview.excluded", {{"count", QString::number(counts.excluded)}});
     if (counts.replaced > 0) spec.card.advice << uiText("ui.preview.replaces", {{"count", QString::number(counts.replaced)}});
+    // 不在陣列格點上的（ADR-026）：單獨的元件、偏離陣列的；位置是匹配的，使用者要知道這些沒有「理論位置」。
+    if (counts.offLattice > 0) spec.card.advice << uiText("ui.preview.offLattice", {{"count", QString::number(counts.offLattice)}});
     spec.card.actions << withKey("action.accept", "Enter") << withKey("action.discard", "Esc");
     spec.actions = {CardAction::Accept, CardAction::Discard};
     return spec;

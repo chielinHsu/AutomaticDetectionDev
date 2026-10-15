@@ -138,6 +138,9 @@ MainWindow::MainWindow(ThemeManager& theme, QWidget* parent)
     connect(paramsPanel_, &ParamsPanel::significantBitsChanged, this, [this](int bits) {
         if (controllers_.params) controllers_.params->setSignificantBits(bits);
     });
+    connect(paramsPanel_, &ParamsPanel::snapToLatticeChanged, this, [this](bool snap) {
+        if (controllers_.params) controllers_.params->setSnapToLattice(snap);
+    });
 
     retranslateUi();
     refreshState();
