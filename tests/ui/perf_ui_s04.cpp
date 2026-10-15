@@ -100,8 +100,10 @@ private slots:
     void u2_fillObjectTable() {
         InspectionSession session;
         session.imageOpened("board.png", kBoardW, kBoardH, 0.0);
+        // ADR-025：S 放開只建立樣本（回到 Idle），搜尋另外按；提案的類型 t1 就是這個樣本的類型。
         QVERIFY(session.beginRegion(RegionMode::Sample));
-        QVERIFY(session.endRegion(Rect{0, 0, 60, 40}, RegionMode::Sample) == InspectionSession::Release::Search);
+        QVERIFY(session.endRegion(Rect{0, 0, 60, 40}, RegionMode::Sample) == InspectionSession::Release::SampleAdded);
+        QVERIFY(session.startSearch());
         QVERIFY(session.searchSucceeded(makeBigProposal(5000)));
         SceneLabels labels;
         labels.sample = QStringLiteral("樣本");
@@ -540,7 +542,7 @@ private slots:
             paintPending(r);
             const double u = msSince(t);
             QCOMPARE_STATE(r.state(), InteractionState::Preview);
-            QVERIFY(r.document().components().empty());
+            QCOMPARE(r.document().components().size(), std::size_t{1});  // 復原接受：板上只剩樣本（ADR-025）
 
             t.start();
             r.window.redoAction()->trigger();
@@ -565,6 +567,7 @@ private slots:
             const ProposalSession session(makeBigProposal(n), Rect{0, 0, 10, 10}, RegionMode::Sample, 0.0);
             InspectionDocument doc;
             doc.reset("board.png", kBoardW, kBoardH, 0.0);
+            QVERIFY(doc.addSample(Rect{0, 0, 24, 16}) > 0);  // ADR-025：提案的候選指向板子上的類型 t1，接受前要先有樣本
             std::vector<double> acceptMs, undoMs, redoMs;
             for (int i = 0; i < kWarmup + kRuns; ++i) {
                 QElapsedTimer t;
