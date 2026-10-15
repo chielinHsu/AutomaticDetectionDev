@@ -73,7 +73,7 @@
 - `scripts/dev/test.ps1`（Release＋OpenCV＋HALCON）：57／57 通過；有跳過項目的測試（5 個）與 XFAIL（2 個）的清單和改之前相同，HALCON 0 跳過。
 - `scripts/dev/test.ps1 -Config Debug`：57／57（`tst_presenter` 82 passed、1 skipped ＝ 截圖）。
 - `node tools/ste-lint.mjs`：979 sentences、0 errors；`node tools/check-deps.mjs`：220 files、0 violations。
-- `-Perf`：沒有跑（基準線上一個 session 已經要重建）。
+- `-Perf`（2026-10-15 補跑）：`perf.ps1 -Runs 3 -WriteBaseline` INCONCLUSIVE（結束碼 3：352／623 個指標變慢，含沒動過的 domain 與「只做 buildScene」的診斷；VS、Chrome、遠端桌面在跑、處理器 71%），寫出的基準線已還原、沒有採用；使用者指示基準線等他說了再重建。同一輪抓到 `perf_ui_s04` 的 U2、I6 仍是 ADR-025 之前的流程：已修（9258f96，合併 3de7bda），`test.ps1 -Perf -Filter perf_ui_s04` 的 U2、I6 通過，U3 的 OVER（p95 35 ms）和診斷項一樣是機器狀態、待安靜時再量。
 - 踩到的坑：拖出來的樣本框寬是 60.0000001（視埠座標換算），清單的文字一度印成「60.0 × 32.0 px」；`SamplePanel` 的格式化改成接近整數就不印小數。
 
 ### 未完成
