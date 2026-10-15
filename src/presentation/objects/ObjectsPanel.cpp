@@ -1,6 +1,7 @@
 #include "presentation/objects/ObjectsPanel.h"
 
 #include <QCheckBox>
+#include <QComboBox>
 #include <QDoubleSpinBox>
 #include <QEvent>
 #include <QFontMetrics>
@@ -11,6 +12,7 @@
 #include <QLabel>
 #include <QPushButton>
 #include <QSignalBlocker>
+#include <QSpinBox>
 #include <QToolButton>
 #include <QTreeView>
 #include <algorithm>
@@ -76,6 +78,14 @@ ObjectsPanel::ObjectsPanel(QWidget* parent) : QWidget(parent), ui_(std::make_uni
     boxesLabel_ = ui_->boxesLabel;
     boxesValue_ = ui_->boxesValue;
     applyToAll_ = ui_->applyToAll;
+    matchLabel_ = ui_->matchLabel;
+    matchValue_ = ui_->matchValue;
+    matchModeLabel_ = ui_->matchModeLabel;
+    matchMode_ = ui_->matchMode;
+    matchMode_->addItems({QString(), QString()});  // 0 ＝ 灰階、1 ＝ 邊緣（文字在 retranslate）
+    matchGrowLabel_ = ui_->matchGrowLabel;
+    matchGrow_ = ui_->matchGrow;
+    matchClear_ = ui_->matchClear;
     selectionNote_ = ui_->selectionNote;
     selectionNote_->setForegroundRole(QPalette::PlaceholderText);
     sizeUm_->setForegroundRole(QPalette::PlaceholderText);
@@ -88,6 +98,16 @@ ObjectsPanel::ObjectsPanel(QWidget* parent) : QWidget(parent), ui_(std::make_uni
     connect(sizeH_, &QDoubleSpinBox::valueChanged, this, [this] { followRatio(false); });
     connect(applyToAll_, &QPushButton::clicked, this, [this] {
         if (info_.count == 1 && info_.canResize) emit applySizeToAllRequested();
+    });
+    // 比對區（ADR-026）：特徵選了就送出；外擴是 keyboardTracking 關的 spin box，按 Enter、離開欄位或按上下箭頭才送出一次。
+    connect(matchMode_, &QComboBox::activated, this, [this](int index) {
+        if (!infoSyncing_ && info_.count == 1 && info_.canEditMatch && index != info_.matchMode) emit matchModeEdited(index);
+    });
+    connect(matchGrow_, &QSpinBox::valueChanged, this, [this](int value) {
+        if (!infoSyncing_ && info_.count == 1 && info_.matchGrow >= 0 && value != info_.matchGrow) emit matchGrowEdited(value);
+    });
+    connect(matchClear_, &QPushButton::clicked, this, [this] {
+        if (info_.count == 1 && info_.canEditMatch && info_.hasMatchRegion) emit matchClearRequested();
     });
     setSelectionInfo(SelectionInfoView{});
 
@@ -161,7 +181,18 @@ void ObjectsPanel::setSelectionInfo(const SelectionInfoView& info) {
         centerY_->setValue(one ? info.y : 0.0);
         sizeW_->setValue(one ? info.width : 0.0);
         sizeH_->setValue(one ? info.height : 0.0);
+        const QSignalBlocker bm(matchMode_);
+        const QSignalBlocker bg(matchGrow_);
+        matchMode_->setCurrentIndex(one ? info.matchMode : 0);
+        matchGrow_->setValue(one && info.matchGrow >= 0 ? info.matchGrow : 0);
     }
+    matchValue_->setText(one ? info.matchText : QString());
+    matchMode_->setEnabled(one && info.canEditMatch);
+    matchGrow_->setEnabled(one && info.canEditMatch && info.matchGrow >= 0);
+    matchClear_->setEnabled(one && info.canEditMatch && info.hasMatchRegion);
+    for (QWidget* w : {static_cast<QWidget*>(matchLabel_), static_cast<QWidget*>(matchValue_), static_cast<QWidget*>(matchModeLabel_),
+                       static_cast<QWidget*>(matchGrowLabel_)})
+        w->setEnabled(one && info.canEditMatch);
     for (QWidget* w : {static_cast<QWidget*>(centerX_), static_cast<QWidget*>(centerY_)}) w->setEnabled(one && info.canMove);
     for (QWidget* w : {static_cast<QWidget*>(sizeW_), static_cast<QWidget*>(sizeH_), static_cast<QWidget*>(lockRatio_),
                        static_cast<QWidget*>(applyToAll_)})
@@ -275,6 +306,15 @@ void ObjectsPanel::retranslate() {
     lockRatio_->setText(uiText("ui.selection.lockRatio"));
     applyToAll_->setText(uiText("ui.selection.applyToAll"));
     applyToAll_->setToolTip(uiText("ui.selection.applyToAll.tip"));
+    matchLabel_->setText(uiText("ui.selection.match.title"));
+    matchLabel_->setToolTip(uiText("ui.selection.match.tip"));
+    matchModeLabel_->setText(uiText("ui.selection.match.mode"));
+    matchMode_->setItemText(0, uiText("ui.selection.match.mode.intensity"));
+    matchMode_->setItemText(1, uiText("ui.selection.match.mode.edges"));
+    matchMode_->setToolTip(uiText("ui.selection.match.mode.tip"));
+    matchGrowLabel_->setText(uiText("ui.selection.match.grow"));
+    matchGrow_->setToolTip(uiText("ui.selection.match.grow.tip"));
+    matchClear_->setText(uiText("ui.selection.match.clear"));
     const QString px = QStringLiteral(" px");
     for (QDoubleSpinBox* s : {centerX_, centerY_, sizeW_, sizeH_}) s->setSuffix(px);
     updateSelectionTexts();

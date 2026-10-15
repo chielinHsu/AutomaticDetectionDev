@@ -75,10 +75,23 @@ Result<std::vector<Match>> HalconPatternSearcher::find(const ImageView& image, c
 
         // ---- 2. 影像與搜尋區域 ----
         Clock::time_point t0 = Clock::now();
-        const Size2D size = t->size();
         // 範本決定的平滑與次像素（HalconTemplate.h 的 HalconTemplateTuning）：搜尋影像和模型要是同一種影像。
         const HalconTemplateTuning& tuning = t->tuning();
-        const HalconSearchInput input = prepareHalconSearch(image, accepts, windows, 0.5 * std::hypot(size.w, size.h),
+        // 比對區（ADR-026）：find_shape_model 的搜尋區域限制的是**參考點**（domain 的重心；說明檔 find_shape_model 一節），
+        // 主體中心的視窗要換成參考點的視窗（平移、放大）。整框時參考點就是主體中心，視窗不變。
+        std::vector<Rect> searchWindows = accepts;
+        if (windows && t->originDistance() > 0.0) {
+            searchWindows.clear();
+            for (const Rect& w : referenceWindows(accepts, t->originOffset(), params.angleMinDeg, params.angleMaxDeg)) {
+                const Rect clipped = intersection(w, imageRect);
+                if (!clipped.empty()) searchWindows.push_back(clipped);
+            }
+            if (searchWindows.empty()) {
+                if (statsOut != nullptr) *statsOut = stats;
+                return std::vector<Match>{};
+            }
+        }
+        const HalconSearchInput input = prepareHalconSearch(image, searchWindows, windows, t->referenceReach(),
                                                             halconWindowGrow(t->numLevels()), options_.nativeGray16, tuning.smoothRadius, options_.meanPasses);
         if (!input.gray.image.IsInitialized()) return makeError(ErrorCode::Internal, "Cannot convert the image for HALCON.");
         stats.copied = input.gray.copied;
@@ -104,7 +117,8 @@ Result<std::vector<Match>> HalconPatternSearcher::find(const ImageView& image, c
         // ---- 4、5. 換算、過濾、NMS、排序 ----
         t0 = Clock::now();
         stats.rawMatches = static_cast<std::size_t>(rows.Length());
-        std::vector<Match> out = halconMatches(rows, columns, angles, scores, {}, input.gray, accepts, params, size, options_.nmsMaxOverlap);
+        std::vector<Match> out = halconMatches(rows, columns, angles, scores, {}, input.gray, accepts, params, t->matchSize(), options_.nmsMaxOverlap,
+                                               t->originOffset());
         stats.nmsMs = millisecondsSince(t0);
         stats.matches = out.size();
         stats.totalMs = millisecondsSince(started);

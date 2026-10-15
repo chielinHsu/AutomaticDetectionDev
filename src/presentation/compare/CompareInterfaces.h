@@ -14,6 +14,7 @@
 #include "application/compare/BackendComparison.h"
 #include "domain/geometry.h"
 #include "domain/image_view.h"
+#include "domain/match_region.h"
 #include "domain/search_params.h"
 #include "presentation/presenters/ViewInterfaces.h"
 
@@ -24,6 +25,7 @@ namespace aoi::ui {
 struct CompareRequest {
     aoi::ImageView image;  // 帶著 owner：像素活到比較結束
     aoi::Rect sample;
+    aoi::MatchSpec match;  // 樣本的比對區（ADR-026）：和主搜尋用同一個範本
     aoi::SearchParams search;
     double threshold = 0.70;
     QString imageName;

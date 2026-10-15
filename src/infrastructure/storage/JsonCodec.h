@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QJsonArray>
 #include <QJsonObject>
 #include <QJsonValue>
 #include <string>
@@ -34,6 +35,10 @@ Result<Board> decodeBoard(const QJsonValue& value, const std::string& where);
 Result<ComponentType> decodeComponentType(const QJsonValue& value, const std::string& where);
 Result<SearchParams> decodeSearchParams(const QJsonValue& value, const std::string& where);
 Result<ImageView> decodeImage(const QJsonValue& value, const std::string& where);
+
+// 遷移用（ADR-026：配方 v2 → v3、樣本庫 v1 → v2）：陣列裡每個類型物件沒有 "match" 的，補上整框、灰階的預設值。
+// 不是物件的元素照原樣（留給解碼器報錯）。
+QJsonArray withDefaultMatch(const QJsonArray& types);
 
 // 參考影像的限制（防止損壞或惡意的檔案要求配置巨大的記憶體）。
 inline constexpr int kMaxReferenceSide = 16384;

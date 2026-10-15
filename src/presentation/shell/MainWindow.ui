@@ -148,6 +148,7 @@
    <addaction name="actionToolRegion"/>
    <addaction name="actionToolAdd"/>
    <addaction name="actionToolBox"/>
+   <addaction name="actionToolMatch"/>
   </widget>
   <widget class="QStatusBar" name="statusBar">
    <property name="sizeGripEnabled">
@@ -282,6 +283,14 @@
    </property>
    <property name="text">
     <string notr="true">B</string>
+   </property>
+  </action>
+  <action name="actionToolMatch">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string notr="true">M</string>
    </property>
   </action>
   <action name="actionSearch">

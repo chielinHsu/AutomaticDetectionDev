@@ -97,6 +97,61 @@ struct Impostor final : ITemplate {
     std::string id_;
 };
 
+// ---- 比對區（ADR-026）----
+// 合成板子的元件：主體 40 × 20、兩端各一個電極（22% 寬），左右、上下都對稱。比對區偏右下（中心離主體中心 (7, 1) px）：
+// 搜尋器回報的要是主體中心，不是比對區的中心。比對區要跨過中心、含三條直的邊（左電極｜主體、主體｜右電極、右電極｜底色）：
+// 只框右半邊時，它的邊和左半邊的鏡像只差一個平移（兩個電極一樣），shape model 會在每個元件上找到兩次（這個測試的第一版實測，2026-10-15）。
+enum class RegionKind { Rect, Mask, Edges };
+
+const SyntheticPart& firstPart(const SyntheticBoard& board) {
+    for (const SyntheticPart& p : board.parts) {
+        if (p.present) return p;
+    }
+    return board.parts.front();
+}
+
+MatchSpec regionSpec(const SyntheticBoard& board, RegionKind kind) {
+    const Pose2D c = firstPart(board).pose;
+    MatchSpec spec;
+    const Rect rect{c.x - 14.0, c.y - 12.0, 42.0, 26.0};
+    spec.rect = rect;
+    if (kind == RegionKind::Edges) spec.mode = MatchMode::Edges;
+    if (kind == RegionKind::Mask) {
+        // 外接矩形 42 × 26，主體中間挖一個 8 × 10 的洞（填滿約 93%：一定走遮罩的路，不會被當成矩形）。
+        PixelMask m;
+        m.x = static_cast<int>(std::lround(rect.x));
+        m.y = static_cast<int>(std::lround(rect.y));
+        m.width = 42;
+        m.height = 26;
+        m.bits.assign(static_cast<std::size_t>(m.width) * m.height, 1);
+        for (int y = 8; y < 18; ++y)
+            for (int x = 14; x < 22; ++x) m.bits[static_cast<std::size_t>(y) * m.width + x] = 0;
+        spec.rect = m.bounds();
+        spec.mask = std::move(m);
+    }
+    return spec;
+}
+
+double regionOffset(const SyntheticBoard& board, const MatchSpec& spec) {
+    return distance(firstPart(board).pose.position(), spec.rect->center());
+}
+
+TemplatePtr buildRegion(const SearchEngine& e, const SyntheticBoard& board, const MatchSpec& spec, const SearchParams& p) {
+    Result<TemplatePtr> t = e.backend.templateBuilder->buildFromSample(board.image, SampleSpec{sampleBoxAround(board, 0), spec}, p, CancelToken());
+    if (!t.ok()) qWarning("%s: buildFromSample failed: %s", e.backend.id.c_str(), t.error().message.c_str());
+    return t.ok() ? t.value() : TemplatePtr();
+}
+
+void addRegionRows() {
+    QTest::addColumn<QString>("backend");
+    QTest::addColumn<int>("kind");
+    for (const std::string& id : backendIds(Rows::Vision)) {
+        QTest::addRow("%s rect", id.c_str()) << QString::fromStdString(id) << static_cast<int>(RegionKind::Rect);
+        QTest::addRow("%s mask", id.c_str()) << QString::fromStdString(id) << static_cast<int>(RegionKind::Mask);
+        QTest::addRow("%s edges", id.c_str()) << QString::fromStdString(id) << static_cast<int>(RegionKind::Edges);
+    }
+}
+
 double budgetLimit(const QString& id) {
     QFile f(QStringLiteral(AOI_SOURCE_DIR "/perf/budgets.json"));
     if (!f.open(QIODevice::ReadOnly)) return -1.0;
@@ -518,6 +573,147 @@ private slots:
 #ifdef AOI_PERF_ENFORCE
         QVERIFY2(latencyMs <= kCancelLatencyMs, qPrintable(QString::number(latencyMs)));
 #endif
+    }
+
+    // ---- 比對區（ADR-026）----
+    // 整框的規格（沒有比對區、灰階）＝ build(rect)：同一個範本，搜尋結果逐位元相同（向下相容的哨兵）。
+    void aDefaultSpecMatchesTheRectBuild_data() { addBackendRows(Rows::All); }
+    void aDefaultSpecMatchesTheRectBuild() {
+        CONTRACT_BACKEND(be);
+        const TemplatePtr a = buildFrom(be, cleanBoard(), params());
+        Result<TemplatePtr> b = be.backend.templateBuilder->buildFromSample(cleanBoard().image, SampleSpec{sampleBoxAround(cleanBoard(), 0), {}},
+                                                                              params(), CancelToken());
+        QVERIFY(a && b.ok());
+        QCOMPARE(b.value()->size().w, a->size().w);
+        QCOMPARE(b.value()->size().h, a->size().h);
+        const std::vector<Match> x = findAll(be, cleanBoard().image, *a, params());
+        const std::vector<Match> y = findAll(be, cleanBoard().image, *b.value(), params());
+        QVERIFY(!x.empty());
+        QCOMPARE(y.size(), x.size());
+        for (std::size_t i = 0; i < x.size(); ++i) {
+            QCOMPARE(y[i].pose.x, x[i].pose.x);
+            QCOMPARE(y[i].pose.y, x[i].pose.y);
+            QCOMPARE(y[i].pose.angleDeg, x[i].pose.angleDeg);
+            QCOMPARE(y[i].score, x[i].score);
+        }
+    }
+
+    // 比對區和影像沒有交集：InvalidArgument（每個 back end，含不看影像的假 back end）。
+    void aMatchRegionOutsideTheImageIsRefused_data() { addBackendRows(Rows::All); }
+    void aMatchRegionOutsideTheImageIsRefused() {
+        CONTRACT_BACKEND(be);
+        MatchSpec spec;
+        spec.rect = Rect{-500.0, -500.0, 20.0, 20.0};
+        QCOMPARE_ERROR(be.backend.templateBuilder->buildFromSample(cleanBoard().image, SampleSpec{sampleBoxAround(cleanBoard(), 0), spec}, params(),
+                                                                  CancelToken()),
+                       ErrorCode::InvalidArgument);
+    }
+
+    // 範本只用比對區（矩形、遮罩、邊緣）：回報的是主體中心，範本大小仍是主體框。上限 ＝ 乾淨板子的上限 ＋ 角度誤差經過
+    // 原點位移的槓桿（|o|·cleanAngleDeg，弧度）：比對區不在中心時，角度差一點，主體中心就差 |o| 倍。
+    void aMatchRegionReportsTheBodyCenter_data() { addRegionRows(); }
+    void aMatchRegionReportsTheBodyCenter() {
+        CONTRACT_BACKEND(be);
+        QFETCH(int, kind);
+        const SearcherTolerances& tol = beProfile.searcher;
+        const MatchSpec spec = regionSpec(cleanBoard(), static_cast<RegionKind>(kind));
+        const TemplatePtr t = buildRegion(be, cleanBoard(), spec, params());
+        QVERIFY(t);
+        const Rect body = sampleBoxAround(cleanBoard(), 0);
+        QVERIFY2(std::abs(t->size().w - body.w) <= 1.0 && std::abs(t->size().h - body.h) <= 1.0, "the template size is the body box");
+        const std::vector<Match> found = findAll(be, cleanBoard().image, *t, params());
+        const Accuracy a = compareWithTruth(cleanBoard(), posesOf(found), 0.0);
+        const double limit = tol.cleanPositionPx + regionOffset(cleanBoard(), spec) * degreesToRadians(tol.cleanAngleDeg);
+        qInfo("%s: %s (limit %.3f px)", be.backend.id.c_str(), qPrintable(a.describe()), limit);
+        QVERIFY2(a.matched == a.present && a.falsePositives == 0, qPrintable(a.describe()));
+        QVERIFY2(a.maxErrorPx < limit, qPrintable(a.describe()));
+        QVERIFY2(a.maxAngleErrorDeg < tol.cleanAngleDeg, qPrintable(a.describe()));
+    }
+
+    // 比對區不在中心、板子傾斜：位移跟著角度轉（rotate(o, θ)）。比對區比主體框小，角度的精度跟著範本變小（和
+    // everyAngleInTheRangeIsRecovered 同一把尺：角度誤差 × 比對區的半對角線 ≤ cornerShiftPx）；位置的上限 ＝ 傾斜板子的上限
+    // ＋ |o| × 這個角度上限（弧度）——角度差一點，主體中心就差 |o| 倍。
+    void anOffsetRegionFollowsTheTilt_data() {
+        QTest::addColumn<QString>("backend");
+        QTest::addColumn<double>("tilt");
+        for (const std::string& id : backendIds(Rows::Vision)) {
+            for (const double tilt : {4.5, -4.5, 30.0}) QTest::addRow("%s %+.1f", id.c_str(), tilt) << QString::fromStdString(id) << tilt;
+        }
+    }
+    void anOffsetRegionFollowsTheTilt() {
+        CONTRACT_BACKEND(be);
+        QFETCH(double, tilt);
+        const SearcherTolerances& tol = beProfile.searcher;
+        const double range = std::abs(tilt) > 5.0 ? 30.0 : 5.0;
+        const MatchSpec spec = regionSpec(cleanBoard(), RegionKind::Rect);
+        const TemplatePtr t = buildRegion(be, cleanBoard(), spec, params(0.7, range));
+        QVERIFY(t);
+        SyntheticBoardSpec s = cleanSpec();
+        s.tiltDeg = tilt;
+        const SyntheticBoard tilted = makeSyntheticBoard(s);
+        const Accuracy a = compareWithTruth(tilted, posesOf(findAll(be, tilted.image, *t, params(0.7, range))), tilt);
+        const double halfDiagonal = 0.5 * std::hypot(spec.rect->w, spec.rect->h);
+        const double angleLimitRad = std::max(degreesToRadians(tol.tiltedAngleDeg), tol.cornerShiftPx / halfDiagonal);
+        const double limit = tol.tiltedPositionPx + regionOffset(cleanBoard(), spec) * angleLimitRad;
+        qInfo("%s tilt %+.1f: %s (limit %.3f px, %.3f deg)", be.backend.id.c_str(), tilt, qPrintable(a.describe()), limit,
+              radiansToDegrees(angleLimitRad));
+        QVERIFY2(a.matched == a.present && a.falsePositives == 0, qPrintable(a.describe()));
+        QVERIFY2(a.maxErrorPx < limit, qPrintable(a.describe()));
+        QVERIFY2(degreesToRadians(a.maxAngleErrorDeg) <= angleLimitRad, qPrintable(a.describe()));
+    }
+
+    // 視窗（以主體中心為準）與整張影像給同一個位姿：OpenCV 的邊距、HALCON 的參考點視窗（平移、放大）都要算對。
+    void windowAndWholeImageAgreeWithAnOffset_data() { addRegionRows(); }
+    void windowAndWholeImageAgreeWithAnOffset() {
+        CONTRACT_BACKEND(be);
+        QFETCH(int, kind);
+        const SearchParams p = params(0.7, 30.0);
+        const TemplatePtr t = buildRegion(be, cleanBoard(), regionSpec(cleanBoard(), static_cast<RegionKind>(kind)), p);
+        QVERIFY(t);
+        SyntheticBoardSpec s = cleanSpec();
+        s.tiltDeg = 20.0;
+        const SyntheticBoard tilted = makeSyntheticBoard(s);
+        const std::vector<Match> whole = findAll(be, tilted.image, *t, p);
+        QVERIFY(!whole.empty());
+        std::vector<Rect> windows;
+        for (const Match& m : whole) windows.push_back(rectFromCenter(m.pose.position(), {20.0, 20.0}));
+        const std::vector<Match> windowed = findAll(be, tilted.image, *t, p, SearchRegion::inWindows(windows));
+        QCOMPARE(windowed.size(), whole.size());
+        double worst = 0.0;
+        for (const Match& m : windowed) {
+            double best = std::numeric_limits<double>::max();
+            for (const Match& w : whole) best = std::min(best, distance(w.pose.position(), m.pose.position()));
+            worst = std::max(worst, best);
+        }
+        qInfo("%s: window vs whole image with a match region: max %.4f px", be.backend.id.c_str(), worst);
+        QVERIFY2(worst <= beProfile.searcher.windowVsWholePx, qPrintable(QString::number(worst)));
+    }
+
+    // 遮罩的範本一樣可以被幾個 worker 同時用（範本建好之後不變）。
+    void severalThreadsShareAMaskedTemplate_data() { addBackendRows(Rows::Vision); }
+    void severalThreadsShareAMaskedTemplate() {
+        CONTRACT_BACKEND(be);
+        const TemplatePtr t = buildRegion(be, cleanBoard(), regionSpec(cleanBoard(), RegionKind::Mask), params());
+        QVERIFY(t);
+        const std::vector<Match> alone = findAll(be, cleanBoard().image, *t, params());
+        QVERIFY(!alone.empty());
+        std::atomic<int> same{0};
+        std::vector<std::thread> threads;
+        for (int i = 0; i < 4; ++i) {
+            threads.emplace_back([&] {
+                for (int k = 0; k < 3; ++k) {
+                    const Result<std::vector<Match>> r = search(be, cleanBoard().image, *t, params());
+                    if (r.ok() && r.value().size() == alone.size() &&
+                        std::equal(r.value().begin(), r.value().end(), alone.begin(), [](const Match& a, const Match& b) {
+                            return a.score == b.score && a.pose.x == b.pose.x && a.pose.y == b.pose.y && a.pose.angleDeg == b.pose.angleDeg;
+                        })) {
+                        ++same;
+                    }
+                }
+            });
+        }
+        for (std::thread& th : threads) th.join();
+        QCOMPARE(same.load(), 12);
     }
 
     // ---- 可重入：多個 worker 同時用同一個搜尋器與範本，結果和單獨跑一樣 ----

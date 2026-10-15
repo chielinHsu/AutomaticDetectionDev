@@ -164,27 +164,51 @@ HalconSearchInput prepareHalconSearch(const ImageView& image, const std::vector<
     return in;
 }
 
+std::vector<Rect> referenceWindows(const std::vector<Rect>& accepts, Point2D originOffset, double angleMinDeg, double angleMaxDeg) {
+    const double length = std::hypot(originOffset.x, originOffset.y);
+    if (length == 0.0) return accepts;
+    const double half = 0.5 * (angleMaxDeg - angleMinDeg);
+    Point2D shift{0.0, 0.0};
+    double grow = length;
+    if (half < 90.0) {
+        const Point2D r = rotate(originOffset, angleMinDeg + half);
+        shift = {-r.x, -r.y};
+        grow = length * 2.0 * std::sin(degreesToRadians(half) * 0.5) + 1.0;
+    }
+    std::vector<Rect> out;
+    out.reserve(accepts.size());
+    for (const Rect& a : accepts) out.push_back({a.x + shift.x - grow, a.y + shift.y - grow, a.w + 2.0 * grow, a.h + 2.0 * grow});
+    return out;
+}
+
 std::vector<Match> halconMatches(const HalconCpp::HTuple& rows, const HalconCpp::HTuple& columns, const HalconCpp::HTuple& angles,
                                  const HalconCpp::HTuple& scores, const std::vector<Hlong>& indices, const HalconGray& gray,
-                                 const std::vector<Rect>& accepts, const SearchParams& params, Size2D size, double nmsMaxOverlap) {
+                                 const std::vector<Rect>& accepts, const SearchParams& params, Size2D size, double nmsMaxOverlap,
+                                 Point2D originOffset) {
     std::vector<Match> matches;
+    std::vector<ScoredBox> boxes;
+    const bool shifted = originOffset.x != 0.0 || originOffset.y != 0.0;
     const auto take = [&](Hlong i) {
         const double score = scores[i].D();
         if (!(score >= params.minScore)) return;
         Pose2D pose = poseFromHalcon(rows[i].D(), columns[i].D(), angles[i].D(), gray.originX, gray.originY);
+        const Pose2D reference = pose;
+        if (shifted) {
+            const Point2D r = rotate(originOffset, pose.angleDeg);
+            pose.x += r.x;
+            pose.y += r.y;
+        }
         const Point2D center = pose.position();
         if (std::none_of(accepts.begin(), accepts.end(), [&](const Rect& a) { return a.contains(center); })) return;
         pose.angleDeg = angleIntoRange(pose.angleDeg, params);
         matches.push_back({pose, std::clamp(score, 0.0, 1.0)});
+        boxes.push_back({RectObj{Pose2D{reference.x, reference.y, pose.angleDeg}, size.w, size.h}, matches.back().score});
     };
     if (indices.empty()) {
         for (Hlong i = 0; i < rows.Length(); ++i) take(i);
     } else {
         for (const Hlong i : indices) take(i);
     }
-    std::vector<ScoredBox> boxes;
-    boxes.reserve(matches.size());
-    for (const Match& m : matches) boxes.push_back({RectObj{m.pose, size.w, size.h}, m.score});
     const std::vector<std::size_t> kept = NonMaxSuppression(NmsOptions{nmsMaxOverlap, OverlapMeasure::IntersectionOverUnion}).keep(boxes);
     std::vector<Match> out;
     out.reserve(std::min(kept.size(), params.maxMatches));

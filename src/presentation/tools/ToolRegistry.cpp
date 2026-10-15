@@ -28,6 +28,7 @@ ToolRegistry ToolRegistry::makeDefault() {
     r.registerTool(std::make_unique<RegionScanTool>());
     r.registerTool(std::make_unique<AddComponentTool>());
     r.registerTool(std::make_unique<BoxTool>());
+    r.registerTool(std::make_unique<MatchRegionTool>());
     return r;
 }
 

@@ -344,6 +344,34 @@ private:
     std::size_t affected_;
 };
 
+// 改類型的比對區與比對特徵（ADR-026）。拖外擴滑桿時，同一個類型連續的修改併成一步（保留最早的「前」）。
+class SetMatchCommand final : public DocumentCommand {
+public:
+    SetMatchCommand(std::string typeId, MatchSettings before, MatchSettings after, std::size_t affected)
+        : typeId_(std::move(typeId)), before_(std::move(before)), after_(std::move(after)), affected_(affected) {}
+
+    void redo(InspectionDocument& d) const override { apply(d, after_); }
+    void undo(InspectionDocument& d) const override { apply(d, before_); }
+    CommandKind kind() const override { return CommandKind::SetMatchRegion; }
+    std::size_t count() const override { return affected_; }
+
+    std::shared_ptr<const Command<InspectionDocument>> mergeWith(const Command<InspectionDocument>& next) const override {
+        const auto* other = dynamic_cast<const SetMatchCommand*>(&next);
+        if (other == nullptr || other->typeId_ != typeId_) return nullptr;
+        return std::make_shared<SetMatchCommand>(typeId_, before_, other->after_, other->affected_);
+    }
+
+private:
+    void apply(InspectionDocument& d, const MatchSettings& settings) const {
+        if (ComponentType* type = findTypeMutable(Access::board(d), typeId_)) type->match = settings;
+    }
+
+    std::string typeId_;
+    MatchSettings before_;
+    MatchSettings after_;
+    std::size_t affected_;
+};
+
 }  // namespace
 
 InspectionDocument::InspectionDocument() = default;
@@ -393,11 +421,14 @@ std::optional<Size2D> InspectionDocument::bodySizePx(const std::string& typeId) 
 
 std::vector<SampleOnBoard> InspectionDocument::samples() const {
     std::vector<SampleOnBoard> out;
+    const double um = effectiveUmPerPixel(board_.umPerPixel);
     for (const ComponentInstance& c : board_.components) {
         if (c.state != ObjectState::Sample) continue;
         const std::optional<Size2D> size = bodySizePx(c.typeId);
         if (!size) continue;
-        out.push_back(SampleOnBoard{c.typeId, c.id, rectFromCenter(c.pose.position(), *size)});
+        SampleOnBoard s{c.typeId, c.id, rectFromCenter(c.pose.position(), *size), {}};
+        if (const ComponentType* type = findType(c.typeId)) s.match = matchSpecFor(type->match, c.pose.position(), um);
+        out.push_back(std::move(s));
     }
     return out;
 }
@@ -595,6 +626,14 @@ bool InspectionDocument::addBoxGroup(const std::string& typeId, BoxGroup group) 
     group.id = maxId + 1;
     const std::size_t affected = componentsOfType(typeId).size();
     push(std::make_shared<AddBoxGroupCommand>(typeId, std::move(group), affected));
+    return true;
+}
+
+bool InspectionDocument::setMatchSettings(const std::string& typeId, const MatchSettings& settings, bool allowMerge) {
+    const ComponentType* type = findType(typeId);
+    if (type == nullptr || type->match == settings) return false;
+    const std::size_t affected = componentsOfType(typeId).size();
+    push(std::make_shared<SetMatchCommand>(typeId, type->match, settings, affected), allowMerge);
     return true;
 }
 

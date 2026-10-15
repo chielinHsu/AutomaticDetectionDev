@@ -220,6 +220,44 @@ private slots:
         QVERIFY2(diffRecipe(v1, v2.value()).isEmpty(), qPrintable(diffRecipe(v1, v2.value())));
     }
 
+    // ---- v3 範例檔（ADR-026：類型的 match；tests/infra/fixtures/recipe-v3.json，之後的版本也要讀得進來）----
+    // v1、v2 沒有 match：讀進來是整框、灰階（和 v3 之前的行為相同）。
+    void olderFixturesHaveTheDefaultMatch() {
+        JsonRecipeStore store;
+        for (const char* name : {"recipe-v1.json", "recipe-v2.json"}) {
+            const Result<Recipe> r = store.load(utf8(fixture(name)));
+            QVERIFY2(r.ok(), r.ok() ? "" : r.error().message.c_str());
+            for (const ComponentType& t : r.value().board.types) QVERIFY2(t.match.isDefault(), name);
+        }
+    }
+
+    void theV3FixtureLoadsTheMatchRegions() {
+        JsonRecipeStore store;
+        const Result<Recipe> v3 = store.load(utf8(fixture("recipe-v3.json")));
+        QVERIFY2(v3.ok(), v3.ok() ? "" : v3.error().message.c_str());
+        QCOMPARE(v3.value().schemaVersion, 3);
+        const std::vector<ComponentType>& types = v3.value().board.types;
+        QCOMPARE(types.size(), std::size_t{2});
+        QVERIFY(types[0].match.mode == MatchMode::Edges);
+        QVERIFY(types[0].match.region);
+        QCOMPARE(types[0].match.region->centerXUm, 1250.0);
+        QCOMPARE(types[0].match.region->heightUm, 1500.0);
+        QVERIFY(types[0].match.region->mask.empty());
+        QVERIFY(types[1].match.mode == MatchMode::Intensity);
+        QVERIFY(types[1].match.region);
+        const MatchMask& mask = types[1].match.region->mask;
+        QCOMPARE(mask.width, 5);
+        QCOMPARE(mask.height, 3);
+        QCOMPARE(mask.runs.size(), std::size_t{4});
+        QCOMPARE(maskFromRuns(mask, 0, 0).count(), std::size_t{3 + 5 + 1 + 1});
+        // 除了 match，和 v2 範例是同一份配方。
+        Recipe v2 = store.load(utf8(fixture("recipe-v2.json"))).value();
+        v2.board.types[0].match = types[0].match;
+        v2.board.types[1].match = types[1].match;
+        v2.schemaVersion = 3;
+        QVERIFY2(diffRecipe(v2, v3.value()).isEmpty(), qPrintable(diffRecipe(v2, v3.value())));
+    }
+
     void theV1FixtureSurvivesASaveAndLoad() {
         JsonRecipeStore store;
         const Result<Recipe> first = store.load(utf8(fixture("recipe-v1.json")));
@@ -252,9 +290,9 @@ private slots:
     void olderFilesAreMigratedStepByStep() {
         std::vector<int> calls;
         std::vector<int> seenVersions;
-        // 內建的 v1 → v2，再加兩個假的（v2 → v3、v3 → v4）：假裝這個程式是 v4。
+        // 內建的 v1 → v2、v2 → v3（ADR-026），再加兩個假的（v3 → v4、v4 → v5）：假裝這個程式是 v5。
         std::vector<json::Migration> migrations = JsonRecipeStore::builtInMigrations();
-        QCOMPARE(migrations.size(), std::size_t{1});
+        QCOMPARE(migrations.size(), std::size_t{2});
         migrations.push_back([&](QJsonObject& root) -> Result<void> {
             calls.push_back(1);
             seenVersions.push_back(root.value(QStringLiteral("schemaVersion")).toInt());
@@ -267,11 +305,11 @@ private slots:
             if (!root.value(QStringLiteral("addedByMigration1")).toBool()) return makeError(ErrorCode::Internal, "order");
             return {};
         });
-        JsonRecipeStore store(4, migrations);
+        JsonRecipeStore store(5, migrations);
         const Result<Recipe> r = store.load(utf8(fixture("recipe-v1.json")));
         QVERIFY2(r.ok(), r.ok() ? "" : r.error().message.c_str());
         QCOMPARE(calls, (std::vector<int>{1, 2}));
-        QCOMPARE(seenVersions, (std::vector<int>{2, 3}));  // 每升一版，schemaVersion 跟著改
+        QCOMPARE(seenVersions, (std::vector<int>{3, 4}));  // 每升一版，schemaVersion 跟著改
         QCOMPARE(r.value().schemaVersion, 1);              // 回報檔案原本的版本
     }
 
@@ -340,6 +378,42 @@ private slots:
         row("image too much data", setAt(QStringLiteral("board.types.0.referenceImage.data"), QStringLiteral("ChQeKDI8Rg==")), "referenceImage.data does not match the image size");
         row("missing referenceImage", removeAt(QStringLiteral("board.types.0.referenceImage")), "board.types[0].referenceImage is missing");
         row("maxMatches negative", setAt(QStringLiteral("params.maxMatches"), -1), "params.maxMatches is out of range");
+        // 比對區（ADR-026）：v1 範例檔加上壞的 match（遷移只補「沒有」的，不改已有的）。
+        const auto withMatch = [](QJsonObject region) {
+            return setAt(QStringLiteral("board.types.0.match"),
+                         QJsonObject{{QStringLiteral("mode"), QStringLiteral("intensity")}, {QStringLiteral("region"), region}});
+        };
+        const auto regionWithMask = [](QJsonValue mask) {
+            return QJsonObject{{QStringLiteral("centerXUm"), 1.0}, {QStringLiteral("centerYUm"), 2.0}, {QStringLiteral("widthUm"), 10.0},
+                               {QStringLiteral("heightUm"), 5.0}, {QStringLiteral("mask"), mask}};
+        };
+        // 只有一段的 runs（QJsonArray{QJsonArray{…}} 會被當成複製建構，所以用 append）；short ＝ 少一個數字。
+        const auto oneRun = [](int row, int begin, int end, bool short_ = false) {
+            QJsonArray run{row, begin};
+            if (!short_) run.append(end);
+            QJsonArray runs;
+            runs.append(run);
+            return runs;
+        };
+        const auto mask = [](int w, int h, QJsonArray runs) {
+            return QJsonObject{{QStringLiteral("width"), w}, {QStringLiteral("height"), h}, {QStringLiteral("runs"), runs}};
+        };
+        row("match unknown mode", setAt(QStringLiteral("board.types.0.match"), QJsonObject{{QStringLiteral("mode"), QStringLiteral("color")},
+                                                                                            {QStringLiteral("region"), QJsonValue()}}),
+            "board.types[0].match.mode has an unknown value 'color'");
+        row("match without region", setAt(QStringLiteral("board.types.0.match"), QJsonObject{{QStringLiteral("mode"), QStringLiteral("edges")}}),
+            "board.types[0].match.region is missing");
+        row("match zero width", withMatch(QJsonObject{{QStringLiteral("centerXUm"), 0}, {QStringLiteral("centerYUm"), 0},
+                                                      {QStringLiteral("widthUm"), 0}, {QStringLiteral("heightUm"), 5}, {QStringLiteral("mask"), QJsonValue()}}),
+            "board.types[0].match.region must have a positive size");
+        row("mask too large", withMatch(regionWithMask(mask(5000, 3, oneRun(0, 0, 1)))), "match.region.mask.width is out of range");
+        row("mask run outside", withMatch(regionWithMask(mask(5, 3, oneRun(0, 2, 6)))), "match.region.mask.runs[0][2] is out of range");
+        row("mask run on a missing row", withMatch(regionWithMask(mask(5, 3, oneRun(3, 0, 1)))), "match.region.mask.runs[0][0] is out of range");
+        row("mask run reversed", withMatch(regionWithMask(mask(5, 3, oneRun(0, 3, 2)))), "match.region.mask.runs[0] must have colBegin < colEnd");
+        row("mask runs overlap", withMatch(regionWithMask(mask(5, 3, QJsonArray{QJsonArray{0, 0, 3}, QJsonArray{0, 2, 4}}))),
+            "match.region.mask.runs[1] overlaps or is out of order");
+        row("mask run not a triple", withMatch(regionWithMask(mask(5, 3, oneRun(0, 1, -1, true)))), "match.region.mask.runs[0] must be [row, colBegin, colEnd]");
+        row("mask without runs", withMatch(regionWithMask(mask(5, 3, QJsonArray{}))), "match.region.mask.runs must not be empty");
     }
     void brokenFilesAreFormatErrors() {
         QFETCH(BrokenCase, broken);

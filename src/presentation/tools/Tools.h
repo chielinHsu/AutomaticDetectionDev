@@ -104,6 +104,14 @@ public:
     ToolId id() const override { return ToolId::Box; }
 };
 
+// M：在所選的元件上設定比對區（ADR-026）：拖一個框 ＝ 矩形，點一下 ＝ 自動擷取（放開時回報 onRegionDrawn，DraftMode::Match；
+// 點一下的框幾乎沒有大小，Presenter 用它的中心當點擊的位置）。
+class MatchRegionTool final : public RubberBandTool {
+public:
+    MatchRegionTool() : RubberBandTool(DraftMode::Match) {}
+    ToolId id() const override { return ToolId::Match; }
+};
+
 // A：在影像上點一下，補一個元件。
 class AddComponentTool final : public ITool {
 public:

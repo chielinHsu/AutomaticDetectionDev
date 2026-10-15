@@ -75,6 +75,7 @@ class AutoRoiPresenter : public QObject,
                          public ICanvasController,
                          public ISelectionController,
                          public ISelectionEditController,
+                         public IMatchRegionEditController,
                          public IKeyboardController,
                          public IProposalController,
                          public IMessageController,
@@ -119,6 +120,14 @@ public:
     void setSelectionCenter(double x, double y) override;
     void setSelectionBodySize(double width, double height) override;
     void applySizeToAllSamples() override;
+
+    // ---- IMatchRegionEditController（比對區，ADR-026）----
+    // 規則在 InspectionSession（setMatchMode、setMatchGrow、clearMatchRegion）；這裡做吐司與重新發布。
+    void setMatchMode(int mode) override;
+    void setMatchGrow(int growPx) override;
+    void clearMatchRegion() override;
+    // M 工具點一下（自動擷取）時的外擴預設值（px）。
+    static constexpr int kDefaultMatchGrowPx = 4;
 
     // ---- IKeyboardController ----
     bool onKeyPressed(int key, Qt::KeyboardModifiers modifiers) override;

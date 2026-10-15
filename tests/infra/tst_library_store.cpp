@@ -178,6 +178,26 @@ private slots:
         QCOMPARE(store.find("sop20").value()->id, std::string("lib-1"));
         QCOMPARE(store.find("0603").value()->id, std::string("lib-3"));
         QVERIFY(store.find("0603").value()->category == ComponentCategory::Chip);
+        // v1 沒有 match（ADR-026）：讀進來是整框、灰階。
+        for (const ComponentType& t : all.value()) QVERIFY(t.match.isDefault());
+    }
+
+    // v2（ADR-026）：寫出的檔案是 v2、每個條目都有 match，比對區（richType 的 variant 1：矩形＋邊緣）存得回來。
+    void savedLibrariesAreVersion2WithTheMatchRegion() {
+        QTemporaryDir dir = makeTempDir();
+        const std::string path = utf8(dir.filePath(QStringLiteral("library.json")));
+        {
+            JsonLibraryStore store(path);
+            QVERIFY(store.save(typeWithPart("8371")).ok());
+        }
+        const QJsonObject root = QJsonDocument::fromJson(readBytes(QString::fromStdString(path))).object();
+        QCOMPARE(root.value(QStringLiteral("schemaVersion")).toInt(), 2);
+        QCOMPARE(JsonLibraryStore::kSchemaVersion, 2);
+        JsonLibraryStore reopened(path);
+        const auto found = reopened.find("8371");
+        QVERIFY(found.ok() && found.value().has_value());
+        QVERIFY(found.value()->match.mode == MatchMode::Edges);
+        QVERIFY(found.value()->match == typeWithPart("8371").match);
     }
 
     // 損壞的檔案：每個呼叫都回 FormatInvalid，而且 save、remove 不覆蓋它（不毀掉使用者的資料）。
@@ -191,7 +211,10 @@ private slots:
             R"({"format": "aoi-library", "schemaVersion": 1, "nextEntryNumber": 3, "entries": [)"
             R"({"id": "lib-1", "libId": "", "partNumber": "A", "aliases": [], "name": "", "category": "chip", "groups": [], "referenceImage": null},)"
             R"({"id": "lib-1", "libId": "", "partNumber": "B", "aliases": [], "name": "", "category": "chip", "groups": [], "referenceImage": null}]})");
-        QTest::newRow("newer version") << QByteArray(R"({"format": "aoi-library", "schemaVersion": 2, "nextEntryNumber": 1, "entries": []})");
+        // 比這個程式新的版本（ADR-026 起樣本庫是 v2，所以用「目前的版本 ＋ 1」）。
+        QTest::newRow("newer version") << (QByteArray(R"({"format": "aoi-library", "schemaVersion": )") +
+                                           QByteArray::number(JsonLibraryStore::kSchemaVersion + 1) +
+                                           QByteArray(R"(, "nextEntryNumber": 1, "entries": []})"));
     }
     void aDamagedLibraryIsReportedAndNeverOverwritten() {
         QFETCH(QByteArray, bytes);

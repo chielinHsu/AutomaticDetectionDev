@@ -25,6 +25,13 @@ struct OpenCvSearchOptions {
     double nmsMaxOverlap = 0.5;
     // 視窗搜尋：每個視窗最多精修幾個頂層候選（use case 每個缺格只要最好的那一個）。
     std::size_t maxCandidatesPerWindow = 4;
+    // 邊緣模式（ADR-026）：Sobel 3×3 梯度大小 × edgeScale 存成 8 bit。NCC 對整體的倍數不敏感，這個值只決定飽和與量化：
+    // 8 bit 的階梯邊緣大小約 4 × 255 ＝ 1020，× 0.25 剛好在 255 附近。範本記住建它時的值，搜尋用同一個。
+    double edgeScale = 0.25;
+    // 遮罩（ADR-026）：縮小或轉過之後遮罩剩不到這麼多像素的層，不用（和「整塊是平的」一樣）。
+    int minMaskPixels = 32;
+    // 遮罩蓋住外接矩形的比例 ≥ 這個值時，當成矩形（比較快；分數的定義相同）。
+    double maskAsRectFill = 0.95;
 };
 
 }  // namespace aoi::infra

@@ -1524,6 +1524,48 @@ private slots:
         QCOMPARE(t->groups.size(), std::size_t{2});
     }
 
+    // M 工具（ADR-026）：拖一個框 ＝ 比對區（類型上），選取資訊顯示它、草稿框畫出它；CAD 框（框數、主體框）不變；
+    // 特徵與清除走選取資訊表單；搜尋用比對區（假 back end 忽略它，結果和整框相同）；沒有選取時用吐司說明。
+    void theMatchToolSetsTheMatchRegionOfTheType() {
+        Rig r;
+        r.open();
+        QVERIFY(r.drawSample(QRectF(560, 360, 60, 32)));  // 樣本（選取中）
+        r.window.toolAction(ToolId::Match)->trigger();
+        QCOMPARE(r.canvas()->activeTool(), ToolId::Match);
+        press(r.vp(), r.at(565, 365));
+        move(r.vp(), r.at(590, 385));
+        release(r.vp(), r.at(590, 385));
+        const ComponentType* t = r.document().findType("t1");
+        QVERIFY(t != nullptr && t->match.region);
+        QCOMPARE(t->groups.size(), std::size_t{1});  // 不是框群組
+        QCOMPARE(r.boxCount(), 1);
+        QVERIFY(r.hint().contains(QStringLiteral("已設定比對區")));
+        ObjectsPanel* panel = r.window.objectsPanel();
+        QVERIFY(panel->matchValue()->text().startsWith(QStringLiteral("矩形")));
+        QVERIFY(panel->matchClear()->isEnabled());
+        QVERIFY(!panel->matchGrow()->isEnabled());  // 不是自動擷取的遮罩
+        // 特徵：選邊緣 → 類型的模式改了（一個 Command）。
+        panel->matchMode()->setCurrentIndex(1);
+        emit panel->matchMode()->activated(1);
+        QVERIFY(r.document().findType("t1")->match.mode == MatchMode::Edges);
+        // 搜尋帶著比對區：樣本的規格是比對區的像素（搜尋本身由契約測試驗證；這張示範影像的那一塊對比太低）。
+        const std::vector<SampleOnBoard> samples = r.document().samples();
+        QVERIFY(samples.front().match.rect && samples.front().match.mode == MatchMode::Edges);
+        QVERIFY(samples.front().match.rect->w < samples.front().rect.w);
+        panel->matchClear()->click();
+        QVERIFY(!r.document().findType("t1")->match.region);
+        QVERIFY(r.document().findType("t1")->match.mode == MatchMode::Edges);
+        r.window.undoAction()->trigger();
+        QVERIFY(r.document().findType("t1")->match.region);
+
+        r.window.toolAction(ToolId::Select)->trigger();
+        r.key(Qt::Key_Escape);  // 清除選取
+        r.window.toolAction(ToolId::Match)->trigger();
+        press(r.vp(), r.at(100, 100));
+        release(r.vp(), r.at(120, 110));
+        QCOMPARE(r.hint(), zh("ui.match.needOne"));
+    }
+
     void marqueeSelectAllAndSameTypeSelectManyParts() {
         Rig r;
         r.open();

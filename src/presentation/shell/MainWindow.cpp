@@ -117,6 +117,17 @@ MainWindow::MainWindow(ThemeManager& theme, QWidget* parent)
     connect(objectsPanel_, &ObjectsPanel::sizeEdited, this, [this](double w, double h) {
         if (controllers_.selectionEdit) controllers_.selectionEdit->setSelectionBodySize(w, h);
     });
+    // 比對區（ADR-026）：特徵、外擴、清除。
+    connect(objectsPanel_, &ObjectsPanel::matchModeEdited, this, [this](int mode) {
+        if (controllers_.matchEdit) controllers_.matchEdit->setMatchMode(mode);
+    });
+    connect(objectsPanel_, &ObjectsPanel::matchGrowEdited, this, [this](int px) {
+        if (controllers_.matchEdit) controllers_.matchEdit->setMatchGrow(px);
+    });
+    connect(objectsPanel_, &ObjectsPanel::matchClearRequested, this, [this] {
+        if (controllers_.matchEdit) controllers_.matchEdit->clearMatchRegion();
+        canvas_->setFocus(Qt::OtherFocusReason);
+    });
     connect(objectsPanel_, &ObjectsPanel::applySizeToAllRequested, this, [this] {
         if (controllers_.selectionEdit) controllers_.selectionEdit->applySizeToAllSamples();
         canvas_->setFocus(Qt::OtherFocusReason);
@@ -168,6 +179,7 @@ QAction* MainWindow::toolAction(ToolId id) const {
         case ToolId::Region: return toolRegion_;
         case ToolId::Add: return toolAdd_;
         case ToolId::Box: return toolBox_;
+        case ToolId::Match: return toolMatch_;
     }
     return nullptr;
 }
@@ -240,7 +252,8 @@ void MainWindow::buildActions() {
                  {&toolSample_, ui_->actionToolSample, ToolId::Sample},
                  {&toolRegion_, ui_->actionToolRegion, ToolId::Region},
                  {&toolAdd_, ui_->actionToolAdd, ToolId::Add},
-                 {&toolBox_, ui_->actionToolBox, ToolId::Box}};
+                 {&toolBox_, ui_->actionToolBox, ToolId::Box},
+                 {&toolMatch_, ui_->actionToolMatch, ToolId::Match}};
     for (const auto& t : tools) {
         QAction* a = t.fromUi;
         toolGroup_->addAction(a);
@@ -253,6 +266,7 @@ void MainWindow::buildActions() {
     toolRegion_->setShortcut(Qt::Key_R);
     toolAdd_->setShortcuts({QKeySequence(Qt::Key_A), QKeySequence(Qt::Key_Plus)});
     toolBox_->setShortcut(Qt::Key_B);
+    toolMatch_->setShortcut(Qt::Key_M);  // 比對區（ADR-026）
     toolSelect_->setChecked(true);
 }
 
@@ -384,6 +398,7 @@ void MainWindow::retranslateUi() {
     toolRegion_->setToolTip(withShortcut(qtTrId("tool.scan"), QStringLiteral("R")));
     toolAdd_->setToolTip(withShortcut(qtTrId("tool.add"), QStringLiteral("A")));
     toolBox_->setToolTip(withShortcut(qtTrId("tool.box"), QStringLiteral("B")));
+    toolMatch_->setToolTip(withShortcut(qtTrId("tool.match"), QStringLiteral("M")));
 
     fileMenu_->setTitle(qtTrId("menu.file"));
     editMenu_->setTitle(qtTrId("menu.edit"));
@@ -417,7 +432,7 @@ void MainWindow::retranslateUi() {
 
 void MainWindow::refreshState() {
     const bool has = canvas_->hasImage();
-    for (QAction* a : {toolSelect_, toolSample_, toolRegion_, toolAdd_, toolBox_, searchAction_, selectAllAction_, selectSameTypeAction_})
+    for (QAction* a : {toolSelect_, toolSample_, toolRegion_, toolAdd_, toolBox_, toolMatch_, searchAction_, selectAllAction_, selectSameTypeAction_})
         a->setEnabled(has);
     fitAction_->setEnabled(has);
     fitWidthAction_->setEnabled(has);

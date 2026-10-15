@@ -62,6 +62,17 @@ inline ComponentType richType(const std::string& id, int variant) {
     const PixelFormat formats[] = {PixelFormat::Gray8, PixelFormat::Bgrx32, PixelFormat::Gray16, PixelFormat::Rgb24, PixelFormat::Bgr24};
     if (variant > 0) t.referenceImage = referenceImage(formats[variant % 5], 13 + variant, 7, variant * 2.5, variant % 2 == 1);
     if (t.referenceImage.format == PixelFormat::Gray16) t.referenceImage.significantBits = 12;  // 12 bit 的相機影像
+    // 比對區（ADR-026，配方 v3）：variant 0 是預設（整框、灰階），1 是矩形＋邊緣，2 起是遮罩。
+    if (variant == 1) {
+        t.match.mode = MatchMode::Edges;
+        t.match.region = MatchRegion{125.5, -1.0 / 3.0, 900.25, 1500.0, {}};
+    } else if (variant >= 2) {
+        MatchRegion r{-10.125 * variant, 2.5, 12.5, 7.5, {}};
+        r.mask.width = 5;
+        r.mask.height = 3;
+        r.mask.runs = {{0, 1, 4}, {1, 0, 5}, {2, 1, 2}, {2, 3, 4}};
+        t.match.region = r;
+    }
     return t;
 }
 
@@ -136,6 +147,7 @@ inline QString diffType(const ComponentType& a, const ComponentType& b, const QS
             !sameBits(w.widthRatio, v.widthRatio) || !sameBits(w.heightRatio, v.heightRatio) || w.algo != v.algo)
             return at + QStringLiteral(".window");
     }
+    if (!(a.match == b.match)) return where + QStringLiteral(".match");
     return diffImage(a.referenceImage, b.referenceImage, where + QStringLiteral(".referenceImage"));
 }
 

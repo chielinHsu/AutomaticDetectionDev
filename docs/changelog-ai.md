@@ -24,6 +24,45 @@
 - 下一位 agent 需要知道的限制、否決的做法、不要還原的修改
 ```
 
+## 2026-10-15 — Claude Code (Claude Opus 5.5)（比對區與 CAD 框分開：ADR-026）
+
+### 完成
+- 分支 `feat/match-region`（從 `main` eb95b79 開；session 在 worktree `.claude/worktrees/match-region`）。上一個 session 用真實影像實驗後提出（整框比對的是焊墊、端子只佔 2%），範圍與方向由使用者確認；設計由 architect subagent（Opus）提出，HALCON 的參考點做法在實作時改（不用 `set_shape_model_origin`，理由在 ADR-026 §4）。
+- domain：`match_region.h/.cpp`（`MatchMode`、`PixelMask`、`MatchSpec`、`SampleSpec`、`MatchSettings`／`MatchRegion`／`MatchMask` 與 µm ⇄ 像素的換算）、`feature_extract.h/.cpp`（Otsu＋最近的亮塊＋圓盤外擴）；`ComponentType::match`。
+- port：`ITemplateBuilder::buildFromSample`（有預設實作）與契約文字（`Match.pose` 一律是主體中心）。use case 改三處；`SampleSearch`／`SampleRequest`／`SampleOnBoard`／`CompareRequest` 帶 `MatchSpec`。
+- application：`InspectionDocument::setMatchSettings`（`CommandKind::SetMatchRegion`，可併）、`InspectionSession` 的 `setMatchRect`、`pickMatchFeature`、`setMatchGrow`、`setMatchMode`、`clearMatchRegion` 與 `SelectionInfo` 的比對區欄位。
+- OpenCV：`OpenCvFeatures`（邊緣）、`correlateMasked`、`sanitizeScores`、`OpenCvMatchGeometry`，建立器與搜尋器改用比對區；HALCON：domain 是比對區（遮罩＝一列一段的矩形聯集）、參考點＝重心、`HalconMatchGeometry`、`referenceWindows`、`halconMatches` 加原點位移；fake 忽略比對區（影像外照樣拒絕）。
+- storage：配方 v3、樣本庫 v2（第一次有遷移），嚴格檢查遮罩；`withDefaultMatch`。
+- presentation：`MatchRegionTool`（`M`、`DraftMode::Match`）、`IMatchRegionEditController`、選取資訊表單的「比對區」一組（`ObjectsPanel.ui`）、比對區的草稿框；`copy.json` 新增 20 個 key。
+- 測試：`tst_match_region`（新）、契約 7 組（每個 back end 一列）、`tst_recipe_store`（v3 範例、舊範例是預設、10 種壞遮罩）、`tst_library_store`、`tst_document`、`tst_session`、`tst_presenter`；`perf_match_region_real`（真實影像的驗收，新）。
+- 文件：ADR-026（新）、ADR-004／015／016／017 的「後續（2026-10-15）」、`docs/decisions.md`、`docs/architecture.md`、`docs/ux/ux-spec.md`、`AI_CONTEXT.md`、`docs/current-status.md`。
+
+### 修改的檔案
+- `src/domain/{component.h,match_region.h,match_region.cpp,feature_extract.h,feature_extract.cpp}`（後四個新）
+- `src/application/ports/{ITemplateBuilder.h,IPatternSearcher.h}`、`src/application/usecases/{GenerateObjectsFromSample.h,.cpp,SearchBoardWithSamples.h,.cpp}`、`src/application/document/{UndoStack.h,InspectionDocument.h,.cpp}`、`src/application/interaction/InspectionSession.{h,cpp}`
+- `src/infrastructure/backend_opencv/{OpenCvFeatures.h,.cpp（新）,OpenCvCorrelation.h,.cpp,OpenCvSearchOptions.h,OpenCvTemplate.h,.cpp,OpenCvTemplateBuilder.h,.cpp,OpenCvPatternSearcher.cpp}`
+- `src/infrastructure/backend_halcon/{HalconTemplate.h,.cpp,HalconTemplateBuilder.h,.cpp,HalconSearchSteps.h,.cpp,HalconPatternSearcher.cpp}`、`src/infrastructure/backend_fake/FakeBackend.h`
+- `src/infrastructure/storage/{JsonCodec.h,.cpp,JsonRecipeStore.h,.cpp,JsonLibraryStore.h,.cpp}`
+- `src/presentation/{tools/ToolId.h,tools/Tools.h,tools/ToolRegistry.cpp,canvas/OverlayTypes.h,objects/ObjectsPanel.{h,cpp,ui},presenters/{AutoRoiPresenter.h,.cpp,AppPresenters.cpp,ControllerInterfaces.h,ViewInterfaces.h,MessageTexts.cpp},shell/MainWindow.{h,cpp,ui},compare/{CompareInterfaces.h,ComparePresenter.cpp}}`
+- `AiInspTool/src/domain/domain.pro`、`AiInspTool/src/infrastructure/backend_opencv/backend_opencv.pro`、`AiInspTool/tests/tests.pro`、`AiInspTool/tests/domain/tst_match_region.pro`（新）、`AiInspTool/tests/backend/perf_match_region_real.pro`（新）
+- `tests/domain/tst_match_region.cpp`（新）、`tests/backend/perf_match_region_real.cpp`（新）、`tests/infra/fixtures/recipe-v3.json`（新）、`tests/contract/tst_contract_searcher.cpp`、`tests/infra/{RecipeTestSupport.h,tst_recipe_store.cpp,tst_library_store.cpp}`、`tests/core/{tst_document,tst_session}.cpp`、`tests/ui/{tst_presenter,tst_shell,tst_tools,tst_messages}.cpp`
+- `docs/ux/copy.json`、`docs/ux/ux-spec.md`、`docs/adr/{026（新）,004,015,016,017}*.md`、`docs/decisions.md`、`docs/architecture.md`、`AI_CONTEXT.md`、`docs/current-status.md`、`.ai/handoff.md`
+
+### 驗證
+- `test.ps1`（Release＋OpenCV＋HALCON）：完整跑過一次 55／58，失敗的 3 項都是計時（`tst_cli` 兩個 HALCON 行程、`tst_presenter` 的 UI 卡頓 201 對 200 ms、契約的取消延遲 148 對 100 ms；當時另一個 session 也在跑測試），單獨重跑都通過；最後一次完整的 Release：**58／58**。
+- `-NoOpenCv`、`-NoHalcon`：完整通過。`-Config Debug`：57／58，`tst_presenter::aSlowSearchShowsBusyThenProgressAndEscCancelsToIdleAtOnce` 偶發失敗——和 main（`feat/selection-info-panel` worktree 的 Debug 版）交替各跑 12 次：main 4／12、分支 3／12，是既有的計時問題（測試台的忙碌窗只有 110 ms，Debug 加上別的 session 的負載時事件迴圈一次停 200 ms 以上就看不到）。
+- `perf_match_region_real`（`-Perf`，真實影像）：數字在 ADR-026。`node tools/ste-lint.mjs` 0 errors、`check-deps` 0 violations、`check-contrast` 0 failures。
+- **沒有跑** `perf.ps1`（效能閘門、`perf_matrix`）：整框的路徑和之前相同（契約測試逐位元比對），機器有別的 session 在跑；基準線的重建照使用者的指示等他說。
+
+### 未完成
+- 使用者要確認：真實影像的標準答案（1109 根）、位置的準則（x 的重心不穩）、HALCON 沒有同時達到召回與誤報的條件（`docs/current-status.md` 的待決定（11））。
+- 合併到 `main`：沒有做（等使用者）。
+
+### 注意事項
+- 契約：`Match.pose` 一律是主體中心；`ITemplate::size()` 是主體框。新的 back end 要覆寫 `buildFromSample`（否則比對區會被拒絕）。
+- 整框的程式路徑要和之前逐位元相同（`aDefaultSpecMatchesTheRectBuild` 鎖住）；不要在整框時算 HALCON 的重心或改 OpenCV 的 NMS 尺寸。
+- 合成板子的元件左右對稱：比對區只框半邊時 shape model 會找到兩次（ADR-004 的後續）。
+
 ## 2026-10-14 — Claude Code (Claude Fable 5.1)（選取資訊表單與樣本庫面板：ADR-025 的「後續（2026-10-14）」）
 
 ### 完成

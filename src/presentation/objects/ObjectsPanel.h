@@ -10,10 +10,12 @@
 #include "presentation/presenters/ViewInterfaces.h"
 
 class QCheckBox;
+class QComboBox;
 class QDoubleSpinBox;
 class QGroupBox;
 class QLabel;
 class QPushButton;
+class QSpinBox;
 class QToolButton;
 class QTreeView;
 
@@ -35,6 +37,8 @@ class ObjectsPanel;
 // 程式設定的值（setSelectionInfo）不發出。能不能改由 SelectionInfoView 的 canMove／canResize 決定（預覽中只能改位置）；
 // 多選時整個表單停用、只顯示「已選 N 個」。〔鎖定寬高比〕只是表單的行為：改寬時高跟著變（反之亦然），不是 Command。
 // 〔套用大小到所有樣本〕發出 applySizeToAllRequested。
+// 比對區（ADR-026）：狀態文字（整框／矩形／遮罩）、特徵（灰階／邊緣，選了就發出 matchModeEdited）、外擴（只有自動擷取的遮罩能調，
+// 改了發出 matchGrowEdited）、〔清除比對區〕（matchClearRequested）。比對區本身用畫布上的 M 工具設定。
 //
 // 版面在 ObjectsPanel.ui（Qt Designer：晶片、樹、空狀態、表單）；model（ObjectsModel）、欄寬與文字在程式碼裡
 // （.ui 裡的文字只是佔位、不翻譯，retranslate 從 copy.json 設定）。
@@ -74,6 +78,10 @@ public:
     QLabel* boxesValue() const { return boxesValue_; }
     QPushButton* applyToAll() const { return applyToAll_; }
     QLabel* selectionNote() const { return selectionNote_; }
+    QLabel* matchValue() const { return matchValue_; }
+    QComboBox* matchMode() const { return matchMode_; }
+    QSpinBox* matchGrow() const { return matchGrow_; }
+    QPushButton* matchClear() const { return matchClear_; }
     const SelectionInfoView& selectionInfo() const { return info_; }
 
 signals:
@@ -82,6 +90,9 @@ signals:
     void centerEdited(double x, double y);
     void sizeEdited(double width, double height);
     void applySizeToAllRequested();
+    void matchModeEdited(int mode);  // 0 ＝ 灰階、1 ＝ 邊緣
+    void matchGrowEdited(int growPx);
+    void matchClearRequested();
 
 protected:
     void changeEvent(QEvent* event) override;
@@ -115,6 +126,13 @@ private:
     QLabel* angleLabel_;
     QLabel* angleValue_;
     QLabel* boxesLabel_;
+    QLabel* matchLabel_;
+    QLabel* matchValue_;
+    QLabel* matchModeLabel_;
+    QComboBox* matchMode_;
+    QLabel* matchGrowLabel_;
+    QSpinBox* matchGrow_;
+    QPushButton* matchClear_;
     QLabel* boxesValue_;
     QPushButton* applyToAll_;
     QLabel* selectionNote_;

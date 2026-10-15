@@ -12,7 +12,7 @@ enum class OverlayState { Sample, Found, Inferred, Rejected };
 enum class BoxKind { Body, Pin, Window };
 
 // 使用者正在拖出的框：S＝藍色樣本框，R＝白色細線區域（淡填色），B＝子框（畫法和區域相同；ADR-025）。
-enum class DraftMode { Sample, Region, Box };
+enum class DraftMode { Sample, Region, Box, Match };  // Match：比對區（ADR-026，M 工具；畫法和區域相同）
 
 inline constexpr int kOverlayStateCount = 4;
 inline constexpr int kBoxKindCount = 3;

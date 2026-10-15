@@ -31,6 +31,7 @@ enum class CommandKind {
     ResizeType,        // 改類型的主體框大小（同類型全部元件一起變）
     AddBoxGroup,       // 在類型上加一個框群組（子框；同類型全部元件一起多出這些框）
     ResizeTypes,       // 把幾個類型的主體框設成同一個大小（選取資訊的〔套用大小到所有樣本〕；元件的中心不動）
+    SetMatchRegion,    // 改類型的比對區或比對特徵（ADR-026；CAD 框不變）
 };
 
 template <class Target>

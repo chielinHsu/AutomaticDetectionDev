@@ -47,6 +47,16 @@ public:
     virtual void applySizeToAllSamples() = 0;
 };
 
+// 比對區（ADR-026；選取資訊表單的「比對區」那一組）：所選的那一個元件的類型。比對區本身由畫布上的 M 工具設定
+// （ICanvasController::onRegionDrawn，DraftMode::Match）；這裡是特徵（0 ＝ 灰階、1 ＝ 邊緣）、自動擷取的外擴與清除。
+class IMatchRegionEditController {
+public:
+    virtual ~IMatchRegionEditController() = default;
+    virtual void setMatchMode(int mode) = 0;
+    virtual void setMatchGrow(int growPx) = 0;
+    virtual void clearMatchRegion() = 0;
+};
+
 class IHistoryController {
 public:
     virtual ~IHistoryController() = default;

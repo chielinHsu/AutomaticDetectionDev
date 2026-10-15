@@ -345,6 +345,44 @@ private slots:
         QCOMPARE(n.total, 3);
     }
 
+    // ---- 比對區（ADR-026）----
+    // 一個 Command、一次通知；和現在相同不進堆疊；allowMerge 時同一個類型的連續修改併成一步；CAD 框（主體框、框數）不變。
+    void setMatchSettingsIsOneCommandAndMergesWhenAsked() {
+        InspectionDocument d = freshDocument();  // t1：40 × 20
+        d.accept(session({0.95, 0.9}));
+        Counting n;
+        n.attach(d);
+        const std::size_t boxesBefore = countBoxes(*d.findType("t1"));
+        MatchSettings a;
+        a.region = MatchRegion{5.0, -2.0, 12.0, 8.0, {}};
+        QVERIFY(d.setMatchSettings("t1", a));
+        QCOMPARE(n.total, 1);
+        QVERIFY(d.undoInfo()->kind == CommandKind::SetMatchRegion);
+        QCOMPARE(d.undoInfo()->count, d.componentsOfType("t1").size());
+        QCOMPARE(countBoxes(*d.findType("t1")), boxesBefore);  // 比對區不是框群組
+        QCOMPARE(d.bodySizePx("t1")->w, 40.0);
+        QVERIFY(!d.setMatchSettings("t1", a));   // 一樣：不進堆疊
+        QVERIFY(!d.setMatchSettings("nope", a));
+        const std::size_t depth = d.historyDepth();
+        MatchSettings b = a;
+        b.region->widthUm = 14.0;
+        MatchSettings c = a;
+        c.region->widthUm = 16.0;
+        QVERIFY(d.setMatchSettings("t1", b, true));
+        QVERIFY(d.setMatchSettings("t1", c, true));
+        QCOMPARE(d.historyDepth(), depth);  // 併進上一步（同一個類型）
+        QVERIFY(d.findType("t1")->match == c);
+        QVERIFY(d.undo().performed);
+        QVERIFY(d.findType("t1")->match.isDefault());  // 併起來的一步，復原回到最早的「前」
+        // 樣本的規格：類型的設定換到樣本的像素（中心在樣本元件的位置）。
+        QVERIFY(d.redo().performed);
+        for (const SampleOnBoard& s : d.samples()) {
+            QVERIFY(s.match.rect);
+            QCOMPARE(s.match.rect->w, 16.0);
+            QCOMPARE(s.match.rect->center().x - s.rect.center().x, 5.0);
+        }
+    }
+
     // ---- 子框（ADR-025 §6）----
     void addBoxGroupAddsAPinGroupToTheTypeAndEveryPartExpandsIt() {
         InspectionDocument d = freshDocument();

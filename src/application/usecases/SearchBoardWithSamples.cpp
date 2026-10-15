@@ -43,6 +43,7 @@ Result<BoardProposal> searchBoardWithSamples(const GenerateObjectsFromSample& us
         one.sample = request.samples[i].sample;
         one.search = request.search;
         one.options = request.options;
+        one.match = request.samples[i].match;
         ScaledProgress scaled(progress, i, request.samples.size());
         Result<SampleProposal> r = useCase.run(one, cancel, progress != nullptr ? &scaled : nullptr);
         if (!r) return r.error();

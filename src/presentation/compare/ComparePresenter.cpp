@@ -197,6 +197,7 @@ void ComparePresenter::runCompare(const QString& idA, const QString& idB) {
     SampleRequest sampleRequest;
     sampleRequest.image = request->image;  // 帶著 owner：像素活到工作結束
     sampleRequest.sample = request->sample;
+    sampleRequest.match = request->match;
     sampleRequest.search = request->search;
     auto outcome = std::make_shared<Outcome>();
     outcome->a = engine(a);

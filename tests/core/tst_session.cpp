@@ -828,6 +828,98 @@ private slots:
         QCOMPARE(countBoxes(*f.session.document().findType("t1")), std::size_t{2});
     }
 
+    // ---- 比對區（ADR-026）----
+    // 矩形：裁到主體框內、存在類型上（µm，相對主體中心）；樣本的搜尋規格換回影像像素；一個 Command、可以復原。
+    void aMatchRectIsClippedToTheBodyAndStoredOnTheType() {
+        Fixture f;
+        const int sample = f.addSample(Rect{80, 90, 40, 20});  // 中心 (100, 100)
+        f.session.select({sample});
+        QVERIFY(f.session.setMatchRect(sample, Rect{100, 80, 40, 20}));  // 右上，超出主體框 → 裁成 (100, 90, 20, 10)
+        const ComponentType* t = f.session.document().findType("t1");
+        QVERIFY(t->match.region);
+        QCOMPARE(t->match.region->widthUm, 20.0);  // 未校正：1 µm ＝ 1 像素
+        QCOMPARE(t->match.region->heightUm, 10.0);
+        QCOMPARE(t->match.region->centerXUm, 10.0);
+        QCOMPARE(t->match.region->centerYUm, -5.0);
+        QVERIFY(f.session.undoInfo()->kind == CommandKind::SetMatchRegion);
+        const std::vector<SampleOnBoard> samples = f.session.document().samples();
+        QVERIFY(samples.front().match.rect);
+        QCOMPARE(samples.front().match.rect->x, 100.0);
+        QCOMPARE(samples.front().match.rect->y, 90.0);
+        const SelectionInfo info = f.session.selectionInfo();
+        QVERIFY(info.canEditMatch);
+        QVERIFY(info.matchKind == SelectionInfo::MatchKind::Rect);
+        QCOMPARE(info.matchRectPx.w, 20.0);
+        QVERIFY(!info.matchGrow);
+        QVERIFY(f.session.undo());
+        QVERIFY(!f.session.document().findType("t1")->match.region);
+        // 太小（裁完 < minSamplePx）、不存在的元件、預覽中都不收。
+        QVERIFY(!f.session.setMatchRect(sample, Rect{118, 90, 10, 20}));  // 裁完 2 px 寬
+        QVERIFY(!f.session.setMatchRect(99, Rect{80, 90, 20, 20}));
+        f.toPreview({0.95});
+        QVERIFY(!f.session.setMatchRect(sample, Rect{80, 90, 20, 20}));
+    }
+
+    // 自動擷取：點在亮塊上 → 遮罩 ＝ 亮塊外擴；外擴可以再調（併成一步）；別的修改之後種子失效。
+    void pickingAFeatureMakesAMaskAndTheMarginCanBeTuned() {
+        Fixture f;
+        const int sample = f.addSample(Rect{80, 90, 40, 20});
+        f.session.select({sample});
+        // 40 × 20 的主體：底 30，中間偏右一塊 8 × 6 的亮塊（110..118 × 97..103）。
+        std::vector<std::uint8_t> pixels(1000 * 800, 30);
+        for (int y = 97; y < 103; ++y)
+            for (int x = 110; x < 118; ++x) pixels[static_cast<std::size_t>(y) * 1000 + x] = 220;
+        ImageView image;
+        image.data = pixels.data();
+        image.width = 1000;
+        image.height = 800;
+        image.strideBytes = 1000;
+        QVERIFY(f.session.pickMatchFeature(sample, image, Point2D{112.5, 99.5}, 0) == InspectionSession::PickResult::Picked);
+        SelectionInfo info = f.session.selectionInfo();
+        QVERIFY(info.matchKind == SelectionInfo::MatchKind::Mask);
+        QCOMPARE(info.matchPixels, std::size_t{48});
+        QCOMPARE(info.matchGrow.value_or(-1), 0);
+        const std::size_t depth = f.session.document().historyDepth();
+        QVERIFY(f.session.setMatchGrow(2));
+        QVERIFY(f.session.setMatchGrow(3));
+        QCOMPARE(f.session.document().historyDepth(), depth);  // 擷取與調外擴是同一步（拖滑桿）
+        info = f.session.selectionInfo();
+        QCOMPARE(info.matchGrow.value_or(-1), 3);
+        QCOMPARE(info.matchRectPx.w, 13.0);  // 亮塊 110..117 外擴 3 → 107..120，右邊裁到主體框（x < 120）
+        QVERIFY(info.matchPixels > 48);
+        // 特徵（邊緣）是另一步；種子跟著（還能調外擴）。
+        QVERIFY(f.session.setMatchMode(sample, MatchMode::Edges));
+        QVERIFY(f.session.document().findType("t1")->match.mode == MatchMode::Edges);
+        QVERIFY(f.session.setMatchGrow(1));
+        // 復原之後類型的比對區不是種子給的那一個：不能再調外擴。
+        QVERIFY(f.session.undo());
+        QVERIFY(f.session.undo());
+        QVERIFY(!f.session.selectionInfo().matchGrow);
+        QVERIFY(!f.session.setMatchGrow(4));
+        // 平的地方沒有亮塊。
+        std::vector<std::uint8_t> flat(1000 * 800, 30);
+        image.data = flat.data();
+        QVERIFY(f.session.pickMatchFeature(sample, image, Point2D{100, 100}, 2) == InspectionSession::PickResult::NoBlob);
+    }
+
+    void clearingTheMatchRegionKeepsTheFeature() {
+        Fixture f;
+        const int sample = f.addSample(Rect{80, 90, 40, 20});
+        f.session.select({sample});
+        QVERIFY(f.session.setMatchRect(sample, Rect{90, 92, 20, 16}));
+        QVERIFY(f.session.setMatchMode(sample, MatchMode::Edges));
+        QVERIFY(!f.session.setMatchMode(sample, MatchMode::Edges));  // 一樣的不進堆疊
+        QVERIFY(f.session.clearMatchRegion(sample));
+        const ComponentType* t = f.session.document().findType("t1");
+        QVERIFY(!t->match.region);
+        QVERIFY(t->match.mode == MatchMode::Edges);
+        QVERIFY(!f.session.clearMatchRegion(sample));  // 已經沒有
+        // 只有特徵是邊緣：搜尋規格沒有矩形、不是預設。
+        const MatchSpec spec = f.session.document().samples().front().match;
+        QVERIFY(!spec.rect);
+        QVERIFY(!spec.isDefault());
+    }
+
     // ---- 全選、選取同類型（ADR-025 §5）----
     void selectAllAndSelectSameTypeWorkOnTheBoardAndOnTheProposal() {
         Fixture f;
