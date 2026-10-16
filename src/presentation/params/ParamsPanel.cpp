@@ -31,6 +31,8 @@ ParamsPanel::ParamsPanel(QWidget* parent) : QWidget(parent), ui_(std::make_uniqu
     scope_ = ui_->scope;
     bitsLabel_ = ui_->bitsLabel;
     bits_ = ui_->bits;
+    positionLabel_ = ui_->positionLabel;
+    position_ = ui_->position;
 
     scoreValue_->setMinimumWidth(fontMetrics().horizontalAdvance(QStringLiteral("0.00")) + 4);
     angleLabel_->setVisible(false);  // 「進階」打開才看得到
@@ -61,6 +63,7 @@ ParamsPanel::ParamsPanel(QWidget* parent) : QWidget(parent), ui_(std::make_uniqu
     connect(angleMax_, &QDoubleSpinBox::valueChanged, this, emitAngles);
     connect(scope_, &QComboBox::activated, this, [this](int i) { emit scopeChanged(i); });
     connect(bits_, &QComboBox::activated, this, [this](int i) { emit significantBitsChanged(bits_->itemData(i).toInt()); });
+    connect(position_, &QComboBox::activated, this, [this](int i) { emit snapToLatticeChanged(i == 0); });
 
     retranslate();
 }
@@ -87,6 +90,8 @@ void ParamsPanel::setParams(const ParamsState& params) {
     const int bitsIndex = bits_->findData(params.significantBits);
     bits_->setCurrentIndex(bitsIndex < 0 ? 0 : bitsIndex);
     bits_->setEnabled(params.bitsApplicable);
+    const int positionIndex = params.snapToLattice ? 0 : 1;
+    if (position_->currentIndex() != positionIndex) position_->setCurrentIndex(positionIndex);
     syncing_ = false;
 }
 
@@ -106,6 +111,10 @@ void ParamsPanel::retranslate() {
     scope_->setItemText(1, uiText("ui.params.scope.board"));
     scope_->setItemText(2, uiText("ui.params.scope.all"));
     bitsLabel_->setText(uiText("ui.params.bits"));
+    positionLabel_->setText(uiText("ui.params.position"));
+    position_->setItemText(0, uiText("ui.params.position.lattice"));
+    position_->setItemText(1, uiText("ui.params.position.matched"));
+    position_->setToolTip(uiText("ui.params.position.tip"));
     updateBitsTexts();
     updateScoreLabel();
 }

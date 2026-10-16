@@ -26,6 +26,7 @@ public:
     std::vector<SearchParams> searches;
     std::vector<int> scopes;
     std::vector<int> bits;
+    std::vector<bool> snaps;
 
     SearchParams searchParams() const override { return params; }
     void applyThreshold(double t) override { thresholds.push_back(t); }
@@ -35,6 +36,7 @@ public:
     }
     void applyScanScope(int s) override { scopes.push_back(s); }
     void applySignificantBits(int b) override { bits.push_back(b); }
+    void applySnapToLattice(bool s) override { snaps.push_back(s); }
 };
 
 }  // namespace
@@ -164,6 +166,30 @@ private slots:
         QCOMPARE(panel.bitsCombo()->itemText(twelve), QStringLiteral("12-bit"));
     }
 
+    // ---- 位置（ADR-026）----
+    void pickingAPositionModeReportsSnapOrMatch() {
+        ParamsPanel panel;
+        QSignalSpy spy(&panel, &ParamsPanel::snapToLatticeChanged);
+        QCOMPARE(panel.positionCombo()->count(), 2);
+        QCOMPARE(panel.positionCombo()->currentIndex(), 0);  // 預設吸附到陣列
+        panel.positionCombo()->setCurrentIndex(1);
+        emit panel.positionCombo()->activated(1);
+        emit panel.positionCombo()->activated(0);
+        QCOMPARE(spy.count(), 2);
+        QCOMPARE(spy.at(0).first().toBool(), false);
+        QCOMPARE(spy.at(1).first().toBool(), true);
+        ParamsState p;
+        p.snapToLattice = false;
+        panel.setParams(p);
+        QCOMPARE(spy.count(), 2);  // 外面設的值不回報
+        QCOMPARE(panel.positionCombo()->currentIndex(), 1);
+        QVERIFY(panel.positionCombo()->itemText(0).contains(QStringLiteral("陣列")));
+        Translations::install(QStringLiteral("en"));
+        panel.retranslate();
+        QVERIFY(panel.positionCombo()->itemText(0).contains(QStringLiteral("array")));
+        QVERIFY(!panel.positionCombo()->toolTip().isEmpty());
+    }
+
     void disablingThePanelDisablesTheControls() {
         ParamsPanel panel;
         static_cast<IParamsView&>(panel).setEnabled(false);
@@ -179,6 +205,16 @@ private slots:
         p.setSignificantBits(12);
         p.setSignificantBits(0);
         QCOMPARE(sink.bits, (std::vector<int>{12, 0}));
+        QVERIFY(sink.searches.empty());  // 不搜尋
+        QVERIFY(!p.searchPending());
+    }
+
+    void thePositionModeGoesStraightThrough() {
+        RecordingSink sink;
+        ParamsPresenter p(sink, 120);
+        p.setSnapToLattice(false);
+        p.setSnapToLattice(true);
+        QCOMPARE(sink.snaps, (std::vector<bool>{false, true}));
         QVERIFY(sink.searches.empty());  // 不搜尋
         QVERIFY(!p.searchPending());
     }

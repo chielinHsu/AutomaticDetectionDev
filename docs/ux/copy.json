@@ -167,6 +167,10 @@
       "zh_TW": "接受時，上一次自動產生的 {count} 個元件會換成這一次的結果。",
       "en": "Accept replaces the {count} parts from the last search with this result."
     },
+    "ui.preview.offLattice": {
+      "zh_TW": "{count} 個不在陣列的格點上（單獨的元件或偏離陣列），位置是匹配到的。",
+      "en": "{count} parts are not on an array node (alone or off the array). Their positions come from the match."
+    },
     "ui.sample.added": {
       "zh_TW": "已建立樣本 {name} · 板上有 {count} 個樣本 · F5 搜尋",
       "en": "Sample {name} created · {count} samples on the board · F5 to search"
@@ -1118,6 +1122,50 @@
     "ui.selection.previewOnlyMove": {
       "zh_TW": "預覽中只能改位置；要改大小，先接受或捨棄提案。",
       "en": "In preview you can only move it. Accept or discard the proposal to resize."
+    },
+    "ui.selection.position": {
+      "zh_TW": "位置",
+      "en": "Position"
+    },
+    "ui.selection.position.lattice": {
+      "zh_TW": "陣列的格點（匹配位置偏差 {deviation} px）",
+      "en": "Array node (match deviates {deviation} px)"
+    },
+    "ui.selection.position.member": {
+      "zh_TW": "匹配位置（離陣列的格點 {deviation} px）",
+      "en": "Match ({deviation} px from its array node)"
+    },
+    "ui.selection.position.matched": {
+      "zh_TW": "匹配位置（離最近格點 {deviation} px，偏離陣列）",
+      "en": "Match ({deviation} px from the nearest node, off the array)"
+    },
+    "ui.selection.position.moved": {
+      "zh_TW": "手動移過的位置",
+      "en": "Moved by hand"
+    },
+    "ui.selection.position.noLattice": {
+      "zh_TW": "匹配位置（不在任何陣列）",
+      "en": "Match (not in any array)"
+    },
+    "ui.selection.position.board": {
+      "zh_TW": "—",
+      "en": "—"
+    },
+    "ui.params.position": {
+      "zh_TW": "位置",
+      "en": "Position"
+    },
+    "ui.params.position.lattice": {
+      "zh_TW": "吸附到陣列（CAD 理論位置）",
+      "en": "Snap to array (CAD position)"
+    },
+    "ui.params.position.matched": {
+      "zh_TW": "用匹配位置",
+      "en": "Use matched position"
+    },
+    "ui.params.position.tip": {
+      "zh_TW": "同一個陣列的元件放在規律的格子上（間距一致、行列對齊），不在陣列裡的保留匹配位置；切換只重新分類，不重新搜尋",
+      "en": "Parts of one array sit on a regular grid (equal pitch, aligned rows). Parts outside an array keep their matched position. Switching only reclassifies; it does not search again"
     },
     "ui.resize.appliedAll": {
       "zh_TW": "已把 {w} × {h} px 套到 {count} 個樣本的類型 · Ctrl+Z 復原",

@@ -87,6 +87,8 @@ struct ParamsState {
     int significantBits = 0;
     int detectedBits = 0;
     bool bitsApplicable = false;
+    // 位置（ADR-026）：true ＝ 吸附到陣列（晶格的格點，CAD 的理論位置），false ＝ 用 back end 的匹配位置。
+    bool snapToLattice = true;
 };
 
 class IParamsView {
@@ -124,6 +126,13 @@ struct SelectionInfoView {
     double umPerPixel = 0.0;
     bool canMove = false;
     bool canResize = false;
+    // 晶格（ADR-026；提案的物件才有）：是不是晶格的成員、使用者有沒有移過、現在的位置是不是格點；
+    // 匹配位置離最近格點多遠（< 0 ＝ 不在任何陣列範圍內、或板子上的元件）。
+    bool proposal = false;
+    bool inLattice = false;
+    bool moved = false;
+    bool onLattice = false;
+    double latticeDeviationPx = -1.0;
 };
 
 class ISelectionInfoView {

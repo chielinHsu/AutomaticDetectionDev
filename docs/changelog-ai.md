@@ -46,6 +46,7 @@
 ### 驗證
 - `scripts/dev/test.ps1`（預設 Release＋OpenCV＋HALCON）：**58／58 通過**（2026-10-16 最後一輪；新增 `tst_step_guide` 後是 58 項）；HALCON 0 跳過；有跳過項目的 5 個測試（`tst_backend_registry`、`tst_shell`、`tst_presenter` 的截圖、`tst_opencv_image`、`tst_image_sources_agree`）與 2 個 XFAIL（`tst_contract_end_to_end` 的 opencv B1、`tst_image_sources_agree` 的 palette BMP）和改之前相同；`tst_step_guide` 18、`tst_shell` 37＋1 skipped、`tst_presenter` 84＋1 skipped、`tst_messages` 17、`tst_halcon_backend` 19。
 - `scripts/dev/test.ps1 -Config Debug`：**58／58 通過**（2026-10-16；HALCON 0 跳過；跳過與 XFAIL 的清單和 Release 相同；`tst_presenter` 84 passed＋1 skipped、整組 85 秒，`tst_shell` 37＋1、`tst_step_guide` 18、`tst_messages` 17）。前一晚的幾次 Debug 都是 57／58（見下一條）。
+- **併入 `main` 48f7ef4（晶格位置吸附，ADR-026）之後**：Release 58／58、Debug 58／58（`tst_presenter` 85＋1 skipped、`tst_messages` 18、`tst_cli` 17）；衝突在兩個測試檔（兩邊各加的都留）與文件；示範畫面合併後重新產生（參數面板多了「位置」）。
 - **Debug 的不穩定測試**：2026-10-15 晚上 `tst_presenter` 的 `aSlowSearchShowsBusyThenProgressAndEscCancelsToIdleAtOnce`（等 2 秒內看到「忙碌」）在 Debug 一直失敗，而且在主 checkout 的 `main` eb95b79（沒有這次的修改）上也失敗：整組 231 秒、81 passed／1 failed。隔天（2026-10-16）同一份程式重跑，整組 85 秒、通過。所以它跟機器當下的速度有關（前一晚 Debug 慢了將近 3 倍），不是這次的修改造成的。
 - `node tools/ste-lint.mjs`：979 sentences、0 errors；`node tools/check-deps.mjs`：225 files、0 violations。
 - `test.ps1 -Perf -NoBuild -Filter 'perf_ui_s04'`（Release，offscreen，p95（中位數）ms）。**最後一輪（2026-10-16，前後交替各兩次；「前」＝主 checkout 的 `main` eb95b79 的建置）**：U3 前 29.4（24.0）、13.9（12.1）／後 10.1（9.2）、15.2（12.7）；I6 前 3.6、4.9／後 2.8、3.1；I3 前 5.6、9.5／後 4.4、12.5；I4 前 4.1、6.4／後 6.5、4.5；U2 前 4.8、2.2／後 3.2、5.4。全部在預算內（U3 16、I3 50、I4 100、I6 50、U2 50），前後的差在同一側兩次之間的差以內（「前」第一次的 U3 29.4 是剛建置完的暖機雜訊）。`perf_ui_s04` 用 `PresenterRig`，最後一輪時測試台已經關著 dock，所以它不含面板；門檻拖動不碰面板由 `tst_presenter` 的 `updateCount` 鎖住。**前一晚（2026-10-15，機器慢、dock 開著）**：U3 前 35.2 → 第一版 32.5 → 加縮放快取 23.5（都超過預算，含改之前的 `main`）；I6 前 13.8 → 第一版 **20.9** → 加縮放快取 14.9——第一版的 I6 變慢是真的（每次換步驟都在 UI 執行緒重新縮放 PNG），已修。沒有跑 `perf.ps1 -WriteBaseline`（使用者另外指示）。
@@ -60,6 +61,33 @@
 - UI 改了版面或文案之後：`build\qmake-release\bin\record_guidance.exe`（offscreen；`test.ps1` 會建置它）重新產生 `docs/ux/guidance/*.png`，再重新建置（rcc）。張數改了要三邊一起改：`GuideDemo.h`、`copy.json` 的 `ui.guide.demo.<步驟>.<n>`、`aoi_ux.qrc`（`tst_messages` 會擋）。
 - `publishGuidance` 的「沒變就不呼叫 View」是 U3 的保護；在 `publishAll` 路徑上新增任何 View 更新都要比照（`tst_presenter` 數 `updateCount`）。
 - 另一個 session（`feat/lattice-snapped-positions`，ADR-026）同時在進行，它會改 `InspectionSession`、`copy.json` 等；本分支對 `InspectionSession` 只讀、`copy.json` 只在最後追加。合併時以它的為準再疊。
+## 2026-10-15 — Claude Code (Claude Fable 5.1)（CAD 框吸附到陣列的格點：ADR-026）
+
+### 完成
+- 分支 `feat/lattice-snapped-positions`（從 `main` 97495d3 開；session 在 worktree，`main` 在主 checkout 簽出，合併用 `git -C`）。使用者回報「CAD 框與鄰近的框沒有對齊，CAD 框的本質是料件的理論位置」；從程式碼確認只有 `Predicted` 在格點上、契約測試量的是匹配位置；三個做法給使用者比較，使用者選了建議的做法（ADR-026）。
+- domain／application：`Candidate`、`BoardCandidate` 多 `latticePose`、`latticeDeviationPx`；`PositionMode`；use case 第 6 階段填晶格位姿（`pose` 不改）；`classify`、`ProposalSession`（`positionMode`、`latticeOf`、`offLattice`）、`InspectionSession::setPositionMode`、`SelectionInfo` 的四個欄位。
+- presentation：參數面板「位置」下拉（`IParamsController::setSnapToLattice`、`IParamsSink::applySnapToLattice`、`ParamsState::snapToLattice`）、選取資訊表單「位置」列、預覽卡片的「不在陣列的格點上」；`copy.json` 新增 13 個 key。
+- 文件：ADR-026、`docs/decisions.md`、`docs/ux/ux-spec.md`（修改紀錄、§8 兩列）、`docs/architecture.md`、`docs/current-status.md`、本檔、`.ai/handoff.md`。
+
+### 修改的檔案
+- `src/domain/match.h`；`src/application/usecases/{GenerateObjectsFromSample.cpp, BoardProposal.h, BoardProposal.cpp, ProposalView.h, ProposalView.cpp}`；`src/application/document/{ProposalSession.h, ProposalSession.cpp}`；`src/application/interaction/{InspectionSession.h, InspectionSession.cpp}`
+- `src/presentation/presenters/{ControllerInterfaces.h, ViewInterfaces.h, ParamsPresenter.h, ParamsPresenter.cpp, AutoRoiPresenter.h, AutoRoiPresenter.cpp, SceneBuilder.h, SceneBuilder.cpp, MessageTexts.cpp}`；`src/presentation/params/{ParamsPanel.h, ParamsPanel.cpp, ParamsPanel.ui}`；`src/presentation/objects/{ObjectsPanel.h, ObjectsPanel.cpp, ObjectsPanel.ui}`；`src/presentation/shell/MainWindow.cpp`；`docs/ux/copy.json`
+- 測試：`tests/core/{ProposalTestSupport.h, tst_generate_objects.cpp, tst_proposal_session.cpp, tst_session.cpp}`；`tests/ui/{tst_presenter.cpp, tst_params.cpp, tst_messages.cpp}`
+- 文件：`docs/adr/026-lattice-snapped-positions.md`、`docs/decisions.md`、`docs/ux/ux-spec.md`、`docs/architecture.md`、`docs/current-status.md`、`docs/changelog-ai.md`、`.ai/handoff.md`
+
+### 驗證
+- `scripts/dev/test.ps1`（Release＋OpenCV＋HALCON）：56／57，唯一失敗是 `tst_cli` 的兩個 HALCON 授權提醒項目（等 8／6 秒讀 stderr，機器忙時程式還沒印出），`-NoBuild -Filter 'tst_cli'` 單獨重跑通過（17／17）；有跳過項目的 5 個測試與 2 個 XFAIL 和改之前相同，HALCON 0 跳過。
+- `scripts/dev/test.ps1 -Config Debug`：55／57；`tst_cli` 單獨重跑通過；`tst_presenter` 只有 `aSlowSearchShowsBusyThenProgressAndEscCancelsToIdleAtOnce` 失敗（82 passed、1 skipped），單獨重跑四次都一樣——另一個 session 的建置與效能量測讓機器滿載（整組 281–292 秒，正常約 35 秒）；按〔搜尋〕到事件迴圈只有 22–24 ms，是忙碌（40 ms）與進度（150 ms）兩個計時器在 UI 執行緒被餓到時同一輪一起觸發；同一項在 Release 單獨跑通過。2026-10-16 機器安靜時（負載 6%）重跑 `-Config Debug -NoBuild -Filter 'tst_presenter'`：**通過**（83 passed、1 skipped ＝ 截圖）。
+- `node tools/ste-lint.mjs`：979 sentences、0 errors；`node tools/check-deps.mjs`：220 files、0 violations。
+- `-Perf`：沒有跑（基準線的重建等使用者指示）。
+
+### 未完成
+- 樣本自己的偏差沒有顯示；跨樣本不對齊；位置模式不存檔；畫布上沒有標偏離陣列的；效能基準線沒有重建（使用者另外指示）。
+
+### 注意事項
+- `Candidate::pose` 一定要留匹配位置：契約測試（jitter 2 px 板子）、T6b、A/B 比較都看它；吸附在 `classify`／`ProposalSession` 做。
+- 「吸附」的門檻就是晶格的內點容差（`LatticeOptions::inlierFraction` 0.25 × 格距），沒有另外的數字；不是內點的保留匹配位置。
+- 同一個 session 另有「操作步驟提示與影片操作提示」在它自己的 session 進行（分支待定、ADR 用 027）；它會動 `MessageBar`、`MainWindow`、`copy.json`，合併時以先合併的為準。
 
 ## 2026-10-14 — Claude Code (Claude Fable 5.1)（選取資訊表單與樣本庫面板：ADR-025 的「後續（2026-10-14）」）
 

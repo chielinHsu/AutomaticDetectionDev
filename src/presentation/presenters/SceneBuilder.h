@@ -30,6 +30,7 @@ struct SceneCounts {
     std::size_t merged = 0;    // 提案：合併時被壓掉的候選（同一個位置被不只一個樣本找到；ADR-025）
     std::size_t excluded = 0;  // 提案：被手動補的元件佔住、剔除的候選
     std::size_t replaced = 0;  // 提案：接受時會被換掉的元件數（板子上上一次自動產生的，ADR-025）
+    std::size_t offLattice = 0;  // 提案：找到的與推算的之中不在陣列格點上的（沒有晶格位姿，位置是匹配的；ADR-026）
 };
 
 struct Scene {

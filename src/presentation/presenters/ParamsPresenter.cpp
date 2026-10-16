@@ -23,6 +23,8 @@ void ParamsPresenter::setScanScope(int scopeIndex) { sink_.applyScanScope(scopeI
 
 void ParamsPresenter::setSignificantBits(int bits) { sink_.applySignificantBits(bits); }
 
+void ParamsPresenter::setSnapToLattice(bool snap) { sink_.applySnapToLattice(snap); }
+
 void ParamsPresenter::flush() {
     if (!timer_.isActive()) return;
     timer_.stop();

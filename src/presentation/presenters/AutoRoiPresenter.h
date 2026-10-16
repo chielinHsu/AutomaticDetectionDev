@@ -148,6 +148,7 @@ public:
     void applySearchParams(const SearchParams& params) override;
     void applyScanScope(int scopeIndex) override;
     void applySignificantBits(int bits) override;
+    void applySnapToLattice(bool snap) override;
 
     // ---- ISearchEngineSink（BackendPresenter：執行中切換 back end，ADR-021）----
     aoi::InteractionState interactionState() const override { return state(); }

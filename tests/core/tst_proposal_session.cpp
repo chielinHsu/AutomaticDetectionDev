@@ -71,6 +71,62 @@ private slots:
         QVERIFY(o.noMatch->suggestedThreshold >= 0.59 - 1e-12);
     }
 
+    // ---- 位置模式（ADR-026）----
+    // 預設用格點：成員的 rect.pose 是晶格位姿、偏離陣列的與不在陣列的保留匹配位置；Matched 一律匹配位置。編號兩邊相同。
+    void theLatticeModeUsesTheNodeAndTheMatchedModeUsesTheMatch() {
+        // Seed 編號 2（成員）、3（偏離陣列）、4（不在陣列）、5（成員）；Predicted 編號 6。
+        ProposalSession s(makeLatticeProposal({0.95, 0.90, 0.85, 0.80}, {0, 3}, {1}, 1), Rect{10, 10, 400, 300}, RegionMode::Sample, 0.70);
+        QVERIFY(s.positionMode() == PositionMode::Lattice);
+        const ProposalObjects lattice = s.objects();
+        QCOMPARE(byId(lattice, 2)->rect.pose.x, 150.0);
+        QCOMPARE(byId(lattice, 2)->rect.pose.y, 100.0);
+        QVERIFY(byId(lattice, 2)->onLattice);
+        QCOMPARE(*byId(lattice, 2)->latticeDeviationPx, 0.5);
+        QCOMPARE(byId(lattice, 3)->rect.pose.y, 108.0);  // 偏離陣列：匹配位置
+        QVERIFY(!byId(lattice, 3)->onLattice);
+        QCOMPARE(*byId(lattice, 3)->latticeDeviationPx, 8.0);
+        QCOMPARE(byId(lattice, 4)->rect.pose.x, 250.0);  // 不在陣列：匹配位置、沒有偏差
+        QVERIFY(!byId(lattice, 4)->onLattice);
+        QVERIFY(!byId(lattice, 4)->latticeDeviationPx.has_value());
+        QVERIFY(byId(lattice, 6)->onLattice);  // Predicted 本來就是格點
+        QCOMPARE(lattice.offLattice, std::size_t{2});  // 3、4
+
+        s.setPositionMode(PositionMode::Matched);
+        const ProposalObjects matched = s.objects();
+        QCOMPARE(matched.objects.size(), lattice.objects.size());
+        for (std::size_t i = 0; i < matched.objects.size(); ++i) QCOMPARE(matched.objects[i].id, lattice.objects[i].id);
+        QCOMPARE(byId(matched, 2)->rect.pose.x, 150.4);
+        QCOMPARE(byId(matched, 2)->rect.pose.y, 99.7);
+        QVERIFY(!byId(matched, 2)->onLattice);
+        QVERIFY(byId(matched, 6)->onLattice);  // Predicted 兩種模式都在格點上
+        QCOMPARE(matched.offLattice, std::size_t{2});  // 「有沒有晶格位姿」不隨模式變
+        QCOMPARE(matched.found, lattice.found);
+        QVERIFY(!s.canUndo());  // 不是修改
+        QCOMPARE(s.editCount(), std::size_t{0});
+    }
+
+    void poseOfFollowsThePositionModeAndTheMoves() {
+        ProposalSession s(makeLatticeProposal({0.95, 0.90}, {0}, {1}), Rect{10, 10, 400, 300}, RegionMode::Sample, 0.70);
+        QCOMPARE(s.poseOf(2)->x, 150.0);
+        QVERIFY(s.latticeOf(2).inLattice);
+        QVERIFY(s.latticeOf(2).onLattice);
+        QVERIFY(!s.latticeOf(2).moved);
+        QVERIFY(!s.latticeOf(3).inLattice);
+        QVERIFY(!s.latticeOf(3).onLattice);
+        QCOMPARE(*s.latticeOf(3).deviationPx, 8.0);
+        QCOMPARE(s.moveObjects({2}, {3.0, 0.0}), std::size_t{1});
+        QCOMPARE(s.poseOf(2)->x, 153.0);  // 格點加上位移
+        QVERIFY(s.latticeOf(2).moved);
+        QVERIFY(!s.latticeOf(2).onLattice);  // 移過的不再是格點
+        QVERIFY(!byId(s.objects(), 2)->onLattice);
+        s.setPositionMode(PositionMode::Matched);
+        QCOMPARE(s.poseOf(2)->x, 153.4);  // 匹配位置加上同一個位移
+        const int manual = s.addManual({300, 100, 0}, "t1", {40, 20});
+        QVERIFY(!s.latticeOf(manual).inLattice);
+        QVERIFY(!s.latticeOf(manual).deviationPx.has_value());
+        QVERIFY(!s.latticeOf(99).inLattice);
+    }
+
     // ---- 刪除 ----
     void deleteRemovesTheObjectsAndUndoBringsThemBack() {
         ProposalSession s = make({0.95, 0.75, 0.50});

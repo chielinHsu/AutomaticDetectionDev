@@ -743,6 +743,159 @@ private slots:
         }
     }
 
+    // ADR-026：晶格的成員（樣本、種子的內點、視窗驗證找到且在容差內的）拿到最終基底上的格點當晶格位姿，角度是樣本的；
+    // pose 不改；離預測位置太遠的 Verified 不是成員，只記下離格點多遠；Predicted 的晶格位姿就是它的位置。
+    void membersGetTheirLatticeNodeAndStraysOnlyTheirDeviation() {
+        ScriptedBuilder builder({40.0, 30.0});
+        ScriptedSearcher searcher;
+        const Point2D origin{100.0, 100.0};
+        const std::vector<std::pair<int, int>> weak{{2, 1}, {4, 0}, {5, 2}};
+        const std::pair<int, int> missing{6, 1};
+        const std::pair<int, int> farWeak{1, 2};
+        aoi::LatticeAccumulator all(origin, {0, 0});
+        std::vector<Match> matched;  // 腳本給搜尋器的每個匹配（pose 必須原樣回來）
+        quint32 state = 4242;
+        auto noise = [&] {
+            state = state * 1664525u + 1013904223u;
+            return (static_cast<double>(state >> 8) / 16777216.0 - 0.5) * 3.0;  // ±1.5 px
+        };
+        for (int c = 0; c < 7; ++c) {
+            for (int r = 0; r < 3; ++r) {
+                const Point2D p = at(origin, 60.0, 45.0, c, r);
+                if (std::make_pair(c, r) == missing) continue;
+                if (std::make_pair(c, r) == farWeak) {
+                    searcher.world.push_back({{p.x + 15.0, p.y, 0.0}, 0.5});
+                    continue;
+                }
+                if (std::find(weak.begin(), weak.end(), std::make_pair(c, r)) != weak.end()) {
+                    searcher.world.push_back({{p.x, p.y, 0.0}, 0.5});
+                    all.add({c, r}, p);
+                    continue;
+                }
+                const Point2D q = (c == 0 && r == 0) ? p : Point2D{p.x + noise(), p.y + noise()};
+                searcher.seeds.push_back({{q.x, q.y, 0.0}, 0.9});
+                all.add({c, r}, q);
+            }
+        }
+        matched = searcher.seeds;
+        GenerateObjectsFromSample useCase(builder, searcher);
+        const SampleProposal p = useCase.run(makeRequest(image800x600(), sampleAround(origin)), CancelToken()).value();
+        const aoi::LatticeBasis basis = *all.solve();
+        std::size_t members = 0;
+        for (const Candidate& c : p.candidates) {
+            // 它應該在哪一格：從它的位置反推（雜訊 ±1.5 px 遠小於半格）。
+            const int col = static_cast<int>(std::lround((c.pose.x - origin.x) / 60.0));
+            const int row = static_cast<int>(std::lround((c.pose.y - origin.y) / 45.0));
+            const Point2D node = basis.at(col, row);
+            if (c.source == CandidateSource::Predicted) {
+                QVERIFY(c.onLattice());
+                QVERIFY(distance(c.latticePose->position(), c.pose.position()) < 1e-12);
+                QCOMPARE(*c.latticeDeviationPx, 0.0);
+                continue;
+            }
+            if (c.source == CandidateSource::Verified && distance(c.pose.position(), node) > 10.0) {
+                // 離格點 15 px 的那一個：不是成員，只有偏差。
+                QVERIFY(!c.onLattice());
+                QVERIFY(c.latticeDeviationPx.has_value());
+                QVERIFY2(std::abs(*c.latticeDeviationPx - 15.0) < 0.5, qPrintable(QString::number(*c.latticeDeviationPx)));
+                continue;
+            }
+            ++members;
+            QVERIFY2(c.onLattice(), qPrintable(QStringLiteral("(%1, %2) %3").arg(col).arg(row).arg(static_cast<int>(c.source))));
+            QVERIFY2(distance(c.latticePose->position(), node) < 1e-6,
+                     qPrintable(QStringLiteral("node (%1, %2) vs (%3, %4)").arg(node.x).arg(node.y).arg(c.latticePose->x).arg(c.latticePose->y)));
+            QCOMPARE(c.latticePose->angleDeg, p.candidates.front().pose.angleDeg);  // 角度是樣本的
+            QVERIFY(std::abs(*c.latticeDeviationPx - distance(c.pose.position(), node)) < 1e-9);
+        }
+        QCOMPARE(members, std::size_t{7 * 3 - 2});  // 全部減掉缺格與離太遠的那一個
+        // pose 原樣：每個腳本給的種子都在候選裡、位置完全相同（契約測試與 A/B 看的是它）。
+        for (const Match& m : matched) QVERIFY(hasCandidateAt(p.candidates, m.pose, CandidateSource::Seed, 0.0) || sampleAround(origin).contains(m.pose.position()));
+        QVERIFY(p.candidates.front().onLattice());  // 樣本自己是成員
+    }
+
+    // 一個種子離它的格點 12.5 px：不是內點，所以沒有晶格位姿、位置保留匹配的，只記下離格點 12.5 px；其他的都在格點上。
+    void aSeedOffTheLatticeKeepsItsMatchedPoseAndReportsTheDeviation() {
+        ScriptedBuilder builder({40.0, 30.0});
+        ScriptedSearcher searcher;
+        const Point2D origin{100.0, 100.0};
+        for (int c = 0; c < 6; ++c) {
+            for (int r = 0; r < 4; ++r) {
+                Point2D p = at(origin, 60.0, 45.0, c, r);
+                if (c == 3 && r == 2) p.x += 12.5;
+                searcher.seeds.push_back({{p.x, p.y, 0.0}, 0.9});
+            }
+        }
+        GenerateObjectsFromSample useCase(builder, searcher);
+        const SampleProposal p = useCase.run(makeRequest(image800x600(), sampleAround(origin)), CancelToken()).value();
+        QVERIFY(p.grid.found);
+        std::size_t strays = 0;
+        for (const Candidate& c : p.candidates) {
+            if (std::abs(c.pose.x - (origin.x + 3 * 60.0 + 12.5)) < 1e-9 && std::abs(c.pose.y - (origin.y + 2 * 45.0)) < 1e-9) {
+                ++strays;
+                QVERIFY(!c.onLattice());
+                QVERIFY(c.latticeDeviationPx.has_value());
+                QVERIFY2(std::abs(*c.latticeDeviationPx - 12.5) < 1e-6, qPrintable(QString::number(*c.latticeDeviationPx)));
+                continue;
+            }
+            QVERIFY(c.onLattice());
+            QVERIFY(distance(c.latticePose->position(), c.pose.position()) < 1e-6);  // 點本來就在格點上
+            QVERIFY(*c.latticeDeviationPx < 1e-6);
+        }
+        QCOMPARE(strays, std::size_t{1});
+    }
+
+    // 沒有晶格：沒有任何候選有晶格位姿或偏差（沒有陣列可以吸附）。
+    void withoutALatticeNoCandidateHasALatticePose() {
+        ScriptedBuilder builder({40.0, 30.0});
+        ScriptedSearcher searcher;
+        const Point2D center{400.0, 300.0};
+        for (int k = 0; k < 30; ++k) {
+            const double r = 22.0 * std::sqrt(static_cast<double>(k) + 1.0);
+            const double t = k * 2.399963229728653;
+            searcher.seeds.push_back({{center.x + r * std::cos(t), center.y + r * std::sin(t), 0.0}, 0.9});
+        }
+        GenerateObjectsFromSample useCase(builder, searcher);
+        const SampleProposal p = useCase.run(makeRequest(image800x600(), sampleAround(searcher.seeds.front().pose.position())), CancelToken()).value();
+        QVERIFY(!p.grid.found);
+        for (const Candidate& c : p.candidates) {
+            QVERIFY(!c.onLattice());
+            QVERIFY(!c.latticeDeviationPx.has_value());
+        }
+    }
+
+    // 一排（一維晶格）：垂直方向的雜訊被吸掉——成員的晶格位姿都在同一條線上、間距一致。
+    void aSingleRowSnapsOntoTheLine() {
+        ScriptedBuilder builder({40.0, 30.0});
+        ScriptedSearcher searcher;
+        const Point2D origin{100.0, 300.0};
+        quint32 state = 99;
+        auto noise = [&] {
+            state = state * 1664525u + 1013904223u;
+            return (static_cast<double>(state >> 8) / 16777216.0 - 0.5) * 2.0;  // ±1 px
+        };
+        for (int c = 0; c < 8; ++c) {
+            const Point2D p = at(origin, 60.0, 0.0, c, 0);
+            const Point2D q = c == 0 ? p : Point2D{p.x + noise(), p.y + noise()};
+            searcher.seeds.push_back({{q.x, q.y, 0.0}, 0.9});
+        }
+        GenerateObjectsFromSample useCase(builder, searcher);
+        const SampleProposal p = useCase.run(makeRequest(image800x600(), sampleAround(origin)), CancelToken()).value();
+        QVERIFY(p.grid.found);
+        QVERIFY(!p.grid.hasV);
+        std::vector<Point2D> nodes;
+        for (const Candidate& c : p.candidates) {
+            QVERIFY(c.onLattice());
+            nodes.push_back(c.latticePose->position());
+        }
+        QCOMPARE(nodes.size(), std::size_t{8});
+        std::sort(nodes.begin(), nodes.end(), [](const Point2D& a, const Point2D& b) { return a.x < b.x; });
+        for (std::size_t k = 1; k < nodes.size(); ++k) {
+            // 同一條線（直線的方向由最小平方法決定，相鄰兩個格點的向量都相同）
+            QVERIFY(std::abs((nodes[k].x - nodes[k - 1].x) - (nodes[1].x - nodes[0].x)) < 1e-9);
+            QVERIFY(std::abs((nodes[k].y - nodes[k - 1].y) - (nodes[1].y - nodes[0].y)) < 1e-9);
+        }
+    }
+
     // 一個種子離它的格點 12.5 px（超過容差 11.25 px，所以不是內點），那一格因此是「缺格」；但那裡已經有這個種子
     // （主體框重疊 IoU 0.52 > 0.5）：不補，否則同一個元件會多一個推算的框。
     void aHoleUnderAnOffLatticeSeedIsNotPredicted() {

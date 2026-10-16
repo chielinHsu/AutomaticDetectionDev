@@ -63,6 +63,8 @@ public:
     virtual void setScanScope(int scopeIndex) = 0;
     // 影像的有效位元數（S07）：0 ＝ 自動，8..16 ＝ 指定。立刻生效（不搜尋）。
     virtual void setSignificantBits(int bits) = 0;
+    // 位置（ADR-026）：true ＝ 吸附到陣列（CAD 的理論位置），false ＝ 用匹配位置。只重新分類，不搜尋。
+    virtual void setSnapToLattice(bool snap) = 0;
 };
 
 // back end（ux-spec 第 12.3 節的 IBackendController）。availableBackends 是選單的內容（註冊順序，含不可用的）；
@@ -107,6 +109,8 @@ public:
     virtual void applySearchParams(const aoi::SearchParams& params) = 0;
     // 比對範圍：目前只影響流程 B（樣本庫），所以只記下來。
     virtual void applyScanScope(int scopeIndex) = 0;
+    // 位置模式（ADR-026）：對快取的候選重新分類（像門檻），不搜尋。
+    virtual void applySnapToLattice(bool snap) = 0;
     // 影像的有效位元數（S07）：重新換算顯示與之後的搜尋；已顯示的提案不重新搜尋。
     virtual void applySignificantBits(int bits) = 0;
 };

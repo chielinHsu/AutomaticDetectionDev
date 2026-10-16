@@ -1837,6 +1837,41 @@ private slots:
         r.probe->gateWindows = false;
         QVERIFY(r.waitState(S::Preview));
     }
+
+    // ---- 位置模式（ADR-026）：吸附到陣列／用匹配位置只重新分類，不重新搜尋 ----
+    void switchingThePositionOptionReclassifiesWithoutSearchingAgain() {
+        Rig r;
+        r.open();
+        QVERIFY(r.teachSample());
+        const int builds = r.probe->builds;
+        const int finds = r.probe->finds;
+        ParamsPanel* params = r.window.paramsPanel();
+        ObjectsPanel* panel = r.window.objectsPanel();
+        QCOMPARE(params->positionCombo()->currentIndex(), 0);  // 預設吸附到陣列
+        r.clickComponent(1);
+        QVERIFY(isProposalId(r.canvas()->selection().front()));
+        // 假 back end 的網格本來就在格點上：偏差 0.00。
+        QCOMPARE(panel->positionValue()->text(), zh("ui.selection.position.lattice", {{"deviation", QStringLiteral("0.00")}}));
+
+        params->positionCombo()->setCurrentIndex(1);
+        emit params->positionCombo()->activated(1);
+        QCOMPARE_STATE(r.state(), S::Preview);
+        QVERIFY(r.presenter().session().positionMode() == aoi::PositionMode::Matched);
+        QCOMPARE(r.probe->builds.load(), builds);  // 沒有重新搜尋
+        QCOMPARE(r.probe->finds.load(), finds);
+        QCOMPARE(r.canvas()->selection().size(), std::size_t{1});  // 選取留著，表單跟著更新
+        QCOMPARE(panel->positionValue()->text(), zh("ui.selection.position.member", {{"deviation", QStringLiteral("0.00")}}));
+        QVERIFY(!r.window.undoAction()->isEnabled());  // 不進復原堆疊
+
+        params->positionCombo()->setCurrentIndex(0);
+        emit params->positionCombo()->activated(0);
+        QVERIFY(r.presenter().session().positionMode() == aoi::PositionMode::Lattice);
+        QCOMPARE(params->positionCombo()->currentIndex(), 0);
+        r.key(Qt::Key_Return);  // 接受：板子上的元件沒有「位置」的說明
+        QCOMPARE_STATE(r.state(), S::Idle);
+        r.clickComponent(1);
+        QCOMPARE(panel->positionValue()->text(), zh("ui.selection.position.board"));
+    }
 };
 
 QTEST_MAIN(TstPresenter)
