@@ -25,7 +25,7 @@ struct OpenCvTemplateLevel {
     // 有遮罩時是遮罩內的：ΣM·T 與 Σ T″²（T″ ＝ M·(T − 遮罩內平均)）。
     std::vector<double> sums;
     std::vector<double> centeredSquares;
-    // 遮罩（ADR-026；沒有遮罩時是空的）：與 rotated 一一對應。masks 是 CV_8U（255 ＝ 參與），centered 是 T″（CV_32F），
+    // 遮罩（ADR-028；沒有遮罩時是空的）：與 rotated 一一對應。masks 是 CV_8U（255 ＝ 參與），centered 是 T″（CV_32F），
     // maskCounts 是遮罩內的像素數。
     std::vector<cv::Mat> masks;
     std::vector<cv::Mat> centered;
@@ -33,7 +33,7 @@ struct OpenCvTemplateLevel {
     bool masked() const noexcept { return !masks.empty(); }
 };
 
-// 比對區（ADR-026）：範本是比對區的像素，搜尋器回報的是主體中心。
+// 比對區（ADR-028）：範本是比對區的像素，搜尋器回報的是主體中心。
 struct OpenCvMatchGeometry {
     Size2D matchSize;    // 比對區（範本）的大小；整框時等於主體框
     Point2D originOffset;  // 主體中心 − 比對區中心（第 0 層、未旋轉的像素）；角度 θ 時是 rotate(originOffset, θ)

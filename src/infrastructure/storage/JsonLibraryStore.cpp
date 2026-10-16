@@ -19,7 +19,7 @@ std::string keyOf(std::string_view s) {
 
 constexpr int kMaxEntryNumber = 2000000000;
 
-// v1 → v2（ADR-026）：每個條目的類型補 match ＝ 整框、灰階。entries 不是陣列的壞檔留給讀取報錯。
+// v1 → v2（ADR-028）：每個條目的類型補 match ＝ 整框、灰階。entries 不是陣列的壞檔留給讀取報錯。
 Result<void> libraryV1ToV2(QJsonObject& root) {
     const QJsonValue entries = root.value(QStringLiteral("entries"));
     if (entries.isArray()) root.insert(QStringLiteral("entries"), json::withDefaultMatch(entries.toArray()));

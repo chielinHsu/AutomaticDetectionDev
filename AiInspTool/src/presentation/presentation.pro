@@ -16,6 +16,7 @@ SOURCES += \
     $$DIR/compare/CompareOverlayItem.cpp \
     $$DIR/compare/ComparePresenter.cpp \
     $$DIR/compare/CompareWindow.cpp \
+    $$DIR/guidance/GuidancePanel.cpp \
     $$DIR/i18n/Translations.cpp \
     $$DIR/library/SamplePanel.cpp \
     $$DIR/objects/ObjectsModel.cpp \
@@ -52,6 +53,8 @@ HEADERS += \
     $$DIR/compare/CompareOverlayItem.h \
     $$DIR/compare/ComparePresenter.h \
     $$DIR/compare/CompareWindow.h \
+    $$DIR/guidance/GuideDemo.h \
+    $$DIR/guidance/GuidancePanel.h \
     $$DIR/i18n/Translations.h \
     $$DIR/library/SamplePanel.h \
     $$DIR/objects/ObjectRows.h \
@@ -82,8 +85,10 @@ HEADERS += \
 # 表單裡的文字只是佔位（notr，不翻譯）：執行時由各類別的 retranslate 從 copy.json 設定。提升的佔位元件：ImageCanvas、MessageBar、ObjectsPanel、ParamsPanel。
 # S09：A/B 比較的視窗 compare/CompareWindow.ui（畫布是提升的 ImageCanvas）。
 # 2026-10-14：樣本庫 dock 的面板 library/SamplePanel.ui（主視窗裡是提升元件）；ObjectsPanel.ui 多了選取資訊的表單。
+# 2026-10-15：操作步驟 dock 的面板 guidance/GuidancePanel.ui（主視窗裡是提升元件；ADR-027）。
 FORMS += \
     $$DIR/compare/CompareWindow.ui \
+    $$DIR/guidance/GuidancePanel.ui \
     $$DIR/library/SamplePanel.ui \
     $$DIR/objects/ObjectsPanel.ui \
     $$DIR/params/ParamsPanel.ui \

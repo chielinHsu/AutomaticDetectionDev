@@ -17,7 +17,7 @@ namespace aoi {
 //  - 回傳的每個匹配：分數在 [0, 1] 且 ≥ params.minScore；角度在 [angleMinDeg, angleMaxDeg] 內（座標與角度慣例見 domain/geometry.h）。
 //  - 依分數由高到低排序（同分時依 y、再依 x），最多 params.maxMatches 個。
 //  - 匹配的「中心」落在 region 內：WholeImage ＝ 影像範圍內；Windows ＝ 任一視窗內（視窗搜尋只掃視窗）。
-//    中心是 CAD **主體中心**：範本有比對區（ADR-026）時，搜尋器自己把比對區的位置換成主體中心（ITemplateBuilder.h）。
+//    中心是 CAD **主體中心**：範本有比對區（ADR-028）時，搜尋器自己把比對區的位置換成主體中心（ITemplateBuilder.h）。
 //  - 找不到就回空的 vector（成功），不是錯誤。
 //  - 範本不是同一個 back end 建的，回 ErrorCode::BackendMismatch。影像無效回 ErrorCode::InvalidArgument。
 //    參數不合法（minScore 不在 0..1 或不是數字、角度範圍不是有限值或 min > max）也回 InvalidArgument（S09 的契約測試確認三個 back end 一致）。

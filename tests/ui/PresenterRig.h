@@ -2,6 +2,7 @@
 
 #include <QApplication>
 #include <QComboBox>
+#include <QDockWidget>
 #include <QDoubleSpinBox>
 #include <QLabel>
 #include <QSlider>
@@ -154,8 +155,16 @@ struct Rig {
             s.busyMinShowMs = 120;
             presenter().setSettings(s);
         }
+        // 操作步驟 dock（ADR-027）預設關著：它的版面與重畫在 Debug 每次狀態變化約 100 ms，每個測試台都開一個，
+        // tst_presenter 整組從 231 秒變成 297 秒、貼著 300 秒的逾時。產品是開著的；要測它的測試自己 showGuidance()。
+        window.guidanceDock()->hide();
         window.show();
         Q_UNUSED(QTest::qWaitForWindowExposed(&window));
+    }
+
+    void showGuidance() {
+        window.guidanceDock()->show();
+        QCoreApplication::processEvents();
     }
 
     ~Rig() {

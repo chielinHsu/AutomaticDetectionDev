@@ -15,7 +15,7 @@
 //     縮小、轉過之後再從中間切出範本大小。樣本貼著影像邊緣時，影像外面用邊緣的像素補（BORDER_REPLICATE）。
 //  4. 樣本整塊是平的（標準差 < 1 灰階）：NCC 沒有定義，回傳的範本帶 sampleProblem ＝ LowContrast（不搜尋）。
 // 樣本的矩形先裁到影像內、再四捨五入到整數像素；範本大小就是這個整數矩形的大小（use case 的主體框大小）。
-// 比對區（ADR-026，buildFromSample）：範本改用比對區的像素（矩形，或遮罩的外接矩形＋遮罩），範本記住
+// 比對區（ADR-028，buildFromSample）：範本改用比對區的像素（矩形，或遮罩的外接矩形＋遮罩），範本記住
 // 「主體中心 − 比對區中心」；邊緣模式在每一層的梯度大小上建範本（OpenCvFeatures.h）。整框時和 build 逐行相同。
 // 遮罩縮小或轉過之後剩不到 options.minMaskPixels 個像素的層不用；第 0 層就不夠 → sampleProblem ＝ SampleTooSmall。
 // 無狀態（options 建立後不改），可以被多個 worker 同時呼叫。不丟例外（cv::Exception 在這裡攔下）。

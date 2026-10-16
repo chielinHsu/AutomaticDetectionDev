@@ -22,7 +22,7 @@ std::vector<json::Migration> JsonRecipeStore::builtInMigrations() {
         root.insert(QStringLiteral("board"), b);
         return {};
     });
-    // v2 → v3（ADR-026）：每個類型補 match ＝ 整框、灰階（和 v2 的行為相同）。形狀不對的壞檔留給解碼器報錯。
+    // v2 → v3（ADR-028）：每個類型補 match ＝ 整框、灰階（和 v2 的行為相同）。形狀不對的壞檔留給解碼器報錯。
     migrations.push_back([](QJsonObject& root) -> Result<void> {
         const QJsonValue board = root.value(QStringLiteral("board"));
         if (!board.isObject()) return {};

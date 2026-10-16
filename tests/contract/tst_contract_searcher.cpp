@@ -97,7 +97,7 @@ struct Impostor final : ITemplate {
     std::string id_;
 };
 
-// ---- 比對區（ADR-026）----
+// ---- 比對區（ADR-028）----
 // 合成板子的元件：主體 40 × 20、兩端各一個電極（22% 寬），左右、上下都對稱。比對區偏右下（中心離主體中心 (7, 1) px）：
 // 搜尋器回報的要是主體中心，不是比對區的中心。比對區要跨過中心、含三條直的邊（左電極｜主體、主體｜右電極、右電極｜底色）：
 // 只框右半邊時，它的邊和左半邊的鏡像只差一個平移（兩個電極一樣），shape model 會在每個元件上找到兩次（這個測試的第一版實測，2026-10-15）。
@@ -575,7 +575,7 @@ private slots:
 #endif
     }
 
-    // ---- 比對區（ADR-026）----
+    // ---- 比對區（ADR-028）----
     // 整框的規格（沒有比對區、灰階）＝ build(rect)：同一個範本，搜尋結果逐位元相同（向下相容的哨兵）。
     void aDefaultSpecMatchesTheRectBuild_data() { addBackendRows(Rows::All); }
     void aDefaultSpecMatchesTheRectBuild() {

@@ -1,5 +1,7 @@
+#include <QAction>
 #include <QApplication>
 #include <QCommandLineParser>
+#include <QDockWidget>
 #include <QSettings>
 #include <QStringList>
 #include <cstdio>
@@ -45,6 +47,8 @@ aoi::ui::ThemeMode parseTheme(const QString& name, bool* ok) {
 // 使用者的設定（ADR-021：記住上次用的 back end）。INI 檔：%APPDATA%\AOI\AutoCadCreated.ini（看得到、可以手改）。
 // 環境變數 AOI_SETTINGS_DIR 可以換資料夾（tst_cli 用暫存資料夾，測試不碰使用者的設定）。
 constexpr const char* kLastBackendKey = "backend/last";
+// 操作步驟 dock 的開關（2026-10-15，ADR-027）：預設打開；使用者關掉就記住（只在使用者切換時寫，視窗關閉時 dock 跟著藏起來不算）。
+constexpr const char* kGuidanceVisibleKey = "guidance/visible";
 
 std::unique_ptr<QSettings> openUserSettings() {
     const QByteArray dir = qgetenv("AOI_SETTINGS_DIR");
@@ -136,6 +140,11 @@ int main(int argc, char* argv[]) {
     // 視窗、Presenter 的建立順序＝解構順序的反面：核心活得最久，然後是視窗，最後才是 Presenter（它解構時先解除視窗的 Controller）。
     aoi::ui::MainWindow window(theme);
     window.setImageSource(imageSource.get());
+    window.guidanceDock()->setVisible(settings->value(QLatin1String(kGuidanceVisibleKey), true).toBool());
+    QObject::connect(window.guidanceDock()->toggleViewAction(), &QAction::toggled, &window, [&settings](bool visible) {
+        settings->setValue(QLatin1String(kGuidanceVisibleKey), visible);
+        settings->sync();
+    });
     aoi::app::CoreServices& services = core.value();
     // back end 的提醒（S08：例如 HALCON 用的是 runtime 授權、SDK 的 dongle 沒插）：stderr 一行；畫面上是訊息列的提醒卡片
     // （按〔關閉〕才收起）與狀態列 back end 名稱後面的標示（BackendPresenter）。

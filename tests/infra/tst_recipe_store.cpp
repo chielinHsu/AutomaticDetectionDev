@@ -220,7 +220,7 @@ private slots:
         QVERIFY2(diffRecipe(v1, v2.value()).isEmpty(), qPrintable(diffRecipe(v1, v2.value())));
     }
 
-    // ---- v3 範例檔（ADR-026：類型的 match；tests/infra/fixtures/recipe-v3.json，之後的版本也要讀得進來）----
+    // ---- v3 範例檔（ADR-028：類型的 match；tests/infra/fixtures/recipe-v3.json，之後的版本也要讀得進來）----
     // v1、v2 沒有 match：讀進來是整框、灰階（和 v3 之前的行為相同）。
     void olderFixturesHaveTheDefaultMatch() {
         JsonRecipeStore store;
@@ -290,7 +290,7 @@ private slots:
     void olderFilesAreMigratedStepByStep() {
         std::vector<int> calls;
         std::vector<int> seenVersions;
-        // 內建的 v1 → v2、v2 → v3（ADR-026），再加兩個假的（v3 → v4、v4 → v5）：假裝這個程式是 v5。
+        // 內建的 v1 → v2、v2 → v3（ADR-028），再加兩個假的（v3 → v4、v4 → v5）：假裝這個程式是 v5。
         std::vector<json::Migration> migrations = JsonRecipeStore::builtInMigrations();
         QCOMPARE(migrations.size(), std::size_t{2});
         migrations.push_back([&](QJsonObject& root) -> Result<void> {
@@ -378,7 +378,7 @@ private slots:
         row("image too much data", setAt(QStringLiteral("board.types.0.referenceImage.data"), QStringLiteral("ChQeKDI8Rg==")), "referenceImage.data does not match the image size");
         row("missing referenceImage", removeAt(QStringLiteral("board.types.0.referenceImage")), "board.types[0].referenceImage is missing");
         row("maxMatches negative", setAt(QStringLiteral("params.maxMatches"), -1), "params.maxMatches is out of range");
-        // 比對區（ADR-026）：v1 範例檔加上壞的 match（遷移只補「沒有」的，不改已有的）。
+        // 比對區（ADR-028）：v1 範例檔加上壞的 match（遷移只補「沒有」的，不改已有的）。
         const auto withMatch = [](QJsonObject region) {
             return setAt(QStringLiteral("board.types.0.match"),
                          QJsonObject{{QStringLiteral("mode"), QStringLiteral("intensity")}, {QStringLiteral("region"), region}});

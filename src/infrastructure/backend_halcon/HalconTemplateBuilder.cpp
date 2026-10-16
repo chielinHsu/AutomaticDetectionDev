@@ -55,7 +55,7 @@ Result<TemplatePtr> HalconTemplateBuilder::buildFromSample(const ImageView& imag
         const int height = y1 - y0;
         const Size2D size{static_cast<double>(width), static_cast<double>(height)};
 
-        // 比對區（ADR-026）：沒有設定 ＝ 主體框。矩形用和主體框一樣的取整；遮罩已經在整數像素上，裁到影像內，
+        // 比對區（ADR-028）：沒有設定 ＝ 主體框。矩形用和主體框一樣的取整；遮罩已經在整數像素上，裁到影像內，
         // 存成每列的 runs（影像座標，[begin, end)）。
         int mx0 = x0;
         int my0 = y0;
@@ -164,7 +164,7 @@ Result<TemplatePtr> HalconTemplateBuilder::buildFromSample(const ImageView& imag
         }
         const HalconCpp::HImage reduced = modelImage.ReduceDomain(domain);
 
-        // 參考點（ADR-026）：模型座標的 (0, 0) 是 domain 的重心（HALCON 的預設）。整框時就是主體中心，不必算（和之前逐位元相同）。
+        // 參考點（ADR-028）：模型座標的 (0, 0) 是 domain 的重心（HALCON 的預設）。整框時就是主體中心，不必算（和之前逐位元相同）。
         HalconMatchGeometry geometry;
         if (regionGiven) {
             double row = 0.0;

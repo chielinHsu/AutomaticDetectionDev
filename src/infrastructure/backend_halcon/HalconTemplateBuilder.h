@@ -26,7 +26,7 @@ public:
     std::string_view backendId() const noexcept override { return kHalconBackendId; }
     Result<TemplatePtr> build(const ImageView& image, const Rect& sample, const SearchParams& params,
                               const CancelToken& cancel) override;
-    // 比對區（ADR-026）：domain 改成比對區（矩形或遮罩的 runs），參考點是它的重心；範本記住「主體中心 − 參考點」。
+    // 比對區（ADR-028）：domain 改成比對區（矩形或遮罩的 runs），參考點是它的重心；範本記住「主體中心 − 參考點」。
     // 邊緣模式對 HALCON 沒有作用（shape model 本來就是邊緣，ADR-004 D7）。整框時和 build 逐位元相同。
     Result<TemplatePtr> buildFromSample(const ImageView& image, const SampleSpec& spec, const SearchParams& params,
                                         const CancelToken& cancel) override;

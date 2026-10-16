@@ -4,7 +4,7 @@
 
 #include "domain/match_region.h"
 
-// infrastructure/backend_opencv：比對用的特徵影像（ADR-026）。範本建立器與搜尋器在**同一個時點**套用：
+// infrastructure/backend_opencv：比對用的特徵影像（ADR-028）。範本建立器與搜尋器在**同一個時點**套用：
 // 轉 8 bit 灰階 → 建金字塔 → 每一層各自算特徵 → 之後才旋轉與裁切（避免裁切的邊界產生假的邊）。
 namespace aoi::infra {
 

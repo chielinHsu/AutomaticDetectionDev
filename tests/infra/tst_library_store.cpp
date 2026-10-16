@@ -178,11 +178,11 @@ private slots:
         QCOMPARE(store.find("sop20").value()->id, std::string("lib-1"));
         QCOMPARE(store.find("0603").value()->id, std::string("lib-3"));
         QVERIFY(store.find("0603").value()->category == ComponentCategory::Chip);
-        // v1 沒有 match（ADR-026）：讀進來是整框、灰階。
+        // v1 沒有 match（ADR-028）：讀進來是整框、灰階。
         for (const ComponentType& t : all.value()) QVERIFY(t.match.isDefault());
     }
 
-    // v2（ADR-026）：寫出的檔案是 v2、每個條目都有 match，比對區（richType 的 variant 1：矩形＋邊緣）存得回來。
+    // v2（ADR-028）：寫出的檔案是 v2、每個條目都有 match，比對區（richType 的 variant 1：矩形＋邊緣）存得回來。
     void savedLibrariesAreVersion2WithTheMatchRegion() {
         QTemporaryDir dir = makeTempDir();
         const std::string path = utf8(dir.filePath(QStringLiteral("library.json")));
@@ -211,7 +211,7 @@ private slots:
             R"({"format": "aoi-library", "schemaVersion": 1, "nextEntryNumber": 3, "entries": [)"
             R"({"id": "lib-1", "libId": "", "partNumber": "A", "aliases": [], "name": "", "category": "chip", "groups": [], "referenceImage": null},)"
             R"({"id": "lib-1", "libId": "", "partNumber": "B", "aliases": [], "name": "", "category": "chip", "groups": [], "referenceImage": null}]})");
-        // 比這個程式新的版本（ADR-026 起樣本庫是 v2，所以用「目前的版本 ＋ 1」）。
+        // 比這個程式新的版本（ADR-028 起樣本庫是 v2，所以用「目前的版本 ＋ 1」）。
         QTest::newRow("newer version") << (QByteArray(R"({"format": "aoi-library", "schemaVersion": )") +
                                            QByteArray::number(JsonLibraryStore::kSchemaVersion + 1) +
                                            QByteArray(R"(, "nextEntryNumber": 1, "entries": []})"));

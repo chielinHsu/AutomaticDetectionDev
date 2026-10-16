@@ -8,6 +8,7 @@
 #include <memory>
 #include <vector>
 
+#include "application/interaction/StepGuide.h"
 #include "presentation/objects/ObjectRows.h"
 
 // Presenter 看到的 View（docs/ux/ux-spec.md 第 12.2 節）。每個介面 ≤ 5 個方法；Presenter 不認識 QWidget。
@@ -86,6 +87,8 @@ struct ParamsState {
     int significantBits = 0;
     int detectedBits = 0;
     bool bitsApplicable = false;
+    // 位置（ADR-026）：true ＝ 吸附到陣列（晶格的格點，CAD 的理論位置），false ＝ 用 back end 的匹配位置。
+    bool snapToLattice = true;
 };
 
 class IParamsView {
@@ -123,13 +126,20 @@ struct SelectionInfoView {
     double umPerPixel = 0.0;
     bool canMove = false;
     bool canResize = false;
-    // 比對區（ADR-026）：matchText 是「整個主體框」「矩形 w × h px」「遮罩 n px」；matchMode 0 ＝ 灰階、1 ＝ 邊緣；
+    // 比對區（ADR-028）：matchText 是「整個主體框」「矩形 w × h px」「遮罩 n px」；matchMode 0 ＝ 灰階、1 ＝ 邊緣；
     // matchGrow ＜ 0 ＝ 沒有可以調的外擴（不是自動擷取的遮罩，或已經改過）；hasMatchRegion ＝ 有比對區（〔清除〕可以按）。
     QString matchText;
     int matchMode = 0;
     int matchGrow = -1;
     bool hasMatchRegion = false;
     bool canEditMatch = false;
+    // 晶格（ADR-026；提案的物件才有）：是不是晶格的成員、使用者有沒有移過、現在的位置是不是格點；
+    // 匹配位置離最近格點多遠（< 0 ＝ 不在任何陣列範圍內、或板子上的元件）。
+    bool proposal = false;
+    bool inLattice = false;
+    bool moved = false;
+    bool onLattice = false;
+    double latticeDeviationPx = -1.0;
 };
 
 class ISelectionInfoView {
@@ -163,6 +173,15 @@ public:
     // 同一個指標再交一次 ＝ 沒有變（View 可以略過）。
     virtual void setSamples(SampleListPtr samples) = 0;
     virtual void setSelection(const std::vector<int>& sceneIds) = 0;
+};
+
+// 「操作步驟」dock（2026-10-15，ADR-027）：五步的清單、目前這一步標亮、每一步的示範。
+// 哪一步是目前、哪些做完了由 application 的 guideStatus（InspectionSession 推導）決定，Presenter 只在它變了的時候才交過來，
+// 所以分數門檻拖動（U3）不會碰到這個 View。文字由 View 自己從 copy.json 設定（步驟是固定的，不是資料）。
+class IGuidanceView {
+public:
+    virtual ~IGuidanceView() = default;
+    virtual void setGuideStatus(const GuideStatus& status) = 0;
 };
 
 // 畫布的輸入閘門：搜尋中、錯誤時畫布暫停（ux-spec 第 5 節），忙碌時游標變 progress。

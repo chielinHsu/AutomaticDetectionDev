@@ -345,21 +345,38 @@
         </property>
        </widget>
       </item>
-      <item row="7" column="0" colspan="2">
+      <item row="7" column="0">
+       <widget class="QLabel" name="positionLabel">
+        <property name="text">
+         <string notr="true">位置</string>
+        </property>
+       </widget>
+      </item>
+      <item row="7" column="1">
+       <widget class="QLabel" name="positionValue">
+        <property name="text">
+         <string notr="true">—</string>
+        </property>
+        <property name="wordWrap">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="8" column="0" colspan="2">
        <widget class="QPushButton" name="applyToAll">
         <property name="text">
          <string notr="true">套用大小到所有樣本</string>
         </property>
        </widget>
       </item>
-      <item row="8" column="0">
+      <item row="9" column="0">
        <widget class="QLabel" name="matchLabel">
         <property name="text">
          <string notr="true">比對區</string>
         </property>
        </widget>
       </item>
-      <item row="8" column="1">
+      <item row="9" column="1">
        <widget class="QLabel" name="matchValue">
         <property name="text">
          <string notr="true">整個主體框</string>
@@ -369,24 +386,24 @@
         </property>
        </widget>
       </item>
-      <item row="9" column="0">
+      <item row="10" column="0">
        <widget class="QLabel" name="matchModeLabel">
         <property name="text">
          <string notr="true">特徵</string>
         </property>
        </widget>
       </item>
-      <item row="9" column="1">
+      <item row="10" column="1">
        <widget class="QComboBox" name="matchMode"/>
       </item>
-      <item row="10" column="0">
+      <item row="11" column="0">
        <widget class="QLabel" name="matchGrowLabel">
         <property name="text">
          <string notr="true">外擴</string>
         </property>
        </widget>
       </item>
-      <item row="10" column="1">
+      <item row="11" column="1">
        <widget class="QSpinBox" name="matchGrow">
         <property name="keyboardTracking">
          <bool>false</bool>
@@ -402,14 +419,14 @@
         </property>
        </widget>
       </item>
-      <item row="11" column="0" colspan="2">
+      <item row="12" column="0" colspan="2">
        <widget class="QPushButton" name="matchClear">
         <property name="text">
          <string notr="true">清除比對區</string>
         </property>
        </widget>
       </item>
-      <item row="12" column="0" colspan="2">
+      <item row="13" column="0" colspan="2">
        <widget class="QLabel" name="selectionNote">
         <property name="text">
          <string notr="true"/>

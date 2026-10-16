@@ -110,7 +110,8 @@ bool InspectionSession::startSearch() {
 
 bool InspectionSession::searchSucceeded(std::shared_ptr<const BoardProposal> proposal) {
     if (state() != InteractionState::Searching || !lastSearch_ || !proposal) return false;
-    ProposalSession session(std::move(proposal), lastSearch_->region, lastSearch_->mode, threshold_, config_.candidateFloor);
+    ProposalSession session(std::move(proposal), lastSearch_->region, lastSearch_->mode, threshold_, config_.candidateFloor,
+                            positionMode_);
     noMatch_ = session.objects().noMatch;
     proposal_ = std::move(session);
     selection_.clear();
@@ -183,6 +184,17 @@ void InspectionSession::setThreshold(double threshold) {
     // noMatch 只在 NoMatch 狀態有意義（Preview 的門檻拉到沒有任何找到，仍是 Preview：轉移表）。
     noMatch_ = state() == InteractionState::NoMatch ? info : std::nullopt;
     pruneSelection();
+}
+
+void InspectionSession::setPositionMode(PositionMode mode) {
+    positionMode_ = mode;
+    if (!proposal_) return;
+    const InteractionState s = state();
+    if (s != InteractionState::Preview && s != InteractionState::NoMatch) return;
+    if (proposal_->positionMode() == mode) return;
+    proposal_->setPositionMode(mode);
+    // 位置模式變了，之前復原出來的「接受」帶的是另一種位置的提案，不能再重做（和門檻相同）。
+    document_.dropRedo();
 }
 
 // ---- 提案 ----------------------------------------------------------------------------------------------
@@ -346,7 +358,7 @@ SelectionInfo InspectionSession::selectionInfo() const {
         if (const std::optional<Size2D> size = document_.bodySizePx(c->typeId)) info.bodyPx = *size;
         if (const ComponentType* type = document_.findType(c->typeId)) {
             info.boxCount = countBoxes(*type);
-            // 比對區（ADR-026）：類型的設定換到這個元件的像素。
+            // 比對區（ADR-028）：類型的設定換到這個元件的像素。
             const MatchSpec spec = matchSpecFor(type->match, c->pose.position(), effectiveUmPerPixel(document_.board().umPerPixel));
             info.matchMode = type->match.mode;
             if (spec.rect) {
@@ -376,6 +388,11 @@ SelectionInfo InspectionSession::selectionInfo() const {
             if (const std::optional<Size2D> size = document_.bodySizePx(type->typeId)) info.bodyPx = *size;
         }
         info.canMove = true;  // 預覽只能改位置（改大小是文件堆疊上的事，ADR-025 §4）
+        const ProposalSession::LatticeRelation lattice = proposal_->latticeOf(id);
+        info.inLattice = lattice.inLattice;
+        info.moved = lattice.moved;
+        info.onLattice = lattice.onLattice;
+        info.latticeDeviationPx = lattice.deviationPx;
     }
     return info;
 }
@@ -400,7 +417,7 @@ bool InspectionSession::addBoxGroup(int componentId, const Rect& rectPx) {
     return document_.addBoxGroup(c->typeId, std::move(group));
 }
 
-// ---- 比對區（ADR-026）------------------------------------------------------------------------------------
+// ---- 比對區（ADR-028）------------------------------------------------------------------------------------
 
 const ComponentInstance* InspectionSession::editableForMatch(int componentId, Rect* bodyPx) const {
     if (state() != InteractionState::Idle) return nullptr;
@@ -506,6 +523,7 @@ bool InspectionSession::undo() {
     if (outcome.restoredProposal) {
         proposal_ = std::move(outcome.restoredProposal);
         threshold_ = proposal_->threshold();
+        positionMode_ = proposal_->positionMode();  // 復原到當時的預覽：位置模式也回到當時的（和門檻相同）
         noMatch_ = proposal_->objects().noMatch;
         lastSearch_ = SearchTarget{proposal_->region(), proposal_->mode(), {}};
         machine_.fire(InteractionEvent::UndoToPreview);

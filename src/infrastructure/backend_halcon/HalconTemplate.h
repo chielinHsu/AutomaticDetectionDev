@@ -28,7 +28,7 @@ struct HalconTemplateTuning {
     int lowestLevel = 1;       // find_shape_model 最低追蹤到哪一層（NumLevels 的第二個值；1 ＝ 到底）
 };
 
-// 比對區（ADR-026）：模型的參考點是 domain（比對區）的重心（HALCON 的預設，不呼叫 set_shape_model_origin），
+// 比對區（ADR-028）：模型的參考點是 domain（比對區）的重心（HALCON 的預設，不呼叫 set_shape_model_origin），
 // 搜尋器自己把參考點換成主體中心（和 OpenCV 版同一個做法；poseFromHalcon 的推導不變）。
 struct HalconMatchGeometry {
     Size2D matchSize;          // 比對區的外接矩形；0 ＝ 整框（等於主體框）

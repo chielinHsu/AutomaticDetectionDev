@@ -37,7 +37,7 @@ class ObjectsPanel;
 // 程式設定的值（setSelectionInfo）不發出。能不能改由 SelectionInfoView 的 canMove／canResize 決定（預覽中只能改位置）；
 // 多選時整個表單停用、只顯示「已選 N 個」。〔鎖定寬高比〕只是表單的行為：改寬時高跟著變（反之亦然），不是 Command。
 // 〔套用大小到所有樣本〕發出 applySizeToAllRequested。
-// 比對區（ADR-026）：狀態文字（整框／矩形／遮罩）、特徵（灰階／邊緣，選了就發出 matchModeEdited）、外擴（只有自動擷取的遮罩能調，
+// 比對區（ADR-028）：狀態文字（整框／矩形／遮罩）、特徵（灰階／邊緣，選了就發出 matchModeEdited）、外擴（只有自動擷取的遮罩能調，
 // 改了發出 matchGrowEdited）、〔清除比對區〕（matchClearRequested）。比對區本身用畫布上的 M 工具設定。
 //
 // 版面在 ObjectsPanel.ui（Qt Designer：晶片、樹、空狀態、表單）；model（ObjectsModel）、欄寬與文字在程式碼裡
@@ -76,6 +76,7 @@ public:
     QCheckBox* lockRatio() const { return lockRatio_; }
     QLabel* angleValue() const { return angleValue_; }
     QLabel* boxesValue() const { return boxesValue_; }
+    QLabel* positionValue() const { return positionValue_; }
     QPushButton* applyToAll() const { return applyToAll_; }
     QLabel* selectionNote() const { return selectionNote_; }
     QLabel* matchValue() const { return matchValue_; }
@@ -105,6 +106,7 @@ private:
     void commitSize();
     void followRatio(bool widthChanged);
     void updateSelectionTexts();
+    static QString positionText(const SelectionInfoView& info);
 
     std::unique_ptr<Ui::ObjectsPanel> ui_;
     ObjectsModel model_;
@@ -134,6 +136,8 @@ private:
     QSpinBox* matchGrow_;
     QPushButton* matchClear_;
     QLabel* boxesValue_;
+    QLabel* positionLabel_;  // ADR-026：格點或匹配位置、離格點多遠
+    QLabel* positionValue_;
     QPushButton* applyToAll_;
     QLabel* selectionNote_;
     SelectionInfoView info_;

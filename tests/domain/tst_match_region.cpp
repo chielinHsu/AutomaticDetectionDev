@@ -1,4 +1,4 @@
-// 比對區（ADR-026）：遮罩 ⇄ runs、類型座標（µm）⇄ 影像像素的換算、Otsu 擷取最近的亮塊、外擴。
+// 比對區（ADR-028）：遮罩 ⇄ runs、類型座標（µm）⇄ 影像像素的換算、Otsu 擷取最近的亮塊、外擴。
 #include <QtTest>
 #include <chrono>
 #include <cstdint>

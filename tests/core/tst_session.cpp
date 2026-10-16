@@ -373,6 +373,70 @@ private slots:
         QVERIFY(!f.session.undoInfo().has_value());
     }
 
+    // ---- 位置模式（ADR-026）----
+    // 預覽中切換只重新分類（編號不變、不是修改）；接受存的是現在顯示的位置（預設是格點）；沒有提案時記下來給下一份。
+    void thePositionModeReclassifiesInPreviewAndAcceptStoresWhatIsShown() {
+        Fixture f;
+        QVERIFY(f.session.positionMode() == PositionMode::Lattice);
+        f.search();
+        QVERIFY(f.session.searchSucceeded(makeLatticeProposal({0.95, 0.90}, {0}, {1})));  // 編號 2 成員、3 偏離陣列
+        QCOMPARE_STATE(f.session.state(), S::Preview);
+        f.session.select({2});
+        SelectionInfo info = f.session.selectionInfo();
+        QCOMPARE(info.pose.x, 150.0);  // 格點
+        QVERIFY(info.inLattice && info.onLattice && !info.moved);
+        QCOMPARE(*info.latticeDeviationPx, 0.5);
+        f.session.select({3});
+        info = f.session.selectionInfo();
+        QCOMPARE(info.pose.y, 108.0);  // 偏離陣列：匹配位置
+        QVERIFY(!info.inLattice && !info.onLattice);
+        QCOMPARE(*info.latticeDeviationPx, 8.0);
+
+        f.session.setPositionMode(PositionMode::Matched);
+        QVERIFY(f.session.proposal()->positionMode() == PositionMode::Matched);
+        f.session.select({2});
+        info = f.session.selectionInfo();
+        QCOMPARE(info.pose.x, 150.4);
+        QVERIFY(info.inLattice && !info.onLattice);
+        QVERIFY(!f.session.undoInfo().has_value());  // 不是修改
+        QCOMPARE(f.session.selection(), std::vector<int>{2});  // 選取留著
+
+        f.session.setPositionMode(PositionMode::Lattice);
+        QVERIFY(f.session.accept().has_value());
+        const ComponentInstance* stored = nullptr;
+        for (const ComponentInstance& c : f.session.document().components()) {
+            if (c.origin == ObjectOrigin::Auto && c.score && *c.score == 0.95) stored = &c;
+        }
+        QVERIFY(stored != nullptr);
+        QCOMPARE(stored->pose.x, 150.0);  // 板子上存的是格點
+        QCOMPARE(stored->pose.y, 100.0);
+
+        // 復原回到預覽：位置模式也回到當時的；Idle 裡改模式只記下來，下一份提案用它。
+        f.session.setPositionMode(PositionMode::Matched);
+        QVERIFY(f.session.undo());
+        QCOMPARE_STATE(f.session.state(), S::Preview);
+        QVERIFY(f.session.positionMode() == PositionMode::Lattice);
+        QVERIFY(f.session.discard());
+        f.session.setPositionMode(PositionMode::Matched);
+        QVERIFY(f.session.startSearch());
+        QVERIFY(f.session.searchSucceeded(makeLatticeProposal({0.95}, {0})));
+        QVERIFY(f.session.proposal()->positionMode() == PositionMode::Matched);
+        f.session.select({2});
+        QCOMPARE(f.session.selectionInfo().pose.x, 150.4);
+    }
+
+    void changingThePositionModeAfterUndoToPreviewMakesTheOldAcceptUnredoable() {
+        Fixture f;
+        f.search();
+        QVERIFY(f.session.searchSucceeded(makeLatticeProposal({0.95}, {0})));
+        QVERIFY(f.session.accept().has_value());
+        QVERIFY(f.session.undo());
+        QVERIFY(f.session.redoInfo().has_value());
+        f.session.setPositionMode(PositionMode::Matched);
+        QVERIFY(!f.session.redoInfo().has_value());  // 另一種位置的提案：不能再重做舊的接受
+        f.session.setPositionMode(PositionMode::Matched);  // 同一個模式再設一次什麼都不動
+    }
+
     // ---- 接受、捨棄 ----
     void acceptMovesTheProposalIntoTheDocument() {
         Fixture f;
@@ -828,7 +892,7 @@ private slots:
         QCOMPARE(countBoxes(*f.session.document().findType("t1")), std::size_t{2});
     }
 
-    // ---- 比對區（ADR-026）----
+    // ---- 比對區（ADR-028）----
     // 矩形：裁到主體框內、存在類型上（µm，相對主體中心）；樣本的搜尋規格換回影像像素；一個 Command、可以復原。
     void aMatchRectIsClippedToTheBodyAndStoredOnTheType() {
         Fixture f;

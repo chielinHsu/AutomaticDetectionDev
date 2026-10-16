@@ -40,6 +40,7 @@ struct PresenterViews {
     IParamsView& params;
     ISelectionInfoView& selectionInfo;  // 選取資訊的表單（2026-10-14）
     ISampleListView& samples;           // 樣本庫 dock 裡「板子上的樣本」
+    IGuidanceView& guide;               // 操作步驟 dock（2026-10-15，ADR-027）
 };
 
 // Presenter 用到的核心（都是 application 層的型別；具體的 back end 在組裝根接好，這裡不認識）。
@@ -99,6 +100,8 @@ public:
     const Scene& lastScene() const { return scene_; }
     // 最近一次交給樣本庫 dock 的清單（測試用）。
     SampleListPtr lastSamples() const { return sampleCache_.list; }
+    // 最近一次交給操作步驟 dock 的狀態（測試用）。
+    const GuideStatus& lastGuide() const { return lastGuide_; }
 
     // ---- ICanvasController ----
     void onRegionDrawn(const QRectF& rect, DraftMode mode) override;
@@ -121,7 +124,7 @@ public:
     void setSelectionBodySize(double width, double height) override;
     void applySizeToAllSamples() override;
 
-    // ---- IMatchRegionEditController（比對區，ADR-026）----
+    // ---- IMatchRegionEditController（比對區，ADR-028）----
     // 規則在 InspectionSession（setMatchMode、setMatchGrow、clearMatchRegion）；這裡做吐司與重新發布。
     void setMatchMode(int mode) override;
     void setMatchGrow(int growPx) override;
@@ -154,6 +157,7 @@ public:
     void applySearchParams(const SearchParams& params) override;
     void applyScanScope(int scopeIndex) override;
     void applySignificantBits(int bits) override;
+    void applySnapToLattice(bool snap) override;
 
     // ---- ISearchEngineSink（BackendPresenter：執行中切換 back end，ADR-021）----
     aoi::InteractionState interactionState() const override { return state(); }
@@ -210,6 +214,7 @@ private:
     void publishDraft();
     void publishMessage();
     void publishStatus();
+    void publishGuidance();
     void publishHistory();
     void publishGate();
     void notifyStateIfChanged();
@@ -271,6 +276,8 @@ private:
     SampleListCache sampleCache_;    // 樣本庫 dock 的清單與縮圖：文件的修訂號與影像沒變就不重做
     CardSpec card_;
     bool cardVisible_ = false;
+    GuideStatus lastGuide_;
+    bool guidePublished_ = false;
     InteractionState lastNotified_ = InteractionState::Empty;
     SceneLabels labels_;
     RegionMode drawMode_ = RegionMode::Sample;

@@ -197,6 +197,7 @@ Scene buildScene(const InspectionSession& session, const SceneLabels& labels, Do
     counts.fromProposal = true;
     counts.merged = proposal->proposal().merged;
     counts.excluded = proposal->proposal().excluded;
+    counts.offLattice = objects.offLattice;
     for (const ComponentInstance& c : board.components) {
         if (c.origin == ObjectOrigin::Auto && c.state != ObjectState::Sample) ++counts.replaced;
     }

@@ -1,5 +1,7 @@
 #include "presentation/presenters/AutoRoiPresenter.h"
 
+#include "application/interaction/StepGuide.h"
+
 #include <QCoreApplication>
 #include <QEvent>
 #include <QMetaObject>
@@ -147,7 +149,7 @@ void AutoRoiPresenter::onPointerDragChanged(bool active, ToolId tool) {
 
 void AutoRoiPresenter::onRegionDrawn(const QRectF& rect, DraftMode mode) {
     if (mode == DraftMode::Match) {
-        // M 工具（ADR-026）：在所選的那一個元件上設定比對區。拖一個框 ＝ 矩形；點一下（框幾乎沒有大小）＝ 自動擷取
+        // M 工具（ADR-028）：在所選的那一個元件上設定比對區。拖一個框 ＝ 矩形；點一下（框幾乎沒有大小）＝ 自動擷取
         // （Otsu ＋ 離點擊最近的亮塊 ＋ 外擴）。不經過狀態機（Idle 的一個 Command），規則在 InspectionSession。
         views_.canvas.showRegionDraft(std::nullopt, mode);
         if (session_.selection().size() != 1 || state() != InteractionState::Idle) {
@@ -302,7 +304,7 @@ void AutoRoiPresenter::select(const std::vector<int>& sceneIds) {
     nudgeClock_.invalidate();
     session_.select(toSessionIds(sceneIds));
     publishSelection();
-    publishDraft();  // 比對區的草稿框跟著選取（ADR-026）
+    publishDraft();  // 比對區的草稿框跟著選取（ADR-028）
 }
 
 void AutoRoiPresenter::deleteSelected() {
@@ -373,7 +375,7 @@ void AutoRoiPresenter::applySizeToAllSamples() {
                                                              {"h", QString::number(info.bodyPx.h, 'f', 1)}}));
 }
 
-// ---- IMatchRegionEditController（比對區，ADR-026）--------------------------------------------------------
+// ---- IMatchRegionEditController（比對區，ADR-028）--------------------------------------------------------
 
 void AutoRoiPresenter::setMatchMode(int mode) {
     const SelectionInfo info = session_.selectionInfo();
@@ -644,6 +646,14 @@ void AutoRoiPresenter::applySignificantBits(int bits) {
     views_.params.setParams(currentParams());
 }
 
+// 位置模式（ADR-026）：和門檻一樣只重新分類快取的候選，不搜尋；沒有提案時只記下來給下一份提案。
+void AutoRoiPresenter::applySnapToLattice(bool snap) {
+    session_.setPositionMode(snap ? PositionMode::Lattice : PositionMode::Matched);
+    views_.params.setParams(currentParams());
+    if (!proposalShown()) return;
+    publishAll();
+}
+
 SignificantBitsDecision AutoRoiPresenter::applyBitsSetting(int requested) {
     const SignificantBitsDecision decision = decideSignificantBits(sourceImage_.format, sourceImage_.significantBits, requested);
     if (decision.bits != image_.significantBits) {
@@ -852,6 +862,7 @@ ParamsState AutoRoiPresenter::currentParams() const {
     p.significantBits = session_.document().board().significantBits;
     p.detectedBits = sourceImage_.format == PixelFormat::Gray16 ? sourceImage_.significantBits : 0;
     p.bitsApplicable = sourceImage_.valid() && sourceImage_.format == PixelFormat::Gray16;
+    p.snapToLattice = session_.positionMode() == PositionMode::Lattice;
     return p;
 }
 
@@ -863,7 +874,7 @@ QString AutoRoiPresenter::hintText() const {
             if (samples > 0) return uiText("ui.sample.hintIdle", {{"count", QString::number(samples)}});
             return uiText("ui.idle.hint");
         }
-        case InteractionState::Searching: return uiText("ui.idle.hint");
+        case InteractionState::Searching: return uiText("ui.search.hint");  // 2026-10-15 之前是 Idle 的提示（過時）
         case InteractionState::DrawingRegion: return uiText(drawMode_ == RegionMode::Sample ? "ui.sample.hint" : "ui.scan.hint");
         default: return QString();  // 空白沒有提示；預覽、無匹配、錯誤的提示在卡片裡
     }
@@ -940,6 +951,11 @@ SelectionInfoView AutoRoiPresenter::selectionInfoView() const {
                                                                 {"h", QString::number(info.matchRectPx.h, 'f', 0)}});
             break;
     }
+    view.proposal = info.proposal;
+    view.inLattice = info.inLattice;
+    view.moved = info.moved;
+    view.onLattice = info.onLattice;
+    view.latticeDeviationPx = info.latticeDeviationPx.value_or(-1.0);
     return view;
 }
 
@@ -960,7 +976,7 @@ void AutoRoiPresenter::publishDraft() {
                       (s == InteractionState::Error && session_.errorSource() == ErrorSource::Search);
     // 樣本是板子上的元件（框層會畫），只有區域掃描的框要留著（ADR-025）。
     if (!show || !session_.lastSearch() || session_.lastSearch()->mode != RegionMode::Region) {
-        // 比對區（ADR-026）：Idle 時選了一個有比對區的元件，用草稿框畫出比對區（遮罩畫外接矩形；P1 的畫法）。
+        // 比對區（ADR-028）：Idle 時選了一個有比對區的元件，用草稿框畫出比對區（遮罩畫外接矩形；P1 的畫法）。
         const SelectionInfo info = session_.selectionInfo();
         if (s == InteractionState::Idle && info.count == 1 && info.matchKind != SelectionInfo::MatchKind::None) {
             const Rect& r = info.matchRectPx;
@@ -1036,9 +1052,20 @@ void AutoRoiPresenter::publishChrome() {
     ScopedTimer timer(services_.probe, "ui.chrome");
     publishMessage();
     publishStatus();
+    publishGuidance();
     publishHistory();
     publishGate();
     notifyStateIfChanged();
+}
+
+// 操作步驟（ADR-027）：規則在 application 的 guideStatus；只在結果變了的時候才交給 View，所以分數門檻拖動（留在 Preview）
+// 不會碰到那個 dock（U3）。同步交給 View（試過延後 80 ms 合併送出，沒有好處、多一個計時器；否決，ADR-027）。
+void AutoRoiPresenter::publishGuidance() {
+    const GuideStatus status = guideStatus(session_);
+    if (guidePublished_ && status == lastGuide_) return;
+    lastGuide_ = status;
+    guidePublished_ = true;
+    views_.guide.setGuideStatus(status);
 }
 
 void AutoRoiPresenter::publishAll() {

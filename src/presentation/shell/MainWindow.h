@@ -27,6 +27,7 @@ namespace aoi::ui {
 
 class CompareWindow;
 class EmptyCard;
+class GuidancePanel;
 class ImageCanvas;
 class MessageBar;
 class ObjectsPanel;
@@ -61,7 +62,7 @@ public:
         ICanvasController* canvas = nullptr;
         ISelectionController* selection = nullptr;
         ISelectionEditController* selectionEdit = nullptr;  // 選取資訊表單（2026-10-14）
-        IMatchRegionEditController* matchEdit = nullptr;    // 選取資訊表單的比對區（ADR-026）
+        IMatchRegionEditController* matchEdit = nullptr;    // 選取資訊表單的比對區（ADR-028）
         IKeyboardController* keyboard = nullptr;
         IProposalController* proposal = nullptr;
         IMessageController* message = nullptr;
@@ -93,6 +94,10 @@ public:
     QDockWidget* libraryDock() const { return libraryDock_; }
     QDockWidget* objectsDock() const { return objectsDock_; }
     QDockWidget* paramsDock() const { return paramsDock_; }
+    // 操作步驟（2026-10-15，ADR-027）：左側的 dock 與它的面板（IGuidanceView）；〔說明 › 操作步驟〕（F1）把它打開。
+    QDockWidget* guidanceDock() const { return guidanceDock_; }
+    GuidancePanel* guidancePanel() const { return guidancePanel_; }
+    QAction* guideAction() const { return guideAction_; }
     QLabel* zoomLabel() const { return zoomLabel_; }
     QLabel* cursorLabel() const { return cursorLabel_; }
     QLabel* summaryLabel() const { return summaryLabel_; }
@@ -172,6 +177,7 @@ private:
     ObjectsPanel* objectsPanel_ = nullptr;
     ParamsPanel* paramsPanel_ = nullptr;
     SamplePanel* samplePanel_ = nullptr;
+    GuidancePanel* guidancePanel_ = nullptr;
     Controllers controllers_;
 
     QActionGroup* toolGroup_ = nullptr;
@@ -193,6 +199,7 @@ private:
     QAction* fitAction_ = nullptr;
     QAction* fitWidthAction_ = nullptr;
     QAction* compareAction_ = nullptr;
+    QAction* guideAction_ = nullptr;
 
     QMenu* fileMenu_ = nullptr;
     QMenu* editMenu_ = nullptr;
@@ -201,6 +208,7 @@ private:
     QMenu* fontMenu_ = nullptr;
     QMenu* languageMenu_ = nullptr;
     QMenu* panelsMenu_ = nullptr;
+    QMenu* helpMenu_ = nullptr;
     QAction* themeLight_ = nullptr;
     QAction* themeDark_ = nullptr;
     QAction* themeSystem_ = nullptr;
@@ -215,6 +223,7 @@ private:
     QDockWidget* libraryDock_ = nullptr;
     QDockWidget* objectsDock_ = nullptr;
     QDockWidget* paramsDock_ = nullptr;
+    QDockWidget* guidanceDock_ = nullptr;
 
     QLabel* backendStatus_ = nullptr;
     QLabel* summaryLabel_ = nullptr;

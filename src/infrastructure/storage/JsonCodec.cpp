@@ -147,7 +147,7 @@ QJsonValue encodeImageWith(Encoder& e, const ImageView& image, const std::string
     return o;
 }
 
-// 比對區（ADR-026；配方 v3、樣本庫 v2）：{"mode", "region": null | {centerXUm, centerYUm, widthUm, heightUm,
+// 比對區（ADR-028；配方 v3、樣本庫 v2）：{"mode", "region": null | {centerXUm, centerYUm, widthUm, heightUm,
 // "mask": null | {"width", "height", "runs": [[row, colBegin, colEnd], ...]}}}。runs 用 JSON 陣列（看得懂、diff 得出來）。
 QJsonObject encodeMatchWith(Encoder& e, const MatchSettings& m, const std::string& path) {
     QJsonObject o;

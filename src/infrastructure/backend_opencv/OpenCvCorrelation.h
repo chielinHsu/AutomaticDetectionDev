@@ -26,7 +26,7 @@ void correlate(const cv::Mat& patch, const PatchIntegrals& integrals, const cv::
 // 直接算比 cv::matchTemplate 划算嗎？（分數圖的位置數 × 範本像素數不超過門檻）
 bool correlateDirectly(const cv::Size& patch, const cv::Size& templ) noexcept;
 
-// ---- 遮罩（ADR-026）----
+// ---- 遮罩（ADR-028）----
 // 只看遮罩 M 內的像素的 NCC：R ＝ Σ T″·I ／ √(Σ T″² · (Σ M·I² − (Σ M·I)²／n))，T″ ＝ M·(T − 遮罩內的範本平均)，n ＝ Σ M。
 // 和 cv::matchTemplate(TM_CCOEFF_NORMED, mask) 是同一個定義（tst_opencv_backend 對照）。
 // centered ＝ T″（CV_32F，遮罩外是 0），mask 是 CV_8U（非 0 ＝ 參與），maskCount ＝ n，centeredSquares ＝ Σ T″²。

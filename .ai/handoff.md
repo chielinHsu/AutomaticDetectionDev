@@ -4,42 +4,38 @@
 > 流程見 `ai-handoff` skill。
 
 - 最後一位 agent：Claude Code (Claude Opus 5.5)
-- 日期：2026-10-15
+- 日期：2026-10-16
 
 ## 正在做
 
-**比對區與 CAD 框分開（ADR-026）完成實作與驗證，等使用者確認三件事**（見下面「等使用者決定」）。分支 `feat/match-region`（從 `main` eb95b79 開），在 worktree `.claude/worktrees/match-region`；已在分支上 commit（訊息見 `git log`），**沒有合併到 `main`、沒有 tag、沒有 push**。主 checkout 在 `main`。另一個 session 在 worktree `loving-blackburn-8ecbfc` 做 `feat/lattice-snapped-positions`（CAD 框與鄰近對齊），和這裡沒有共用檔案以外的衝突預期，但兩邊都改到 `docs/*` 的紀錄類文件，合併時要手動合。
+**`main`（1d3c137：晶格位置吸附 ADR-026、操作步驟 ADR-027）併進 `feat/match-region`，衝突已解、Release 驗證通過，合併還沒 commit**（`git merge --no-commit`，在 worktree `.claude/worktrees/match-region`；檔案已 stage）。下一步：使用者同意後 commit 這個合併，再決定要不要把分支 `--no-ff` 合併回 `main`。沒有 tag、沒有 push。
 
-## 這次做了什麼（細節在 `docs/changelog-ai.md` 最上面那一筆與 ADR-026）
+## 這次做了什麼
 
-- 範本只用樣本裡想要的特徵（主體框內的矩形或遮罩；灰階或邊緣），CAD 框不變。port 加 `buildFromSample`（有預設實作），契約：`Match.pose` 一律是主體中心；設定存在 `ComponentType::match`（µm、相對主體中心）。
-- OpenCV：裁比對區、遮罩 NCC（inf／NaN 設 0）、邊緣＝Sobel 大小。HALCON：domain 是比對區、參考點＝重心（不用 `set_shape_model_origin`）、視窗換成參考點的視窗。fake 忽略比對區。
-- 自動擷取在 domain（`feature_extract`）；`M` 工具（拖框＝矩形、點一下＝擷取）、選取資訊表單的「比對區」（特徵、外擴、清除）；Command `SetMatchRegion`。
-- 配方 v3、樣本庫 v2（舊檔遷移、嚴格檢查遮罩）。
+- **ADR 改號**：比對區在分支上原本是 ADR-026，和 `main` 的晶格位置吸附撞號，改為 **ADR-028**（檔案 `docs/adr/028-match-region-separate-from-cad-box.md`，開頭加了「編號」一行）。只改分支自己新增、提到比對區的那幾行（104 行，含程式註解）；`main` 的 ADR-026 引用（位置模式、晶格）都沒動。
+- **程式碼衝突（4 個）**：兩邊各加欄位，都保留——`InspectionSession.h` 的 `SelectionInfo`（比對區＋晶格）、`ViewInterfaces.h` 的選取資訊（比對區＋`proposal`／晶格）、`AutoRoiPresenter.cpp` 填表單的兩段、`ObjectsPanel.ui`：比對區四列排在 `main` 新增的「位置」與〔套用到全部〕之後（列 9–12），`selectionNote` 移到列 13。
+- **文件衝突**：`AI_CONTEXT.md`（測試數改 **59**／57／56／54：`tst_step_guide` 與 `tst_match_region` 各加一個；執行說明加回 `M`）、`architecture.md`、`decisions.md`（028 列在最上、引言說明改號）、`current-status.md`（階段、比對區一節、待決定（11））、`changelog-ai.md`（兩邊的紀錄都留）、`ux-spec.md` 修改紀錄的順序。
 
-## 真實影像（`perf_match_region_real`，`AOI_REAL_MATCH_IMAGE=D:\Benano\20261014_4677_AdvancePin_LeftTopRegion_Proj\DBG\FovImages1\0_0_HA.tif`）
+## 等使用者決定
 
-- 整框兩個 back end 召回 93.1%；比對區 99–100%。OpenCV 邊緣門檻 0.6：100%、誤報 0；HALCON 矩形門檻 0.7：99.0%、誤報 16。
-- 位置：比對區的誤差幾乎都在 x（y 的 p95 0.25–0.34 px），兩個演算法彼此 p95 0.45–1.2 px；標準答案（Otsu 重心）在 x 上不穩，所以「p95 ≤ 3 px」量不到（4.0–4.3 px）。
+1. Commit 這個合併（訊息照 `project-rules.md`）；之後要不要合併回 `main`。
+2. 原本的兩件事照舊（`docs/current-status.md` 的待決定（11））：真實影像的標準答案與位置準則；HALCON 比對區的門檻。
+3. 操作步驟的示範畫面（`docs/ux/guidance/*.png`，抓整個視窗）沒有 `M` 工具與比對區的表單列，要不要用 `record_guidance` 重產（ADR-027：版面改了要重跑再重新建置）。
 
-## 等使用者決定（`docs/current-status.md` 的待決定（11））
+## 建置與測試（2026-10-16，合併後實際執行）
 
-1. 標準答案（1109 根，`build/qmake-release/test-work/real-match-truth.png`）目視確認；位置的準則要不要改用 y 與一致性，或做人工標記。
-2. HALCON 的比對區沒有一個門檻同時達到召回 ≥ 99.5%、誤報 ≤ 5，要不要另開 session 調。
-3. 合併到 `main`。
-
-## 建置與測試（實際執行，見 changelog 的「驗證」）
-
-- Release 完整（最後一次）：**58／58**（HALCON 沒有跳過；有跳過項目的 5 個測試與 2 個 XFAIL 和 main 相同）；先前一次 55／58（3 項計時，單獨重跑通過）。`-NoOpenCv`、`-NoHalcon` 完整通過。Debug 57／58（`aSlowSearchShows…` 偶發，main 也一樣：4／12 對 3／12）。
-- `ste-lint` 0 errors、`check-deps` 0 violations、`check-contrast` 0 failures。`perf.ps1` 沒有跑。
+- `scripts/dev/test.ps1`（Release＋OpenCV＋HALCON）：**59／59**，結束碼 0；HALCON 沒有跳過；有跳過項目的 5 個測試（`tst_backend_registry`、`tst_shell`、`tst_presenter`、`tst_opencv_image`、`tst_image_sources_agree`）與 2 個 XFAIL（opencv B1、palette BMP）和合併前相同。
+- `ste-lint` 0 errors、`check-contrast` 0 failures（`check-deps` 在 `test.ps1` 裡通過）。
+- **沒有跑**：`-Config Debug`、`-NoOpenCv`、`-NoHalcon`、`perf.ps1`。
 
 ## 不要動
 
-- 整框的程式路徑要和之前逐位元相同（契約 `aDefaultSpecMatchesTheRectBuild`）。
-- `ContractTolerances.h` 的數字（新列用推導的上限，見 ADR-004 的後續）；`recipe-v1/v2/v3.json`、`library-v1.json`。
-- 上一次交接的清單照舊：`mergeSampleProposals`、`accept` 的整批換掉、`RoiLayerItem` 的字形路徑、兩個 back end 的搜尋選項預設、opencv B1 的 `QEXPECT_FAIL`、`tokens.json`、`copy.json` 只新增 key、`budgets.json` 的 limit、`perf/baseline/*.json` 只用 `-WriteBaseline` 重建（等使用者說）。
+- 整框的程式路徑要和之前逐位元相同（契約 `aDefaultSpecMatchesTheRectBuild`）；`ContractTolerances.h` 的數字；`recipe-v1/v2/v3.json`、`library-v1.json`。
+- ADR-026（晶格）：`Candidate::pose` 留匹配位置；吸附只在 `classify`／`ProposalSession`。ADR-027：`publishGuidance` 只在狀態變了才碰 dock。
+- `copy.json` 只新增 key、`budgets.json` 的 limit、`perf/baseline/*.json` 只用 `-WriteBaseline` 重建（等使用者說）。
 
 ## 已知問題與風險
 
-- 樣本角度一律 0；畫布上比對區用草稿框畫（遮罩畫外接矩形）；流程 B 不讀比對區；OpenCV 小範本的粗搜沒優化（遮罩 2–3 s、邊緣 1.5 s／5 MP）。
-- 對稱的比對區（只框半邊）在 shape model 會一個元件找到兩次。
+- 比對區：樣本角度一律 0；畫布上用草稿框畫；流程 B 不讀比對區；OpenCV 小範本的粗搜沒優化；對稱的比對區在 shape model 會一個元件找到兩次。
+- 合併後沒有在真實影像上跑過（`perf_match_region_real` 這次沒跑），比對區＋晶格吸附一起用的結果未驗證。
+- 對時間敏感的測試：Debug 的 `tst_presenter::aSlowSearchShows…` 偶發失敗（main 也一樣）。

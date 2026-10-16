@@ -1,5 +1,5 @@
 # domain 層只用 C++ 標準庫（CONFIG -= qt：誤 include Qt 會編不過）。S05 起有晶格估計的 .cpp（lattice/）；其餘多半是只有標頭的型別。
-# ADR-026：比對區（match_region）與自動擷取（feature_extract）。
+# ADR-028：比對區（match_region）與自動擷取（feature_extract）。
 # S06：影像緩衝（image_buffer）、複製計數（image_copy）、位元深度（image_depth，12 bit 的影像）。
 
 AOI_MODULE = domain

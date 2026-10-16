@@ -1,5 +1,5 @@
 # OpenCV 的 adapter。S06：影像轉換（cv::Mat ⇄ ImageView）與 IImageSource；S07：範本建立器、搜尋器、樣本庫比對器。
-# ADR-026：比對區（遮罩的 NCC）與邊緣模式（OpenCvFeatures）。
+# ADR-028：比對區（遮罩的 NCC）與邊緣模式（OpenCvFeatures）。
 # 只在 AOI_WITH_OPENCV=ON 時建置（src/src.pro）。OpenCV 只能出現在這個資料夾（check-deps）；位置見 qmake/aoi_opencv.pri。
 
 AOI_MODULE = backend_opencv

@@ -76,7 +76,7 @@ struct ComponentType {
     ComponentCategory category = ComponentCategory::Other;
     std::vector<BoxGroup> groups;
     ImageView referenceImage;  // 空的（無效）＝ 沒有參考影像
-    // 怎麼認出這個類型（ADR-026）：建範本用的比對區與特徵。預設 ＝ 整個主體框、灰階（和之前相同）。
+    // 怎麼認出這個類型（ADR-028）：建範本用的比對區與特徵。預設 ＝ 整個主體框、灰階（和之前相同）。
     // 不是框群組：它不產生檢測框（expandBoxes 不看它）。樣本庫的比對器（流程 B）還不讀它。
     MatchSettings match;
 };

@@ -2,5 +2,19 @@
     <qresource prefix="/aoi/ux">
         <file alias="tokens.json">../../../docs/ux/tokens.json</file>
         <file alias="copy.json">../../../docs/ux/copy.json</file>
+        <!-- 操作步驟面板的示範畫面（2026-10-15，ADR-027）：tests/ui/record_guidance 產生；張數見 presentation/guidance/GuideDemo.h -->
+        <file alias="guidance/open-1.png">../../../docs/ux/guidance/open-1.png</file>
+        <file alias="guidance/open-2.png">../../../docs/ux/guidance/open-2.png</file>
+        <file alias="guidance/sample-1.png">../../../docs/ux/guidance/sample-1.png</file>
+        <file alias="guidance/sample-2.png">../../../docs/ux/guidance/sample-2.png</file>
+        <file alias="guidance/sample-3.png">../../../docs/ux/guidance/sample-3.png</file>
+        <file alias="guidance/search-1.png">../../../docs/ux/guidance/search-1.png</file>
+        <file alias="guidance/search-2.png">../../../docs/ux/guidance/search-2.png</file>
+        <file alias="guidance/search-3.png">../../../docs/ux/guidance/search-3.png</file>
+        <file alias="guidance/accept-1.png">../../../docs/ux/guidance/accept-1.png</file>
+        <file alias="guidance/accept-2.png">../../../docs/ux/guidance/accept-2.png</file>
+        <file alias="guidance/refine-1.png">../../../docs/ux/guidance/refine-1.png</file>
+        <file alias="guidance/refine-2.png">../../../docs/ux/guidance/refine-2.png</file>
+        <file alias="guidance/refine-3.png">../../../docs/ux/guidance/refine-3.png</file>
     </qresource>
 </RCC>

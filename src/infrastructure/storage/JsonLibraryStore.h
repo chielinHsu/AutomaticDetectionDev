@@ -32,7 +32,7 @@ namespace aoi::infra {
 //  - 執行緒安全（內部有鎖）。
 class JsonLibraryStore final : public ILibraryStore {
 public:
-    // v2（ADR-026）：每個條目的類型多了 match；v1 → v2 的遷移補整框、灰階。
+    // v2（ADR-028）：每個條目的類型多了 match；v1 → v2 的遷移補整框、灰階。
     static constexpr int kSchemaVersion = 2;
     static constexpr const char* kFormat = "aoi-library";
 

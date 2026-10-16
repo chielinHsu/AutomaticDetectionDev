@@ -88,7 +88,7 @@ double parabolaOffset(double a, double b, double c) { return std::clamp(parabola
 
 
 // 一個角度的分數圖：小的直接算（OpenCvCorrelation.h），大的用 cv::matchTemplate（DFT）。兩者是同一個定義。
-// 有遮罩（ADR-026）時兩條路都只看遮罩內的像素；cv::matchTemplate 的 inf／NaN 清掉。
+// 有遮罩（ADR-028）時兩條路都只看遮罩內的像素；cv::matchTemplate 的 inf／NaN 清掉。
 void scoreMap(const cv::Mat& patch, const PatchIntegrals* integrals, const OpenCvTemplateLevel& lv, int k, cv::Mat& scores) {
     const std::size_t i = static_cast<std::size_t>(k);
     if (lv.masked()) {
@@ -104,7 +104,7 @@ void scoreMap(const cv::Mat& patch, const PatchIntegrals* integrals, const OpenC
     else cv::matchTemplate(patch, lv.rotated[i], scores, cv::TM_CCOEFF_NORMED);
 }
 
-// 範本中心（比對區）→ 主體中心（ADR-026）：加上轉過 angle 的原點位移。整框時位移是 0。
+// 範本中心（比對區）→ 主體中心（ADR-028）：加上轉過 angle 的原點位移。整框時位移是 0。
 Point2D bodyCenter(const OpenCvTemplate& t, double x, double y, double angleDeg) {
     const Point2D o = t.originOffset();
     if (o.x == 0.0 && o.y == 0.0) return {x, y};
@@ -421,7 +421,7 @@ std::vector<Candidate> searchArea(const SearchContext& ctx, const Area& area) {
     const OpenCvTemplate& t = ctx.tmpl;
     t0 = Clock::now();
     std::vector<cv::Mat> pyramid = buildPyramid(gray.mat, t.topLevel() + 1);
-    // 邊緣模式（ADR-026）：和範本建立器同一個時點——每一層各自算特徵。
+    // 邊緣模式（ADR-028）：和範本建立器同一個時點——每一層各自算特徵。
     if (t.mode() != MatchMode::Intensity) {
         for (cv::Mat& level : pyramid) level = featureImage(level, t.mode(), t.featureScale());
     }
@@ -439,7 +439,7 @@ std::vector<Candidate> searchArea(const SearchContext& ctx, const Area& area) {
     t0 = Clock::now();
     std::vector<Candidate> candidates = coarseSearch(ctx, pyramid[static_cast<std::size_t>(top)], top, origin, stats.topAngles);
     // 中心離區域太遠的不必精修（精修最多移動頂層的一兩個像素）。候選是範本（比對區）的中心，區域管的是主體中心：
-    // 兩者最多差原點位移的長度（ADR-026）。
+    // 兩者最多差原點位移的長度（ADR-028）。
     const double slack = std::ldexp(2.0, top) + t.originDistance();
     const Rect reach{area.accept.x - slack, area.accept.y - slack, area.accept.w + 2.0 * slack, area.accept.h + 2.0 * slack};
     std::erase_if(candidates, [&](const Candidate& c) { return !reach.contains({c.x, c.y}); });
@@ -557,7 +557,7 @@ Result<std::vector<Match>> OpenCvPatternSearcher::find(const ImageView& image, c
         if (errors.failed()) return errors.take();
         if (cancel.cancelled()) return cancelledError();
 
-        // 範本中心換成主體中心（ADR-026）→ 過濾（分數、主體中心在區域內）→ NMS（重疊的視窗、平台上的幾個峰；
+        // 範本中心換成主體中心（ADR-028）→ 過濾（分數、主體中心在區域內）→ NMS（重疊的視窗、平台上的幾個峰；
         // 範本大小、在範本中心：密排的元件主體框可能互相重疊，範本不會）→ 排序 → 最多 maxMatches 個。整框時兩者相同。
         const Clock::time_point nmsStart = Clock::now();
         std::vector<Match> matches;

@@ -344,7 +344,7 @@ private:
     std::size_t affected_;
 };
 
-// 改類型的比對區與比對特徵（ADR-026）。拖外擴滑桿時，同一個類型連續的修改併成一步（保留最早的「前」）。
+// 改類型的比對區與比對特徵（ADR-028）。拖外擴滑桿時，同一個類型連續的修改併成一步（保留最早的「前」）。
 class SetMatchCommand final : public DocumentCommand {
 public:
     SetMatchCommand(std::string typeId, MatchSettings before, MatchSettings after, std::size_t affected)

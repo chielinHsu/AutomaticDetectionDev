@@ -25,8 +25,11 @@ struct BoardCandidate {
     double score = 0.0;
     CandidateSource source = CandidateSource::Seed;
     Size2D partSize;
+    std::optional<Pose2D> latticePose;          // 晶格的格點（ADR-026；意義同 Candidate::latticePose）
+    std::optional<double> latticeDeviationPx;   // 匹配位置離最近格點的距離（同 Candidate::latticeDeviationPx）
 
     bool hasScore() const noexcept { return source != CandidateSource::Predicted; }
+    bool onLattice() const noexcept { return latticePose.has_value(); }
 };
 
 // 板子的提案：不可變的快照（執行緒之間只傳這個）。

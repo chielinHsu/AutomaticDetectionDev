@@ -126,7 +126,7 @@ Result<SampleProposal> GenerateObjectsFromSample::run(const SampleRequest& reque
     if (std::min(sample.w, sample.h) < options.minSamplePx) return stopWith(NoMatchReason::SampleTooSmall);
     if (sample.area() > options.maxSampleAreaFraction * imageRect.area()) return stopWith(NoMatchReason::SampleTooLarge);
 
-    // 比對區（ADR-026）：範本只用它的像素，所以對比與最小邊長量它。矩形裁到影像內；遮罩的外接矩形由 adapter 裁。
+    // 比對區（ADR-028）：範本只用它的像素，所以對比與最小邊長量它。矩形裁到影像內；遮罩的外接矩形由 adapter 裁。
     // 沒有比對區時 matchArea ＝ sample（和之前相同）。
     MatchSpec match = request.match;
     Rect matchArea = sample;
@@ -271,6 +271,10 @@ Result<SampleProposal> GenerateObjectsFromSample::run(const SampleRequest& reque
 
     // ---- 5. 視窗驗證：在每個缺格附近的小視窗裡，以較低的分數下限再找一次 ----
     const Clock::time_point verifyStart = Clock::now();
+    // 每組晶格最終的基底：驗證找到的元件加進去重新擬合之後的（沒有驗證、或視窗裡什麼都沒找到時就是估計器的）。
+    // 第 6 步的晶格位姿（所有成員）與 Predicted 的位置都用它，整個陣列才會落在同一組格點上。
+    std::vector<std::optional<LatticeBasis>> refined(lattices.size());
+    const std::size_t seedCandidates = proposal.candidates.size();  // 樣本＋種子：晶格的內點索引指的是這些
     if (!holes.empty()) {
         std::vector<Rect> windows;
         windows.reserve(holes.size());
@@ -304,8 +308,9 @@ Result<SampleProposal> GenerateObjectsFromSample::run(const SampleRequest& reque
         }
 
         // 驗證找到的元件加進各自的晶格重新擬合（正規方程累加器：每個 O(1)，S00 示範頁的 Refit while verifying），
-        // 沒找到的缺格放在修正後的位置。離預測位置超過晶格容差的匹配不加（可能是視窗裡的另一個東西）。
-        std::vector<std::optional<LatticeBasis>> refined(lattices.size());
+        // 沒找到的缺格放在修正後的位置。離預測位置超過晶格容差的匹配不加（可能是視窗裡的另一個東西）：
+        // 它不是晶格的成員（沒有晶格位姿），只記下它離格點多遠。
+        std::vector<bool> member(holes.size(), false);
         {
             std::vector<LatticeAccumulator> equations;
             equations.reserve(lattices.size());
@@ -317,24 +322,58 @@ Result<SampleProposal> GenerateObjectsFromSample::run(const SampleRequest& reque
                 if (distance(best[k]->pose.position(), holes[k].position) > m.tolerancePx) continue;
                 equations[holes[k].lattice].add(holes[k].cell, best[k]->pose.position());
                 changed[holes[k].lattice] = true;
+                member[k] = true;
             }
             for (std::size_t l = 0; l < lattices.size(); ++l) {
                 if (changed[l]) refined[l] = equations[l].solve();
             }
         }
         for (std::size_t k = 0; k < holes.size(); ++k) {
+            const std::optional<LatticeBasis>& basis = refined[holes[k].lattice];
+            const Point2D node = basis ? basis->at(holes[k].cell) : holes[k].position;
             if (best[k] != nullptr) {
-                proposal.candidates.push_back({best[k]->pose, best[k]->score, CandidateSource::Verified});
+                Candidate c{best[k]->pose, best[k]->score, CandidateSource::Verified};
+                c.latticeDeviationPx = distance(c.pose.position(), node);
+                if (member[k]) c.latticePose = Pose2D{node.x, node.y, sampleAngle};
+                proposal.candidates.push_back(c);
             } else {
                 // 影像上沒有找到：只有預測的位置，沒有分數（Inferred）。角度沿用樣本的角度（同一個陣列的元件方向一致）。
-                const std::optional<LatticeBasis>& basis = refined[holes[k].lattice];
-                const Point2D at = basis ? basis->at(holes[k].cell) : holes[k].position;
-                proposal.candidates.push_back({Pose2D{at.x, at.y, sampleAngle}, 0.0, CandidateSource::Predicted});
+                Candidate c{Pose2D{node.x, node.y, sampleAngle}, 0.0, CandidateSource::Predicted};
+                c.latticePose = c.pose;
+                c.latticeDeviationPx = 0.0;
+                proposal.candidates.push_back(c);
             }
         }
     }
     proposal.timings.verifyMs = millisecondsSince(verifyStart);
     report(progress, Stage::Verify, 1.0);
+
+    // ---- 6. 晶格位姿（ADR-026）：樣本與種子裡屬於某組晶格的（內點）拿到最終基底上的格點；其餘落在某組晶格索引範圍內的
+    //         記下離最近格點多遠（偏離陣列的元件）。pose 不改：契約與 A/B 量的是匹配位置，用哪一個是讀取端的事。 ----
+    for (std::size_t l = 0; l < lattices.size(); ++l) {
+        const LatticeModel& m = lattices[l];
+        const LatticeBasis& basis = refined[l] ? *refined[l] : m.basis;
+        for (std::size_t k = 0; k < m.inliers.size(); ++k) {
+            const std::size_t index = m.inliers[k];
+            if (index >= seedCandidates) continue;  // 不會發生（內點索引指的是擬合時的點），防禦
+            Candidate& c = proposal.candidates[index];
+            const Point2D node = basis.at(m.cells[k]);
+            c.latticePose = Pose2D{node.x, node.y, sampleAngle};
+            c.latticeDeviationPx = distance(c.pose.position(), node);
+        }
+    }
+    for (std::size_t index = 0; index < seedCandidates; ++index) {
+        Candidate& c = proposal.candidates[index];
+        if (c.onLattice()) continue;
+        for (std::size_t l = 0; l < lattices.size(); ++l) {
+            const LatticeModel& m = lattices[l];
+            const LatticeBasis& basis = refined[l] ? *refined[l] : m.basis;
+            const LatticeIndex cell = basis.nearestCell(c.pose.position());
+            if (cell.i < m.minI || cell.i > m.maxI || cell.j < m.minJ || cell.j > m.maxJ) continue;
+            const double d = distance(c.pose.position(), basis.at(cell));
+            if (!c.latticeDeviationPx || d < *c.latticeDeviationPx) c.latticeDeviationPx = d;
+        }
+    }
 
     proposal.timings.totalMs = millisecondsSince(started);
     return proposal;

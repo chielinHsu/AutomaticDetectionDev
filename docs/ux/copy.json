@@ -167,6 +167,10 @@
       "zh_TW": "接受時，上一次自動產生的 {count} 個元件會換成這一次的結果。",
       "en": "Accept replaces the {count} parts from the last search with this result."
     },
+    "ui.preview.offLattice": {
+      "zh_TW": "{count} 個不在陣列的格點上（單獨的元件或偏離陣列），位置是匹配到的。",
+      "en": "{count} parts are not on an array node (alone or off the array). Their positions come from the match."
+    },
     "ui.sample.added": {
       "zh_TW": "已建立樣本 {name} · 板上有 {count} 個樣本 · F5 搜尋",
       "en": "Sample {name} created · {count} samples on the board · F5 to search"
@@ -1195,6 +1199,50 @@
       "zh_TW": "預覽中只能改位置；要改大小，先接受或捨棄提案。",
       "en": "In preview you can only move it. Accept or discard the proposal to resize."
     },
+    "ui.selection.position": {
+      "zh_TW": "位置",
+      "en": "Position"
+    },
+    "ui.selection.position.lattice": {
+      "zh_TW": "陣列的格點（匹配位置偏差 {deviation} px）",
+      "en": "Array node (match deviates {deviation} px)"
+    },
+    "ui.selection.position.member": {
+      "zh_TW": "匹配位置（離陣列的格點 {deviation} px）",
+      "en": "Match ({deviation} px from its array node)"
+    },
+    "ui.selection.position.matched": {
+      "zh_TW": "匹配位置（離最近格點 {deviation} px，偏離陣列）",
+      "en": "Match ({deviation} px from the nearest node, off the array)"
+    },
+    "ui.selection.position.moved": {
+      "zh_TW": "手動移過的位置",
+      "en": "Moved by hand"
+    },
+    "ui.selection.position.noLattice": {
+      "zh_TW": "匹配位置（不在任何陣列）",
+      "en": "Match (not in any array)"
+    },
+    "ui.selection.position.board": {
+      "zh_TW": "—",
+      "en": "—"
+    },
+    "ui.params.position": {
+      "zh_TW": "位置",
+      "en": "Position"
+    },
+    "ui.params.position.lattice": {
+      "zh_TW": "吸附到陣列（CAD 理論位置）",
+      "en": "Snap to array (CAD position)"
+    },
+    "ui.params.position.matched": {
+      "zh_TW": "用匹配位置",
+      "en": "Use matched position"
+    },
+    "ui.params.position.tip": {
+      "zh_TW": "同一個陣列的元件放在規律的格子上（間距一致、行列對齊），不在陣列裡的保留匹配位置；切換只重新分類，不重新搜尋",
+      "en": "Parts of one array sit on a regular grid (equal pitch, aligned rows). Parts outside an array keep their matched position. Switching only reclassifies; it does not search again"
+    },
     "ui.resize.appliedAll": {
       "zh_TW": "已把 {w} × {h} px 套到 {count} 個樣本的類型 · Ctrl+Z 復原",
       "en": "{w} × {h} px applied to {count} sample types · Ctrl+Z to undo"
@@ -1226,6 +1274,146 @@
     "ui.library.sample.tip": {
       "zh_TW": "點一下在畫布上選取 {name}",
       "en": "Click to select {name} on the canvas"
+    },
+    "menu.help": {
+      "zh_TW": "說明",
+      "en": "Help"
+    },
+    "action.guide": {
+      "zh_TW": "操作步驟",
+      "en": "How to use"
+    },
+    "ui.guide.title": {
+      "zh_TW": "操作步驟",
+      "en": "Steps"
+    },
+    "ui.guide.intro": {
+      "zh_TW": "教一塊板子的五步。目前這一步會標亮；點一步看它的示範。",
+      "en": "Five steps to teach a board. The current step is highlighted. Click a step to see its demo."
+    },
+    "ui.guide.step.open.title": {
+      "zh_TW": "開啟影像",
+      "en": "Open an image"
+    },
+    "ui.guide.step.open.body": {
+      "zh_TW": "檔案 › 開啟，或把影像檔拖進視窗。",
+      "en": "File › Open, or drop an image file on the window."
+    },
+    "ui.guide.step.sample.title": {
+      "zh_TW": "框一個樣本",
+      "en": "Draw a sample"
+    },
+    "ui.guide.step.sample.body": {
+      "zh_TW": "按 S，在一個元件上拖出一個框；放開就建立樣本。可以多框幾個。",
+      "en": "Press S and drag a box around one part. Release to create the sample. You can draw more."
+    },
+    "ui.guide.step.search.title": {
+      "zh_TW": "搜尋",
+      "en": "Search"
+    },
+    "ui.guide.step.search.body": {
+      "zh_TW": "按 F5（或工具列的〔搜尋〕）：程式用板子上的每個樣本找出相似的元件。",
+      "en": "Press F5 (or Search on the toolbar). The program finds the similar parts with every sample on the board."
+    },
+    "ui.guide.step.accept.title": {
+      "zh_TW": "接受",
+      "en": "Accept"
+    },
+    "ui.guide.step.accept.body": {
+      "zh_TW": "看一下結果：拖分數門檻可以多留或少留一些；按 Enter 接受，Esc 捨棄。",
+      "en": "Check the result. Drag the score threshold to keep more or fewer parts. Press Enter to accept, Esc to discard."
+    },
+    "ui.guide.step.refine.title": {
+      "zh_TW": "微調",
+      "en": "Refine"
+    },
+    "ui.guide.step.refine.body": {
+      "zh_TW": "選一個元件：拖把手或在選取資訊改大小（同類型一起變）、按 B 在它上面畫子框。再框樣本、再按 F5 都可以。",
+      "en": "Select a part: drag a handle or edit the size in the selection form (the whole type changes), press B to draw a box on it. You can draw more samples and search again."
+    },
+    "ui.guide.busy": {
+      "zh_TW": "進行中…",
+      "en": "In progress…"
+    },
+    "ui.guide.attention": {
+      "zh_TW": "要再做一次：看訊息列的說明。",
+      "en": "Do it again. See the message bar."
+    },
+    "ui.guide.done": {
+      "zh_TW": "完成",
+      "en": "Done"
+    },
+    "ui.guide.demo.title": {
+      "zh_TW": "示範：{step}",
+      "en": "Demo: {step}"
+    },
+    "ui.guide.demo.frame": {
+      "zh_TW": "{n} / {total}",
+      "en": "{n} / {total}"
+    },
+    "ui.guide.demo.missing": {
+      "zh_TW": "示範畫面還沒有產生（tests/ui/record_guidance）。",
+      "en": "The demo frames are not generated yet (tests/ui/record_guidance)."
+    },
+    "ui.guide.demo.open.1": {
+      "zh_TW": "還沒有影像：畫布中央是〔開啟影像…〕。",
+      "en": "No image yet. Open image… sits in the middle of the canvas."
+    },
+    "ui.guide.demo.open.2": {
+      "zh_TW": "影像開好了，訊息列提示下一步。",
+      "en": "The image is open. The message bar shows the next step."
+    },
+    "ui.guide.demo.sample.1": {
+      "zh_TW": "按 S（左側的教樣本工具）。",
+      "en": "Press S (the Teach sample tool on the left)."
+    },
+    "ui.guide.demo.sample.2": {
+      "zh_TW": "在一個元件上拖出一個框。",
+      "en": "Drag a box around one part."
+    },
+    "ui.guide.demo.sample.3": {
+      "zh_TW": "放開：樣本建好了（藍色實線），板子上多一個樣本。",
+      "en": "Release. The sample is created (solid blue). The board has one more sample."
+    },
+    "ui.guide.demo.search.1": {
+      "zh_TW": "有樣本之後，訊息列提示 F5。",
+      "en": "With a sample on the board, the message bar says F5."
+    },
+    "ui.guide.demo.search.2": {
+      "zh_TW": "搜尋中：狀態列「搜尋中…」，久一點會有進度列與〔取消〕。",
+      "en": "Searching. The status bar says so. A long search shows a progress bar and Cancel."
+    },
+    "ui.guide.demo.search.3": {
+      "zh_TW": "結果：找到的綠色實線、推算的琥珀色虛線、拒絕的紅色點線。",
+      "en": "Result. Found in solid green, inferred in dashed amber, rejected in dotted red."
+    },
+    "ui.guide.demo.accept.1": {
+      "zh_TW": "預覽：訊息列有數量與〔接受 (Enter)〕〔捨棄 (Esc)〕。",
+      "en": "Preview. The message bar shows the counts, Accept (Enter) and Discard (Esc)."
+    },
+    "ui.guide.demo.accept.2": {
+      "zh_TW": "按 Enter：元件進了板子，Ctrl+Z 可以復原。",
+      "en": "Press Enter. The parts are on the board. Ctrl+Z undoes it."
+    },
+    "ui.guide.demo.refine.1": {
+      "zh_TW": "點一個元件：外框上出現把手，右側是選取資訊。",
+      "en": "Click a part. Handles appear on its box. The selection form is on the right."
+    },
+    "ui.guide.demo.refine.2": {
+      "zh_TW": "按 B，在它上面框一個子框：同類型的元件一起多出這個框。",
+      "en": "Press B and draw a box on it. Every part of that type gets the box."
+    },
+    "ui.guide.demo.refine.3": {
+      "zh_TW": "Ctrl+Shift+A 選取同類型，可以整組一起拖。",
+      "en": "Ctrl+Shift+A selects the same type. Drag them together."
+    },
+    "ui.search.hint": {
+      "zh_TW": "搜尋中… · Esc 取消 · 改角度範圍會重新搜尋",
+      "en": "Searching… · Esc cancels · changing the angle range searches again"
+    },
+    "ui.empty.steps": {
+      "zh_TW": "三步：S 框一個樣本元件 → F5 搜尋 → Enter 接受。左側的「操作步驟」（F1）有示範。",
+      "en": "Three steps: S draws a sample part → F5 searches → Enter accepts. The Steps panel on the left (F1) has demos."
     }
   }
 }

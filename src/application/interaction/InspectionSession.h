@@ -47,7 +47,7 @@ struct SelectionInfo {
     std::size_t boxCount = 0;  // 類型展開的框數（含主體）
     bool canMove = false;
     bool canResize = false;
-    // 比對區（ADR-026）：類型的比對區換到這個元件的影像像素。Idle 的單一元件才能改（canEditMatch）。
+    // 比對區（ADR-028）：類型的比對區換到這個元件的影像像素。Idle 的單一元件才能改（canEditMatch）。
     enum class MatchKind { None, Rect, Mask };
     MatchKind matchKind = MatchKind::None;
     Rect matchRectPx;               // 比對區的外接矩形（matchKind ≠ None）
@@ -55,6 +55,12 @@ struct SelectionInfo {
     MatchMode matchMode = MatchMode::Intensity;
     std::optional<int> matchGrow;   // 自動擷取的遮罩、而且還是那一次擷取的結果時：外擴幾 px（可以再調）
     bool canEditMatch = false;
+    // 晶格（ADR-026；提案的物件才有意義，見 ProposalSession::LatticeRelation）：是不是晶格的成員、使用者有沒有移過、
+    // 現在的位置是不是格點；匹配位置離最近格點多遠（不在任何陣列範圍內的沒有）。
+    bool inLattice = false;
+    bool moved = false;
+    bool onLattice = false;
+    std::optional<double> latticeDeviationPx;
 };
 
 // 互動狀態的唯一擁有者：狀態機、已接受的文件、目前的提案、選取。
@@ -133,6 +139,11 @@ public:
     // ---- 門檻（不進堆疊）----
     // 夾到 [thresholdMin, thresholdMax]。Preview、NoMatch 時重新過濾快取的候選，不搜尋；其餘狀態只記下數值。
     void setThreshold(double threshold);
+    // ---- 位置模式（ADR-026；和門檻一樣不進堆疊）----
+    // Lattice：候選有晶格位姿的用格點（CAD 的理論位置）；Matched：一律用 back end 的匹配位置。Preview、NoMatch 時重新分類
+    // 快取的候選（不搜尋、編號不變）；其餘狀態只記下來給下一份提案。已經接受到板子上的元件不動。
+    void setPositionMode(PositionMode mode);
+    PositionMode positionMode() const { return positionMode_; }
 
     // ---- 提案 ----
     // 接受：回傳接受的元件數；不在預覽中回 nullopt；沒有任何可接受的物件回 0（留在預覽）。
@@ -163,7 +174,7 @@ public:
     // 類型座標（µm、相對主體中心、反旋轉）。同類型全部元件一起多出這個框。其他狀態、元件不存在、框不合法回 false。
     bool addBoxGroup(int componentId, const Rect& rectPx);
 
-    // ---- 比對區（ADR-026，M 工具與選取資訊；都只在 Idle，作用在元件的類型上，同類型一起；各是一個 Command）----
+    // ---- 比對區（ADR-028，M 工具與選取資訊；都只在 Idle，作用在元件的類型上，同類型一起；各是一個 Command）----
     // 矩形：rectPx 裁到這個元件的主體框內；邊長 < minSamplePx 或元件不存在時 false。比對特徵（灰階／邊緣）不變。
     bool setMatchRect(int componentId, const Rect& rectPx);
     // 自動擷取：在主體框內 Otsu，取離 click 最近的亮連通塊，外擴 growPx 成遮罩（domain/feature_extract.h）。
@@ -217,6 +228,7 @@ private:
     std::optional<SearchTarget> lastSearch_;
     std::vector<int> selection_;
     double threshold_;
+    PositionMode positionMode_ = PositionMode::Lattice;
     bool hasImage_ = false;
 };
 

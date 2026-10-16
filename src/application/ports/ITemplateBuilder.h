@@ -34,7 +34,7 @@ using TemplatePtr = std::shared_ptr<const ITemplate>;
 //  - build 與 find 可以被多個 worker 執行緒同時呼叫（latest-wins 時，新舊工作會重疊）：實作要無狀態或自己同步。
 //  - 不丟例外；失敗回 Error。cancel 被觸發時回 ErrorCode::Cancelled。
 //  - 影像無效或樣本矩形超出影像時回 ErrorCode::InvalidArgument。
-// 比對區（ADR-026，buildFromSample）：
+// 比對區（ADR-028，buildFromSample）：
 //  - 範本只用 spec.match 的像素（矩形或遮罩）與特徵（灰階或邊緣）；spec.body 是 CAD 主體框。
 //  - 搜尋器回報的 Match.pose 一律是**主體中心**（origin），不是比對區的中心；ITemplate::size() 仍是主體框的大小。
 //    所以 use case、NMS、晶格與 CAD 框都不必知道比對區。

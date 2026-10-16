@@ -67,7 +67,7 @@ private slots:
     // ---- 註冊表 ----
     void registryHasTheSixDefaultTools() {
         ToolRegistry r = ToolRegistry::makeDefault();
-        QCOMPARE(static_cast<int>(r.ids().size()), 6);  // ADR-026 起多 M（比對區）
+        QCOMPARE(static_cast<int>(r.ids().size()), 6);  // ADR-028 起多 M（比對區）
         for (ToolId id : {ToolId::Select, ToolId::Sample, ToolId::Region, ToolId::Add, ToolId::Box, ToolId::Match}) {
             QVERIFY(r.find(id));
             QCOMPARE(r.find(id)->id(), id);

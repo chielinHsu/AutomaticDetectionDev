@@ -6,7 +6,7 @@
 #include "domain/image_view.h"
 #include "domain/match_region.h"
 
-// domain 層：只用標準庫。比對區的自動擷取（ADR-026）：使用者點一下特徵 → Otsu 二值化 → 離點擊最近的亮連通塊 → 外擴。
+// domain 層：只用標準庫。比對區的自動擷取（ADR-028）：使用者點一下特徵 → Otsu 二值化 → 離點擊最近的亮連通塊 → 外擴。
 //
 // 放在 domain（不是 adapter 後面的 port）：遮罩是存下來的教學資料，不能因為切換 back end 而不同；範圍只有主體框，O(n)。
 namespace aoi {

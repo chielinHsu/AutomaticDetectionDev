@@ -23,7 +23,7 @@ namespace aoi {
 struct SampleSearch {
     std::string typeId;  // 這個樣本的類型（板子的）
     Rect sample;         // 樣本框（影像像素）
-    MatchSpec match;     // 比對區與特徵（ADR-026；預設 ＝ 整個樣本框、灰階）
+    MatchSpec match;     // 比對區與特徵（ADR-028；預設 ＝ 整個樣本框、灰階）
 };
 
 struct BoardSearchRequest {

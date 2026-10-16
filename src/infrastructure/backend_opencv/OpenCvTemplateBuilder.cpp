@@ -90,7 +90,7 @@ Result<TemplatePtr> OpenCvTemplateBuilder::buildFromSample(const ImageView& imag
         const int width = x1 - x0;
         const int height = y1 - y0;
 
-        // 比對區（ADR-026）：沒有設定 ＝ 主體框。矩形用和主體框一樣的取整；遮罩已經在整數像素上，裁到影像內。
+        // 比對區（ADR-028）：沒有設定 ＝ 主體框。矩形用和主體框一樣的取整；遮罩已經在整數像素上，裁到影像內。
         int mx0 = x0;
         int my0 = y0;
         int mw = width;

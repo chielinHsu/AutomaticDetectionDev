@@ -345,7 +345,7 @@ private slots:
         QCOMPARE(n.total, 3);
     }
 
-    // ---- 比對區（ADR-026）----
+    // ---- 比對區（ADR-028）----
     // 一個 Command、一次通知；和現在相同不進堆疊；allowMerge 時同一個類型的連續修改併成一步；CAD 框（主體框、框數）不變。
     void setMatchSettingsIsOneCommandAndMergesWhenAsked() {
         InspectionDocument d = freshDocument();  // t1：40 × 20

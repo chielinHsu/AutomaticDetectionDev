@@ -77,7 +77,7 @@ Result<std::vector<Match>> HalconPatternSearcher::find(const ImageView& image, c
         Clock::time_point t0 = Clock::now();
         // 範本決定的平滑與次像素（HalconTemplate.h 的 HalconTemplateTuning）：搜尋影像和模型要是同一種影像。
         const HalconTemplateTuning& tuning = t->tuning();
-        // 比對區（ADR-026）：find_shape_model 的搜尋區域限制的是**參考點**（domain 的重心；說明檔 find_shape_model 一節），
+        // 比對區（ADR-028）：find_shape_model 的搜尋區域限制的是**參考點**（domain 的重心；說明檔 find_shape_model 一節），
         // 主體中心的視窗要換成參考點的視窗（平移、放大）。整框時參考點就是主體中心，視窗不變。
         std::vector<Rect> searchWindows = accepts;
         if (windows && t->originDistance() > 0.0) {

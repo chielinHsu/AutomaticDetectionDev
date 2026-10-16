@@ -67,6 +67,19 @@
      </property>
     </widget>
    </item>
+   <item>
+    <widget class="QLabel" name="steps">
+     <property name="text">
+      <string notr="true">三步（佔位）</string>
+     </property>
+     <property name="alignment">
+      <set>Qt::AlignmentFlag::AlignHCenter</set>
+     </property>
+     <property name="wordWrap">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
    <item alignment="Qt::AlignmentFlag::AlignHCenter">
     <widget class="QPushButton" name="open">
      <property name="text">
