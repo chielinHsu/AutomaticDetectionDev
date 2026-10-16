@@ -8,7 +8,7 @@
 
 ## 正在做
 
-無。**CAD 框吸附到陣列的格點（[ADR-026](../docs/adr/026-lattice-snapped-positions.md)）完成**：分支 `feat/lattice-snapped-positions`（從 `main` 97495d3 開；兩個 commit：程式與測試、文件），這個 session 在 worktree 執行，`main` 在主 checkout（`D:\AOI_Project\Qt\AutoCadCreated`）上簽出，所以用 `git -C <主 checkout> merge --no-ff` 合併（合併前確認主 checkout 乾淨），沒有 tag、沒有 push。**另一個 session 同時在做「操作步驟提示與影片操作提示」**（使用者 2026-10-15 的第二個需求；ADR 用 027；它會動 `MessageBar`、`MainWindow`、`copy.json`）：它合併時以 `main` 上先合併的為準。**接下來仍是 S12**（Start prompt 在 `docs/plan/S12-release.md` 底部），或使用者指定的 P2。
+無。**CAD 框吸附到陣列的格點（[ADR-026](../docs/adr/026-lattice-snapped-positions.md)）完成**：分支 `feat/lattice-snapped-positions`（從 `main` 97495d3 開；兩個 commit：程式與測試、文件），這個 session 在 worktree 執行，`main` 在主 checkout（`D:\AOI_Project\Qt\AutoCadCreated`）上簽出，所以用 `git -C <主 checkout> merge --no-ff` 合併（合併前確認主 checkout 乾淨），沒有 tag、沒有 push。**「操作步驟提示與影片操作提示」（使用者 2026-10-15 的第二個需求；ADR 用 027）在另一個 session 做到一半就停了**（2026-10-16 額度用完）：worktree `.claude/worktrees/beautiful-wilbur-02b592`、分支 `feat/step-guidance`，**37 個檔案的修改都還沒 commit**（含 `aoi_deps.pri`、`.pro`、`aoi_ux.qrc`、`docs/architecture.md`、`.ai/handoff.md`）。接手時以本分支合併後的 `main` 為準，`.ai/handoff.md`、`docs/architecture.md`、`docs/changelog-ai.md`、`copy.json` 會衝突。**接下來仍是 S12**（Start prompt 在 `docs/plan/S12-release.md` 底部），或使用者指定的 P2。
 
 ## 這次做了什麼（細節在 `docs/changelog-ai.md` 最上面那一筆、ADR-026、`docs/current-status.md` 的「CAD 框吸附到陣列的格點」）
 
@@ -19,7 +19,7 @@
 ## 建置與測試
 
 - `test.ps1` 預設 Release：**56／57**，唯一失敗 `tst_cli` 的兩項（`halconStartsWhenLicensedAndFailsClearlyOtherwise`、`severalProgramsCanUseHalconAtTheSameTime`：等 8／6 秒讀 stderr，機器忙時程式還沒印出授權提醒）；單獨重跑 `-NoBuild -Filter 'tst_cli'` **通過**（17／17）。和改之前相同：5 個測試有跳過項目（HALCON 0 跳過）、2 個 XFAIL（opencv B1、`tst_image_sources_agree`）。
-- `test.ps1 -Config Debug`：**55／57**。`tst_cli` 同樣的兩項單獨重跑**通過**；`tst_presenter` 只有 `aSlowSearchShowsBusyThenProgressAndEscCancelsToIdleAtOnce` 一項失敗（82 passed、1 skipped），**單獨重跑四次都一樣**——當時另一個 session 的建置與效能量測讓機器滿載（整組 281–292 秒，正常約 35 秒）。量過按〔搜尋〕到事件迴圈之間只有 22–24 ms；忙碌（40 ms）與進度（150 ms）兩個計時器在 UI 執行緒被餓到時同一輪一起觸發，測試只看到 Progress。同一項在 Release 單獨跑通過。**Debug 沒有在安靜的機器上驗過（PARTIALLY VERIFIED）**：機器安靜時跑 `test.ps1 -Config Debug -NoBuild -Filter 'tst_presenter'` 確認。
+- `test.ps1 -Config Debug`：**55／57**。`tst_cli` 同樣的兩項單獨重跑**通過**；`tst_presenter` 只有 `aSlowSearchShowsBusyThenProgressAndEscCancelsToIdleAtOnce` 一項失敗（82 passed、1 skipped），**單獨重跑四次都一樣**——當時另一個 session 的建置與效能量測讓機器滿載（整組 281–292 秒，正常約 35 秒）。量過按〔搜尋〕到事件迴圈之間只有 22–24 ms；忙碌（40 ms）與進度（150 ms）兩個計時器在 UI 執行緒被餓到時同一輪一起觸發，測試只看到 Progress。同一項在 Release 單獨跑通過。**2026-10-16 機器安靜時（負載 6%）重跑 `test.ps1 -Config Debug -NoBuild -Filter 'tst_presenter'`：通過**（83 passed、1 skipped ＝ 截圖，134 秒），所以 Debug 的三個失敗都是機器滿載的計時問題。
 - `node tools/ste-lint.mjs`：979 sentences、0 errors；`node tools/check-deps.mjs`：220 files、0 violations。
 - `-Perf` 與基準線**沒有跑**。上一個 session（2026-10-15，`main` 的 2042435）跑過一次 `perf.ps1 -Runs 3 -WriteBaseline`，結果 INCONCLUSIVE（352／623 個指標變慢，含沒動過的 domain；VS、Chrome、遠端桌面在跑），寫出的基準線已還原、沒有採用；**使用者指示：基準線的重建等他說了再做**（他會先關掉 VS 與 Chrome）。這次 use case 多了第 6 階段（O(n)）、`classify` 多一個判斷，重建時要看 T5、U3。
 
@@ -39,4 +39,4 @@
 
 ## 驗證（實際執行）
 
-- `test.ps1`（Release）56／57 ＋ `tst_cli` 單獨重跑通過；Debug 55／57 ＋ `tst_cli` 重跑通過、`tst_presenter` 的一個計時項目在滿載的機器上重跑四次都失敗（PARTIALLY VERIFIED）；`ste-lint` 0 errors、`check-deps` 0 violations；`-Perf` 沒有跑。
+- `test.ps1`（Release）56／57 ＋ `tst_cli` 單獨重跑通過；Debug 55／57 ＋ `tst_cli` 重跑通過 ＋ `tst_presenter` 在安靜的機器上重跑通過；`ste-lint` 0 errors、`check-deps` 0 violations；`-Perf` 沒有跑。

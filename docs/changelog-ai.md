@@ -40,12 +40,11 @@
 
 ### 驗證
 - `scripts/dev/test.ps1`（Release＋OpenCV＋HALCON）：56／57，唯一失敗是 `tst_cli` 的兩個 HALCON 授權提醒項目（等 8／6 秒讀 stderr，機器忙時程式還沒印出），`-NoBuild -Filter 'tst_cli'` 單獨重跑通過（17／17）；有跳過項目的 5 個測試與 2 個 XFAIL 和改之前相同，HALCON 0 跳過。
-- `scripts/dev/test.ps1 -Config Debug`：55／57；`tst_cli` 單獨重跑通過；`tst_presenter` 只有 `aSlowSearchShowsBusyThenProgressAndEscCancelsToIdleAtOnce` 失敗（82 passed、1 skipped），單獨重跑四次都一樣——另一個 session 的建置與效能量測讓機器滿載（整組 281–292 秒，正常約 35 秒）；按〔搜尋〕到事件迴圈只有 22–24 ms，是忙碌（40 ms）與進度（150 ms）兩個計時器在 UI 執行緒被餓到時同一輪一起觸發；同一項在 Release 單獨跑通過。**Debug 是 PARTIALLY VERIFIED**，機器安靜時再跑 `-Config Debug -NoBuild -Filter 'tst_presenter'`。
+- `scripts/dev/test.ps1 -Config Debug`：55／57；`tst_cli` 單獨重跑通過；`tst_presenter` 只有 `aSlowSearchShowsBusyThenProgressAndEscCancelsToIdleAtOnce` 失敗（82 passed、1 skipped），單獨重跑四次都一樣——另一個 session 的建置與效能量測讓機器滿載（整組 281–292 秒，正常約 35 秒）；按〔搜尋〕到事件迴圈只有 22–24 ms，是忙碌（40 ms）與進度（150 ms）兩個計時器在 UI 執行緒被餓到時同一輪一起觸發；同一項在 Release 單獨跑通過。2026-10-16 機器安靜時（負載 6%）重跑 `-Config Debug -NoBuild -Filter 'tst_presenter'`：**通過**（83 passed、1 skipped ＝ 截圖）。
 - `node tools/ste-lint.mjs`：979 sentences、0 errors；`node tools/check-deps.mjs`：220 files、0 violations。
 - `-Perf`：沒有跑（基準線的重建等使用者指示）。
 
 ### 未完成
-- Debug 的 `tst_presenter` 那一項沒有在安靜的機器上驗過（見上）。
 - 樣本自己的偏差沒有顯示；跨樣本不對齊；位置模式不存檔；畫布上沒有標偏離陣列的；效能基準線沒有重建（使用者另外指示）。
 
 ### 注意事項
