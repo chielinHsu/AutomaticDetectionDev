@@ -1,0 +1,12 @@
+<!doctype html>
+<html lang="zh-Hant"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>靜態重複性分析</title>
+<style>:root{color-scheme:light dark}body{font:16px/1.7 system-ui;max-width:900px;margin:24px auto;padding:0 16px}label{display:block;margin:12px 0}input{font:inherit;max-width:100%;padding:6px}#folders{display:grid;gap:12px}section{border:1px solid GrayText;padding:16px}output{display:block;font-variant-numeric:tabular-nums}button{font:inherit}small{color:GrayText}@media(min-width:650px){#folders.multi{grid-template-columns:1fr 1fr}}</style>
+<h1>靜態重複性分析</h1><p>每次 CSV 是同一工件的一次重複量測。程式依 Component 與 Box 名稱對齊，不依資料列順序。</p>
+<label>同一 Box 的量測值（µm）<input id="values" value="-48, -41, -43, -44, -46"></label><label>SPEC 分母（µm）<input id="spec" type="number" value="350" min="0" step="1"></label><output id="stats" aria-live="polite"></output>
+<label>資料夾數（最多四份）<input id="count" type="range" min="1" max="4" value="1"></label><div id="folders"></div>
+<p>兩份以上資料夾可開啟「跨資料夾折線圖」：選擇一個指標，同時看 P/T 與 Range，橫軸是資料夾。Box 欄位留空時，取各組共同完整 Box 的最大值；輸入名稱或 Component/Box 後只看該框。缺值不補零，清空名稱可恢復摘要。</p>
+<p><small>這是操作與計算的說明。圖表區以文字示意，不包含真實檢測資料。SPEC 留空時不計算 P/T。</small></p>
+<script type="application/json" id="aoi-data">{"ste":["Compare the same complete Boxes.","Select one metric per pane when more than one folder is open."]}</script>
+<script>
+function update(){const raw=document.getElementById('values').value.split(',').map(v=>v.trim()),v=raw.map(Number),t=Number(document.getElementById('spec').value);if(raw.some(x=>!x)||v.some(x=>!Number.isFinite(x))||v.length<2){document.getElementById('stats').textContent='請輸入至少兩個有限數值。';return;}const avg=v.reduce((a,b)=>a+b,0)/v.length,s=Math.sqrt(v.reduce((a,b)=>a+(b-avg)**2,0)/(v.length-1));document.getElementById('stats').textContent=`n=${v.length}　Avg=${avg.toFixed(3)}　Range=${(Math.max(...v)-Math.min(...v)).toFixed(3)}　STDEV=${s.toFixed(6)}　P/T=${t>0?(600*s/t).toFixed(3)+'%':'未設定 SPEC'}`;const n=Number(document.getElementById('count').value),f=document.getElementById('folders');f.className=n>1?'multi':'';f.innerHTML=Array.from({length:n},(_,i)=>`<section><strong>資料夾 ${String.fromCharCode(65+i)}</strong><p>${n===1?'CO 圖　XO 圖　YO 圖　RO 圖':'指標 <select aria-label="圖表指標"><option>CO</option><option>XO</option><option>YO</option><option>RO</option></select>　顯示一張圖'}</p></section>`).join('');}document.querySelectorAll('input').forEach(i=>i.addEventListener('input',update));update();
+</script></html>

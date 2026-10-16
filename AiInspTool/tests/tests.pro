@@ -16,6 +16,8 @@ SUBDIRS += test_support
 test_support.file = support/test_support.pro
 
 AOI_TESTS = \
+    infra/tst_repeatability \
+    ui/tst_repeatability_ui \
     core/tst_domain \
     core/tst_core_types \
     core/tst_job_runner \
@@ -67,6 +69,7 @@ AOI_TESTS = \
     contract/tst_contract_library_matcher
 
 AOI_PERF_TESTS = \
+    ui/perf_repeatability \
     core/perf_core \
     domain/perf_lattice \
     infra/perf_storage \

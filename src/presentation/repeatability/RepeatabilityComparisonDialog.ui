@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>aoi::ui::RepeatabilityComparisonDialog</class>
+ <widget class="QDialog" name="RepeatabilityComparisonDialog">
+  <layout class="QVBoxLayout" name="rootLayout" stretch="0,0,1,0,0">
+   <item><layout class="QHBoxLayout" name="controls">
+    <item><widget class="QLabel" name="metricLabel"/></item>
+    <item><widget class="QComboBox" name="comparisonMetric"/></item>
+    <item><widget class="QLabel" name="boxLabel"/></item>
+    <item><widget class="QLineEdit" name="boxName"><property name="clearButtonEnabled"><bool>true</bool></property></widget></item>
+    <item><spacer name="space"><property name="orientation"><enum>Qt::Horizontal</enum></property><property name="sizeHint" stdset="0"><size><width>40</width><height>20</height></size></property></spacer></item>
+   </layout></item>
+   <item><widget class="QLabel" name="comparisonRule"><property name="wordWrap"><bool>true</bool></property></widget></item>
+   <item><widget class="QSplitter" name="chartSplitter"><property name="orientation"><enum>Qt::Horizontal</enum></property>
+    <widget class="aoi::ui::RepeatabilityPlot" name="ptComparison"/>
+    <widget class="aoi::ui::RepeatabilityPlot" name="rangeComparison"/>
+   </widget></item>
+   <item><widget class="QLabel" name="comparisonStatus"><property name="wordWrap"><bool>true</bool></property></widget></item>
+   <item><widget class="QDialogButtonBox" name="buttons"><property name="standardButtons"><set>QDialogButtonBox::Close</set></property></widget></item>
+  </layout>
+ </widget>
+ <customwidgets>
+  <customwidget><class>aoi::ui::RepeatabilityPlot</class><extends>QWidget</extends><header>presentation/repeatability/RepeatabilityPlot.h</header></customwidget>
+ </customwidgets>
+ <resources/>
+ <connections/>
+</ui>

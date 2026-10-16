@@ -5,6 +5,8 @@ include($$AOI_QMAKE/aoi_lib.pri)
 
 DIR = $$AOI_ROOT/src/infrastructure/storage
 SOURCES += \
+    $$DIR/InspectionCsv.cpp \
+    $$DIR/RepeatabilityStorage.cpp \
     $$DIR/JsonCodec.cpp \
     $$DIR/JsonFile.cpp \
     $$DIR/JsonLibraryStore.cpp \
@@ -12,6 +14,7 @@ SOURCES += \
     $$DIR/LayeredLibraryStore.cpp
 
 HEADERS += \
+    $$DIR/CsvRepeatabilitySource.h \
     $$DIR/JsonCodec.h \
     $$DIR/JsonFile.h \
     $$DIR/JsonLibraryStore.h \

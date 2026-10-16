@@ -58,7 +58,7 @@ AOI_DEPS_presentation_dev = presentation
 
 # ---- app：組裝根（獨立成程式庫，讓測試能驗證組裝的結果）----
 AOI_PRO_app_core = src/app/app_core.pro
-AOI_DEPS_app_core = application backend_fake image_qt perf threading threading_qt
+AOI_DEPS_app_core = application backend_fake image_qt storage perf threading threading_qt
 equals(AOI_WITH_OPENCV, ON): AOI_DEPS_app_core += backend_opencv
 equals(AOI_WITH_HALCON, ON): AOI_DEPS_app_core += backend_halcon
 

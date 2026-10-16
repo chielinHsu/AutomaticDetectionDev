@@ -7,6 +7,7 @@ include($$AOI_QMAKE/aoi_lib.pri)
 
 DIR = $$AOI_ROOT/src/domain
 SOURCES += \
+    $$DIR/repeatability.cpp \
     $$DIR/feature_extract.cpp \
     $$DIR/image_buffer.cpp \
     $$DIR/image_copy.cpp \
@@ -23,6 +24,7 @@ SOURCES += \
     $$DIR/match_region.cpp
 
 HEADERS += \
+    $$DIR/repeatability.h \
     $$DIR/box_expander.h \
     $$DIR/component.h \
     $$DIR/feature_extract.h \

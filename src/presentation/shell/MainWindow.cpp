@@ -241,6 +241,9 @@ void MainWindow::buildActions() {
     // A/B 比較（S09）：停用（.ui）；ComparePresenter 依「有沒有樣本、有沒有兩個能用的 back end」啟用（ICompareEntryView）。
     compareAction_ = ui_->actionCompare;
     compareAction_->setObjectName(QStringLiteral("actionCompare"));
+    repeatabilityAction_ = new QAction(this);
+    repeatabilityAction_->setObjectName(QStringLiteral("actionRepeatability"));
+    connect(repeatabilityAction_, &QAction::triggered, this, &MainWindow::repeatabilityRequested);
     connect(compareAction_, &QAction::triggered, this, [this] {
         if (controllers_.compare) controllers_.compare->openCompare();
     });
@@ -279,6 +282,7 @@ void MainWindow::buildMenus() {
     fileMenu_ = ui_->fileMenu;
     editMenu_ = ui_->editMenu;
     viewMenu_ = ui_->viewMenu;
+    viewMenu_->addAction(repeatabilityAction_);
     themeMenu_ = ui_->themeMenu;
     fontMenu_ = ui_->fontMenu;
     languageMenu_ = ui_->languageMenu;
@@ -404,6 +408,7 @@ void MainWindow::retranslateUi() {
     fitWidthAction_->setText(QStringLiteral("↔ ") + qtTrId("action.fitWidth"));
     fitWidthAction_->setToolTip(withShortcut(qtTrId("action.fitWidth"), QStringLiteral("W")));
     compareAction_->setText(qtTrId("ui.compare.action"));
+    repeatabilityAction_->setText(qtTrId("repeat.title"));
     searchAction_->setText(QStringLiteral("▶ ") + qtTrId("action.search"));
     searchAction_->setToolTip(withShortcut(qtTrId("action.search"), QStringLiteral("F5")));
     selectAllAction_->setText(qtTrId("action.selectAll"));

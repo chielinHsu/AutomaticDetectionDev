@@ -3,6 +3,37 @@
 > 只新增，新紀錄放最上方。每個 agent session 一筆，讓下一位 agent 知道上一位做過什麼、為什麼。
 > agent 欄位寫實際的工具與模型；不要從舊紀錄抄。
 
+## 2026-10-16 — Codex (GPT-6.1-sol)（靜態重複性分析，ADR-029）
+
+### 完成
+- 從 Excel 與五份真實 CSV 還原樣本標準差、Range、P/T，新增純 C++ 計算、按 Component／Box 對齊及共同完整 Box 的比較。
+- 新增獨立 Qt 分析視窗：一份資料夾顯示全部勾選指標，多份各選一圖，最多四份並排；可開原始量測明細。
+- 新數值欄位自動加入；指標設定可改 SPEC、單位、倍率、P/T 門檻。截圖中的 11 個已知指標有預設 SPEC；新指標沒有 SPEC 時不計算 P/T，6 倍係數固定。
+- 有版本的 JSON 保存量測快照及指標定義；CSV 統計與目前圖表 PNG 匯出。
+- 使用者追加跨資料夾折線圖：資料夾為橫軸，下拉選指標，同時看 P/T、Range；輸入 Box 或 Component/Box 只比較該框，清空恢復摘要。
+
+### 修改的檔案
+- `src/domain/repeatability.*`、`src/application/repeatability/`、`src/application/ports/IRepeatabilitySource.h`。
+- `src/infrastructure/storage/CsvRepeatabilitySource.h`、`InspectionCsv.cpp`、`RepeatabilityStorage.cpp`。
+- `src/presentation/repeatability/`、主視窗入口、`src/app/main.cpp`、qmake 清單及 `docs/ux/copy.json`。
+- `tests/infra/tst_repeatability.cpp`、`tests/ui/tst_repeatability_ui.cpp`、`tests/ui/perf_repeatability.cpp`。
+- ADR-029、架構說明、`docs/steps/static-repeatability/` 與交接文件。
+
+### 驗證
+- Release／Debug 最終建置成功；`scripts/dev/test.ps1 -NoBuild`：Release 61／61 通過。
+- `tst_repeatability`：兩種組態均 8 passed，含真實五份 CSV／703 Box；`tst_repeatability_ui`：兩種組態均 5 passed（含追加的資料夾摘要／指定Box、同名消歧與缺值案例），已補翻譯安裝，最後執行沒有 arg 警告。
+- Debug 首輪 59／61：CLI 的 HALCON 多程式案例失敗、Presenter 的既有忙碌狀態案例失敗且整組逾時。完整重跑60／61，CLI恢復通過，Presenter為85 passed／1 failed／1 skipped；沒有修改既有測試斷言。
+- `test.ps1 -NoBuild -Perf -Filter perf_repeatability`：1／1；4×30×703×4 計算中位數 951.503 ms、p95 1754.735 ms。只作資訊，不新增預算，不重建基準線。
+- `check-deps` 249 files、0 violations；`ste-lint` 984 sentences、0 errors／warnings；對比 0 failures；AI 結構 OK（狀態文件行數警告）。
+- 實際核對單組、四份並排、SPEC 設定三張 Qt 畫面；後三份是同資料暫存複本，只驗證版面。另核對資料夾摘要與單一Box折線圖（兩份截圖）；詳細數值與限制見 `docs/steps/static-repeatability/perf.md`。
+
+### 注意事項
+- 提交授權：使用者於2026-10-16明確要求commit and push，目標為origin/codex/static-repeatability；不合併main、不打tag。
+- 沙箱啟動腳本曾選到 MSVC 19.00；實際建置改用本機權限並明確前置 `VCToolsInstallDir/bin/Hostx64/x64`，已確認 19.44。
+- 合併後留下的 `tst_tools.moc` 仍引用 Five，來源已改為 Six；根因為 source-side 66 份舊 .moc 污染依賴。已全部備份至 build/repeatability-cache-backup，並清除兩種 build/tests 的產生檔，重新 qmake_all，不改既有測試原始碼。
+- 追加案例時，另發現兩份新功能的source-side舊moc；已備份到build/repeatability-cache-backup/new-feature-moc，僅重產這兩個測試的qmake／moc，確認UI測試清單有folderSummaryAndSelectedBoxShowBothStatistics且兩種組態均5 passed。
+- 不重建效能基準線，不修改原始 Excel／CSV；本功能不屬於 S12，沒有自動 commit／push。
+
 ## 格式
 
 ```markdown

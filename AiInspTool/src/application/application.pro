@@ -5,6 +5,7 @@ include($$AOI_QMAKE/aoi_lib.pri)
 
 DIR = $$AOI_ROOT/src/application
 SOURCES += \
+    $$DIR/repeatability/RepeatabilityAnalysis.cpp \
     $$DIR/backend/BackendRegistry.cpp \
     $$DIR/backend/BackendSwitch.cpp \
     $$DIR/backend/SearchEngine.cpp \
@@ -23,6 +24,8 @@ SOURCES += \
     $$DIR/usecases/SearchBoardWithSamples.cpp
 
 HEADERS += \
+    $$DIR/repeatability/RepeatabilityAnalysis.h \
+    $$DIR/ports/IRepeatabilitySource.h \
     $$DIR/CancelToken.h \
     $$DIR/Error.h \
     $$DIR/Result.h \

@@ -144,6 +144,7 @@ public:
     void setRedo(bool enabled, const QString& label) override;
 
 signals:
+    void repeatabilityRequested();
     void imageOpened(const aoi::ImageView& image, const QString& name);
     void imageOpenFailed(const QString& name, const QString& reason);
 
@@ -199,6 +200,7 @@ private:
     QAction* fitAction_ = nullptr;
     QAction* fitWidthAction_ = nullptr;
     QAction* compareAction_ = nullptr;
+    QAction* repeatabilityAction_ = nullptr;
     QAction* guideAction_ = nullptr;
 
     QMenu* fileMenu_ = nullptr;

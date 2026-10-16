@@ -1,40 +1,52 @@
 # Agent Handoff
 
-> 覆寫式交接單：每次收工整份重寫，不累積歷史（歷史在 `docs/changelog-ai.md`）。保持在 60 行內。
-> 流程見 `ai-handoff` skill。
-
-- 最後一位 agent：Claude Code (Claude Opus 5.5)
+- 最後一位 agent：Codex (GPT-6.1-sol)
 - 日期：2026-10-16
+- 分支：codex/static-repeatability；使用者於2026-10-16明確授權commit並push到origin同名分支。
 
-## 正在做
+## 本次交付
 
-無。**比對區（ADR-028）已合併到 `main`**：先在分支上把 `main`（1d3c137：晶格位置吸附 ADR-026、操作步驟 ADR-027）併進 `feat/match-region`、解衝突（commit 38311b7），再在主 checkout 以 `--no-ff` 合併回 `main`（使用者 2026-10-16 指示；合併沒有衝突，樹和 38311b7 相同）。沒有 tag、沒有 push。worktree `.claude/worktrees/match-region` 還在。
+- 使用者核准把 Excel 靜態重複性整合到 Qt；入口為〔檢視 › 靜態重複性分析…〕（ADR-029）。
+- 一個資料夾顯示全部勾選指標；兩至四份同時並排，每份以 ComboBox 選一圖；比較表顯示勾選指標。
+- 樣本標準差 n−1、Range、P/T＝6s/SPEC；按 Component／Box 對齊，只對共同且完整的 Box 作摘要比較。
+- 指標設定在載入前可開啟，能改單位／倍率／SPEC／P/T 門檻，6 固定。CO350、XO250、YO250，其餘已知指標200 µm。
+- 追加〔跨資料夾折線圖…〕：資料夾為橫軸，下拉選指標，同時看P/T、Range；Box留空為共同完整Box最大值摘要，輸入Box或Component/Box只看該框，缺值不補零。
+- CSV 只讀 BOX LEVEL，忽略 Decision；新數值欄位自動加入，沒有 SPEC 時 P/T 不可用。
+- 背景載入與計算；失敗或取消保留舊快照；JSON 保存原始量測及指標定義；CSV／PNG 匯出。
+- 原始 Excel／五份 CSV 沒有修改。完整規格、前後流程、互動說明及分鏡在 docs/steps/static-repeatability/。
 
-## 這次做了什麼
+## 實際驗證
 
-- **ADR 改號**：比對區在分支上原本是 ADR-026，和 `main` 的晶格位置吸附撞號，改為 **ADR-028**（檔案 `docs/adr/028-match-region-separate-from-cad-box.md`，開頭加了「編號」一行）。只改分支自己新增、提到比對區的那幾行（104 行，含程式註解）；`main` 的 ADR-026 引用（位置模式、晶格）都沒動。
-- **程式碼衝突（4 個）**：兩邊各加欄位，都保留——`InspectionSession.h` 的 `SelectionInfo`（比對區＋晶格）、`ViewInterfaces.h` 的選取資訊（比對區＋`proposal`／晶格）、`AutoRoiPresenter.cpp` 填表單的兩段、`ObjectsPanel.ui`：比對區四列排在 `main` 新增的「位置」與〔套用到全部〕之後（列 9–12），`selectionNote` 移到列 13。
-- **文件衝突**：`AI_CONTEXT.md`（測試數改 **59**／57／56／54：`tst_step_guide` 與 `tst_match_region` 各加一個；執行說明加回 `M`）、`architecture.md`、`decisions.md`（028 列在最上、引言說明改號）、`current-status.md`（階段、比對區一節、待決定（11））、`changelog-ai.md`（兩邊的紀錄都留）、`ux-spec.md` 修改紀錄的順序。
+- Release／Debug 最終建置成功（Qt6.12.0、MSVC19.44、qmake＋jom）。
+- Release：scripts/dev/test.ps1 -NoBuild，61／61 通過。
+- Debug 首輪59／61；CLI HALCON 多程式案例失敗，Presenter 忙碌等待失敗且整組300秒逾時。完整重跑60／61，CLI恢復通過，Presenter85 passed／1 failed／1 skipped（155.248秒），唯一失敗仍為2秒Busy等待。
+- 新功能兩種組態均通過：tst_repeatability 8、tst_repeatability_ui 5（含追加指定Box案例）；含真實五份 CSV、703 Box、CO93個超過20%，及 SPEC 加倍後 P/T 減半。
+- 既有兩列 XFAIL：contract_end_to_end 的 opencv B1、image_sources_agree 的 palette BMP；沒有新增。
+- check-deps 249 files／0 violations；ste-lint 984 sentences／0 errors、warnings；contrast 0 failures；git diff --check 通過。
+- AI 結構 OK，current-status.md 超過80行的警告保留。
+- perf_repeatability 1／1，4×30×703×4 計算中位數951.503ms／p95 1754.735ms；資訊量測，無預算、沒有重建基準線。
+- 人工核對 build/repeatability-screenshots 的 single／settings／four-copies及folder-lines摘要／單Box PNG；後三組是同資料暫存複本，只驗證版面。
+- 追加折線功能後兩種組態的程式及受影響測試建置成功；兩種組態功能測試各2／2。Release完整回歸再跑61／61；最後版面調整後只補跑受影響測試與畫面。
+- 詳細指令、環境、原始結果及限制在 docs/steps/static-repeatability/perf.md；沒有跑 back end 關閉矩陣或整套既有效能閘門。
 
-## 等使用者決定
+## 建置注意
 
-1. 原本的兩件事照舊（`docs/current-status.md` 的待決定（11））：真實影像的標準答案與位置準則；HALCON 比對區的門檻。
-2. 操作步驟的示範畫面（`docs/ux/guidance/*.png`，抓整個視窗）沒有 `M` 工具與比對區的表單列，要不要用 `record_guidance` 重產（ADR-027：版面改了要重跑再重新建置）。
+- 沙箱 env.ps1 曾選到MSVC19.00；建置使用本機權限並前置 VCToolsInstallDir/bin/Hostx64/x64，確認19.44。
+- source-side 66份舊.moc污染qmake依賴，已確認全為Qt產生檔，備份至 build/repeatability-cache-backup；重產兩種build的moc及qmake依賴。不要回填舊快取。
+- 兩份新功能source-side舊moc另備份至build/repeatability-cache-backup/new-feature-moc；只重產對應qmake／moc，確認UI新slot實際執行。
+- AOI_REPEATABILITY_DATA 指向 D:/Benano/20261014_20261014_4677_AdvancePin_Proj，可執行真實資料測試。
+- AOI_REPEATABILITY_SCREENSHOTS 設定輸出目錄，可由 perf_repeatability 的 nativeScreenshots 重產畫面。
+- build/repeatability-*-tests.log、build/repeatability-debug-final.log 保留測試摘要；個別Qt log在 build/qmake-*/test-logs/。
 
-## 建置與測試（2026-10-16，合併後實際執行）
+## 本次提交範圍
 
-- `scripts/dev/test.ps1`（Release＋OpenCV＋HALCON）：**59／59**，結束碼 0；HALCON 沒有跳過；有跳過項目的 5 個測試（`tst_backend_registry`、`tst_shell`、`tst_presenter`、`tst_opencv_image`、`tst_image_sources_agree`）與 2 個 XFAIL（opencv B1、palette BMP）和合併前相同。
-- `ste-lint` 0 errors、`check-contrast` 0 failures（`check-deps` 在 `test.ps1` 裡通過）。
-- **沒有跑**：`-Config Debug`、`-NoOpenCv`、`-NoHalcon`、`perf.ps1`。
+- 全部是本次功能：domain／application／storage／presentation模組，MainWindow與main入口，qmake清單，三個測試執行檔及功能／架構／交接文件。
+- 沒有整理來源不明的使用者變更；不提交build、perf/results或原始量測。
 
-## 不要動
+## 不要動與界線
 
-- 整框的程式路徑要和之前逐位元相同（契約 `aDefaultSpecMatchesTheRectBuild`）；`ContractTolerances.h` 的數字；`recipe-v1/v2/v3.json`、`library-v1.json`。
-- ADR-026（晶格）：`Candidate::pose` 留匹配位置；吸附只在 `classify`／`ProposalSession`。ADR-027：`publishGuidance` 只在狀態變了才碰 dock。
-- `copy.json` 只新增 key、`budgets.json` 的 limit、`perf/baseline/*.json` 只用 `-WriteBaseline` 重建（等使用者說）。
-
-## 已知問題與風險
-
-- 比對區：樣本角度一律 0；畫布上用草稿框畫；流程 B 不讀比對區；OpenCV 小範本的粗搜沒優化；對稱的比對區在 shape model 會一個元件找到兩次。
-- 合併後沒有在真實影像上跑過（`perf_match_region_real` 這次沒跑），比對區＋晶格吸附一起用的結果未驗證。
-- 對時間敏感的測試：Debug 的 `tst_presenter::aSlowSearchShows…` 偶發失敗（main 也一樣）。
+- 不接續S12；ADR-028整框契約、ContractTolerances、fixture JSON及ADR-026／027不動。
+- copy.json只新增key；效能預算與基準線要等使用者指示才重建。
+- BENANO BOX LEVEL格式；新衍生公式需新增計算規則，不執行任意腳本。
+- JSON不保存暫時勾選、ComboBox及比較基準；多檔匯出不是交易，部分失敗可能已有檔案寫出。
+- 既有Presenter Debug時間敏感案例沒有修改；其他待決定事項仍在docs/current-status.md。

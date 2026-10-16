@@ -6,6 +6,7 @@
 
 | 日期 | 修改者 | 說明 |
 |---|---|---|
+| 2026-10-16 | Codex (GPT-6.1-sol) | 新增 ADR-029 靜態重複性分析；既有分層規則不變，app 連結閉包加入 storage |
 | 2026-10-15 | Claude Code (Claude Opus 5.5) | 比對區與 CAD 框分開（[ADR-028](adr/028-match-region-separate-from-cad-box.md)）：依賴表沒有變。domain 新增 `match_region.h/.cpp`（`MatchMode`、`PixelMask`、`MatchSpec`、`SampleSpec`、存在類型上的 `MatchSettings`／`MatchRegion`／`MatchMask` 與換算）、`feature_extract.h/.cpp`（Otsu 擷取最近的亮塊、外擴），`ComponentType` 多 `match`；port `ITemplateBuilder` 多有預設實作的 `buildFromSample`（契約：`Match.pose` 一律是主體中心）；application：`SampleRequest`／`SampleSearch`／`SampleOnBoard` 帶 `MatchSpec`，`InspectionDocument::setMatchSettings`（`CommandKind::SetMatchRegion`），`InspectionSession` 的比對區操作與 `SelectionInfo` 欄位；OpenCV：`OpenCvFeatures`（邊緣）、遮罩 NCC（`correlateMasked`、`sanitizeScores`）、`OpenCvMatchGeometry`；HALCON：domain 是比對區、參考點＝重心、`HalconMatchGeometry`、`referenceWindows`；storage：配方 v3、樣本庫 v2；presentation：`MatchRegionTool`（`M`，`DraftMode::Match`）、`IMatchRegionEditController`、選取資訊表單的比對區；新增 `tests/domain/tst_match_region`、`tests/backend/perf_match_region_real` |
 | 2026-10-15 | Claude Code (Claude Fable 5.1) | 操作步驟的提示（[ADR-027](adr/027-step-guidance.md)）：依賴表的 presentation 列多了 Qt Concurrent（`aoi_deps.pri` 的 `AOI_QT_presentation`；示範畫面在背景解碼；`check-deps` 的規則沒有變，presentation 本來就可以用任何 Qt 模組）。application 新增 `interaction/StepGuide`（`GuideStep`、`GuideStatus`、`guideStatus(const InspectionSession&)`：現在做到哪一步、哪些做完了；純函式）；presentation 新增 `guidance/GuidancePanel`（左側「操作步驟」dock 的面板，`IGuidanceView`，`.ui`）與 `guidance/GuideDemo.h`（示範畫面的張數、檔名、文案 key），`AutoRoiPresenter` 多 `publishGuidance`（只在狀態變了時交給 View）、`Searching` 的提示改成 `ui.search.hint`，`MainWindow` 多 `guidanceDock`、說明選單與 `F1`，`EmptyCard` 多三步的摘要；app 的 `main.cpp` 記住 dock 的開關（`guidance/visible`）；資源 `aoi_ux.qrc` 多 `docs/ux/guidance/*.png`（13 張，由 `tests/ui/record_guidance` 產生，`tests.pro` 的 `AOI_TOOLS`）。測試：`tests/core/tst_step_guide` 新增 |
 | 2026-10-15 | Claude Code (Claude Fable 5.1) | CAD 框吸附到陣列的格點（[ADR-026](adr/026-lattice-snapped-positions.md)）：依賴表沒有變。domain 的 `Candidate` 多 `latticePose`、`latticeDeviationPx`，`InspectionObject` 多 `onLattice`、`latticeDeviationPx`，新 `PositionMode`；application 的 `GenerateObjectsFromSample` 多第 6 階段（成員拿最終基底的格點、非成員只記偏差；`pose` 不改），`BoardCandidate` 跟著帶，`classify` 多位置模式的參數、`ProposalView`／`ProposalObjects` 多 `offLattice`，`ProposalSession` 多 `positionMode`、`latticeOf`（`LatticeRelation`），`InspectionSession` 多 `setPositionMode`、`SelectionInfo` 多 `inLattice`／`moved`／`onLattice`／`latticeDeviationPx`；presentation：`IParamsController::setSnapToLattice`、`IParamsSink::applySnapToLattice`（6 個方法）、`ParamsState::snapToLattice`、`ParamsPanel` 多「位置」一列、`ObjectsPanel` 的表單多「位置」一列、`SceneCounts::offLattice`、預覽卡片多一行 |
@@ -31,6 +32,17 @@
 | 2026-10-05 | 範本 | 建立 |
 
 ## 總覽
+
+2026-10-16 新增靜態重複性分析（[ADR-029](adr/029-static-repeatability.md)）：
+`domain/repeatability` 擁有量測型別與樣本統計；`application/repeatability/RepeatabilityAnalysis`
+依鍵對齊、發現新指標並比較共同完整的 Box。`IRepeatabilitySource` 由既有 storage 模組的
+`CsvRepeatabilitySource` 實作（`InspectionCsv.cpp` 解析報表、`RepeatabilityStorage.cpp` 保存／匯出）。
+`presentation/repeatability` 使用獨立 `RepeatabilityPresenter`、Qt Concurrent 及 Designer 視窗，
+不讀寫 CAD 文件；`RepeatabilityPlot` 以 QPainter 畫圖。
+`RepeatabilityComparisonDialog` 持有不可變快照，以資料夾為橫軸同步顯示 P/T、Range；
+指定 Box 時只查該框，留空時沿用共同完整 Box 的摘要，使用相同指標定義與單位。
+`main.cpp` 組裝來源與視窗，`MainWindow::repeatabilityRequested` 只提供入口。
+`aoi_app_core` 的連結閉包新增既有的 `aoi_storage`，原有分層允許表與 check-deps 的規則不變。
 
 五層架構，內層不可 include 外層的標頭檔。完整設計理由、更多圖在 `docs/00-master-plan.md` 第 2 節與 `docs/steps/S00-overview/diagram.md`。
 

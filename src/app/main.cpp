@@ -11,6 +11,8 @@
 #include <string>
 
 #include "app/CompositionRoot.h"
+#include "infrastructure/storage/CsvRepeatabilitySource.h"
+#include "presentation/repeatability/RepeatabilityWindow.h"
 #include "application/backend/BackendSwitch.h"
 #include "presentation/canvas/ImageCanvas.h"
 #include "presentation/i18n/Translations.h"
@@ -140,6 +142,12 @@ int main(int argc, char* argv[]) {
     // 視窗、Presenter 的建立順序＝解構順序的反面：核心活得最久，然後是視窗，最後才是 Presenter（它解構時先解除視窗的 Controller）。
     aoi::ui::MainWindow window(theme);
     window.setImageSource(imageSource.get());
+    auto repeatSource = std::make_shared<aoi::infra::CsvRepeatabilitySource>();
+    auto* repeatWindow = new aoi::ui::RepeatabilityWindow(repeatSource, theme, &window);
+    repeatWindow->hide();
+    QObject::connect(&window, &aoi::ui::MainWindow::repeatabilityRequested, repeatWindow, [repeatWindow] {
+        repeatWindow->show(); repeatWindow->raise(); repeatWindow->activateWindow();
+    });
     window.guidanceDock()->setVisible(settings->value(QLatin1String(kGuidanceVisibleKey), true).toBool());
     QObject::connect(window.guidanceDock()->toggleViewAction(), &QAction::toggled, &window, [&settings](bool visible) {
         settings->setValue(QLatin1String(kGuidanceVisibleKey), visible);

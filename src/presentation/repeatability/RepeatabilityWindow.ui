@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>aoi::ui::RepeatabilityWindow</class>
+ <widget class="QWidget" name="RepeatabilityWindow">
+  <layout class="QVBoxLayout" name="rootLayout" stretch="0,1,0">
+   <item><layout class="QHBoxLayout" name="commands">
+    <item><widget class="QPushButton" name="addFolder"><property name="text"><string notr="true">Add folder</string></property></widget></item>
+    <item><widget class="QPushButton" name="openSession"><property name="text"><string notr="true">Open</string></property></widget></item>
+    <item><widget class="QPushButton" name="saveSession"><property name="text"><string notr="true">Save</string></property></widget></item>
+    <item><widget class="QPushButton" name="exportResults"><property name="text"><string notr="true">Export</string></property></widget></item>
+    <item><widget class="QPushButton" name="compareLines"><property name="text"><string notr="true">Compare curves</string></property></widget></item>
+    <item><widget class="QPushButton" name="cancel"><property name="text"><string notr="true">Cancel</string></property></widget></item>
+    <item><spacer name="commandSpace"><property name="orientation"><enum>Qt::Horizontal</enum></property><property name="sizeHint" stdset="0"><size><width>40</width><height>20</height></size></property></spacer></item>
+   </layout></item>
+   <item><widget class="QSplitter" name="mainSplitter"><property name="orientation"><enum>Qt::Horizontal</enum></property>
+    <widget class="QWidget" name="settings"><layout class="QVBoxLayout" name="settingsLayout">
+     <item><widget class="QLabel" name="metricsLabel"><property name="text"><string notr="true">Metrics</string></property></widget></item>
+     <item><widget class="QListWidget" name="metricsList"/></item>
+     <item><widget class="QPushButton" name="metricSettings"><property name="text"><string notr="true">Metric settings</string></property></widget></item>
+     <item><widget class="QLabel" name="statisticLabel"><property name="text"><string notr="true">Statistic</string></property></widget></item>
+     <item><widget class="QComboBox" name="statistic"/></item>
+     <item><widget class="QLabel" name="rules"><property name="wordWrap"><bool>true</bool></property></widget></item>
+    </layout></widget>
+    <widget class="QSplitter" name="resultsSplitter"><property name="orientation"><enum>Qt::Vertical</enum></property>
+     <widget class="QScrollArea" name="plotsScroll"><property name="widgetResizable"><bool>true</bool></property>
+      <widget class="QWidget" name="plotsHost"><layout class="QGridLayout" name="plotsLayout"/></widget>
+     </widget>
+     <widget class="QWidget" name="comparison"><layout class="QVBoxLayout" name="comparisonLayout">
+      <item><layout class="QHBoxLayout" name="comparisonControls">
+       <item><widget class="QLabel" name="comparisonLabel"><property name="text"><string notr="true">Comparison</string></property></widget></item>
+       <item><widget class="QComboBox" name="scope"/></item>
+       <item><widget class="QLabel" name="baselineLabel"><property name="text"><string notr="true">Baseline</string></property></widget></item>
+       <item><widget class="QComboBox" name="baseline"/></item>
+      </layout></item>
+      <item><widget class="QLabel" name="comparisonNote"><property name="wordWrap"><bool>true</bool></property></widget></item>
+      <item><widget class="QTableWidget" name="comparisonTable"><property name="editTriggers"><set>QAbstractItemView::NoEditTriggers</set></property><property name="alternatingRowColors"><bool>true</bool></property></widget></item>
+     </layout></widget>
+    </widget>
+   </widget></item>
+   <item><widget class="QLabel" name="status"><property name="wordWrap"><bool>true</bool></property></widget></item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>
