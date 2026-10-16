@@ -3,41 +3,32 @@
 > 覆寫式交接單：每次收工整份重寫，不累積歷史（歷史在 `docs/changelog-ai.md`）。保持在 60 行內。
 > 流程見 `ai-handoff` skill。
 
-- 最後一位 agent：Claude Code (Claude Fable 5.1)
-- 日期：2026-10-14
+- 最後一位 agent：Claude Code (Claude Fable 5.1 → Claude Opus 5.5)
+- 日期：2026-10-16
 
 ## 正在做
 
-無（這個 session 結束時 `main` 在 3de7bda）。使用者 2026-10-15 回報下一個問題：「建立出來的 CAD 框大小一致，但與鄰近 CAD 框沒有一致；CAD 框的本質是料件的理論位置」——已用 `spawn_task` 開新 session（先確認現況、提做法給使用者決定、再實作；分支建議 `feat/lattice-snapped-positions`）。**選取資訊表單與樣本庫面板（ADR-025 的「後續（2026-10-14）」）完成**：分支 `feat/selection-info-panel`（從 `main` 600c757 開；兩個 commit：程式與測試、文件），這個 session 在 worktree 執行，`main` 在主 checkout（`D:\AOI_Project\Qt\AutoCadCreated`）上簽出，所以用 `git -C <主 checkout> merge --no-ff` 合併（合併前確認主 checkout 乾淨），沒有 tag、沒有 push。**接下來仍是 S12**（Start prompt 在 `docs/plan/S12-release.md` 底部），或使用者指定的 P2（完整流程 B 與樣本庫檔案，另開 session）。
+無（這個 session 結束時 `main` 在「合併 feat/step-guidance」那個 commit；它之前一個是晶格位置吸附的合併 48f7ef4）。**操作步驟的提示（[ADR-027](../docs/adr/027-step-guidance.md)）完成**：分支 `feat/step-guidance`（從 `main` eb95b79 開；session 在 worktree，`main` 在主 checkout `D:\AOI_Project\Qt\AutoCadCreated` 簽出，用 `git -C <主 checkout> merge --no-ff` 合併；沒有 tag、沒有 push）。**另一個 session 同時在做晶格位置吸附**（`feat/lattice-snapped-positions`，ADR-026，會改 `ProposalSession`、`InspectionSession`、`ParamsPanel`、`ObjectsPanel`、`MessageBar` 的卡片文字、`copy.json`）：它合併時如果和本分支衝突，`copy.json` 兩邊都是追加 key（保留兩邊）、`InspectionSession` 本分支沒改。**接下來仍是 S12**（Start prompt 在 `docs/plan/S12-release.md` 底部），或使用者指定的 P2。
 
-## 這次做了什麼（細節在 `docs/changelog-ai.md` 最上面那一筆、ADR-025 的後續一節、`docs/current-status.md` 的「選取資訊表單與樣本庫面板」）
+## 這次做了什麼（細節在 `docs/changelog-ai.md` 最上面那一筆、ADR-027、`docs/current-status.md` 的「操作步驟的提示」）
 
-- 使用者回報：編輯只能拉框，要能用數字改樣本的長寬、讓幾個樣本一致；建立樣本時要看得到樣本的圖。做法由使用者確認。
-- application：`InspectionDocument::setBodySizeForTypes`（新 Command `ResizeTypes`）、`InspectionSession::selectionInfo`（`SelectionInfo`：能不能改位置、改大小的規則在這裡）、`resizeBodyKeepingCenter`、`applyBodySizeToSamples`；`ProposalSession::poseOf`。
-- presentation：`ObjectsPanel` 多選取資訊的表單（`ISelectionInfoView`；`editingFinished` 才送出、值沒變不送）、新 `library/SamplePanel`（`ISampleListView`，放進 `libraryDock`）、新 `presenters/SampleListBuilder`（縮圖與快取）、`AutoRoiPresenter` 實作新的 `ISelectionEditController`、`MainWindow` 多 `samplePanel()` 與接線。`copy.json` 新增 20 個 key。
+- 使用者要求步驟提示與影片提示；先確認現況、比較三個方案與四種影片做法，使用者選了訊息列補強＋操作步驟 dock＋程式產生的 PNG 逐格動畫＋F1。
+- application：`interaction/StepGuide`（`guideStatus(const InspectionSession&)`：目前這一步、做完的、進行中、要重做）。presentation：左側「操作步驟」dock（`guidance/GuidancePanel`）、`GuideDemo.h`（示範的張數與檔名）、`AutoRoiPresenter::publishGuidance`（狀態變了才呼叫 View）、`Searching` 的提示、空白卡片的三步、說明選單 `F1`；app：記住 dock 的開關。
+- 示範畫面：`tests/ui/record_guidance`（不是測試，`tests.pro` 的 `AOI_TOOLS`）產生 `docs/ux/guidance/*.png`（13 張），`aoi_ux.qrc` 內嵌。**UI 改了要重跑再重新建置**（張數改了三邊一起改，`tst_messages` 會擋）。
+- `copy.json` 新增 36 個 key；測試 `tst_step_guide`（新）、`tst_shell`、`tst_presenter`、`tst_messages` 各加。
 
 ## 建置與測試
 
-- `test.ps1` 預設 Release：**57／57**（HALCON 0 跳過；有跳過項目的 5 個測試與 2 個 XFAIL 和改之前相同）。
-- `test.ps1 -Config Debug`：**57／57**（`tst_presenter` 82 passed、1 skipped ＝ 截圖那一項）。
-- `node tools/ste-lint.mjs`：979 sentences、0 errors；`node tools/check-deps.mjs`：220 files、0 violations。
-- **效能基準線（2026-10-15）**：`perf.ps1 -Runs 3 -WriteBaseline` 跑了一次，結果 **INCONCLUSIVE（結束碼 3）**：623 個指標有 352 個比基準線慢，連沒動過的 domain（T3 中位數 1.89 ms 對基準線 0.64–0.73）與「只做 buildScene」的 U3 診斷（35 ms 對 8.5–9.6）都慢 3–6 倍——當時 Visual Studio、Chrome、遠端桌面都在跑、處理器只跑在 71%。那一輪寫出的基準線已還原成 commit 裡的版本（沒有採用）。**使用者指示：基準線的重建等他說了再做**（他會先關掉 VS 與 Chrome）；U3 的 OVER（p95 35 ms 對 16）在安靜的機器上用 `perf.ps1 -Filter perf_ui_s04 -Runs 3` 再量才能下結論。
-- 那一輪也抓到 `perf_ui_s04` 的 U2、I6 還是 ADR-025 之前的流程（上一個 session 沒改到）：已修（commit 9258f96，合併 3de7bda），`test.ps1 -Perf -Filter perf_ui_s04` 的 U2、I6 通過。
+- `test.ps1` 預設 Release：**58／58 通過**（2026-10-16 最後一輪；新增 `tst_step_guide` 後是 58 項）；HALCON 0 跳過；有跳過項目的 5 個測試（`tst_backend_registry`、`tst_shell`、`tst_presenter` 的截圖、`tst_opencv_image`、`tst_image_sources_agree`）與 2 個 XFAIL（`tst_contract_end_to_end` 的 opencv B1、`tst_image_sources_agree` 的 palette BMP）和改之前相同。`tst_step_guide` 18 passed、`tst_shell` 37 passed＋1 skipped、`tst_presenter` 84 passed＋1 skipped、`tst_messages` 17 passed。
+- `test.ps1 -Config Debug`：**58／58 通過**（2026-10-16；HALCON 0 跳過；跳過與 XFAIL 的清單和 Release 相同；`tst_presenter` 84 passed＋1 skipped、整組 85 秒，`tst_shell` 37＋1、`tst_step_guide` 18、`tst_messages` 17）。前一晚的幾次 Debug 都是 57／58（見下一條）。
+- `node tools/ste-lint.mjs`：979 sentences、0 errors；`node tools/check-deps.mjs`：225 files、0 violations。
+- `test.ps1 -Perf -Filter 'perf_ui_s04'`：2026-10-16 和 `main` eb95b79 前後交替各兩次，U3 p95 前 29.4、13.9／後 10.1、15.2，I6 前 3.6、4.9／後 2.8、3.1，全部在預算內、差異在雜訊內；細節在 changelog。沒有跑 `perf.ps1 -WriteBaseline`（使用者另外指示）。
 
-## 不要動
+## 注意
 
-- `SampleListCache`／`DocumentSceneCache` 的鍵（文件的修訂號；改板子內容一律做成 Command）。
-- 表單「Enter 或離開欄位才生效、值沒變不送出」（ADR-002 規則 7）；預覽中不能改大小（ADR-025 §4）。
-- `ResizeTypes` 略過已經一樣的類型、全部一樣不進堆疊（`tst_document`、`tst_session` 鎖住）。
-- 樣本庫 dock 的篩選欄仍是停用的佔位；不讀寫樣本庫檔案（P2）。
-- 上一次交接的清單照舊：`mergeSampleProposals` 的規則、`accept` 的整批換掉、`RoiLayerItem` 的字形路徑、`HalconSearchOptions`／`OpenCvSearchOptions` 的預設、`ContractTolerances.h`、opencv B1 的 `QEXPECT_FAIL`、`tokens.json`、`copy.json` 只新增 key、`budgets.json` 的 limit、`ai-project-template/`、`third_party/halcon/`、fixture JSON、`PresenterRig.h` 的視窗閘門、晶格的門檻與 ADR-013、port 契約、`perf/baseline/*.json` 只用 `-WriteBaseline` 重建。
-
-## 已知問題與風險
-
-- 表單的角度只顯示；只改這一個元件（實例覆寫）仍延後；子框仍只能 `Ctrl+Z` 拿掉。
-- 樣本縮圖的框用固定色（藍＝主體、橙＝子框），不走畫布的主題。
-- 等使用者決定的事沒有變（ADR-004、S09、S10、待決定（10））。
-
-## 驗證（實際執行）
-
-- `test.ps1`（Release）57／57、`test.ps1 -Config Debug` 57／57、`ste-lint` 0 errors、`check-deps` 0 violations；`-Perf` 沒有跑。
+- `publishGuidance` 只在 `GuideStatus` 變了才碰 dock（U3 的保護）；`publishAll` 路徑上新增 View 更新都要比照。
+- `GuideStatus` 的 Idle 規則用「樣本的類型有沒有自動產生的元件」，不能用 `lastSearch()`（回 Idle 時被清掉）；已知的限制：一個樣本一個都沒找到，接受後仍指著〔搜尋〕。
+- 預覽卡片沒有加「下一步」（訊息列 96 px）；真實板子的影片沒做（之後用外部播放器開）。
+- 示範畫面在背景解碼與縮放（`QtConcurrent`，presentation 多用 Qt Concurrent）：第一版在 UI 執行緒同步做，I6 變慢、Debug 的 `tst_presenter` 逾時；UI 執行緒不要等任何解碼。**測試台 `PresenterRig` 預設把 dock 關著**（`showGuidance()` 才開）：Debug 的 `tst_presenter` 從 231 秒變 297 秒。
+- **Debug 的 `tst_presenter::aSlowSearchShowsBusyThenProgressAndEscCancelsToIdleAtOnce` 是不穩定的測試**：2026-10-15 晚上機器慢時，本分支與 `main` eb95b79 都失敗（`main` 整組 231 秒）；隔天正常時通過（85 秒）。看到它失敗先在 `main` 上對照，不要當成新的修改造成的（這次繞了一大圈，經過在 changelog）。
+- 改 `.pro` 時 JS `String.replace` 的 `$$` 會變成 `$`（這次踩到）；用 `split/join`。

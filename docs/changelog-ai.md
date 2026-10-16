@@ -24,6 +24,43 @@
 - 下一位 agent 需要知道的限制、否決的做法、不要還原的修改
 ```
 
+## 2026-10-15／16 — Claude Code (Claude Fable 5.1 → Claude Opus 5.5)（操作步驟的提示：訊息列補強、「操作步驟」dock、逐格的示範畫面、F1；ADR-027）
+
+### 完成
+- 分支 `feat/step-guidance`（從 `main` eb95b79 開；session 在 worktree，`main` 在主 checkout 簽出，合併用 `git -C`）。使用者要求「介面要有步驟提示，最好有影片提示」。先從程式碼確認現況（提示只有 `Idle`、`DrawingRegion`、`Searching` 有，而且 `Searching` 顯示的是 Idle 的那一句；Preview 之後都在卡片；沒有說明選單；Qt 6.12.0 沒有 Qt Multimedia、Qt 寫不出 GIF），畫現況流程圖，比較 (a) 訊息列一行提示、(b) 操作步驟面板、(c) 第一次開啟的導覽，與四種影片做法（完整的比較在側 session 筆記 `step-guidance-proposal.md`）。使用者選 (a)＋(b)＋程式產生的 PNG 逐格動畫、說明選單 F1。session 途中使用者把模型從 Fable 5.1 換成 Opus 5.5。
+- **application**：新增 `interaction/StepGuide`（`GuideStep` 五步、`GuideStatus`、`guideStatus(const InspectionSession&)`，純函式）。第一版用「上次搜尋的樣本」判斷 Idle 的下一步，測試抓到 `lastSearch()` 回 Idle 時一律被清掉（`enterIdleCleanup`、建立樣本），改成「有樣本的類型在板上沒有自動產生的元件 → 搜尋，否則微調」；已知的限制寫在 `.cpp`（一個樣本一個都沒找到，接受後仍指著〔搜尋〕）。
+- **presentation**：新增 `guidance/GuidancePanel`（`.ui`；左側 dock；`IGuidanceView::setGuideStatus` 一個方法；Highlight 色標亮、打勾變淡、進行中／要重做一行；示範逐格播放、跟著目前的步驟、點一步看那一步、看不到時不播）與 `guidance/GuideDemo.h`（張數 2+3+3+2+3、檔名、文案 key 的唯一來源）；`AutoRoiPresenter::publishGuidance`（只在 `GuideStatus` 變了時呼叫 View）；`Searching` 的提示改 `ui.search.hint`；`EmptyCard` 多三步的摘要（`ui.empty.steps`）；`MainWindow.ui` 多說明選單、`actionGuide`（`F1` ＝ `QKeySequence::HelpContents`）、`guidanceDock`（提升元件）；`main.cpp` 記住 dock 的開關（`guidance/visible`，只在使用者切換時寫）。
+- **UI 執行緒不等解碼與平滑縮放**（第二輪）：第一版在狀態一變時同步解碼、縮放 720 px 的 PNG，Release 的 I6 從 13.8 變 20.9 ms，Debug 的 `tst_presenter`（每個測試台一個面板）超過 300 秒逾時。現在面板看得到才用 `QtConcurrent` 在背景解碼（presentation 多用 Qt Concurrent，`aoi_deps.pri` 的 `AOI_QT_presentation`），解碼結果整個行程共用一份；平滑縮放也在背景、做好前用快速縮放頂著、每個寬度只縮一次；畫面存成 400 px；示範圖的寬度不參與版面（`QSizePolicy::Ignored`）、面板的 `sizeHint` 固定成 dock 的最小寬度；只重畫有變的列。試過把更新延後 80 ms 合併送出（`guideDelayMs`），沒有好處，撤掉。測試台 `PresenterRig` 預設把 dock 關著（`showGuidance()` 才開）：Debug 的 `tst_presenter` 從 `main` 的 231 秒變成 297 秒，貼著 300 秒的逾時。
+- **示範畫面**：`tests/ui/record_guidance`（`tests.pro` 新的 `AOI_TOOLS` 清單：一起建置、不進任何清單）用 `PresenterRig` 走一遍 S → F5 → Enter → B，13 張 400 px 寬的 PNG（約 0.7 MB）寫到 `docs/ux/guidance/`，`aoi_ux.qrc` 內嵌。
+- **測試**：`tests/core/tst_step_guide`（新，16 項）；`tst_shell` 加 2（dock 在左側、標題、F1、語言切換；面板的標亮、打勾、兩種註記、示範跟著步驟、點一步、藏起來不播）；`tst_presenter` 加 2（面板跟著 S → F5 → Enter 走、門檻拖動 `updateCount` 不變、再框一個樣本回到〔搜尋〕；搜尋中的提示）；`tst_messages` 的 key 清單加 12 個、新測試「每一步的標題與說明、每一張的字幕兩種語言都有、每一張都在資源裡、沒有多出來的字幕」。
+- 文案：`copy.json` 新增 36 個 key（`ui.guide.*` 32、`menu.help`、`action.guide`、`ui.search.hint`、`ui.empty.steps`）。
+- 文件：ADR-027（新）、`decisions.md`、`ux-spec.md`（修改紀錄、§4、§5、§8、§10、§12.2）、`architecture.md`（含依賴表的 Qt Concurrent）、`AI_CONTEXT.md`（測試數 58、目錄、操作）、`current-status.md`。
+
+### 修改的檔案
+- `src/application/interaction/StepGuide.{h,cpp}`（新）、`AiInspTool/src/application/application.pro`
+- `src/presentation/guidance/{GuideDemo.h,GuidancePanel.h,GuidancePanel.cpp,GuidancePanel.ui}`（新）、`src/presentation/presenters/{ViewInterfaces.h,AutoRoiPresenter.h,AutoRoiPresenter.cpp,AppPresenters.cpp}`、`src/presentation/shell/{MainWindow.h,MainWindow.cpp,MainWindow.ui,EmptyCard.h,EmptyCard.cpp,EmptyCard.ui}`、`AiInspTool/src/presentation/{presentation.pro,aoi_ux.qrc}`、`AiInspTool/qmake/aoi_deps.pri`、`src/app/main.cpp`
+- `docs/ux/guidance/*.png`（13 張，新）、`docs/ux/copy.json`
+- `tests/core/tst_step_guide.cpp`（新）、`tests/ui/record_guidance.cpp`（新）、`tests/ui/{PresenterRig.h,tst_messages.cpp,tst_shell.cpp,tst_presenter.cpp}`、`AiInspTool/tests/{tests.pro,core/tst_step_guide.pro,ui/record_guidance.pro}`
+- `docs/adr/027-step-guidance.md`（新）、`docs/decisions.md`、`docs/ux/ux-spec.md`、`docs/architecture.md`、`docs/current-status.md`、`AI_CONTEXT.md`、`.ai/handoff.md`、本檔
+
+### 驗證
+- `scripts/dev/test.ps1`（預設 Release＋OpenCV＋HALCON）：**58／58 通過**（2026-10-16 最後一輪；新增 `tst_step_guide` 後是 58 項）；HALCON 0 跳過；有跳過項目的 5 個測試（`tst_backend_registry`、`tst_shell`、`tst_presenter` 的截圖、`tst_opencv_image`、`tst_image_sources_agree`）與 2 個 XFAIL（`tst_contract_end_to_end` 的 opencv B1、`tst_image_sources_agree` 的 palette BMP）和改之前相同；`tst_step_guide` 18、`tst_shell` 37＋1 skipped、`tst_presenter` 84＋1 skipped、`tst_messages` 17、`tst_halcon_backend` 19。
+- `scripts/dev/test.ps1 -Config Debug`：**58／58 通過**（2026-10-16；HALCON 0 跳過；跳過與 XFAIL 的清單和 Release 相同；`tst_presenter` 84 passed＋1 skipped、整組 85 秒，`tst_shell` 37＋1、`tst_step_guide` 18、`tst_messages` 17）。前一晚的幾次 Debug 都是 57／58（見下一條）。
+- **Debug 的不穩定測試**：2026-10-15 晚上 `tst_presenter` 的 `aSlowSearchShowsBusyThenProgressAndEscCancelsToIdleAtOnce`（等 2 秒內看到「忙碌」）在 Debug 一直失敗，而且在主 checkout 的 `main` eb95b79（沒有這次的修改）上也失敗：整組 231 秒、81 passed／1 failed。隔天（2026-10-16）同一份程式重跑，整組 85 秒、通過。所以它跟機器當下的速度有關（前一晚 Debug 慢了將近 3 倍），不是這次的修改造成的。
+- `node tools/ste-lint.mjs`：979 sentences、0 errors；`node tools/check-deps.mjs`：225 files、0 violations。
+- `test.ps1 -Perf -NoBuild -Filter 'perf_ui_s04'`（Release，offscreen，p95（中位數）ms）。**最後一輪（2026-10-16，前後交替各兩次；「前」＝主 checkout 的 `main` eb95b79 的建置）**：U3 前 29.4（24.0）、13.9（12.1）／後 10.1（9.2）、15.2（12.7）；I6 前 3.6、4.9／後 2.8、3.1；I3 前 5.6、9.5／後 4.4、12.5；I4 前 4.1、6.4／後 6.5、4.5；U2 前 4.8、2.2／後 3.2、5.4。全部在預算內（U3 16、I3 50、I4 100、I6 50、U2 50），前後的差在同一側兩次之間的差以內（「前」第一次的 U3 29.4 是剛建置完的暖機雜訊）。`perf_ui_s04` 用 `PresenterRig`，最後一輪時測試台已經關著 dock，所以它不含面板；門檻拖動不碰面板由 `tst_presenter` 的 `updateCount` 鎖住。**前一晚（2026-10-15，機器慢、dock 開著）**：U3 前 35.2 → 第一版 32.5 → 加縮放快取 23.5（都超過預算，含改之前的 `main`）；I6 前 13.8 → 第一版 **20.9** → 加縮放快取 14.9——第一版的 I6 變慢是真的（每次換步驟都在 UI 執行緒重新縮放 PNG），已修。沒有跑 `perf.ps1 -WriteBaseline`（使用者另外指示）。
+- 踩到的坑：JS `String.replace` 的替換字串裡 `$$` 是一個 `$`，`.pro` 的 `$$DIR` 被寫成 `$DIR`（qmake 報 `dependent 'IR\...' does not exist`），多跑了一次整棵樹的建置；主 checkout 第一次建 Debug 時 jom 平行建置偶爾在 `.moc` 產生之前就編譯 `.obj`（`tst_*.moc` 找不到），先跑各測試 Makefile 的 `mocables` 再建置就好。
+- 除錯時花最多時間的錯誤歸因：把 Debug 的忙碌標示測試失敗當成面板造成的，先後試了背景解碼、共用解碼、背景縮放、固定 `sizeHint`、延後送出；最後在 `main` 上跑同一個測試才發現它本來就失敗（隔天機器正常時兩邊都通過）。保留的改動都有獨立的理由（UI 執行緒不等解碼、I6、逾時），延後送出撤掉。
+
+### 未完成
+- 預覽卡片沒有加「下一步」（訊息列 96 px，ADR-008）；真實板子的示範影片（之後由使用者錄、`QDesktopServices::openUrl` 用系統播放器開）沒做；沒有測試抓得到示範畫面「過期」（只抓得到少一張）。
+- Debug 的 `aSlowSearchShowsBusyThenProgressAndEscCancelsToIdleAtOnce` 在機器慢的時候會失敗（`main` 上也一樣）；要不要放寬它的時間是另一件事，沒有動。
+
+### 注意事項
+- UI 改了版面或文案之後：`build\qmake-release\bin\record_guidance.exe`（offscreen；`test.ps1` 會建置它）重新產生 `docs/ux/guidance/*.png`，再重新建置（rcc）。張數改了要三邊一起改：`GuideDemo.h`、`copy.json` 的 `ui.guide.demo.<步驟>.<n>`、`aoi_ux.qrc`（`tst_messages` 會擋）。
+- `publishGuidance` 的「沒變就不呼叫 View」是 U3 的保護；在 `publishAll` 路徑上新增任何 View 更新都要比照（`tst_presenter` 數 `updateCount`）。
+- 另一個 session（`feat/lattice-snapped-positions`，ADR-026）同時在進行，它會改 `InspectionSession`、`copy.json` 等；本分支對 `InspectionSession` 只讀、`copy.json` 只在最後追加。合併時以它的為準再疊。
+
 ## 2026-10-14 — Claude Code (Claude Fable 5.1)（選取資訊表單與樣本庫面板：ADR-025 的「後續（2026-10-14）」）
 
 ### 完成
