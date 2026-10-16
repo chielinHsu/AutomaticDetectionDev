@@ -345,14 +345,31 @@
         </property>
        </widget>
       </item>
-      <item row="7" column="0" colspan="2">
+      <item row="7" column="0">
+       <widget class="QLabel" name="positionLabel">
+        <property name="text">
+         <string notr="true">位置</string>
+        </property>
+       </widget>
+      </item>
+      <item row="7" column="1">
+       <widget class="QLabel" name="positionValue">
+        <property name="text">
+         <string notr="true">—</string>
+        </property>
+        <property name="wordWrap">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="8" column="0" colspan="2">
        <widget class="QPushButton" name="applyToAll">
         <property name="text">
          <string notr="true">套用大小到所有樣本</string>
         </property>
        </widget>
       </item>
-      <item row="8" column="0" colspan="2">
+      <item row="9" column="0" colspan="2">
        <widget class="QLabel" name="selectionNote">
         <property name="text">
          <string notr="true"/>

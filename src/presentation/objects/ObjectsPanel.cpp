@@ -75,6 +75,8 @@ ObjectsPanel::ObjectsPanel(QWidget* parent) : QWidget(parent), ui_(std::make_uni
     angleValue_ = ui_->angleValue;
     boxesLabel_ = ui_->boxesLabel;
     boxesValue_ = ui_->boxesValue;
+    positionLabel_ = ui_->positionLabel;
+    positionValue_ = ui_->positionValue;
     applyToAll_ = ui_->applyToAll;
     selectionNote_ = ui_->selectionNote;
     selectionNote_->setForegroundRole(QPalette::PlaceholderText);
@@ -144,8 +146,21 @@ void ObjectsPanel::updateSelectionTexts() {
     sizeUm_->setVisible(info_.umPerPixel > 0.0);
     angleValue_->setText(QStringLiteral("%1°").arg(QString::number(info_.angleDeg, 'f', 1)));
     boxesValue_->setText(QString::number(info_.boxCount));
+    positionValue_->setText(positionText(info_));
     selectionNote_->setText(info_.canResize ? QString() : uiText("ui.selection.previewOnlyMove"));
     selectionNote_->setVisible(!info_.canResize);
+}
+
+// 位置（ADR-026）：提案的物件說它在格點上（匹配位置偏差多少）、是成員但現在用匹配位置（離格點多少）、偏離陣列（離最近格點多少）、
+// 不在任何陣列，或使用者移過；板子上的元件只有「—」。
+QString ObjectsPanel::positionText(const SelectionInfoView& info) {
+    if (!info.proposal) return uiText("ui.selection.position.board");
+    if (info.moved) return uiText("ui.selection.position.moved");
+    const QString deviation = info.latticeDeviationPx >= 0.0 ? QString::number(info.latticeDeviationPx, 'f', 2) : QString();
+    if (info.onLattice) return uiText("ui.selection.position.lattice", {{"deviation", deviation}});
+    if (info.inLattice) return uiText("ui.selection.position.member", {{"deviation", deviation}});
+    if (info.latticeDeviationPx >= 0.0) return uiText("ui.selection.position.matched", {{"deviation", deviation}});
+    return uiText("ui.selection.position.noLattice");
 }
 
 void ObjectsPanel::setSelectionInfo(const SelectionInfoView& info) {
@@ -167,11 +182,13 @@ void ObjectsPanel::setSelectionInfo(const SelectionInfoView& info) {
                        static_cast<QWidget*>(applyToAll_)})
         w->setEnabled(one && info.canResize);
     for (QWidget* w : {static_cast<QWidget*>(centerLabel_), static_cast<QWidget*>(sizeLabel_), static_cast<QWidget*>(angleLabel_),
-                       static_cast<QWidget*>(boxesLabel_), static_cast<QWidget*>(angleValue_), static_cast<QWidget*>(boxesValue_)})
+                       static_cast<QWidget*>(boxesLabel_), static_cast<QWidget*>(angleValue_), static_cast<QWidget*>(boxesValue_),
+                       static_cast<QWidget*>(positionLabel_), static_cast<QWidget*>(positionValue_)})
         w->setEnabled(one);
     if (!one) {
         angleValue_->clear();
         boxesValue_->clear();
+        positionValue_->clear();
     }
     updateSelectionTexts();
     infoSyncing_ = false;
@@ -272,6 +289,7 @@ void ObjectsPanel::retranslate() {
     sizeLabel_->setText(uiText("ui.selection.size"));
     angleLabel_->setText(uiText("ui.selection.angle"));
     boxesLabel_->setText(uiText("ui.selection.boxes"));
+    positionLabel_->setText(uiText("ui.selection.position"));
     lockRatio_->setText(uiText("ui.selection.lockRatio"));
     applyToAll_->setText(uiText("ui.selection.applyToAll"));
     applyToAll_->setToolTip(uiText("ui.selection.applyToAll.tip"));

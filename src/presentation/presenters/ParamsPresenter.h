@@ -24,6 +24,7 @@ public:
     void setAngleRange(double minDeg, double maxDeg) override;
     void setScanScope(int scopeIndex) override;
     void setSignificantBits(int bits) override;
+    void setSnapToLattice(bool snap) override;  // 立刻交出去（只重新分類，ADR-026）
 
     int debounceMs() const { return timer_.interval(); }
     bool searchPending() const { return timer_.isActive(); }

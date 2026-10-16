@@ -573,6 +573,14 @@ void AutoRoiPresenter::applySignificantBits(int bits) {
     views_.params.setParams(currentParams());
 }
 
+// 位置模式（ADR-026）：和門檻一樣只重新分類快取的候選，不搜尋；沒有提案時只記下來給下一份提案。
+void AutoRoiPresenter::applySnapToLattice(bool snap) {
+    session_.setPositionMode(snap ? PositionMode::Lattice : PositionMode::Matched);
+    views_.params.setParams(currentParams());
+    if (!proposalShown()) return;
+    publishAll();
+}
+
 SignificantBitsDecision AutoRoiPresenter::applyBitsSetting(int requested) {
     const SignificantBitsDecision decision = decideSignificantBits(sourceImage_.format, sourceImage_.significantBits, requested);
     if (decision.bits != image_.significantBits) {
@@ -780,6 +788,7 @@ ParamsState AutoRoiPresenter::currentParams() const {
     p.significantBits = session_.document().board().significantBits;
     p.detectedBits = sourceImage_.format == PixelFormat::Gray16 ? sourceImage_.significantBits : 0;
     p.bitsApplicable = sourceImage_.valid() && sourceImage_.format == PixelFormat::Gray16;
+    p.snapToLattice = session_.positionMode() == PositionMode::Lattice;
     return p;
 }
 
@@ -852,6 +861,11 @@ SelectionInfoView AutoRoiPresenter::selectionInfoView() const {
     view.umPerPixel = session_.document().board().umPerPixel;
     view.canMove = info.canMove;
     view.canResize = info.canResize;
+    view.proposal = info.proposal;
+    view.inLattice = info.inLattice;
+    view.moved = info.moved;
+    view.onLattice = info.onLattice;
+    view.latticeDeviationPx = info.latticeDeviationPx.value_or(-1.0);
     return view;
 }
 

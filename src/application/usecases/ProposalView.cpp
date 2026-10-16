@@ -5,7 +5,7 @@
 
 namespace aoi {
 
-ProposalView classify(const BoardProposal& proposal, double threshold, double candidateFloor) {
+ProposalView classify(const BoardProposal& proposal, double threshold, double candidateFloor, PositionMode mode) {
     ProposalView view;
     if (proposal.sampleProblem) {
         view.noMatch = proposal.sampleProblem;
@@ -20,7 +20,11 @@ ProposalView classify(const BoardProposal& proposal, double threshold, double ca
     for (const BoardCandidate& c : proposal.candidates) {
         InspectionObject object;
         object.id = nextId++;
-        object.rect = RectObj{c.pose, c.partSize.w, c.partSize.h};
+        // 位置（ADR-026）：Lattice 模式用格點；Predicted 的 pose 本來就是格點，所以兩種模式都在格點上。
+        const bool snap = mode == PositionMode::Lattice && c.latticePose.has_value();
+        object.rect = RectObj{snap ? *c.latticePose : c.pose, c.partSize.w, c.partSize.h};
+        object.onLattice = snap || c.source == CandidateSource::Predicted;
+        object.latticeDeviationPx = c.latticeDeviationPx;
         object.origin = ObjectOrigin::Auto;
         object.typeId = c.typeId;
         switch (c.source) {
@@ -42,6 +46,8 @@ ProposalView classify(const BoardProposal& proposal, double threshold, double ca
                 highestOther = std::max(highestOther, c.score);
                 break;
         }
+        // 不在格點上的（兩種模式都一樣算：它是「候選有沒有晶格位姿」，不是「現在顯示在哪」）：卡片上提醒使用者這些位置是匹配的。
+        if (!c.onLattice() && (object.state == ObjectState::Found || object.state == ObjectState::Inferred)) ++view.offLattice;
         view.objects.push_back(object);
     }
 
@@ -59,8 +65,8 @@ ProposalView classify(const BoardProposal& proposal, double threshold, double ca
     return view;
 }
 
-ProposalView classify(const SampleProposal& proposal, double threshold, double candidateFloor) {
-    return classify(boardProposalFrom(proposal, std::string()), threshold, candidateFloor);
+ProposalView classify(const SampleProposal& proposal, double threshold, double candidateFloor, PositionMode mode) {
+    return classify(boardProposalFrom(proposal, std::string()), threshold, candidateFloor, mode);
 }
 
 }  // namespace aoi
