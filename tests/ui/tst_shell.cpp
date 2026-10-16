@@ -25,6 +25,8 @@
 #include "infrastructure/image_qt/QtImageSource.h"
 #include "presentation/canvas/ImageCanvas.h"
 #include "presentation/dev/FakeScene.h"
+#include "presentation/guidance/GuideDemo.h"
+#include "presentation/guidance/GuidancePanel.h"
 #include "presentation/i18n/Translations.h"
 #include "presentation/library/SamplePanel.h"
 #include "presentation/shell/EmptyCard.h"
@@ -492,6 +494,91 @@ private slots:
         QVERIFY(Translations::install(QStringLiteral("zh_TW")));
         QCoreApplication::processEvents();
         QCOMPARE(panel->emptyLabel()->text(), qtTrId("ui.library.empty"));
+    }
+
+    // 2026-10-15（ADR-027）：左側的「操作步驟」dock 列出五步；關掉之後〔說明 › 操作步驟〕（F1）找得回來；語言切換一起換。
+    void theGuidanceDockListsTheFiveStepsOnTheLeftAndF1BringsItBack() {
+        Fixture f;
+        GuidancePanel* panel = f.window.guidancePanel();
+        QVERIFY(panel != nullptr);
+        QVERIFY(f.window.guidanceDock()->isAncestorOf(panel));
+        QCOMPARE(f.window.dockWidgetArea(f.window.guidanceDock()), Qt::LeftDockWidgetArea);
+        QVERIFY(f.window.guidanceDock()->isVisible());
+        QCOMPARE(f.window.guidanceDock()->windowTitle(), qtTrId("ui.guide.title"));
+        for (int i = 0; i < aoi::kGuideStepCount; ++i)
+            QCOMPARE(panel->rowTitle(guideStepAt(i)), qtTrId(guideStepTitleKey(guideStepAt(i)).constData()));
+        QVERIFY(!panel->hasStatus());  // 沒有 Presenter 時什麼都不標亮
+        QVERIFY(!panel->isRowCurrent(aoi::GuideStep::OpenImage));
+        QCOMPARE(f.window.guideAction()->shortcut(), QKeySequence(QKeySequence::HelpContents));
+
+        f.window.guidanceDock()->hide();
+        QVERIFY(!f.window.guidanceDock()->isVisible());
+        f.window.guideAction()->trigger();
+        QVERIFY(f.window.guidanceDock()->isVisible());
+
+        QVERIFY(Translations::install(QStringLiteral("en")));
+        QCoreApplication::processEvents();
+        QCOMPARE(f.window.guidanceDock()->windowTitle(), QStringLiteral("Steps"));
+        QCOMPARE(panel->rowTitle(aoi::GuideStep::DrawSample), QStringLiteral("Draw a sample"));
+        QCOMPARE(f.window.guideAction()->text(), QStringLiteral("How to use"));
+        QVERIFY(Translations::install(QStringLiteral("zh_TW")));
+        QCoreApplication::processEvents();
+        QCOMPARE(panel->rowTitle(aoi::GuideStep::DrawSample), qtTrId("ui.guide.step.sample.title"));
+    }
+
+    // 面板只畫 application 交來的狀態：目前的標亮、做完的打勾、進行中與要重做各一行；示範跟著目前的步驟走，
+    // 點另一步看那一步的；面板看不到時不播。
+    void theGuidancePanelHighlightsTheCurrentStepAndPlaysItsDemo() {
+        GuidancePanel panel;
+        panel.setFrameIntervalMs(20);
+        panel.show();
+        Q_UNUSED(QTest::qWaitForWindowExposed(&panel));
+        aoi::GuideStatus s;
+        s.current = aoi::GuideStep::Search;
+        s.done[0] = s.done[1] = true;
+        panel.setGuideStatus(s);
+        QCOMPARE(panel.updateCount(), 1);
+        QVERIFY(panel.isRowCurrent(aoi::GuideStep::Search));
+        QVERIFY(!panel.isRowCurrent(aoi::GuideStep::DrawSample));
+        QVERIFY(panel.isRowDone(aoi::GuideStep::OpenImage));
+        QVERIFY(panel.isRowDone(aoi::GuideStep::DrawSample));
+        QVERIFY(!panel.isRowDone(aoi::GuideStep::Search));
+        QVERIFY(panel.rowNote(aoi::GuideStep::Search).isEmpty());
+        QCOMPARE(panel.demoStep(), aoi::GuideStep::Search);
+        QTRY_VERIFY2_WITH_TIMEOUT(panel.demoHasFrames(), "run record_guidance and rebuild: the demo frames are embedded by aoi_ux.qrc", 15000);  // 背景解碼（Debug 的 Qt 慢）
+        QVERIFY(!panel.demoLoading());
+        QCOMPARE(panel.demoFrameCount(), guideDemoFrameCount(aoi::GuideStep::Search));
+        // 背景解碼完成時計時器可能已經翻過幾張：字幕要對應目前那一張，而且會往下翻（逐格播放）
+        QCOMPARE(panel.demoCaption(), qtTrId(guideDemoCaptionKey(aoi::GuideStep::Search, panel.demoFrame() + 1).constData()));
+        QVERIFY(panel.demoPlaying());
+        const int before = panel.demoFrame();
+        QTRY_VERIFY(panel.demoFrame() != before);
+        QCOMPARE(panel.demoCaption(), qtTrId(guideDemoCaptionKey(aoi::GuideStep::Search, panel.demoFrame() + 1).constData()));
+
+        s.busy = true;
+        panel.setGuideStatus(s);
+        QCOMPARE(panel.rowNote(aoi::GuideStep::Search), qtTrId("ui.guide.busy"));
+        s.busy = false;
+        s.attention = true;
+        panel.setGuideStatus(s);
+        QCOMPARE(panel.rowNote(aoi::GuideStep::Search), qtTrId("ui.guide.attention"));
+        QCOMPARE(panel.demoStep(), aoi::GuideStep::Search);  // 同一步：示範不重來
+
+        panel.showDemo(aoi::GuideStep::Refine);  // 點另一步
+        QCOMPARE(panel.demoStep(), aoi::GuideStep::Refine);
+        QCOMPARE(panel.demoFrame(), 0);
+        QVERIFY(panel.isRowCurrent(aoi::GuideStep::Search));  // 標亮的還是目前的那一步
+
+        panel.hide();
+        QVERIFY(!panel.demoPlaying());
+        panel.show();
+        QTRY_VERIFY_WITH_TIMEOUT(panel.demoPlaying(), 15000);  // Refine 的畫面在背景解碼完才播
+
+        s.current = aoi::GuideStep::Accept;
+        s.done[2] = true;
+        panel.setGuideStatus(s);
+        QCOMPARE(panel.demoStep(), aoi::GuideStep::Accept);  // 步驟變了：示範跟著走
+        QVERIFY(panel.isRowDone(aoi::GuideStep::Search));
     }
 
     void emptyCardIsRetranslatedToo() {

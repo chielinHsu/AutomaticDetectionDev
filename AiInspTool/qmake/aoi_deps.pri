@@ -47,10 +47,10 @@ AOI_PRO_backend_halcon = src/infrastructure/backend_halcon/backend_halcon.pro
 AOI_DEPS_backend_halcon = application
 AOI_EXT_backend_halcon = halcon
 
-# ---- presentation：Qt Widgets；依賴 application 與 domain，不依賴 infrastructure ----
+# ---- presentation：Qt Widgets（2026-10-15 起加 Qt Concurrent：操作步驟面板的示範畫面在背景解碼，ADR-027）；依賴 application 與 domain，不依賴 infrastructure ----
 AOI_PRO_presentation = src/presentation/presentation.pro
 AOI_DEPS_presentation = domain application
-AOI_QT_presentation = core gui widgets
+AOI_QT_presentation = core gui widgets concurrent
 
 # 合成板子與框（測試、效能量測與 --demo 用；不是產品功能）
 AOI_PRO_presentation_dev = src/presentation/dev/presentation_dev.pro

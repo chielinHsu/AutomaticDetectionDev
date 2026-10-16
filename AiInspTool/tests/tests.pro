@@ -4,6 +4,7 @@
 # 這裡是「建置哪些測試」的唯一清單（CMake 時代在 tests/*/CMakeLists.txt）：
 #   AOI_TESTS        單元與整合測試：scripts/dev/test.ps1 預設跑這些（再加 4 個 node 的檢查）
 #   AOI_PERF_TESTS   效能量測：test.ps1 -Perf 只跑這些；只在 Release 有意義
+#   AOI_TOOLS        不是測試的工具（和測試一樣的接線）：一起建置，不進任何清單，手動執行（2026-10-15：record_guidance）
 # qmake 執行時把兩份清單寫到 <建置>/aoi-tests.txt、aoi-perf-tests.txt，test.ps1 照清單執行（不看 bin/ 裡有什麼檔案，
 # 所以不會跑到過期的執行檔）。Qt Creator 的測試面板自己從原始碼找測試。
 # S09 的契約測試（contract/）在每一種建置都有：沒編進來或沒有授權的 back end，那一列 SKIPPED 並說原因。
@@ -76,6 +77,9 @@ AOI_PERF_TESTS = \
     perf/perf_matrix \
     perf/perf_e2e
 
+AOI_TOOLS = \
+    ui/record_guidance
+
 # S06、S07：OpenCV 的影像 adapter 與 back end。
 equals(AOI_WITH_OPENCV, ON) {
     AOI_TESTS += \
@@ -93,7 +97,7 @@ equals(AOI_WITH_HALCON, ON) {
     equals(AOI_WITH_OPENCV, ON): AOI_PERF_TESTS += backend/perf_halcon_real
 }
 
-for(test, $$list($$AOI_TESTS $$AOI_PERF_TESTS)) {
+for(test, $$list($$AOI_TESTS $$AOI_PERF_TESTS $$AOI_TOOLS)) {
     name = $$basename(test)
     SUBDIRS += $$name
     $${name}.file = $${test}.pro

@@ -99,9 +99,16 @@
     <addaction name="languageMenu"/>
     <addaction name="panelsMenu"/>
    </widget>
+   <widget class="QMenu" name="helpMenu">
+    <property name="title">
+     <string notr="true">說明</string>
+    </property>
+    <addaction name="actionGuide"/>
+   </widget>
    <addaction name="fileMenu"/>
    <addaction name="editMenu"/>
    <addaction name="viewMenu"/>
+   <addaction name="helpMenu"/>
   </widget>
   <widget class="QToolBar" name="topBar">
    <property name="movable">
@@ -180,6 +187,15 @@
     <number>2</number>
    </attribute>
    <widget class="aoi::ui::ParamsPanel" name="paramsPanel"/>
+  </widget>
+  <widget class="QDockWidget" name="guidanceDock">
+   <property name="windowTitle">
+    <string notr="true">操作步驟</string>
+   </property>
+   <attribute name="dockWidgetArea">
+    <number>1</number>
+   </attribute>
+   <widget class="aoi::ui::GuidancePanel" name="guidancePanel"/>
   </widget>
   <action name="actionOpen">
    <property name="text">
@@ -300,6 +316,11 @@
     <string notr="true">全選</string>
    </property>
   </action>
+  <action name="actionGuide">
+   <property name="text">
+    <string notr="true">操作步驟</string>
+   </property>
+  </action>
   <action name="actionSelectSameType">
    <property name="enabled">
     <bool>false</bool>
@@ -350,6 +371,12 @@
   </action>
  </widget>
  <customwidgets>
+  <customwidget>
+   <class>aoi::ui::GuidancePanel</class>
+   <extends>QWidget</extends>
+   <header>presentation/guidance/GuidancePanel.h</header>
+   <container>1</container>
+  </customwidget>
   <customwidget>
    <class>aoi::ui::ImageCanvas</class>
    <extends>QGraphicsView</extends>

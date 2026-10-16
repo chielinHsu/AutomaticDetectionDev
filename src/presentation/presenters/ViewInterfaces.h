@@ -8,6 +8,7 @@
 #include <memory>
 #include <vector>
 
+#include "application/interaction/StepGuide.h"
 #include "presentation/objects/ObjectRows.h"
 
 // Presenter 看到的 View（docs/ux/ux-spec.md 第 12.2 節）。每個介面 ≤ 5 個方法；Presenter 不認識 QWidget。
@@ -156,6 +157,15 @@ public:
     // 同一個指標再交一次 ＝ 沒有變（View 可以略過）。
     virtual void setSamples(SampleListPtr samples) = 0;
     virtual void setSelection(const std::vector<int>& sceneIds) = 0;
+};
+
+// 「操作步驟」dock（2026-10-15，ADR-027）：五步的清單、目前這一步標亮、每一步的示範。
+// 哪一步是目前、哪些做完了由 application 的 guideStatus（InspectionSession 推導）決定，Presenter 只在它變了的時候才交過來，
+// 所以分數門檻拖動（U3）不會碰到這個 View。文字由 View 自己從 copy.json 設定（步驟是固定的，不是資料）。
+class IGuidanceView {
+public:
+    virtual ~IGuidanceView() = default;
+    virtual void setGuideStatus(const GuideStatus& status) = 0;
 };
 
 // 畫布的輸入閘門：搜尋中、錯誤時畫布暫停（ux-spec 第 5 節），忙碌時游標變 progress。
