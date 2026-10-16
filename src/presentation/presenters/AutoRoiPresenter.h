@@ -40,6 +40,7 @@ struct PresenterViews {
     IParamsView& params;
     ISelectionInfoView& selectionInfo;  // 選取資訊的表單（2026-10-14）
     ISampleListView& samples;           // 樣本庫 dock 裡「板子上的樣本」
+    IGuidanceView& guide;               // 操作步驟 dock（2026-10-15，ADR-027）
 };
 
 // Presenter 用到的核心（都是 application 層的型別；具體的 back end 在組裝根接好，這裡不認識）。
@@ -98,6 +99,8 @@ public:
     const Scene& lastScene() const { return scene_; }
     // 最近一次交給樣本庫 dock 的清單（測試用）。
     SampleListPtr lastSamples() const { return sampleCache_.list; }
+    // 最近一次交給操作步驟 dock 的狀態（測試用）。
+    const GuideStatus& lastGuide() const { return lastGuide_; }
 
     // ---- ICanvasController ----
     void onRegionDrawn(const QRectF& rect, DraftMode mode) override;
@@ -202,6 +205,7 @@ private:
     void publishDraft();
     void publishMessage();
     void publishStatus();
+    void publishGuidance();
     void publishHistory();
     void publishGate();
     void notifyStateIfChanged();
@@ -263,6 +267,8 @@ private:
     SampleListCache sampleCache_;    // 樣本庫 dock 的清單與縮圖：文件的修訂號與影像沒變就不重做
     CardSpec card_;
     bool cardVisible_ = false;
+    GuideStatus lastGuide_;
+    bool guidePublished_ = false;
     InteractionState lastNotified_ = InteractionState::Empty;
     SceneLabels labels_;
     RegionMode drawMode_ = RegionMode::Sample;

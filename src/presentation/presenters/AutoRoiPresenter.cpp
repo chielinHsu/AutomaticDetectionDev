@@ -1,5 +1,7 @@
 #include "presentation/presenters/AutoRoiPresenter.h"
 
+#include "application/interaction/StepGuide.h"
+
 #include <QCoreApplication>
 #include <QEvent>
 #include <QMetaObject>
@@ -800,7 +802,7 @@ QString AutoRoiPresenter::hintText() const {
             if (samples > 0) return uiText("ui.sample.hintIdle", {{"count", QString::number(samples)}});
             return uiText("ui.idle.hint");
         }
-        case InteractionState::Searching: return uiText("ui.idle.hint");
+        case InteractionState::Searching: return uiText("ui.search.hint");  // 2026-10-15 之前是 Idle 的提示（過時）
         case InteractionState::DrawingRegion: return uiText(drawMode_ == RegionMode::Sample ? "ui.sample.hint" : "ui.scan.hint");
         default: return QString();  // 空白沒有提示；預覽、無匹配、錯誤的提示在卡片裡
     }
@@ -955,9 +957,20 @@ void AutoRoiPresenter::publishChrome() {
     ScopedTimer timer(services_.probe, "ui.chrome");
     publishMessage();
     publishStatus();
+    publishGuidance();
     publishHistory();
     publishGate();
     notifyStateIfChanged();
+}
+
+// 操作步驟（ADR-027）：規則在 application 的 guideStatus；只在結果變了的時候才交給 View，所以分數門檻拖動（留在 Preview）
+// 不會碰到那個 dock（U3）。同步交給 View（試過延後 80 ms 合併送出，沒有好處、多一個計時器；否決，ADR-027）。
+void AutoRoiPresenter::publishGuidance() {
+    const GuideStatus status = guideStatus(session_);
+    if (guidePublished_ && status == lastGuide_) return;
+    lastGuide_ = status;
+    guidePublished_ = true;
+    views_.guide.setGuideStatus(status);
 }
 
 void AutoRoiPresenter::publishAll() {

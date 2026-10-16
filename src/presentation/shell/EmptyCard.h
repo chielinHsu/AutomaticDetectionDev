@@ -30,6 +30,7 @@ private:
     std::unique_ptr<Ui::EmptyCard> ui_;
     QLabel* title_;
     QLabel* body_;
+    QLabel* steps_;  // 三步的摘要（2026-10-15，ADR-027）
     QLabel* drop_;
     QPushButton* open_;
 };

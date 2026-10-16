@@ -23,6 +23,7 @@
 
 #include "presentation/canvas/ImageCanvas.h"
 #include "presentation/compare/CompareWindow.h"
+#include "presentation/guidance/GuidancePanel.h"
 #include "presentation/i18n/Translations.h"
 #include "presentation/library/SamplePanel.h"
 #include "presentation/shell/EmptyCard.h"
@@ -268,6 +269,14 @@ void MainWindow::buildMenus() {
     fontMenu_ = ui_->fontMenu;
     languageMenu_ = ui_->languageMenu;
     panelsMenu_ = ui_->panelsMenu;  // dock 的開關在 buildDocks 加入
+    helpMenu_ = ui_->helpMenu;
+    // 〔說明 › 操作步驟〕（F1）：把左側的操作步驟 dock 打開並帶到前面（關掉之後也找得回來）。
+    guideAction_ = ui_->actionGuide;
+    guideAction_->setShortcut(QKeySequence::HelpContents);
+    connect(guideAction_, &QAction::triggered, this, [this] {
+        guidanceDock_->show();
+        guidanceDock_->raise();
+    });
 
     auto* themeGroup = new QActionGroup(this);
     const struct {
@@ -334,11 +343,14 @@ void MainWindow::buildDocks() {
     //  - 樣本庫（SamplePanel，2026-10-14）：板子上的樣本與縮圖；篩選欄仍是停用的佔位（樣本庫檔案是 P2）。
     //  - 物件樹：Board › Component › 框群組，可依狀態篩選，與畫布雙向選取同步（S04）；下方是選取資訊的表單（2026-10-14）。
     //  - 比對參數：分數門檻（拖動即時重新過濾）、進階的角度範圍（防抖後重新搜尋）、比對範圍、影像位元數。
+    //  - 操作步驟（左側，2026-10-15，ADR-027）：五步的清單、目前這一步標亮、每一步的示範（GuidancePanel）。
     libraryDock_ = ui_->libraryDock;
     objectsDock_ = ui_->objectsDock;
     paramsDock_ = ui_->paramsDock;
+    guidanceDock_ = ui_->guidanceDock;
+    guidancePanel_ = ui_->guidancePanel;
     const int minWidth = theme_.tokens().sizes.dockMinWidth;
-    for (QDockWidget* dock : {libraryDock_, objectsDock_, paramsDock_}) {
+    for (QDockWidget* dock : {guidanceDock_, libraryDock_, objectsDock_, paramsDock_}) {
         dock->setMinimumWidth(minWidth);
         panelsMenu_->addAction(dock->toggleViewAction());
     }
@@ -395,6 +407,8 @@ void MainWindow::retranslateUi() {
     fontMenu_->setTitle(qtTrId("ui.settings.fontScale"));
     languageMenu_->setTitle(qtTrId("menu.language"));
     panelsMenu_->setTitle(qtTrId("menu.panels"));
+    helpMenu_->setTitle(qtTrId("menu.help"));
+    guideAction_->setText(qtTrId("action.guide"));
     themeLight_->setText(qtTrId("ui.settings.theme.light"));
     themeDark_->setText(qtTrId("ui.settings.theme.dark"));
     themeSystem_->setText(qtTrId("ui.settings.theme.system"));
@@ -405,6 +419,8 @@ void MainWindow::retranslateUi() {
     libraryDock_->setWindowTitle(qtTrId("ui.library.title"));
     objectsDock_->setWindowTitle(qtTrId("ui.objects.title"));
     paramsDock_->setWindowTitle(qtTrId("ui.params.title"));
+    guidanceDock_->setWindowTitle(qtTrId("ui.guide.title"));
+    guidancePanel_->retranslate();
     samplePanel_->retranslate();
     objectsPanel_->retranslate();
     paramsPanel_->retranslate();

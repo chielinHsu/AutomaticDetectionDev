@@ -13,6 +13,7 @@
 #include "PresenterRig.h"
 #include "domain/image_buffer.h"
 #include "domain/image_depth.h"
+#include "presentation/guidance/GuidancePanel.h"
 #include "presentation/library/SamplePanel.h"
 #include "presentation/params/ParamsPanel.h"
 #include "QtTestPrinters.h"
@@ -1774,6 +1775,67 @@ private slots:
         QCOMPARE(r.document().historyDepth(), depth);
         r.key(Qt::Key_Escape);  // 清除選取
         QCOMPARE(panel->selectionSummary()->text(), zh("ui.selection.none"));
+    }
+
+    // 2026-10-15（ADR-027）：操作步驟 dock 跟著流程走（規則在 application 的 guideStatus，Presenter 只在變了的時候交給面板）；
+    // 分數門檻拖動留在 Preview，面板一次都不更新（U3）。
+    void theGuidancePanelFollowsTheFlowAndThresholdDragsDoNotTouchIt() {
+        Rig r;
+        r.showGuidance();
+        GuidancePanel* panel = r.window.guidancePanel();
+        // Presenter 自己的判斷（lastGuide）與面板的狀態都是同步的；QTRY 只是保險。
+        QTRY_VERIFY(panel->hasStatus());
+        QCOMPARE(panel->status().current, GuideStep::OpenImage);
+        r.open();
+        QCOMPARE(r.presenter().lastGuide().current, GuideStep::DrawSample);
+        QTRY_COMPARE(panel->status().current, GuideStep::DrawSample);
+        QVERIFY(panel->isRowDone(GuideStep::OpenImage));
+        QVERIFY(r.drawSample(QRectF(560, 360, 60, 32)));
+        QTRY_COMPARE(panel->status().current, GuideStep::Search);
+        QVERIFY(panel->isRowDone(GuideStep::DrawSample));
+        QVERIFY(r.searchAndWait());
+        QCOMPARE_STATE(r.state(), S::Preview);
+        QTRY_COMPARE(panel->status().current, GuideStep::Accept);
+        QVERIFY(panel->isRowDone(GuideStep::Search));
+
+        const int updates = panel->updateCount();
+        QSlider* slider = r.window.paramsPanel()->scoreSlider();
+        for (int v : {40, 60, 85, 70}) {
+            slider->setValue(v);
+            QCoreApplication::processEvents();
+        }
+        QCOMPARE(panel->updateCount(), updates);  // 門檻拖動：面板沒有被碰
+        QCOMPARE(r.presenter().lastGuide().current, GuideStep::Accept);
+
+        r.key(Qt::Key_Return);
+        QCOMPARE_STATE(r.state(), S::Idle);
+        QCOMPARE(r.presenter().lastGuide().current, GuideStep::Refine);
+        QTRY_COMPARE(panel->status().current, GuideStep::Refine);
+        QVERIFY(panel->isRowDone(GuideStep::Accept));
+        QCOMPARE(panel->demoStep(), GuideStep::Refine);
+
+        QVERIFY(r.drawSample(QRectF(200, 150, 40, 24)));  // 再框一個樣本：下一步又是搜尋
+        QTRY_COMPARE(panel->status().current, GuideStep::Search);
+        QVERIFY(panel->isRowDone(GuideStep::Accept));  // 做過的不會變成沒做
+    }
+
+    // 搜尋中的提示不再是 Idle 的那一句（2026-10-15 之前是過時的「S 框一個樣本…」）。
+    void theHintWhileSearchingSaysSoAndOffersEsc() {
+        Rig r;
+        r.showGuidance();
+        r.open();
+        QVERIFY(r.drawSample(QRectF(560, 360, 60, 32)));
+        PresenterSettings slow = r.presenter().settings();
+        slow.progressAfterMs = 100000;  // 進度列出現時提示會讓位；這裡要看的是提示
+        r.presenter().setSettings(slow);
+        r.probe->gateWindows = true;  // 搜尋卡在最後一步
+        r.window.searchAction()->trigger();
+        QVERIFY(r.waitState(S::Searching));
+        QTRY_COMPARE_WITH_TIMEOUT(r.hint(), zh("ui.search.hint"), ThemeTokens::builtin().timing.toast + 1000);  // 建立樣本的吐司先結束
+        QVERIFY(r.window.guidancePanel()->rowNote(GuideStep::Search) == zh("ui.guide.busy"));
+        r.probe->windowReleased = 1 << 20;
+        r.probe->gateWindows = false;
+        QVERIFY(r.waitState(S::Preview));
     }
 
     // ---- 位置模式（ADR-026）：吸附到陣列／用匹配位置只重新分類，不重新搜尋 ----

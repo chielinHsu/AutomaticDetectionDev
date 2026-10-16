@@ -4,6 +4,7 @@
 #include <QFile>
 #include <QtTest>
 
+#include "presentation/guidance/GuideDemo.h"
 #include "presentation/i18n/Translations.h"
 #include "presentation/presenters/MessageTexts.h"
 
@@ -219,6 +220,10 @@ private slots:
                                 "ui.selection.applyToAll.tip", "ui.selection.previewOnlyMove", "ui.resize.appliedAll",
                                 "ui.resize.nothingToApply", "ui.history.resizeTypes", "ui.library.boardSamples",
                                 "ui.library.sample.summary", "ui.library.sample.summaryUm", "ui.library.sample.tip",
+                                // 2026-10-15（ADR-027）：操作步驟的面板、說明選單、搜尋中的提示、空白卡片的三步
+                                "menu.help", "action.guide", "ui.guide.title", "ui.guide.intro", "ui.guide.busy", "ui.guide.attention",
+                                "ui.guide.done", "ui.guide.demo.title", "ui.guide.demo.frame", "ui.guide.demo.missing", "ui.search.hint",
+                                "ui.empty.steps",
                                 // 2026-10-15（ADR-026）：吸附到陣列、不在格點上的提醒、選取資訊的「位置」
                                 "ui.preview.offLattice", "ui.selection.position", "ui.selection.position.lattice",
                                 "ui.selection.position.member", "ui.selection.position.matched", "ui.selection.position.moved",
@@ -233,6 +238,30 @@ private slots:
         // 狀態列的摘要不再帶 back end 名稱（它在最左邊的標示，2026-10-08）：舊的兩個 key 已移除（2026-10-09）
         QVERIFY(!keys.contains("ui.status.summary"));
         QVERIFY(!keys.contains("ui.status.none"));
+    }
+
+    // 操作步驟的示範（ADR-027）：每一步的標題、說明、每一張畫面的字幕在兩種語言都有；每一張畫面都在資源裡
+    // （tests/ui/record_guidance 產生、aoi_ux.qrc 內嵌）。張數的唯一來源是 GuideDemo.h 的 guideDemoFrameCount。
+    void everyGuideStepHasTextsAndEveryDemoFrameIsEmbedded() {
+        QFile file(QStringLiteral(":/aoi/ux/copy.json"));
+        QVERIFY(file.open(QIODevice::ReadOnly));
+        const QJsonObject keys = QJsonDocument::fromJson(file.readAll()).object().value("keys").toObject();
+        auto both = [&](const QByteArray& key) {
+            const QJsonObject entry = keys.value(QLatin1String(key)).toObject();
+            QVERIFY2(!entry.value("zh_TW").toString().isEmpty() && !entry.value("en").toString().isEmpty(), key.constData());
+        };
+        for (int i = 0; i < kGuideStepCount; ++i) {
+            const GuideStep step = guideStepAt(i);
+            both(guideStepTitleKey(step));
+            both(guideStepBodyKey(step));
+            QVERIFY(guideDemoFrameCount(step) >= 1);
+            for (int n = 1; n <= guideDemoFrameCount(step); ++n) {
+                both(guideDemoCaptionKey(step, n));
+                QVERIFY2(QFile::exists(guideDemoFramePath(step, n)), qPrintable(guideDemoFramePath(step, n)));
+            }
+            // 沒有多出來的字幕（張數改了要三邊一起改）
+            QVERIFY2(!keys.contains(QLatin1String(guideDemoCaptionKey(step, guideDemoFrameCount(step) + 1))), guideStepKey(step));
+        }
     }
 };
 

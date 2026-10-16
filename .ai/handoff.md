@@ -3,40 +3,38 @@
 > 覆寫式交接單：每次收工整份重寫，不累積歷史（歷史在 `docs/changelog-ai.md`）。保持在 60 行內。
 > 流程見 `ai-handoff` skill。
 
-- 最後一位 agent：Claude Code (Claude Fable 5.1)
-- 日期：2026-10-15
+- 最後一位 agent：Claude Code (Claude Fable 5.1 → Claude Opus 5.5)
+- 日期：2026-10-16
 
 ## 正在做
 
-無。**CAD 框吸附到陣列的格點（[ADR-026](../docs/adr/026-lattice-snapped-positions.md)）完成**：分支 `feat/lattice-snapped-positions`（從 `main` 97495d3 開；兩個 commit：程式與測試、文件），這個 session 在 worktree 執行，`main` 在主 checkout（`D:\AOI_Project\Qt\AutoCadCreated`）上簽出，所以用 `git -C <主 checkout> merge --no-ff` 合併（合併前確認主 checkout 乾淨），沒有 tag、沒有 push。**「操作步驟提示與影片操作提示」（使用者 2026-10-15 的第二個需求；ADR 用 027）在另一個 session 做到一半就停了**（2026-10-16 額度用完）：worktree `.claude/worktrees/beautiful-wilbur-02b592`、分支 `feat/step-guidance`，**37 個檔案的修改都還沒 commit**（含 `aoi_deps.pri`、`.pro`、`aoi_ux.qrc`、`docs/architecture.md`、`.ai/handoff.md`）。接手時以本分支合併後的 `main` 為準，`.ai/handoff.md`、`docs/architecture.md`、`docs/changelog-ai.md`、`copy.json` 會衝突。**接下來仍是 S12**（Start prompt 在 `docs/plan/S12-release.md` 底部），或使用者指定的 P2。
+無。**操作步驟的提示（[ADR-027](../docs/adr/027-step-guidance.md)）完成**：分支 `feat/step-guidance`（從 `main` eb95b79 開；三個 commit：application、presentation、文件；之後併入 `main` 48f7ef4 ＝ 晶格位置吸附〔ADR-026〕的合併，解掉兩個測試檔與文件的衝突），`--no-ff` 合併到 `main`（主 checkout `D:\AOI_Project\Qt\AutoCadCreated`，`git -C`），沒有 tag、沒有 push。**兩個 2026-10-15 的需求（ADR-026、ADR-027）都已在 `main`。接下來仍是 S12**（Start prompt 在 `docs/plan/S12-release.md` 底部），或使用者指定的 P2。**使用者指示：效能基準線（`perf.ps1 -Runs 3 -WriteBaseline`）等他說了再做**（他會先關掉 VS 與 Chrome）；重建時要看 T5、U3（ADR-026 多了 use case 的第 6 階段）。
 
-## 這次做了什麼（細節在 `docs/changelog-ai.md` 最上面那一筆、ADR-026、`docs/current-status.md` 的「CAD 框吸附到陣列的格點」）
+## 這次做了什麼（細節在 `docs/changelog-ai.md` 最上面兩筆、ADR-027、`docs/current-status.md` 的「操作步驟的提示」）
 
-- 使用者回報「CAD 框大小一致，但與鄰近 CAD 框沒有對齊；CAD 框的本質是料件的理論位置」。確認：`Seed`、`Verified` 是 back end 各自的匹配位置，只有 `Predicted` 在格點上；契約測試與 T6b 量的是匹配位置。三個做法給使用者比較，使用者選建議的做法。
-- 兩個位姿並存：`Candidate::pose` 不變，新增 `latticePose`、`latticeDeviationPx`（use case 第 6 階段用最終基底填：成員拿格點、非成員只記偏差）；`PositionMode`（`Lattice` 預設／`Matched`）在 `classify`、`ProposalSession`、`InspectionSession::setPositionMode`（像門檻：不進堆疊、`dropRedo`、復原回到當時的模式）；接受存的就是顯示的位姿。
-- presentation：參數面板「位置」下拉、選取資訊表單「位置」列、預覽卡片「N 個不在陣列的格點上」；`copy.json` 新增 13 個 key。
+- 使用者要求步驟提示與影片提示；確認現況、比較三個方案與四種影片做法，使用者選了訊息列補強＋操作步驟 dock＋程式產生的 PNG 逐格動畫＋F1。
+- application：`interaction/StepGuide`（`guideStatus(const InspectionSession&)`：目前這一步、做完的、進行中、要重做）。presentation：左側「操作步驟」dock（`guidance/GuidancePanel`）、`GuideDemo.h`（示範的張數與檔名）、`AutoRoiPresenter::publishGuidance`（狀態變了才呼叫 View）、`Searching` 的提示、空白卡片的三步、說明選單 `F1`；app：記住 dock 的開關（`guidance/visible`）。
+- 示範畫面：`tests/ui/record_guidance`（不是測試，`tests.pro` 的 `AOI_TOOLS`）產生 `docs/ux/guidance/*.png`（13 張、400 px），`aoi_ux.qrc` 內嵌。**UI 改了要重跑再重新建置**（張數改了三邊一起改，`tst_messages` 會擋）。
+- `copy.json` 新增 36 個 key；presentation 多用 Qt Concurrent（示範畫面在背景解碼）。
+- ADR-026（另一個 session）：`Candidate::latticePose`、`PositionMode`（吸附到陣列／匹配位置）、參數面板「位置」、選取資訊的「位置」列；細節見它的 changelog 那一筆。
 
 ## 建置與測試
 
-- `test.ps1` 預設 Release：**56／57**，唯一失敗 `tst_cli` 的兩項（`halconStartsWhenLicensedAndFailsClearlyOtherwise`、`severalProgramsCanUseHalconAtTheSameTime`：等 8／6 秒讀 stderr，機器忙時程式還沒印出授權提醒）；單獨重跑 `-NoBuild -Filter 'tst_cli'` **通過**（17／17）。和改之前相同：5 個測試有跳過項目（HALCON 0 跳過）、2 個 XFAIL（opencv B1、`tst_image_sources_agree`）。
-- `test.ps1 -Config Debug`：**55／57**。`tst_cli` 同樣的兩項單獨重跑**通過**；`tst_presenter` 只有 `aSlowSearchShowsBusyThenProgressAndEscCancelsToIdleAtOnce` 一項失敗（82 passed、1 skipped），**單獨重跑四次都一樣**——當時另一個 session 的建置與效能量測讓機器滿載（整組 281–292 秒，正常約 35 秒）。量過按〔搜尋〕到事件迴圈之間只有 22–24 ms；忙碌（40 ms）與進度（150 ms）兩個計時器在 UI 執行緒被餓到時同一輪一起觸發，測試只看到 Progress。同一項在 Release 單獨跑通過。**2026-10-16 機器安靜時（負載 6%）重跑 `test.ps1 -Config Debug -NoBuild -Filter 'tst_presenter'`：通過**（83 passed、1 skipped ＝ 截圖，134 秒），所以 Debug 的三個失敗都是機器滿載的計時問題。
-- `node tools/ste-lint.mjs`：979 sentences、0 errors；`node tools/check-deps.mjs`：220 files、0 violations。
-- `-Perf` 與基準線**沒有跑**。上一個 session（2026-10-15，`main` 的 2042435）跑過一次 `perf.ps1 -Runs 3 -WriteBaseline`，結果 INCONCLUSIVE（352／623 個指標變慢，含沒動過的 domain；VS、Chrome、遠端桌面在跑），寫出的基準線已還原、沒有採用；**使用者指示：基準線的重建等他說了再做**（他會先關掉 VS 與 Chrome）。這次 use case 多了第 6 階段（O(n)）、`classify` 多一個判斷，重建時要看 T5、U3。
+- 合併 `main` 48f7ef4 之後（最終的程式）：Release **58／58**、Debug **58／58**（2026-10-16；HALCON 0 跳過；跳過的 5 個測試與 2 個 XFAIL 和改之前相同；`tst_presenter` 85＋1 skipped、`tst_messages` 18、`tst_cli` 17）；示範畫面在合併之後重新產生（參數面板多了「位置」一列），重建後 UI 的測試再跑一次通過。
+- 合併之前（以 eb95b79 為底，2026-10-16）：Release **58／58**、Debug **58／58**（HALCON 0 跳過；跳過與 XFAIL 的清單和改之前相同）；`ste-lint` 0 errors、`check-deps` 0 violations。
+- `perf_ui_s04`（Release，和 `main` eb95b79 前後交替各兩次）：U3 p95 前 29.4、13.9／後 10.1、15.2，I6 前 3.6、4.9／後 2.8、3.1，全部在預算內、差異在雜訊內。
 
 ## 不要動
 
-- `Candidate::pose` 要留匹配位置（契約、A/B、T6b 看它）；吸附只在 `classify`／`ProposalSession`。
-- 吸附的門檻 ＝ 晶格的內點容差（`LatticeOptions::inlierFraction`），不另外加數字；非內點保留匹配位置。
-- 位置模式不是修改（不進堆疊）；切換後 `dropRedo`；復原回到預覽時模式跟著回來（`tst_session` 鎖住）。
-- 樣本不自動移動（`accept` 不碰 Manual）；跨樣本不對齊是已知限制（ADR-026 §7）。
-- 上一次交接的清單照舊：`SampleListCache`／`DocumentSceneCache` 的鍵、表單「Enter 或離開欄位才生效」、`ResizeTypes` 的規則、`mergeSampleProposals`、`accept` 整批換掉、`RoiLayerItem` 字形路徑、`HalconSearchOptions`／`OpenCvSearchOptions` 的預設、`ContractTolerances.h`、opencv B1 的 `QEXPECT_FAIL`、`tokens.json`、`copy.json` 只新增 key、`budgets.json` 的 limit、`ai-project-template/`、`third_party/halcon/`、fixture JSON、`PresenterRig.h` 的視窗閘門、晶格的門檻與 ADR-013、port 契約、`perf/baseline/*.json` 只用 `-WriteBaseline` 重建。
+- `publishGuidance` 只在 `GuideStatus` 變了才碰 dock（U3 的保護；`tst_presenter` 數 `updateCount`）。`StepGuide` 的 Idle 規則用「樣本的類型有沒有自動產生的元件」，不能用 `lastSearch()`（回 Idle 時被清掉）。
+- 示範畫面的解碼與平滑縮放都在背景（UI 執行緒不等）；第一版同步做時 I6 變慢、Debug 的 `tst_presenter` 逾時。`PresenterRig` 預設把 dock 關著（`showGuidance()` 才開）。
+- ADR-026：`Candidate::pose` 留匹配位置；吸附只在 `classify`／`ProposalSession`；吸附門檻 ＝ 晶格的內點容差；位置模式不進堆疊；樣本不自動移動。
+- 之前的清單照舊：`SampleListCache`／`DocumentSceneCache` 的鍵、表單「Enter 或離開欄位才生效」、`ResizeTypes`、`mergeSampleProposals`、`accept` 整批換掉、`RoiLayerItem` 字形路徑、兩個 back end 的搜尋選項預設、`ContractTolerances.h`、opencv B1 的 `QEXPECT_FAIL`、`tokens.json`、`copy.json` 只新增 key、`budgets.json` 的 limit、`ai-project-template/`、`third_party/halcon/`、fixture JSON、`PresenterRig.h` 的視窗閘門、ADR-013、port 契約、`perf/baseline/*.json` 只用 `-WriteBaseline` 重建。
 
 ## 已知問題與風險
 
-- 樣本自己的偏差沒有顯示（樣本不在合併後的提案裡）；位置模式不存檔；畫布沒有用顏色標偏離陣列的；`IParamsSink` 變成 6 個方法。
-- `tst_cli` 的 HALCON 兩項對時間敏感（機器忙時可能失敗，重跑即過）。
-- 等使用者決定的事沒有變（ADR-004、S09、S10、待決定（10））。
-
-## 驗證（實際執行）
-
-- `test.ps1`（Release）56／57 ＋ `tst_cli` 單獨重跑通過；Debug 55／57 ＋ `tst_cli` 重跑通過 ＋ `tst_presenter` 在安靜的機器上重跑通過；`ste-lint` 0 errors、`check-deps` 0 violations；`-Perf` 沒有跑。
+- **對時間敏感的測試**：Debug 的 `tst_presenter::aSlowSearchShowsBusyThenProgressAndEscCancelsToIdleAtOnce`（機器滿載時忙碌與進度兩個計時器同一輪觸發，只看到 Progress；2026-10-15 晚上在 `main` eb95b79 上也失敗）、`tst_cli` 的 HALCON 兩項（等 stderr）。看到它們失敗先在 `main` 上對照或在安靜時重跑，不要當成新修改造成的（這次繞了一大圈，經過在 changelog）。
+- 預覽卡片沒有「下一步」（訊息列 96 px）；真實板子的示範影片沒做；示範畫面「過期」沒有測試抓得到。
+- ADR-026：樣本自己的偏差沒有顯示、位置模式不存檔、跨樣本不對齊；`IParamsSink` 6 個方法。
+- 改 `.pro` 時 JS `String.replace` 的 `$$` 會變成 `$`；主 checkout 第一次建 Debug 時 jom 偶爾在 `.moc` 之前編 `.obj`（先跑各測試 Makefile 的 `mocables`）。
+- 等使用者決定的事沒有變（ADR-004、ADR-009、S09、S10）。
