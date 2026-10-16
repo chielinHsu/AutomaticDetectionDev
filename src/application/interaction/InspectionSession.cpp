@@ -3,6 +3,7 @@
 #include <algorithm>
 
 #include "domain/box_expander.h"
+#include "domain/feature_extract.h"
 
 namespace aoi {
 
@@ -53,6 +54,7 @@ void InspectionSession::imageOpened(std::string name, int width, int height, dou
     if (state() == InteractionState::DrawingRegion) machine_.fire(InteractionEvent::Esc);
     if (state() == InteractionState::EditingType) machine_.fire(InteractionEvent::Cancel);
     document_.reset(std::move(name), width, height, umPerPixel);
+    matchSeed_.reset();  // 種子是舊影像上的像素
     enterIdleCleanup();
     hasImage_ = true;
     machine_.fire(InteractionEvent::ImageOpened);
@@ -354,9 +356,21 @@ SelectionInfo InspectionSession::selectionInfo() const {
         info.typeId = c->typeId;
         info.pose = c->pose;
         if (const std::optional<Size2D> size = document_.bodySizePx(c->typeId)) info.bodyPx = *size;
-        if (const ComponentType* type = document_.findType(c->typeId)) info.boxCount = countBoxes(*type);
+        if (const ComponentType* type = document_.findType(c->typeId)) {
+            info.boxCount = countBoxes(*type);
+            // 比對區（ADR-028）：類型的設定換到這個元件的像素。
+            const MatchSpec spec = matchSpecFor(type->match, c->pose.position(), effectiveUmPerPixel(document_.board().umPerPixel));
+            info.matchMode = type->match.mode;
+            if (spec.rect) {
+                info.matchKind = spec.mask.empty() ? SelectionInfo::MatchKind::Rect : SelectionInfo::MatchKind::Mask;
+                info.matchRectPx = *spec.rect;
+                info.matchPixels = spec.mask.count();
+            }
+            if (seedIsCurrent(*c)) info.matchGrow = matchSeed_->grow;
+        }
         info.canMove = true;
         info.canResize = true;
+        info.canEditMatch = true;
         return info;
     }
     if (previewAcceptsEdits()) {
@@ -401,6 +415,96 @@ bool InspectionSession::addBoxGroup(int componentId, const Rect& rectPx) {
     group.matrix.rows = 1;
     group.matrix.cols = 1;
     return document_.addBoxGroup(c->typeId, std::move(group));
+}
+
+// ---- 比對區（ADR-028）------------------------------------------------------------------------------------
+
+const ComponentInstance* InspectionSession::editableForMatch(int componentId, Rect* bodyPx) const {
+    if (state() != InteractionState::Idle) return nullptr;
+    const ComponentInstance* c = document_.find(componentId);
+    if (c == nullptr) return nullptr;
+    const std::optional<Size2D> size = document_.bodySizePx(c->typeId);
+    if (!size) return nullptr;
+    if (bodyPx != nullptr) *bodyPx = rectFromCenter(c->pose.position(), *size);
+    return c;
+}
+
+bool InspectionSession::applyMatch(const ComponentInstance& c, const Rect& regionPx, const PixelMask* mask, MatchMode mode, bool allowMerge) {
+    const double um = effectiveUmPerPixel(document_.board().umPerPixel);
+    const MatchSettings settings = matchSettingsFromPixels(regionPx, mask, mode, c.pose.position(), um);
+    return document_.setMatchSettings(c.typeId, settings, allowMerge);
+}
+
+bool InspectionSession::seedIsCurrent(const ComponentInstance& c) const {
+    if (!matchSeed_ || matchSeed_->typeId != c.typeId) return false;
+    const ComponentType* type = document_.findType(c.typeId);
+    return type != nullptr && type->match == matchSeed_->applied;
+}
+
+bool InspectionSession::setMatchRect(int componentId, const Rect& rectPx) {
+    Rect body;
+    const ComponentInstance* c = editableForMatch(componentId, &body);
+    if (c == nullptr) return false;
+    const Rect clipped = intersection(rectPx, body);
+    if (clipped.empty() || std::min(clipped.w, clipped.h) < config_.minSamplePx) return false;
+    const ComponentType* type = document_.findType(c->typeId);
+    const MatchMode mode = type != nullptr ? type->match.mode : MatchMode::Intensity;
+    matchSeed_.reset();
+    return applyMatch(*c, clipped, nullptr, mode, false);
+}
+
+InspectionSession::PickResult InspectionSession::pickMatchFeature(int componentId, const ImageView& image, Point2D click, int growPx) {
+    Rect body;
+    const ComponentInstance* c = editableForMatch(componentId, &body);
+    if (c == nullptr || !image.valid()) return PickResult::NotAllowed;
+    const std::optional<BlobPick> pick = pickBrightBlob(image, body, click);
+    if (!pick) return PickResult::NoBlob;
+    const int grow = std::max(0, growPx);
+    const PixelMask mask = growMask(pick->blob, grow, body);
+    if (mask.count() < kMinMatchMaskPixels) return PickResult::TooSmall;
+    const ComponentType* type = document_.findType(c->typeId);
+    const MatchMode mode = type != nullptr ? type->match.mode : MatchMode::Intensity;
+    applyMatch(*c, {}, &mask, mode, false);  // 和現在相同時不進堆疊，種子照樣記下
+    matchSeed_ = MatchSeed{c->typeId, componentId, pick->blob, grow, document_.findType(c->typeId)->match};
+    return PickResult::Picked;
+}
+
+bool InspectionSession::setMatchGrow(int growPx) {
+    if (!matchSeed_) return false;
+    Rect body;
+    const ComponentInstance* c = editableForMatch(matchSeed_->componentId, &body);
+    if (c == nullptr || !seedIsCurrent(*c)) return false;
+    const int grow = std::max(0, growPx);
+    const PixelMask mask = growMask(matchSeed_->blob, grow, body);
+    if (mask.count() < kMinMatchMaskPixels) return false;
+    const bool changed = applyMatch(*c, {}, &mask, matchSeed_->applied.mode, true);
+    matchSeed_->grow = grow;
+    matchSeed_->applied = document_.findType(c->typeId)->match;
+    return changed;
+}
+
+bool InspectionSession::setMatchMode(int componentId, MatchMode mode) {
+    const ComponentInstance* c = editableForMatch(componentId, nullptr);
+    if (c == nullptr) return false;
+    const ComponentType* type = document_.findType(c->typeId);
+    if (type == nullptr) return false;
+    const bool keepSeed = seedIsCurrent(*c);
+    MatchSettings settings = type->match;
+    settings.mode = mode;
+    const bool changed = document_.setMatchSettings(c->typeId, settings);
+    if (keepSeed) matchSeed_->applied = document_.findType(c->typeId)->match;
+    return changed;
+}
+
+bool InspectionSession::clearMatchRegion(int componentId) {
+    const ComponentInstance* c = editableForMatch(componentId, nullptr);
+    if (c == nullptr) return false;
+    const ComponentType* type = document_.findType(c->typeId);
+    if (type == nullptr || !type->match.region) return false;
+    MatchSettings settings = type->match;
+    settings.region.reset();
+    matchSeed_.reset();
+    return document_.setMatchSettings(c->typeId, settings);
 }
 
 // ---- 歷史 ----------------------------------------------------------------------------------------------

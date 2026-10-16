@@ -40,6 +40,16 @@ public:
     std::string_view backendId() const noexcept override { return kBackendId; }
     Result<TemplatePtr> build(const ImageView& image, const Rect& sample, const SearchParams& params,
                               const CancelToken& cancel) override;
+    // 比對區（ADR-028）：假 back end 不看影像，回報的本來就是格子的主體中心，所以忽略比對區與特徵、只用主體框。
+    // 契約的檢查照做：比對區和影像沒有交集時回 InvalidArgument。
+    Result<TemplatePtr> buildFromSample(const ImageView& image, const SampleSpec& spec, const SearchParams& params,
+                                        const CancelToken& cancel) override {
+        if (spec.match.rect && image.valid() &&
+            intersection(*spec.match.rect, Rect{0.0, 0.0, static_cast<double>(image.width), static_cast<double>(image.height)}).empty()) {
+            return makeError(ErrorCode::InvalidArgument, "The match region is outside the image.");
+        }
+        return build(image, spec.body, params, cancel);
+    }
 
 private:
     FakeSpec spec_;  // 建立之後不再改，所以可以被多個執行緒同時讀

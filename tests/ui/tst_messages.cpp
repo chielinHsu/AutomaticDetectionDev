@@ -192,7 +192,7 @@ private slots:
             }
             for (CommandKind k : {CommandKind::Accept, CommandKind::Discard, CommandKind::DeleteComponents, CommandKind::AddComponent,
                                   CommandKind::MoveComponents, CommandKind::AddSample, CommandKind::ResizeType, CommandKind::AddBoxGroup,
-                                  CommandKind::ResizeTypes})
+                                  CommandKind::ResizeTypes, CommandKind::SetMatchRegion})
                 check(historyLabel(k, 3));
         }
     }
@@ -212,7 +212,7 @@ private slots:
                                 "ui.preview.merged", "ui.preview.excluded", "ui.sample.added", "ui.sample.hintIdle", "ui.search.noSamples",
                                 "ui.box.hint", "ui.box.needOne", "ui.box.added", "ui.resize.applied", "ui.history.addSample",
                                 "ui.history.resizeType", "ui.history.addBoxGroup", "action.search", "action.selectAll",
-                                "action.selectSameType", "tool.box",
+                                "action.selectSameType", "tool.box", "tool.match",
                                 // 2026-10-14：選取資訊表單與樣本庫 dock 的樣本清單
                                 "ui.selection.title", "ui.selection.none", "ui.selection.multi", "ui.selection.summary",
                                 "ui.selection.center", "ui.selection.size", "ui.selection.um", "ui.selection.angle",

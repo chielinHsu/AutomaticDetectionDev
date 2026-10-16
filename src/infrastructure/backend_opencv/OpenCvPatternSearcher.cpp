@@ -13,6 +13,7 @@
 
 #include "domain/lattice/non_max_suppression.h"
 #include "infrastructure/backend_opencv/OpenCvCorrelation.h"
+#include "infrastructure/backend_opencv/OpenCvFeatures.h"
 #include "infrastructure/backend_opencv/OpenCvImages.h"
 #include "infrastructure/backend_opencv/OpenCvPyramid.h"
 
@@ -87,10 +88,28 @@ double parabolaOffset(double a, double b, double c) { return std::clamp(parabola
 
 
 // 一個角度的分數圖：小的直接算（OpenCvCorrelation.h），大的用 cv::matchTemplate（DFT）。兩者是同一個定義。
+// 有遮罩（ADR-028）時兩條路都只看遮罩內的像素；cv::matchTemplate 的 inf／NaN 清掉。
 void scoreMap(const cv::Mat& patch, const PatchIntegrals* integrals, const OpenCvTemplateLevel& lv, int k, cv::Mat& scores) {
     const std::size_t i = static_cast<std::size_t>(k);
+    if (lv.masked()) {
+        if (integrals != nullptr) {
+            correlateMasked(patch, lv.centered[i], lv.masks[i], lv.maskCounts[i], lv.centeredSquares[i], scores);
+        } else {
+            cv::matchTemplate(patch, lv.rotated[i], scores, cv::TM_CCOEFF_NORMED, lv.masks[i]);
+            sanitizeScores(scores);
+        }
+        return;
+    }
     if (integrals != nullptr) correlate(patch, *integrals, lv.rotated[i], lv.sums[i], lv.centeredSquares[i], scores);
     else cv::matchTemplate(patch, lv.rotated[i], scores, cv::TM_CCOEFF_NORMED);
+}
+
+// 範本中心（比對區）→ 主體中心（ADR-028）：加上轉過 angle 的原點位移。整框時位移是 0。
+Point2D bodyCenter(const OpenCvTemplate& t, double x, double y, double angleDeg) {
+    const Point2D o = t.originOffset();
+    if (o.x == 0.0 && o.y == 0.0) return {x, y};
+    const Point2D r = rotate(o, angleDeg);
+    return {x + r.x, y + r.y};
 }
 
 // 把角度放回 [min, max]（整圈的範本會給出差 360° 的同一個角度）；放不回去就夾在邊上。
@@ -233,12 +252,12 @@ std::vector<Candidate> coarseSearch(const SearchContext& ctx, const cv::Mat& ima
     return out;
 }
 
-// 同一個元件的候選只留分數最高的（範本大小的旋轉矩形），再依分數留前 limit 個。
+// 同一個元件的候選只留分數最高的（範本大小的旋轉矩形，在範本中心），再依分數留前 limit 個。
 std::vector<Candidate> suppress(std::vector<Candidate> candidates, const OpenCvTemplate& t, double maxOverlap, std::size_t limit) {
     std::vector<ScoredBox> boxes;
     boxes.reserve(candidates.size());
     for (const Candidate& c : candidates) {
-        if (c.alive) boxes.push_back({RectObj{Pose2D{c.x, c.y, c.angleDeg}, t.size().w, t.size().h}, c.score});
+        if (c.alive) boxes.push_back({RectObj{Pose2D{c.x, c.y, c.angleDeg}, t.matchSize().w, t.matchSize().h}, c.score});
     }
     std::vector<Candidate> alive;
     alive.reserve(boxes.size());
@@ -401,7 +420,11 @@ std::vector<Candidate> searchArea(const SearchContext& ctx, const Area& area) {
 
     const OpenCvTemplate& t = ctx.tmpl;
     t0 = Clock::now();
-    const std::vector<cv::Mat> pyramid = buildPyramid(gray.mat, t.topLevel() + 1);
+    std::vector<cv::Mat> pyramid = buildPyramid(gray.mat, t.topLevel() + 1);
+    // 邊緣模式（ADR-028）：和範本建立器同一個時點——每一層各自算特徵。
+    if (t.mode() != MatchMode::Intensity) {
+        for (cv::Mat& level : pyramid) level = featureImage(level, t.mode(), t.featureScale());
+    }
     stats.pyramidMs = millisecondsSince(t0);
 
     // 頂層：範本要放得進那一層的影像（小視窗在高層可能放不進，就從低一點的層開始）。
@@ -415,8 +438,9 @@ std::vector<Candidate> searchArea(const SearchContext& ctx, const Area& area) {
 
     t0 = Clock::now();
     std::vector<Candidate> candidates = coarseSearch(ctx, pyramid[static_cast<std::size_t>(top)], top, origin, stats.topAngles);
-    // 中心離區域太遠的不必精修（精修最多移動頂層的一兩個像素）。
-    const double slack = std::ldexp(2.0, top);
+    // 中心離區域太遠的不必精修（精修最多移動頂層的一兩個像素）。候選是範本（比對區）的中心，區域管的是主體中心：
+    // 兩者最多差原點位移的長度（ADR-028）。
+    const double slack = std::ldexp(2.0, top) + t.originDistance();
     const Rect reach{area.accept.x - slack, area.accept.y - slack, area.accept.w + 2.0 * slack, area.accept.h + 2.0 * slack};
     std::erase_if(candidates, [&](const Candidate& c) { return !reach.contains({c.x, c.y}); });
     candidates = suppress(std::move(candidates), t, ctx.options.nmsMaxOverlap, area.maxCandidates);
@@ -484,23 +508,25 @@ Result<std::vector<Match>> OpenCvPatternSearcher::find(const ImageView& image, c
 
         const Rect imageRect{0.0, 0.0, static_cast<double>(image.width), static_cast<double>(image.height)};
         const cv::Rect imagePixels(0, 0, image.width, image.height);
-        const double tw = t->size().w;
+        const double tw = t->size().w;   // 主體框（元件）的大小
         const double th = t->size().h;
+        const double mw = t->matchSize().w;  // 範本（比對區）的大小；整框時和主體框相同
+        const double mh = t->matchSize().h;
         std::vector<Area> areas;
         if (region.kind == SearchRegion::Kind::WholeImage) {
             // 頂層的候選最多 maxMatches 的兩倍（精修會淘汰一些）；不溢位。
             const std::size_t limit = params.maxMatches > SIZE_MAX / 2 ? SIZE_MAX : params.maxMatches * 2;
             areas.push_back({imagePixels, imageRect, std::max<std::size_t>(64, limit)});
         } else {
-            // 每個視窗外加「範本的一半 ＋ 頂層兩個像素」：中心落在視窗裡的元件，整個範本都在這塊裡面。
-            const double margin = 0.5 * std::hypot(tw, th) + std::ldexp(2.0, t->topLevel()) + 1.0;
+            // 每個視窗外加「範本的一半 ＋ 原點位移 ＋ 頂層兩個像素」：主體中心落在視窗裡的元件，整個範本都在這塊裡面。
+            const double margin = 0.5 * std::hypot(mw, mh) + t->originDistance() + std::ldexp(2.0, t->topLevel()) + 1.0;
             for (const Rect& w : region.windows) {
                 const Rect accept = intersection(w, imageRect);
                 if (accept.empty()) continue;
                 const cv::Rect roi(static_cast<int>(std::floor(accept.x - margin)), static_cast<int>(std::floor(accept.y - margin)),
                                    static_cast<int>(std::ceil(accept.w + 2.0 * margin)) + 1, static_cast<int>(std::ceil(accept.h + 2.0 * margin)) + 1);
                 const cv::Rect clipped = roi & imagePixels;
-                if (clipped.width < static_cast<int>(tw) || clipped.height < static_cast<int>(th)) continue;
+                if (clipped.width < static_cast<int>(mw) || clipped.height < static_cast<int>(mh)) continue;
                 // 視窗驗證的視窗只比範本大一點：最多 maxCandidatesPerWindow 個。大的區域（流程 B 的區域掃描）可以有很多元件：
                 // 依面積放寬（每個範本面積 2 個）。
                 const double capacity = std::ceil(2.0 * accept.area() / std::max(1.0, tw * th));
@@ -531,18 +557,20 @@ Result<std::vector<Match>> OpenCvPatternSearcher::find(const ImageView& image, c
         if (errors.failed()) return errors.take();
         if (cancel.cancelled()) return cancelledError();
 
-        // 過濾（分數、中心在區域內）→ NMS（重疊的視窗、平台上的幾個峰）→ 排序 → 最多 maxMatches 個。
+        // 範本中心換成主體中心（ADR-028）→ 過濾（分數、主體中心在區域內）→ NMS（重疊的視窗、平台上的幾個峰；
+        // 範本大小、在範本中心：密排的元件主體框可能互相重疊，範本不會）→ 排序 → 最多 maxMatches 個。整框時兩者相同。
         const Clock::time_point nmsStart = Clock::now();
         std::vector<Match> matches;
+        std::vector<ScoredBox> boxes;
         for (std::size_t a = 0; a < areas.size(); ++a) {
             for (const Candidate& c : found[a]) {
-                if (!(c.score >= params.minScore) || !areas[a].accept.contains({c.x, c.y})) continue;
-                matches.push_back({Pose2D{c.x, c.y, angleIntoRange(c.angleDeg, params)}, std::clamp(c.score, 0.0, 1.0)});
+                const double angle = angleIntoRange(c.angleDeg, params);
+                const Point2D body = bodyCenter(*t, c.x, c.y, angle);
+                if (!(c.score >= params.minScore) || !areas[a].accept.contains(body)) continue;
+                matches.push_back({Pose2D{body.x, body.y, angle}, std::clamp(c.score, 0.0, 1.0)});
+                boxes.push_back({RectObj{Pose2D{c.x, c.y, angle}, mw, mh}, matches.back().score});
             }
         }
-        std::vector<ScoredBox> boxes;
-        boxes.reserve(matches.size());
-        for (const Match& m : matches) boxes.push_back({RectObj{m.pose, tw, th}, m.score});
         const std::vector<std::size_t> kept =
             NonMaxSuppression(NmsOptions{options_.nmsMaxOverlap, OverlapMeasure::IntersectionOverUnion}).keep(boxes);
         std::vector<Match> out;

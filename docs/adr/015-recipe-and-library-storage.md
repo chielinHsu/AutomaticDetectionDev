@@ -79,3 +79,10 @@ S03 定了 port：`IRecipeStore`（save／load 一份 `Recipe` ＝ 板子＋搜�
 - 範例檔：`tests/infra/fixtures/recipe-v1.json` **沒有改**（照樣讀得進來，位元數是 0）；新增 `recipe-v2.json`（v1 的內容加上 `significantBits: 12`），同樣**不要改**。
 - 樣本庫的格式沒有變（`aoi-library` 仍是 v1：參考影像本來就存自己的 `significantBits`）。
 - 證據：`tst_recipe_store`（v2 往返逐欄位、v1 範例遷移後位元數 0、v2 範例除了位元數和 v1 相同、7 與 17 是格式錯誤、遷移機制用「內建 v1 → v2 ＋ 兩個假的」測逐版升級、比 v2 新的檔案拒讀）。
+
+## 後續（2026-10-15）：配方 v3、樣本庫 v2（ADR-028）
+
+- 每個類型多一個 `match`：`{"mode": "intensity"|"edges", "region": null | {centerXUm, centerYUm, widthUm, heightUm, "mask": null | {width, height, "runs": [[row, colBegin, colEnd], …]}}}`。遮罩用 run 的 JSON 陣列（看得懂、diff 得出來、容易嚴格檢查），不用 base64。
+- 遷移：配方 v2 → v3、樣本庫 v1 → v2（樣本庫第一次有遷移）都補整框、灰階（和之前的行為相同）。`recipe-v1.json`、`recipe-v2.json`、`library-v1.json` 不改，照樣讀得進來；新增 `recipe-v3.json`（矩形＋邊緣、遮罩）。
+- 讀的時候嚴格檢查：遮罩的格子 1..4096、每段在格子內、同一列依序不重疊、不能是空的，違反就 `FormatInvalid`（帶 JSON 路徑）。
+- 新格式的檔案舊版程式讀不了（比自己新的版本不讀）；使用者 2026-10-15 同意升版。

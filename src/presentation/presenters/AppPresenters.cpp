@@ -32,6 +32,7 @@ AppPresenters::AppPresenters(MainWindow& window, PresenterServices services, Bac
     controllers.canvas = autoRoi_.get();
     controllers.selection = autoRoi_.get();
     controllers.selectionEdit = autoRoi_.get();
+    controllers.matchEdit = autoRoi_.get();
     controllers.keyboard = autoRoi_.get();
     controllers.proposal = autoRoi_.get();
     controllers.message = autoRoi_.get();

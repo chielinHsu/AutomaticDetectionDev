@@ -42,6 +42,7 @@ struct SampleOnBoard {
     std::string typeId;
     int componentId = 0;
     Rect rect;
+    MatchSpec match;  // 類型的比對區換到這個樣本的影像像素（ADR-028；預設 ＝ 整框）
 };
 
 // 已接受的文件：一塊板子的元件，以及對它的全部修改（ADR-002 的「文件堆疊」）。
@@ -109,6 +110,10 @@ public:
     // 在類型上加一個框群組（子框，B 工具）：group 的座標是類型座標（µm，相對主體中心）；id 由文件指派。同類型全部元件一起多出這些框。
     // 類型不存在時回 false。
     bool addBoxGroup(const std::string& typeId, BoxGroup group);
+    // 改類型的比對區與比對特徵（ADR-028，M 工具與選取資訊）：settings 是類型座標（µm，相對主體中心）。CAD 框不變。
+    // 一個 Command（SetMatchRegion，count ＝ 同類型的元件數）；allowMerge ＝ true 且上一步是同一個類型的 SetMatchRegion 時
+    // 併成一步（拖外擴滑桿）。類型不存在、或和現在相同時回 false（不進堆疊）。
+    bool setMatchSettings(const std::string& typeId, const MatchSettings& settings, bool allowMerge = false);
 
     // ---- 歷史 ----
     UndoOutcome undo();

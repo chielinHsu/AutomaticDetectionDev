@@ -60,8 +60,15 @@ HalconSmoothing chooseHalconSmoothing(const HalconSampleStatistics& stats, const
 // find_shape_model(s) 的結果（只取 indices 指到的那幾個；空 ＝ 全部）→ 契約的匹配：
 // 換算位姿（HalconPose.h）、角度放回範圍、分數 < minScore 與中心不在任何 accept 的丟掉、
 // 範本大小（size）的旋轉矩形做 NMS（IoU > nmsMaxOverlap）、依分數排序（同分依 y、再依 x）、最多 maxMatches 個。
+// 比對區（ADR-028）：originOffset 不是 0 時，參考點加上 rotate(originOffset, 角度) ＝ 主體中心，accept 看主體中心；
+// NMS 的框（size ＝ 比對區）放在參考點。整框時 originOffset 是 0，和之前相同。
 std::vector<Match> halconMatches(const HalconCpp::HTuple& rows, const HalconCpp::HTuple& columns, const HalconCpp::HTuple& angles,
                                  const HalconCpp::HTuple& scores, const std::vector<Hlong>& indices, const HalconGray& gray,
-                                 const std::vector<Rect>& accepts, const SearchParams& params, Size2D size, double nmsMaxOverlap);
+                                 const std::vector<Rect>& accepts, const SearchParams& params, Size2D size, double nmsMaxOverlap,
+                                 Point2D originOffset = {});
+
+// 比對區（ADR-028）：主體中心要落在 accepts 裡 → 參考點（＝ 主體中心 − rotate(originOffset, θ)）要落在哪裡。
+// θ 在 [angleMin, angleMax]：半範圍 < 90° 時平移 −rotate(o, 中間角度)，再往外擴 |o|·2·sin(半範圍／2) ＋ 1；否則不平移、擴 |o|。
+std::vector<Rect> referenceWindows(const std::vector<Rect>& accepts, Point2D originOffset, double angleMinDeg, double angleMaxDeg);
 
 }  // namespace aoi::infra

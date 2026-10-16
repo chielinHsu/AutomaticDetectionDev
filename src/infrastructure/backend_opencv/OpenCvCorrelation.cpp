@@ -51,4 +51,54 @@ bool correlateDirectly(const cv::Size& patch, const cv::Size& templ) noexcept {
     return positions * static_cast<double>(templ.area()) <= 4.0e6;
 }
 
+void correlateMasked(const cv::Mat& patch, const cv::Mat& centered, const cv::Mat& mask, double maskCount, double centeredSquares,
+                     cv::Mat& scores) {
+    const int w = centered.cols;
+    const int h = centered.rows;
+    const int rows = patch.rows - h + 1;
+    const int cols = patch.cols - w + 1;
+    scores.create(rows, cols, CV_32F);
+    for (int y = 0; y < rows; ++y) {
+        float* out = scores.ptr<float>(y);
+        for (int x = 0; x < cols; ++x) {
+            double dot = 0.0;
+            double sumI = 0.0;
+            double sumI2 = 0.0;
+            for (int j = 0; j < h; ++j) {
+                const std::uint8_t* ip = patch.ptr<std::uint8_t>(y + j) + x;
+                const float* tp = centered.ptr<float>(j);
+                const std::uint8_t* mp = mask.ptr<std::uint8_t>(j);
+                float rowDot = 0.0f;
+                std::int32_t rowSum = 0;
+                std::int32_t rowSquares = 0;  // 一列最多 255² × w：w < 33 000 不會溢位
+                for (int i = 0; i < w; ++i) {
+                    const std::int32_t v = ip[i];
+                    rowDot += tp[i] * static_cast<float>(v);
+                    if (mp[i] != 0) {
+                        rowSum += v;
+                        rowSquares += v * v;
+                    }
+                }
+                dot += rowDot;
+                sumI += rowSum;
+                sumI2 += rowSquares;
+            }
+            const double varI = sumI2 - sumI * sumI / maskCount;
+            const double denominator = std::sqrt(std::max(0.0, varI) * centeredSquares);
+            out[x] = denominator > 1e-9 ? static_cast<float>(std::clamp(dot / denominator, -1.0, 1.0)) : 0.0f;
+        }
+    }
+}
+
+void sanitizeScores(cv::Mat& scores) {
+    for (int y = 0; y < scores.rows; ++y) {
+        float* s = scores.ptr<float>(y);
+        for (int x = 0; x < scores.cols; ++x) {
+            const float v = s[x];
+            if (!std::isfinite(v) || std::abs(v) > 1.0f + 1e-3f) s[x] = 0.0f;
+            else s[x] = std::clamp(v, -1.0f, 1.0f);
+        }
+    }
+}
+
 }  // namespace aoi::infra

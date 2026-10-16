@@ -125,13 +125,25 @@ Result<SampleProposal> GenerateObjectsFromSample::run(const SampleRequest& reque
     if (sample.empty()) return stopWith(NoMatchReason::SampleOffPart);
     if (std::min(sample.w, sample.h) < options.minSamplePx) return stopWith(NoMatchReason::SampleTooSmall);
     if (sample.area() > options.maxSampleAreaFraction * imageRect.area()) return stopWith(NoMatchReason::SampleTooLarge);
-    if (luminanceStdDev(request.image, sample) < options.minContrast) return stopWith(NoMatchReason::LowContrast);
+
+    // 比對區（ADR-028）：範本只用它的像素，所以對比與最小邊長量它。矩形裁到影像內；遮罩的外接矩形由 adapter 裁。
+    // 沒有比對區時 matchArea ＝ sample（和之前相同）。
+    MatchSpec match = request.match;
+    Rect matchArea = sample;
+    if (match.rect) {
+        if (!finite(*match.rect)) return makeError(ErrorCode::InvalidArgument, "The match region is not finite.");
+        matchArea = intersection(*match.rect, imageRect);
+        if (matchArea.empty()) return stopWith(NoMatchReason::SampleOffPart);
+        if (std::min(matchArea.w, matchArea.h) < options.minSamplePx) return stopWith(NoMatchReason::SampleTooSmall);
+        if (match.mask.empty()) match.rect = matchArea;
+    }
+    if (luminanceStdDev(request.image, matchArea) < options.minContrast) return stopWith(NoMatchReason::LowContrast);
 
     // ---- 2. 建範本 ----
     const Clock::time_point templateStart = Clock::now();
     Result<TemplatePtr> built = [&] {
         ScopedTimer timer(probe_, "uc.sample.template");
-        return builder_.build(request.image, sample, request.search, cancel);
+        return builder_.buildFromSample(request.image, SampleSpec{sample, std::move(match)}, request.search, cancel);
     }();
     proposal.timings.templateMs = millisecondsSince(templateStart);
     if (!built) return built.error();

@@ -46,6 +46,8 @@ struct SampleRequest {
     // 角度範圍與 maxMatches 由這裡來；minScore 會被 use case 依階段覆寫（seedMinScore、candidateFloor）。
     SearchParams search;
     GenerateOptions options;
+    // 建範本用的比對區與特徵（ADR-028；影像像素）。預設 ＝ 整個 sample、灰階（和之前相同）。
+    MatchSpec match;
 };
 
 struct StageTimings {

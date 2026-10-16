@@ -65,10 +65,10 @@ class TstTools : public QObject {
     Q_OBJECT
 private slots:
     // ---- 註冊表 ----
-    void registryHasTheFiveDefaultTools() {
+    void registryHasTheSixDefaultTools() {
         ToolRegistry r = ToolRegistry::makeDefault();
-        QCOMPARE(static_cast<int>(r.ids().size()), 5);
-        for (ToolId id : {ToolId::Select, ToolId::Sample, ToolId::Region, ToolId::Add, ToolId::Box}) {
+        QCOMPARE(static_cast<int>(r.ids().size()), 6);  // ADR-028 起多 M（比對區）
+        for (ToolId id : {ToolId::Select, ToolId::Sample, ToolId::Region, ToolId::Add, ToolId::Box, ToolId::Match}) {
             QVERIFY(r.find(id));
             QCOMPARE(r.find(id)->id(), id);
         }

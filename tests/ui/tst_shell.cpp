@@ -96,7 +96,7 @@ private slots:
         Fixture f;
         auto* rail = f.window.findChild<QToolBar*>(QStringLiteral("toolRail"));
         QVERIFY(rail);
-        for (ToolId id : {ToolId::Select, ToolId::Sample, ToolId::Region, ToolId::Add, ToolId::Box}) {
+        for (ToolId id : {ToolId::Select, ToolId::Sample, ToolId::Region, ToolId::Add, ToolId::Box, ToolId::Match}) {
             QWidget* button = rail->widgetForAction(f.window.toolAction(id));
             QVERIFY(button);
             QVERIFY2(button->width() >= tokens().sizes.toolbarButton && button->height() >= tokens().sizes.toolbarButton,
@@ -172,7 +172,7 @@ private slots:
         const QPointF cardCenter = f.window.emptyCard()->geometry().center();
         const QPointF vpCenter = centerOf(f.vp());
         QVERIFY(std::abs(cardCenter.x() - vpCenter.x()) <= 2 && std::abs(cardCenter.y() - vpCenter.y()) <= 2);
-        for (ToolId id : {ToolId::Select, ToolId::Sample, ToolId::Region, ToolId::Add, ToolId::Box})
+        for (ToolId id : {ToolId::Select, ToolId::Sample, ToolId::Region, ToolId::Add, ToolId::Box, ToolId::Match})
             QVERIFY(!f.window.toolAction(id)->isEnabled());
         QVERIFY(!f.window.fitAction()->isEnabled());
         QVERIFY(!f.window.fitWidthAction()->isEnabled());
@@ -182,7 +182,7 @@ private slots:
         Fixture f(true);
         QVERIFY(f.canvas()->hasImage());
         QVERIFY(!f.window.emptyCard()->isVisible());
-        for (ToolId id : {ToolId::Select, ToolId::Sample, ToolId::Region, ToolId::Add, ToolId::Box})
+        for (ToolId id : {ToolId::Select, ToolId::Sample, ToolId::Region, ToolId::Add, ToolId::Box, ToolId::Match})
             QVERIFY(f.window.toolAction(id)->isEnabled());
         QVERIFY(f.window.fitAction()->isEnabled());
         QVERIFY(f.window.fitWidthAction()->isEnabled());

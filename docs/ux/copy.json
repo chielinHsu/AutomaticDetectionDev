@@ -227,6 +227,82 @@
       "zh_TW": "畫子框：在所選的元件上框一個框，同類型一起更新",
       "en": "Draw box: add a box to the selected part and every part of its type"
     },
+    "tool.match": {
+      "zh_TW": "比對區：在所選的元件上框出要比對的特徵（點一下＝自動擷取亮塊），CAD 框不變",
+      "en": "Match region: on the selected part, frame the feature to match (click = pick the bright blob); the CAD box stays"
+    },
+    "ui.match.needOne": {
+      "zh_TW": "先選取一個元件，再在它上面設定比對區。",
+      "en": "Select one part first, then set the match region on it."
+    },
+    "ui.match.set": {
+      "zh_TW": "已設定比對區：同類型的 {count} 個元件一起更新，下次搜尋生效 · Ctrl+Z 復原",
+      "en": "Match region set: {count} parts of this type updated, used from the next search · Ctrl+Z to undo"
+    },
+    "ui.match.picked": {
+      "zh_TW": "已擷取比對區（亮塊＋外擴）：同類型的 {count} 個元件一起更新，可以在選取資訊調外擴 · Ctrl+Z 復原",
+      "en": "Match region picked (bright blob + margin): {count} parts of this type updated; adjust the margin in Selection · Ctrl+Z to undo"
+    },
+    "ui.match.noBlob": {
+      "zh_TW": "主體框裡找不到亮塊：改用拖曳框出比對區。",
+      "en": "No bright blob in the body box: drag a rectangle instead."
+    },
+    "ui.match.tooSmall": {
+      "zh_TW": "比對區太小（或在主體框外）：框大一點。",
+      "en": "The match region is too small (or outside the body box): make it bigger."
+    },
+    "ui.match.cleared": {
+      "zh_TW": "已清除比對區：回到整個主體框 · Ctrl+Z 復原",
+      "en": "Match region cleared: back to the whole body box · Ctrl+Z to undo"
+    },
+    "ui.selection.match.title": {
+      "zh_TW": "比對區",
+      "en": "Match region"
+    },
+    "ui.selection.match.tip": {
+      "zh_TW": "建範本只用這一塊（M 工具設定）；找到後 CAD 框照原樣放在主體中心",
+      "en": "The template uses only this area (set it with the M tool); the CAD box is still placed at the body center"
+    },
+    "ui.selection.match.none": {
+      "zh_TW": "整個主體框",
+      "en": "Whole body box"
+    },
+    "ui.selection.match.rect": {
+      "zh_TW": "矩形 {w} × {h} px",
+      "en": "Rectangle {w} × {h} px"
+    },
+    "ui.selection.match.mask": {
+      "zh_TW": "遮罩 {count} px（{w} × {h}）",
+      "en": "Mask {count} px ({w} × {h})"
+    },
+    "ui.selection.match.mode": {
+      "zh_TW": "特徵",
+      "en": "Feature"
+    },
+    "ui.selection.match.mode.intensity": {
+      "zh_TW": "灰階",
+      "en": "Intensity"
+    },
+    "ui.selection.match.mode.edges": {
+      "zh_TW": "邊緣",
+      "en": "Edges"
+    },
+    "ui.selection.match.mode.tip": {
+      "zh_TW": "邊緣：比梯度大小，亮度不均時比較穩（OpenCV；HALCON 本來就比邊緣，兩種相同）",
+      "en": "Edges: compare gradient magnitude, steadier under uneven light (OpenCV; HALCON always uses edges)"
+    },
+    "ui.selection.match.grow": {
+      "zh_TW": "外擴",
+      "en": "Margin"
+    },
+    "ui.selection.match.grow.tip": {
+      "zh_TW": "自動擷取的亮塊往外擴幾個像素（只有點一下擷取的遮罩能調）",
+      "en": "How many pixels to grow the picked blob (only for a picked mask)"
+    },
+    "ui.selection.match.clear": {
+      "zh_TW": "清除比對區",
+      "en": "Clear match region"
+    },
     "ui.noMatch.title": {
       "zh_TW": "沒有找到相似的元件",
       "en": "No similar part found"
@@ -1178,6 +1254,10 @@
     "ui.history.resizeTypes": {
       "zh_TW": "把 {count} 個類型的框設成同樣大小",
       "en": "Set the boxes of {count} types to one size"
+    },
+    "ui.history.setMatchRegion": {
+      "zh_TW": "改比對區（{count} 個元件的類型）",
+      "en": "Change the match region (type of {count} components)"
     },
     "ui.library.boardSamples": {
       "zh_TW": "板子上的 {count} 個樣本 · 點一筆在畫布上選取它",

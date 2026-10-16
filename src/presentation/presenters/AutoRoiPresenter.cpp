@@ -148,6 +148,43 @@ void AutoRoiPresenter::onPointerDragChanged(bool active, ToolId tool) {
 // ---- ICanvasController ---------------------------------------------------------------------------------
 
 void AutoRoiPresenter::onRegionDrawn(const QRectF& rect, DraftMode mode) {
+    if (mode == DraftMode::Match) {
+        // M 工具（ADR-028）：在所選的那一個元件上設定比對區。拖一個框 ＝ 矩形；點一下（框幾乎沒有大小）＝ 自動擷取
+        // （Otsu ＋ 離點擊最近的亮塊 ＋ 外擴）。不經過狀態機（Idle 的一個 Command），規則在 InspectionSession。
+        views_.canvas.showRegionDraft(std::nullopt, mode);
+        if (session_.selection().size() != 1 || state() != InteractionState::Idle) {
+            views_.status.showToast(uiText("ui.match.needOne"));
+            return;
+        }
+        const int id = session_.selection().front();
+        const bool click = std::max(rect.width(), rect.height()) < 2.0;
+        if (click) {
+            switch (session_.pickMatchFeature(id, image_, Point2D{rect.center().x(), rect.center().y()}, kDefaultMatchGrowPx)) {
+                case InspectionSession::PickResult::Picked: break;
+                case InspectionSession::PickResult::NoBlob:
+                    views_.status.showToast(uiText("ui.match.noBlob"));
+                    publishSelection();
+                    return;
+                case InspectionSession::PickResult::TooSmall:
+                    views_.status.showToast(uiText("ui.match.tooSmall"));
+                    publishSelection();
+                    return;
+                case InspectionSession::PickResult::NotAllowed:
+                    views_.status.showToast(uiText("ui.match.needOne"));
+                    publishSelection();
+                    return;
+            }
+        } else if (!session_.setMatchRect(id, toRect(rect))) {
+            views_.status.showToast(uiText("ui.match.tooSmall"));
+            publishSelection();
+            return;
+        }
+        publishAll();
+        const ComponentInstance* c = session_.document().find(id);
+        const std::size_t affected = c ? session_.document().componentsOfType(c->typeId).size() : 1;
+        views_.status.showToast(uiText(click ? "ui.match.picked" : "ui.match.set", {{"count", QString::number(affected)}}));
+        return;
+    }
     if (mode == DraftMode::Box) {
         // B 工具（ADR-025）：在所選的那一個元件上加子框。不經過狀態機（Idle 的一個 Command）。
         views_.canvas.showRegionDraft(std::nullopt, mode);
@@ -267,6 +304,7 @@ void AutoRoiPresenter::select(const std::vector<int>& sceneIds) {
     nudgeClock_.invalidate();
     session_.select(toSessionIds(sceneIds));
     publishSelection();
+    publishDraft();  // 比對區的草稿框跟著選取（ADR-028）
 }
 
 void AutoRoiPresenter::deleteSelected() {
@@ -279,12 +317,14 @@ void AutoRoiPresenter::selectAll() {
     nudgeClock_.invalidate();
     if (session_.selectAll() == 0) return;
     publishSelection();
+    publishDraft();
 }
 
 void AutoRoiPresenter::selectSameType() {
     nudgeClock_.invalidate();
     if (session_.selectSameType() == 0) return;
     publishSelection();
+    publishDraft();
 }
 
 // ---- ISelectionEditController（選取資訊表單，2026-10-14）---------------------------------------------------
@@ -333,6 +373,37 @@ void AutoRoiPresenter::applySizeToAllSamples() {
     views_.status.showToast(uiText("ui.resize.appliedAll", {{"count", QString::number(types)},
                                                              {"w", QString::number(info.bodyPx.w, 'f', 1)},
                                                              {"h", QString::number(info.bodyPx.h, 'f', 1)}}));
+}
+
+// ---- IMatchRegionEditController（比對區，ADR-028）--------------------------------------------------------
+
+void AutoRoiPresenter::setMatchMode(int mode) {
+    const SelectionInfo info = session_.selectionInfo();
+    if (info.count != 1 || !info.canEditMatch) {
+        publishSelection();
+        return;
+    }
+    if (session_.setMatchMode(info.id, mode == 1 ? MatchMode::Edges : MatchMode::Intensity)) publishAll();
+    else publishSelection();
+}
+
+void AutoRoiPresenter::setMatchGrow(int growPx) {
+    if (session_.setMatchGrow(growPx)) {
+        publishAll();
+    } else {
+        views_.status.showToast(uiText("ui.match.tooSmall"));
+        publishSelection();
+    }
+}
+
+void AutoRoiPresenter::clearMatchRegion() {
+    const SelectionInfo info = session_.selectionInfo();
+    if (info.count == 1 && info.canEditMatch && session_.clearMatchRegion(info.id)) {
+        publishAll();
+        views_.status.showToast(uiText("ui.match.cleared"));
+        return;
+    }
+    publishSelection();
 }
 
 // ---- IKeyboardController -------------------------------------------------------------------------------
@@ -607,6 +678,7 @@ std::optional<CompareRequest> AutoRoiPresenter::compareRequest() const {
     CompareRequest request;
     request.image = image_;
     request.sample = target->region;
+    if (!target->samples.empty()) request.match = target->samples.front().match;
     request.search = searchParams_;
     request.threshold = session_.threshold();
     request.imageName = imageName_;
@@ -625,7 +697,7 @@ void AutoRoiPresenter::startSearch() {
     BoardSearchRequest request;
     request.image = image_;  // 帶著 owner：像素活到工作結束
     request.search = searchParams_;
-    for (const SampleOnBoard& s : target.samples) request.samples.push_back(SampleSearch{s.typeId, s.rect});
+    for (const SampleOnBoard& s : target.samples) request.samples.push_back(SampleSearch{s.typeId, s.rect, s.match});
     const Board& board = session_.document().board();
     for (const ComponentInstance& c : board.components) {
         if (c.origin != ObjectOrigin::Manual || c.state == ObjectState::Sample) continue;
@@ -863,6 +935,22 @@ SelectionInfoView AutoRoiPresenter::selectionInfoView() const {
     view.umPerPixel = session_.document().board().umPerPixel;
     view.canMove = info.canMove;
     view.canResize = info.canResize;
+    view.canEditMatch = info.canEditMatch;
+    view.matchMode = info.matchMode == MatchMode::Edges ? 1 : 0;
+    view.matchGrow = info.matchGrow ? *info.matchGrow : -1;
+    view.hasMatchRegion = info.matchKind != SelectionInfo::MatchKind::None;
+    switch (info.matchKind) {
+        case SelectionInfo::MatchKind::None: view.matchText = uiText("ui.selection.match.none"); break;
+        case SelectionInfo::MatchKind::Rect:
+            view.matchText = uiText("ui.selection.match.rect", {{"w", QString::number(info.matchRectPx.w, 'f', 0)},
+                                                                {"h", QString::number(info.matchRectPx.h, 'f', 0)}});
+            break;
+        case SelectionInfo::MatchKind::Mask:
+            view.matchText = uiText("ui.selection.match.mask", {{"count", QString::number(info.matchPixels)},
+                                                                {"w", QString::number(info.matchRectPx.w, 'f', 0)},
+                                                                {"h", QString::number(info.matchRectPx.h, 'f', 0)}});
+            break;
+    }
     view.proposal = info.proposal;
     view.inLattice = info.inLattice;
     view.moved = info.moved;
@@ -888,6 +976,13 @@ void AutoRoiPresenter::publishDraft() {
                       (s == InteractionState::Error && session_.errorSource() == ErrorSource::Search);
     // 樣本是板子上的元件（框層會畫），只有區域掃描的框要留著（ADR-025）。
     if (!show || !session_.lastSearch() || session_.lastSearch()->mode != RegionMode::Region) {
+        // 比對區（ADR-028）：Idle 時選了一個有比對區的元件，用草稿框畫出比對區（遮罩畫外接矩形；P1 的畫法）。
+        const SelectionInfo info = session_.selectionInfo();
+        if (s == InteractionState::Idle && info.count == 1 && info.matchKind != SelectionInfo::MatchKind::None) {
+            const Rect& r = info.matchRectPx;
+            views_.canvas.showRegionDraft(QRectF(r.x, r.y, r.w, r.h), DraftMode::Match);
+            return;
+        }
         views_.canvas.showRegionDraft(std::nullopt, DraftMode::Sample);
         return;
     }

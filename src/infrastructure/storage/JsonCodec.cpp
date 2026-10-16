@@ -36,6 +36,9 @@ constexpr std::array<Name<ObjectState>, 4> kStates{{{ObjectState::Sample, "sampl
                                                     {ObjectState::Inferred, "inferred"},
                                                     {ObjectState::Rejected, "rejected"}}};
 constexpr std::array<Name<ObjectOrigin>, 2> kOrigins{{{ObjectOrigin::Auto, "auto"}, {ObjectOrigin::Manual, "manual"}}};
+constexpr std::array<Name<MatchMode>, 2> kModes{{{MatchMode::Intensity, "intensity"}, {MatchMode::Edges, "edges"}}};
+// 遮罩格子的邊長上限：損壞或惡意的檔案不能要求巨大的配置（4096² ＝ 16 MB 的位元）。
+constexpr int kMaxMaskSide = 4096;
 constexpr std::array<Name<PixelFormat>, 5> kFormats{{{PixelFormat::Gray8, "Gray8"},
                                                      {PixelFormat::Rgb24, "Rgb24"},
                                                      {PixelFormat::Bgrx32, "Bgrx32"},
@@ -144,6 +147,38 @@ QJsonValue encodeImageWith(Encoder& e, const ImageView& image, const std::string
     return o;
 }
 
+// 比對區（ADR-028；配方 v3、樣本庫 v2）：{"mode", "region": null | {centerXUm, centerYUm, widthUm, heightUm,
+// "mask": null | {"width", "height", "runs": [[row, colBegin, colEnd], ...]}}}。runs 用 JSON 陣列（看得懂、diff 得出來）。
+QJsonObject encodeMatchWith(Encoder& e, const MatchSettings& m, const std::string& path) {
+    QJsonObject o;
+    o.insert(QStringLiteral("mode"), nameOf(kModes, m.mode));
+    if (!m.region) {
+        o.insert(QStringLiteral("region"), QJsonValue(QJsonValue::Null));
+        return o;
+    }
+    const MatchRegion& r = *m.region;
+    const std::string rPath = at(path, "region");
+    QJsonObject ro;
+    ro.insert(QStringLiteral("centerXUm"), e.number(r.centerXUm, at(rPath, "centerXUm")));
+    ro.insert(QStringLiteral("centerYUm"), e.number(r.centerYUm, at(rPath, "centerYUm")));
+    ro.insert(QStringLiteral("widthUm"), e.number(r.widthUm, at(rPath, "widthUm")));
+    ro.insert(QStringLiteral("heightUm"), e.number(r.heightUm, at(rPath, "heightUm")));
+    if (r.mask.empty()) {
+        ro.insert(QStringLiteral("mask"), QJsonValue(QJsonValue::Null));
+    } else {
+        if (r.mask.width > kMaxMaskSide || r.mask.height > kMaxMaskSide) e.fail(rPath + ".mask is too large");
+        QJsonObject mo;
+        mo.insert(QStringLiteral("width"), r.mask.width);
+        mo.insert(QStringLiteral("height"), r.mask.height);
+        QJsonArray runs;
+        for (const MaskRun& run : r.mask.runs) runs.append(QJsonArray{run.row, run.colBegin, run.colEnd});
+        mo.insert(QStringLiteral("runs"), runs);
+        ro.insert(QStringLiteral("mask"), mo);
+    }
+    o.insert(QStringLiteral("region"), ro);
+    return o;
+}
+
 QJsonObject encodeTypeWith(Encoder& e, const ComponentType& t, const std::string& path) {
     QJsonObject o;
     o.insert(QStringLiteral("id"), e.text(t.id, at(path, "id")));
@@ -160,6 +195,7 @@ QJsonObject encodeTypeWith(Encoder& e, const ComponentType& t, const std::string
         groups.append(encodeGroup(e, t.groups[i], at(at(path, "groups"), static_cast<qsizetype>(i))));
     o.insert(QStringLiteral("groups"), groups);
     o.insert(QStringLiteral("referenceImage"), encodeImageWith(e, t.referenceImage, at(path, "referenceImage")));
+    o.insert(QStringLiteral("match"), encodeMatchWith(e, t.match, at(path, "match")));
     return o;
 }
 
@@ -352,6 +388,67 @@ ImageView decodeImageWith(Decoder& d, const QJsonValue& v, const std::string& pa
     return view;
 }
 
+// 嚴格：欄位都要有；遮罩的格子 1..kMaxMaskSide、每段在格子內、同一列依序不重疊。違反就 FormatInvalid（帶路徑）。
+MatchSettings decodeMatchWith(Decoder& d, const QJsonValue& v, const std::string& path) {
+    MatchSettings m;
+    const QJsonObject o = d.object(v, path);
+    if (d.failed()) return m;
+    m.mode = d.enumeration(o, "mode", path, kModes);
+    const QJsonValue regionValue = d.field(o, "region", path);
+    if (d.failed() || regionValue.isNull()) return m;
+    const std::string rPath = at(path, "region");
+    const QJsonObject ro = d.object(regionValue, rPath);
+    if (d.failed()) return m;
+    MatchRegion r;
+    r.centerXUm = d.number(ro, "centerXUm", rPath);
+    r.centerYUm = d.number(ro, "centerYUm", rPath);
+    r.widthUm = d.number(ro, "widthUm", rPath);
+    r.heightUm = d.number(ro, "heightUm", rPath);
+    if (d.failed()) return m;
+    if (!(r.widthUm > 0.0) || !(r.heightUm > 0.0)) {
+        d.fail(rPath, "must have a positive size");
+        return m;
+    }
+    const QJsonValue maskValue = d.field(ro, "mask", rPath);
+    if (d.failed()) return m;
+    if (!maskValue.isNull()) {
+        const std::string mPath = at(rPath, "mask");
+        const QJsonObject mo = d.object(maskValue, mPath);
+        if (d.failed()) return m;
+        r.mask.width = d.integer(mo, "width", mPath, 1, kMaxMaskSide);
+        r.mask.height = d.integer(mo, "height", mPath, 1, kMaxMaskSide);
+        const QJsonArray runs = d.array(mo, "runs", mPath);
+        if (d.failed()) return m;
+        if (runs.isEmpty()) {
+            d.fail(at(mPath, "runs"), "must not be empty");
+            return m;
+        }
+        int lastRow = -1;
+        int lastEnd = 0;
+        for (qsizetype i = 0; i < runs.size() && !d.failed(); ++i) {
+            const std::string runPath = at(at(mPath, "runs"), i);
+            const QJsonValue rv = runs.at(i);
+            if (!rv.isArray() || rv.toArray().size() != 3) {
+                d.fail(runPath, "must be [row, colBegin, colEnd]");
+                break;
+            }
+            const QJsonArray a = rv.toArray();
+            MaskRun run;
+            run.row = static_cast<int>(d.integerValue(a.at(0), runPath + "[0]", 0, r.mask.height - 1));
+            run.colBegin = static_cast<int>(d.integerValue(a.at(1), runPath + "[1]", 0, r.mask.width - 1));
+            run.colEnd = static_cast<int>(d.integerValue(a.at(2), runPath + "[2]", 1, r.mask.width));
+            if (d.failed()) break;
+            if (run.colEnd <= run.colBegin) d.fail(runPath, "must have colBegin < colEnd");
+            else if (run.row < lastRow || (run.row == lastRow && run.colBegin < lastEnd)) d.fail(runPath, "overlaps or is out of order");
+            lastRow = run.row;
+            lastEnd = run.colEnd;
+            r.mask.runs.push_back(run);
+        }
+    }
+    m.region = std::move(r);
+    return m;
+}
+
 ComponentType decodeTypeWith(Decoder& d, const QJsonValue& v, const std::string& path) {
     ComponentType t;
     const QJsonObject o = d.object(v, path);
@@ -369,6 +466,8 @@ ComponentType decodeTypeWith(Decoder& d, const QJsonValue& v, const std::string&
         t.groups.push_back(decodeGroup(d, groups.at(i), at(at(path, "groups"), i)));
     if (d.failed()) return t;
     t.referenceImage = decodeImageWith(d, d.field(o, "referenceImage", path), at(path, "referenceImage"));
+    if (d.failed()) return t;
+    t.match = decodeMatchWith(d, d.field(o, "match", path), at(path, "match"));
     return t;
 }
 
@@ -461,6 +560,21 @@ Result<QJsonObject> encodeBoard(const Board& board) {
     o.insert(QStringLiteral("components"), components);
     if (!e.ok()) return e.error();
     return o;
+}
+
+QJsonArray withDefaultMatch(const QJsonArray& types) {
+    QJsonArray out;
+    for (const QJsonValue& v : types) {
+        if (!v.isObject() || v.toObject().contains(QStringLiteral("match"))) {
+            out.append(v);
+            continue;
+        }
+        QJsonObject t = v.toObject();
+        t.insert(QStringLiteral("match"), QJsonObject{{QStringLiteral("mode"), QStringLiteral("intensity")},
+                                                      {QStringLiteral("region"), QJsonValue(QJsonValue::Null)}});
+        out.append(t);
+    }
+    return out;
 }
 
 Result<ImageView> decodeImage(const QJsonValue& value, const std::string& where) {

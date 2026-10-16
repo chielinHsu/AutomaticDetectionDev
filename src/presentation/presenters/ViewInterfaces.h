@@ -126,6 +126,13 @@ struct SelectionInfoView {
     double umPerPixel = 0.0;
     bool canMove = false;
     bool canResize = false;
+    // 比對區（ADR-028）：matchText 是「整個主體框」「矩形 w × h px」「遮罩 n px」；matchMode 0 ＝ 灰階、1 ＝ 邊緣；
+    // matchGrow ＜ 0 ＝ 沒有可以調的外擴（不是自動擷取的遮罩，或已經改過）；hasMatchRegion ＝ 有比對區（〔清除〕可以按）。
+    QString matchText;
+    int matchMode = 0;
+    int matchGrow = -1;
+    bool hasMatchRegion = false;
+    bool canEditMatch = false;
     // 晶格（ADR-026；提案的物件才有）：是不是晶格的成員、使用者有沒有移過、現在的位置是不是格點；
     // 匹配位置離最近格點多遠（< 0 ＝ 不在任何陣列範圍內、或板子上的元件）。
     bool proposal = false;

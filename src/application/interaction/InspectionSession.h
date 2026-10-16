@@ -11,6 +11,8 @@
 #include "application/document/ProposalSession.h"
 #include "application/interaction/InteractionStateMachine.h"
 #include "domain/geometry.h"
+#include "domain/image_view.h"
+#include "domain/match_region.h"
 #include "domain/object_state.h"
 
 // application 層：只用標準庫（不含 Qt）。
@@ -45,6 +47,14 @@ struct SelectionInfo {
     std::size_t boxCount = 0;  // 類型展開的框數（含主體）
     bool canMove = false;
     bool canResize = false;
+    // 比對區（ADR-028）：類型的比對區換到這個元件的影像像素。Idle 的單一元件才能改（canEditMatch）。
+    enum class MatchKind { None, Rect, Mask };
+    MatchKind matchKind = MatchKind::None;
+    Rect matchRectPx;               // 比對區的外接矩形（matchKind ≠ None）
+    std::size_t matchPixels = 0;    // 遮罩的像素數（Mask）
+    MatchMode matchMode = MatchMode::Intensity;
+    std::optional<int> matchGrow;   // 自動擷取的遮罩、而且還是那一次擷取的結果時：外擴幾 px（可以再調）
+    bool canEditMatch = false;
     // 晶格（ADR-026；提案的物件才有意義，見 ProposalSession::LatticeRelation）：是不是晶格的成員、使用者有沒有移過、
     // 現在的位置是不是格點；匹配位置離最近格點多遠（不在任何陣列範圍內的沒有）。
     bool inLattice = false;
@@ -164,6 +174,20 @@ public:
     // 類型座標（µm、相對主體中心、反旋轉）。同類型全部元件一起多出這個框。其他狀態、元件不存在、框不合法回 false。
     bool addBoxGroup(int componentId, const Rect& rectPx);
 
+    // ---- 比對區（ADR-028，M 工具與選取資訊；都只在 Idle，作用在元件的類型上，同類型一起；各是一個 Command）----
+    // 矩形：rectPx 裁到這個元件的主體框內；邊長 < minSamplePx 或元件不存在時 false。比對特徵（灰階／邊緣）不變。
+    bool setMatchRect(int componentId, const Rect& rectPx);
+    // 自動擷取：在主體框內 Otsu，取離 click 最近的亮連通塊，外擴 growPx 成遮罩（domain/feature_extract.h）。
+    // 影像只在這次呼叫裡借用（ADR-014 規則 3）。找不到亮塊、或遮罩少於 kMinMatchMaskPixels 個像素時回 false。
+    enum class PickResult { Picked, NoBlob, TooSmall, NotAllowed };
+    PickResult pickMatchFeature(int componentId, const ImageView& image, Point2D click, int growPx);
+    // 調外擴：只對「最近一次自動擷取、而且類型的比對區還是那一次的結果」有效；連續的調整併成一步（拖滑桿）。
+    bool setMatchGrow(int growPx);
+    bool setMatchMode(int componentId, MatchMode mode);
+    // 清掉比對區（回到整個主體框；特徵不變）。
+    bool clearMatchRegion(int componentId);
+    static constexpr std::size_t kMinMatchMaskPixels = 16;
+
     // ---- 歷史（作用的堆疊依狀態，ADR-002 規則 5）----
     // Preview：提案堆疊（不會越過去動文件）；Idle：文件堆疊（復原「接受／捨棄」會回到 Preview）；其餘狀態忽略。
     bool undo();
@@ -178,6 +202,21 @@ private:
     bool previewAcceptsEdits() const { return state() == InteractionState::Preview && proposal_.has_value(); }
     // 用板子上現在的樣本填 lastSearch_（Sample 模式）；沒有樣本回 false。
     bool refreshSampleTarget();
+    // Idle、元件存在：它的類型與主體框（影像像素，軸對齊；樣本的角度一律是 0）。
+    const ComponentInstance* editableForMatch(int componentId, Rect* bodyPx) const;
+    bool applyMatch(const ComponentInstance& c, const Rect& regionPx, const PixelMask* mask, MatchMode mode, bool allowMerge);
+
+    // 最近一次自動擷取（未外擴的連通塊）：拖外擴滑桿時從它重新外擴。applied 是寫進類型的設定；類型的比對區
+    // 不再等於它（復原、別的修改）時，這個種子就失效了。
+    struct MatchSeed {
+        std::string typeId;
+        int componentId = 0;
+        PixelMask blob;
+        int grow = 0;
+        MatchSettings applied;
+    };
+    std::optional<MatchSeed> matchSeed_;
+    bool seedIsCurrent(const ComponentInstance& c) const;
 
     Config config_;
     InteractionStateMachine machine_;

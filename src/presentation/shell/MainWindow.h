@@ -62,6 +62,7 @@ public:
         ICanvasController* canvas = nullptr;
         ISelectionController* selection = nullptr;
         ISelectionEditController* selectionEdit = nullptr;  // 選取資訊表單（2026-10-14）
+        IMatchRegionEditController* matchEdit = nullptr;    // 選取資訊表單的比對區（ADR-028）
         IKeyboardController* keyboard = nullptr;
         IProposalController* proposal = nullptr;
         IMessageController* message = nullptr;
@@ -185,6 +186,7 @@ private:
     QAction* toolRegion_ = nullptr;
     QAction* toolAdd_ = nullptr;
     QAction* toolBox_ = nullptr;
+    QAction* toolMatch_ = nullptr;
     QAction* searchAction_ = nullptr;
     QAction* selectAllAction_ = nullptr;
     QAction* selectSameTypeAction_ = nullptr;
