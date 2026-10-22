@@ -22,8 +22,8 @@ TODO(project): 一到三句話說明這個專案要解決什麼問題、給誰�
 |---|---|
 | `src/` | TODO(project) |
 | `tests/` | TODO(project) |
-| `docs/` | 架構、決策、目前進度、AI 工作紀錄 |
-| `.agents/`、`.claude/`、`.ai/`、`scripts/ai/` | AI agent 的規範、skill、交接單與檢查腳本，各檔職責見 `.agents/harness/engineering-workflow.md` 第 0 節 |
+| `docs/` | 總體計畫、架構、決策（`adr/`）、需求進度表（`current-status.md`）、計畫檔（`plan/`）、步驟輸出（`steps/`）、AI 工作紀錄 |
+| `.agents/`、`.claude/`、`.ai/`、`scripts/ai/`、`tools/` | AI agent 的規範、skill、模型路由、交接單、檢查腳本與 STE lint，各檔職責見 `.agents/harness/engineering-workflow.md` 第 0 節 |
 
 ## 建置與測試
 
@@ -47,8 +47,11 @@ TODO(project): 一到三句話說明這個專案要解決什麼問題、給誰�
 
 | 任務 | 必讀文件／skill | 注意 |
 |---|---|---|
-| 接續上一位 agent 的工作 | `.ai/handoff.md`、`docs/changelog-ai.md` | 先看 `git status`，別覆蓋未完成的修改 |
-| 調整架構、新增模組 | `docs/architecture.md`、`docs/decisions.md` | 已記錄的決定沒有新證據不推翻 |
+| 接續上一位 agent 的工作 | `.ai/handoff.md`、`docs/current-status.md`（需求進度表）、`docs/changelog-ai.md` | 先看 `git status`，別覆蓋未完成的修改 |
+| 展開需求、追蹤進度 | `docs/current-status.md`、`docs/plan/_template.md`、`engineering-workflow.md`「需求展開與進度表」 | 非單純需求先展開成細項再實作 |
+| 調整架構、新增模組 | `docs/architecture.md`、`docs/decisions.md`、`docs/adr/` | 已記錄的決定沒有新證據不推翻 |
+| 做一個步驟（Step Protocol） | `docs/00-master-plan.md`、`docs/plan/<ID>-*.md`、`project-rules.md`、`docs/steps/_template/` | 功能類需求要交付四種輸出 |
+| 模型路由、委派 subagent | `MODEL_ROUTING.md`（Claude 專用） | hook 只是建議 |
 | 收工、換 agent | `ai-handoff` skill | |
 | TODO(project) | TODO(project) | |
 

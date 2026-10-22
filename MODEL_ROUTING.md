@@ -67,7 +67,8 @@ hook 會從使用者的話記錄失敗與成功（第 7 節）。Claude 自己�
 - **主 session 的模型與 effort 已經足夠時，自己做**，不要委派給同一級或更低的設定。主 session 目前的模型與 effort 要自己判斷：hook 只在拿得到時回報 `main_session_effort`，實測 `UserPromptSubmit` 拿不到（第 7 節）。
 - **怎麼委派**：`subagent_type` 填第 3 節的 agent。不要另外傳 `model` 或 `effort` 參數蓋過 agent 的設定，要不同的強度就選對應的 agent。prompt 寫清楚目標、已排除的事、要讀的檔案、要回報什麼。subagent 看不到這段對話。
 - **subagent 的回報是未驗證的**：重要的結論自己查證後才寫進回報；subagent 說「測試通過」不能當 `VERIFIED`（`AGENTS.md` 不可省略的第 2 條）。
-- **subagent 一樣受 `AGENTS.md` 的三條規則限制**：繁體中文回報、不虛構驗證、不 commit 與 push。五個 subagent 的定義檔已寫入這些規則，而且都不能再委派。
+- **subagent 一樣受 `AGENTS.md` 的四條規則限制**：繁體中文（zh-TW）回報並總結、不虛構驗證、不 commit 與 push、非單純需求以需求進度表追蹤（subagent 不直接改進度表，由主 agent 更新）。五個 subagent 的定義檔已寫入這些規則，而且都不能再委派。
+- **architect 系列的計畫由主 session 寫進需求進度表**：`architect`／`architect-deep` 唯讀、只出計畫；主 session 把回傳的計畫展開成 `docs/current-status.md` 的 `Rnn`／`Rnn.m` 列（必要時另寫 `docs/plan/<ID>-<slug>.md`），再交給 developer 系列或自己實作；developer 系列在回報裡逐項列出細項的結果，由主 session 更新狀態（`engineering-workflow.md`「需求展開與進度表」）。
 - 同一個任務不要同時自己做又交給 subagent。
 
 ## 6. 回報

@@ -3,6 +3,27 @@
 > 只新增，新紀錄放最上方。每個 agent session 一筆，讓下一位 agent 知道上一位做過什麼、為什麼。
 > agent 欄位寫實際的工具與模型；不要從舊紀錄抄。
 
+## 2026-10-21 — Claude Code (Claude Sonnet 5.5)（導入 AI 結構 2.0.0，ADR-030）
+
+### 完成
+- 範本管理檔換成 2.0.0：engineering-workflow（新增「需求展開與進度表」）、ai-handoff（加更新進度表與回覆總結）、check-ai-structure.ps1、ste-lint.mjs、TEMPLATE_VERSION；新增 `docs/plan/_template.md`、`docs/adr/_template.md`。
+- 專案擁有檔合併：AGENTS.md 四條、CLAUDE.md、project-rules.md、AI_CONTEXT.md、MODEL_ROUTING.md、`.claude/agents/`；保留 Step Protocol、四種輸出、SOLID、Commit 規則、模型路由案例、`check-model-routing.mjs`、hook 的 `AOI_*` 環境變數。
+- `docs/current-status.md` 開頭改為「需求進度表」（保留 S00–S12 與修正列，加計畫與驗證欄，回填 R01–R04，新增「待使用者決定」）；新增 ADR-030 與 decisions.md 索引。
+
+### 修改的檔案
+- `AGENTS.md`、`CLAUDE.md`、`AI_CONTEXT.md`、`MODEL_ROUTING.md`、`.claude/agents/fast-worker.md`、`architect.md`、`architect-deep.md`、`.agents/harness/project-rules.md`、`.agents/harness/engineering-workflow.md`、`.agents/harness/TEMPLATE_VERSION`、`.agents/skills/ai-handoff/SKILL.md`、`.claude/skills/ai-handoff/SKILL.md`（鏡像）。
+- `scripts/ai/check-ai-structure.ps1`、`tools/ste-lint.mjs`、`docs/plan/_template.md`、`docs/adr/_template.md`、`docs/adr/030-ai-structure-2-0-0.md`、`docs/decisions.md`、`docs/current-status.md`、`.ai/handoff.md`、`docs/changelog-ai.md`。
+
+### 驗證
+- 範本 `ai-project-template` 同時升到 2.0.0（New-AiProject.ps1、README、template 全套；檢查腳本補回 harness 版的 UTF-8／U+FFFD、settings 護欄、frontmatter、.gitignore 檢查，根目錄改跨平台寫法），由主 session 換進本專案的 `check-ai-structure.ps1`、`sync-skills.ps1`。
+- 新檢查抓到 `docs/steps/S10-perf-harness/explainer.html` 一筆 `powerScheme` 是 4 個 U+FFFD：同一次量測的其他 4 筆樣本都是「平衡」，「平衡」的 cp950 位元組正好 4 個，判定為編碼誤解，改回「平衡」。
+- `sync-skills.ps1 -Check` OK；`check-ai-structure.ps1 -Strict` RESULT OK（0 FAIL；WARN：current-status.md 197 行超過 150、architecture.md 引用 4 個不存在的測試路徑）；`check-model-routing.mjs` 68 passed；`ste-lint.mjs` 984 sentences、0 errors。
+- 沒建置、沒跑 `scripts/dev/test.ps1`（只改文件與 AI 結構檔）。
+
+### 注意事項
+- 已在分支 `docs/ai-structure-v2`（基於 `codex/static-repeatability`）本機提交，未推送、未合併（有 remote）；合併與推送由使用者決定。
+- 上層規則的完成後流程（推送與開 PR）不適用本專案：project-rules 對 push 的規定較具體，推送與開 PR 要使用者當次要求。
+
 ## 2026-10-16 — Codex (GPT-6.1-sol)（靜態重複性分析，ADR-029）
 
 ### 完成

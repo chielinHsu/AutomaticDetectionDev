@@ -1,52 +1,38 @@
 # Agent Handoff
 
-- 最後一位 agent：Codex (GPT-6.1-sol)
-- 日期：2026-10-16
-- 分支：codex/static-repeatability；使用者於2026-10-16明確授權commit並push到origin同名分支。
+- 最後一位 agent：Claude Code (Claude Sonnet 5.5)，由主 session 委派的 developer-deep 執行
+- 日期：2026-10-21
+- 分支：`docs/ai-structure-v2`（git worktree，基於 `codex/static-repeatability` b621d30）；本次修改已本機提交，留在此分支，未推送、未合併；合併與推送由使用者決定。
 
-## 本次交付
+## 本次交付：導入 AI 結構 2.0.0（[ADR-030](../docs/adr/030-ai-structure-2-0-0.md)，需求進度表 R04）
 
-- 使用者核准把 Excel 靜態重複性整合到 Qt；入口為〔檢視 › 靜態重複性分析…〕（ADR-029）。
-- 一個資料夾顯示全部勾選指標；兩至四份同時並排，每份以 ComboBox 選一圖；比較表顯示勾選指標。
-- 樣本標準差 n−1、Range、P/T＝6s/SPEC；按 Component／Box 對齊，只對共同且完整的 Box 作摘要比較。
-- 指標設定在載入前可開啟，能改單位／倍率／SPEC／P/T 門檻，6 固定。CO350、XO250、YO250，其餘已知指標200 µm。
-- 追加〔跨資料夾折線圖…〕：資料夾為橫軸，下拉選指標，同時看P/T、Range；Box留空為共同完整Box最大值摘要，輸入Box或Component/Box只看該框，缺值不補零。
-- CSV 只讀 BOX LEVEL，忽略 Decision；新數值欄位自動加入，沒有 SPEC 時 P/T 不可用。
-- 背景載入與計算；失敗或取消保留舊快照；JSON 保存原始量測及指標定義；CSV／PNG 匯出。
-- 原始 Excel／五份 CSV 沒有修改。完整規格、前後流程、互動說明及分鏡在 docs/steps/static-repeatability/。
+- 範本管理檔換成範本 2.0.0 版：`.agents/harness/engineering-workflow.md`、`.agents/skills/ai-handoff/SKILL.md`（鏡像已用 `sync-skills.ps1` 同步）、`scripts/ai/check-ai-structure.ps1`、`tools/ste-lint.mjs`、`.agents/harness/TEMPLATE_VERSION`（2.0.0）；新增 `docs/plan/_template.md`、`docs/adr/_template.md`。`scripts/ai/sync-skills.ps1` 與範本相同，沒有更動。
+- 專案擁有檔合併：`AGENTS.md` 改為四條、`CLAUDE.md`、`.agents/harness/project-rules.md`（補四種輸出適用範圍、進度表連動、編碼、上層規則優先、驗證指令）、`AI_CONTEXT.md`（Context Routing 加進度表一列）、`MODEL_ROUTING.md` 與 `.claude/agents/`（四條、architect 計畫由主 agent 寫進進度表）。
+- `docs/current-status.md`：現有進度表升格為「需求進度表」並移到最前面，加「計畫」「驗證」欄，新增 R01–R04 與「待使用者決定」；其餘章節原樣保留在表格後。
+- ADR-030 與 `docs/decisions.md` 索引一行；`docs/changelog-ai.md` 新增一筆。
 
-## 實際驗證
+## 實際驗證（在 worktree 根目錄）
 
-- Release／Debug 最終建置成功（Qt6.12.0、MSVC19.44、qmake＋jom）。
-- Release：scripts/dev/test.ps1 -NoBuild，61／61 通過。
-- Debug 首輪59／61；CLI HALCON 多程式案例失敗，Presenter 忙碌等待失敗且整組300秒逾時。完整重跑60／61，CLI恢復通過，Presenter85 passed／1 failed／1 skipped（155.248秒），唯一失敗仍為2秒Busy等待。
-- 新功能兩種組態均通過：tst_repeatability 8、tst_repeatability_ui 5（含追加指定Box案例）；含真實五份 CSV、703 Box、CO93個超過20%，及 SPEC 加倍後 P/T 減半。
-- 既有兩列 XFAIL：contract_end_to_end 的 opencv B1、image_sources_agree 的 palette BMP；沒有新增。
-- check-deps 249 files／0 violations；ste-lint 984 sentences／0 errors、warnings；contrast 0 failures；git diff --check 通過。
-- AI 結構 OK，current-status.md 超過80行的警告保留。
-- perf_repeatability 1／1，4×30×703×4 計算中位數951.503ms／p95 1754.735ms；資訊量測，無預算、沒有重建基準線。
-- 人工核對 build/repeatability-screenshots 的 single／settings／four-copies及folder-lines摘要／單Box PNG；後三組是同資料暫存複本，只驗證版面。
-- 追加折線功能後兩種組態的程式及受影響測試建置成功；兩種組態功能測試各2／2。Release完整回歸再跑61／61；最後版面調整後只補跑受影響測試與畫面。
-- 詳細指令、環境、原始結果及限制在 docs/steps/static-repeatability/perf.md；沒有跑 back end 關閉矩陣或整套既有效能閘門。
-
-## 建置注意
-
-- 沙箱 env.ps1 曾選到MSVC19.00；建置使用本機權限並前置 VCToolsInstallDir/bin/Hostx64/x64，確認19.44。
-- source-side 66份舊.moc污染qmake依賴，已確認全為Qt產生檔，備份至 build/repeatability-cache-backup；重產兩種build的moc及qmake依賴。不要回填舊快取。
-- 兩份新功能source-side舊moc另備份至build/repeatability-cache-backup/new-feature-moc；只重產對應qmake／moc，確認UI新slot實際執行。
-- AOI_REPEATABILITY_DATA 指向 D:/Benano/20261014_20261014_4677_AdvancePin_Proj，可執行真實資料測試。
-- AOI_REPEATABILITY_SCREENSHOTS 設定輸出目錄，可由 perf_repeatability 的 nativeScreenshots 重產畫面。
-- build/repeatability-*-tests.log、build/repeatability-debug-final.log 保留測試摘要；個別Qt log在 build/qmake-*/test-logs/。
-
-## 本次提交範圍
-
-- 全部是本次功能：domain／application／storage／presentation模組，MainWindow與main入口，qmake清單，三個測試執行檔及功能／架構／交接文件。
-- 沒有整理來源不明的使用者變更；不提交build、perf/results或原始量測。
+- `scripts/ai/sync-skills.ps1 -Check`：OK（1 mirrored）。
+- `scripts/ai/check-ai-structure.ps1 -Strict`：RESULT OK，0 FAIL、1 WARN（`docs/current-status.md` 198 行，超過範本上限 150 行；內容未刪，要不要把歷史章節移到 changelog 等使用者決定）。
+- `node scripts/ai/check-model-routing.mjs`：68 passed、0 warning。
+- `node tools/ste-lint.mjs`：984 sentences、0 errors、0 warnings（與升級前相同）。
+- 沒有建置、沒有跑 `scripts/dev/test.ps1`：本次不改程式、測試或建置設定。
 
 ## 不要動與界線
 
-- 不接續S12；ADR-028整框契約、ContractTolerances、fixture JSON及ADR-026／027不動。
-- copy.json只新增key；效能預算與基準線要等使用者指示才重建。
-- BENANO BOX LEVEL格式；新衍生公式需新增計算規則，不執行任意腳本。
-- JSON不保存暫時勾選、ComboBox及比較基準；多檔匯出不是交易，部分失敗可能已有檔案寫出。
-- 既有Presenter Debug時間敏感案例沒有修改；其他待決定事項仍在docs/current-status.md。
+- `ai-project-template/` 已升級成 2.0.0（New-AiProject.ps1、README、template 全套），與本次一起提交。
+- `scripts/ai/check-model-routing.mjs`、`bench-model-routing.mjs`、`.claude/hooks/model_router.mjs` 與 `AOI_*` 環境變數維持專案版本（範本版用 `AI_*`）；`docs/steps/_template/` 保留專案版。
+- 不改程式原始碼、測試、perf 資料。靜態重複性（ADR-029）、S12 的狀態沒有變動。
+
+## 還沒確認
+
+- 上層規則 `D:\AOI_Project\Qt\CLAUDE.md` 的完成後流程含推送與開 PR；本專案 `project-rules.md` 對 push 的規定較具體，已註明該流程不適用、推送與開 PR 要使用者當次要求。
+- Codex 端沒有實際跑過 2.0.0 的流程；`check-ai-structure.ps1` 只檢查結構。
+
+## 先前仍有效的提醒（靜態重複性，2026-10-16）
+
+- 建置：沙箱 `env.ps1` 曾選到 MSVC 19.00；要用本機權限並前置 `VCToolsInstallDir/bin/Hostx64/x64`（確認 19.44）。source-side 的舊 `.moc` 會污染 qmake 依賴，已備份在 `build/repeatability-cache-backup`，不要回填。
+- 真實資料測試：`AOI_REPEATABILITY_DATA` 指向 `D:/Benano/20261014_20261014_4677_AdvancePin_Proj`；`AOI_REPEATABILITY_SCREENSHOTS` 設輸出目錄可重產畫面。
+- 效能預算與基準線要等使用者指示才重建；Debug 的 Presenter 2 秒忙碌等待案例是既有的不穩定測試。
+- 其他待決定事項見 `docs/current-status.md` 的「待使用者決定」。
