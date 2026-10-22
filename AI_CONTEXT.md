@@ -11,7 +11,7 @@ AOI 教學工具：使用者在影像上框一個（或幾個）樣本 ROI → �
 2026-10-05（S01）起有第二個流程：使用者框**任意區域** → 程式與**樣本庫**所有樣本比對 → 列出對應的 CAD 框。資料模型是 Board › Component › Box，框由「元件類型」推導，見 `docs/adr/006-sample-library-and-hierarchy.md`。
 
 - 完整計畫：`docs/00-master-plan.md`
-- 目前進度：`docs/current-status.md`（開工前先讀）
+- 目前進度與需求進度表：`docs/current-status.md`（開工前先讀）
 - 每一步的細節與交接 prompt：`docs/plan/Sxx-*.md`
 - 效能測試計畫：`docs/perf-test-plan.md`；預算：`perf/budgets.json`
 
@@ -68,7 +68,7 @@ AOI 教學工具：使用者在影像上框一個（或幾個）樣本 ROI → �
 | `scripts/dev/` | `env.ps1`（進入開發環境：MSVC、qmake、jom）、`test.ps1`（qmake＋jom 建置、照清單跑測試與 5 個 node 檢查，失敗時印 log；ADR-018）、`perf.ps1`（S10：一鍵效能測試——環境快照 → `test.ps1 -Perf` → 彙整 → 和基準線與預算比 → 報表；`-Runs N`、`-WriteBaseline`、`-Filter`、`-Window`、`-Profile full`、`-InjectDelayMs`） |
 | `perf/baseline/` | 各機器的效能基準線（入版控）：S02–S09 各步驟自己的 `casparhsu1*.json`，S10 起回歸閘門用的是 `casparhsu1-harness.json`（`perf.ps1 -Runs 3 -WriteBaseline` 產生：每個指標幾次執行的範圍）；原始量測與彙整的執行紀錄在 `perf/results/`（不入版控） |
 | `docs/` | 計畫、ADR、AI 交接文件 |
-| `docs/plan/` | S01–S12 每一步的計畫與 Start prompt |
+| `docs/plan/` | S01–S12 每一步的計畫與 Start prompt；`_template.md` 是跨 session 需求的計畫檔範本（AI 結構 2.0.0） |
 | `docs/steps/` | 每一步的四種輸出；範本在 `_template/` |
 | `docs/adr/` | 設計決策，一檔一決策（`NNN-slug.md`） |
 | `perf/` | 效能預算；實測結果在 `perf/results/`（不入版控） |
@@ -123,6 +123,7 @@ AOI 教學工具：使用者在影像上框一個（或幾個）樣本 ROI → �
 | 任務 | 必讀文件／skill | 注意 |
 |---|---|---|
 | 開始任一步驟 | `docs/current-status.md`、`docs/plan/Sxx-*.md`、`project-rules.md` 的 Step Protocol | 一個 session 只做一步 |
+| 展開新需求、更新進度 | `docs/current-status.md` 的「需求進度表」、`engineering-workflow.md`「需求展開與進度表」、`docs/plan/_template.md`（跨 session 的需求才寫計畫檔） | 非單純需求先展開成 `Rnn.m` 細項（⬜）再實作；完成的列不刪除 |
 | 改分層、新增模組 | `docs/architecture.md`、`docs/decisions.md`（索引，連到 `docs/adr/`）、`AiInspTool/qmake/aoi_deps.pri` | 已記錄的決定沒有新證據不推翻；依賴表、`architecture.md`、`check-deps` 的 `RULES` 三邊一起改 |
 | 改建置（`.pro`、`.pri`、選項、測試清單） | [ADR-018](docs/adr/018-qmake-only-build.md)、`AiInspTool/qmake/*.pri`、`AiInspTool/tests/tests.pro` | 改完跑 `test.ps1` 的預設與 `-Config Debug`；動到選項時加 `-NoOpenCv`、`-NoHalcon` 的組合；Qt Creator 的三種組態要建得起來 |
 | 寫步驟文件 | `docs/steps/_template/`、`project-rules.md` 的「每一步的四種輸出」 | 跑 `node tools/ste-lint.mjs` |

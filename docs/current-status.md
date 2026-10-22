@@ -1,9 +1,61 @@
 # 目前狀態（進度表）
 
-新 session 開工前先讀這份，再讀 `docs/plan/Sxx-*.md`。步驟完成後由該步驟的 session 更新。原檔名 `STATUS.md`，2026-10-05 更名為本檔以符合共用結構（見 `docs/adr/000-ai-agent-structure.md`）。各步驟的完整內容在 `docs/steps/Sxx-*/` 與 `docs/changelog-ai.md`，本檔只留重點。
+新 session 開工前先讀這份（先看開頭的「需求進度表」找出要接的列），再讀 `docs/plan/` 裡該列連到的計畫檔。步驟完成後由該步驟的 session 更新。原檔名 `STATUS.md`，2026-10-05 更名為本檔以符合共用結構（見 `docs/adr/000-ai-agent-structure.md`）。各步驟的完整內容在 `docs/steps/Sxx-*/` 與 `docs/changelog-ai.md`，本檔只留重點。
 
-- 更新日期：2026-10-16
-- 階段：**S00–S11 完成；2026-10-15 比對區與 CAD 框分開（[ADR-028](adr/028-match-region-separate-from-cad-box.md)，分支 `feat/match-region`，2026-10-16 併入 `main` 的晶格位置吸附與操作步驟；分支上原本編為 ADR-026，因編號重複改為 028；見「比對區（2026-10-15）」）；2026-10-15／16 操作步驟的提示（[ADR-027](adr/027-step-guidance.md)，分支 `feat/step-guidance`，已 `--no-ff` 合併到 `main`、沒有 tag；見「操作步驟的提示」）；2026-10-15 CAD 框吸附到陣列的格點（[ADR-026](adr/026-lattice-snapped-positions.md)，分支 `feat/lattice-snapped-positions`；見「CAD 框吸附到陣列的格點」）；2026-10-14 樣本的建立與搜尋分開（ADR-025，分支 `feat/cad-sample-editing`，已 `--no-ff` 合併到 `main`、沒有 tag；見「樣本的建立與搜尋分開」）；同日接著做選取資訊表單與樣本庫面板（ADR-025 的「後續（2026-10-14）」，分支 `feat/selection-info-panel`；見「選取資訊表單與樣本庫面板」）**。之前：**S00–S11 完成**（S11 2026-10-13：效能優化，`step/11-optimize` 以 `--no-ff` 合併到 `main`、tag `step-11-done`；U3 做進預算，見「S11 的產出與發現」；**接下來是 S12**）。之前：**S00–S10 完成，HALCON 準確度的修正（B1–B3）2026-10-13 完成**（分支 `fix/halcon-accuracy` 以 `--no-ff` 合併到 `main`、沒有 tag；根因與修正見「HALCON 準確度的修正」與 ADR-004 的「後續（2026-10-13）」；**接下來是 S11**）。S10 2026-10-13：效能 harness 與回歸閘門，`step/10-perf-harness` 以 `--no-ff` 合併到 `main`、tag `step-10-done`；見「S10 的產出與發現」。S00–S09 的細節：S09 完成（S09 的 HALCON 部分在合併時讀不到 dongle，**2026-10-12 恢復後補測**：契約測試全部通過，A/B 並排找到 HALCON 三個不接受的準確度差異，見「S09 的產出與發現」）；**2026-10-07 建置改成只用 qmake**（S09 之前的 session A，[ADR-018](adr/018-qmake-only-build.md)；分支 `build/qmake-only` 以 `--no-ff` 合併到 `main`，沒有 tag）。**2026-10-08 S09 之前的 session B 完成**（授權提醒改成卡片＋狀態列的標示、back end 選單可以在執行中切換、介面的版面改用 Designer 的 `.ui`；[ADR-021](adr/021-runtime-backend-switching.md)、[ADR-022](adr/022-designer-forms.md)；分支 `feat/backend-switch-ui-forms` 以 `--no-ff` 合併到 `main`，沒有 tag）。**接下來的順序（使用者 2026-10-12 決定）**：~~B1–B3 的回歸測試~~（**2026-10-12 完成**：分支 `test/halcon-accuracy-regression` 以 `--no-ff` 合併到 `main`，沒有 tag；`tst_contract_end_to_end` 多三種板子，HALCON 三列與 OpenCV 的 B1 列（O1）是 XFAIL，見「S09 的產出與發現」）→ **S10** → HALCON 準確度的修正（`fix/halcon-accuracy`，Start prompt 在 `docs/plan/S11-optimize.md` 開頭）→ S11。S01–S09 都已用 `--no-ff` 合併到 `main` 並打 tag（`step-01-done`…`step-09-done`）；AI 共用結構、commit 格式規則與 S04 之後的〔適配寬度〕也已合併到 `main`（全部只在本機，**沒有 push**）。S06 起用 Qt 6.12.0。**等使用者決定的事**：（1）[ADR-009](adr/009-ui-toolkit-review-after-s02.md)：I1 在預算邊緣、真實視窗超標；（2）~~U3 超出預算~~（S04；**S11 做進預算**，p95 7.6–11.2 ms 對 16，ADR-024）；（3）T3 要不要涵蓋散佈的點（S05）；（4）**存檔／開啟配方的 UI 放進哪一步**（S06；分層樣本庫各層的檔案位置、流程 B 的 UI 也在那一步一起定）；（5）S06 的指標（開圖、存檔）要不要有預算；（6）S07：真實影像上 use case 的種子門檻與預設的分數門檻（0.70）偏低、晶格在空槽補假缺格、T7（流程 B）的預算（見「S07 的產出與發現」）；（7）**S08 新增**：HALCON 的影像來源（`read_image`）要不要做、授權提醒的規則是否符合期待（見「S08 的產出與發現」）；（8）**S09 新增**（ADR-004）：兩個 back end 的分數門檻要不要分開（產品的預設）、HALCON 的 `nativeGray16` 要不要當預設、新的真實影像（`D:\Benano\20261007_4677_AdvancePin_Proj`）能不能用；（9）~~HALCON 的 B1–B3 怎麼處理~~（**2026-10-13 修好**，分支 `fix/halcon-accuracy`；O1 使用者決定列為接受的差異 D6、「強雜訊」改相對定義、OpenCV 的半格距現象只記錄；ADR-004 的「後續（2026-10-13）」）；（10）**2026-10-13 新增**：use case 驗證階段的漏洞（視窗裡找到的匹配離別的已知候選更近時仍當成那個缺格的元件；B2 的 570 個重複就是它，半格距的種子拿掉之後不會發生）要不要補（application 層，另開 session）；（11）**2026-10-15 新增**（ADR-028 的量測）：真實影像的標準答案（1109 根端子的 Otsu 重心）要使用者目視確認；位置的通過條件（誤差 p95 ≤ 3 px）用這份答案量不到（x 的重心不穩），要不要改用 y 誤差與兩個 back end 的一致性、或做人工標記；HALCON 的比對區沒有一個門檻同時達到召回 ≥ 99.5%、誤報 ≤ 5（0.7：99.0%、16），要不要調
+- 更新日期：2026-10-21
+- 階段：**S00–S11 完成；2026-10-15 比對區與 CAD 框分開（[ADR-028](adr/028-match-region-separate-from-cad-box.md)，分支 `feat/match-region`，2026-10-16 併入 `main` 的晶格位置吸附與操作步驟；分支上原本編為 ADR-026，因編號重複改為 028；見「比對區（2026-10-15）」）；2026-10-15／16 操作步驟的提示（[ADR-027](adr/027-step-guidance.md)，分支 `feat/step-guidance`，已 `--no-ff` 合併到 `main`、沒有 tag；見「操作步驟的提示」）；2026-10-15 CAD 框吸附到陣列的格點（[ADR-026](adr/026-lattice-snapped-positions.md)，分支 `feat/lattice-snapped-positions`；見「CAD 框吸附到陣列的格點」）；2026-10-14 樣本的建立與搜尋分開（ADR-025，分支 `feat/cad-sample-editing`，已 `--no-ff` 合併到 `main`、沒有 tag；見「樣本的建立與搜尋分開」）；同日接著做選取資訊表單與樣本庫面板（ADR-025 的「後續（2026-10-14）」，分支 `feat/selection-info-panel`；見「選取資訊表單與樣本庫面板」）**。之前：**S00–S11 完成**（S11 2026-10-13：效能優化，`step/11-optimize` 以 `--no-ff` 合併到 `main`、tag `step-11-done`；U3 做進預算，見「S11 的產出與發現」；**接下來是 S12**）。之前：**S00–S10 完成，HALCON 準確度的修正（B1–B3）2026-10-13 完成**（分支 `fix/halcon-accuracy` 以 `--no-ff` 合併到 `main`、沒有 tag；根因與修正見「HALCON 準確度的修正」與 ADR-004 的「後續（2026-10-13）」；**接下來是 S11**）。S10 2026-10-13：效能 harness 與回歸閘門，`step/10-perf-harness` 以 `--no-ff` 合併到 `main`、tag `step-10-done`；見「S10 的產出與發現」。S00–S09 的細節：S09 完成（S09 的 HALCON 部分在合併時讀不到 dongle，**2026-10-12 恢復後補測**：契約測試全部通過，A/B 並排找到 HALCON 三個不接受的準確度差異，見「S09 的產出與發現」）；**2026-10-07 建置改成只用 qmake**（S09 之前的 session A，[ADR-018](adr/018-qmake-only-build.md)；分支 `build/qmake-only` 以 `--no-ff` 合併到 `main`，沒有 tag）。**2026-10-08 S09 之前的 session B 完成**（授權提醒改成卡片＋狀態列的標示、back end 選單可以在執行中切換、介面的版面改用 Designer 的 `.ui`；[ADR-021](adr/021-runtime-backend-switching.md)、[ADR-022](adr/022-designer-forms.md)；分支 `feat/backend-switch-ui-forms` 以 `--no-ff` 合併到 `main`，沒有 tag）。**接下來的順序（使用者 2026-10-12 決定）**：~~B1–B3 的回歸測試~~（**2026-10-12 完成**：分支 `test/halcon-accuracy-regression` 以 `--no-ff` 合併到 `main`，沒有 tag；`tst_contract_end_to_end` 多三種板子，HALCON 三列與 OpenCV 的 B1 列（O1）是 XFAIL，見「S09 的產出與發現」）→ **S10** → HALCON 準確度的修正（`fix/halcon-accuracy`，Start prompt 在 `docs/plan/S11-optimize.md` 開頭）→ S11。S01–S09 都已用 `--no-ff` 合併到 `main` 並打 tag（`step-01-done`…`step-09-done`）；AI 共用結構、commit 格式規則與 S04 之後的〔適配寬度〕也已合併到 `main`（全部只在本機，**沒有 push**）。S06 起用 Qt 6.12.0。**等使用者決定的事**：（1）[ADR-009](adr/009-ui-toolkit-review-after-s02.md)：I1 在預算邊緣、真實視窗超標；（2）~~U3 超出預算~~（S04；**S11 做進預算**，p95 7.6–11.2 ms 對 16，ADR-024）；（3）T3 要不要涵蓋散佈的點（S05）；（4）**存檔／開啟配方的 UI 放進哪一步**（S06；分層樣本庫各層的檔案位置、流程 B 的 UI 也在那一步一起定）；（5）S06 的指標（開圖、存檔）要不要有預算；（6）S07：真實影像上 use case 的種子門檻與預設的分數門檻（0.70）偏低、晶格在空槽補假缺格、T7（流程 B）的預算（見「S07 的產出與發現」）；（7）**S08 新增**：HALCON 的影像來源（`read_image`）要不要做、授權提醒的規則是否符合期待（見「S08 的產出與發現」）；（8）**S09 新增**（ADR-004）：兩個 back end 的分數門檻要不要分開（產品的預設）、HALCON 的 `nativeGray16` 要不要當預設、新的真實影像（`D:\Benano\20261007_4677_AdvancePin_Proj`）能不能用；（9）~~HALCON 的 B1–B3 怎麼處理~~（**2026-10-13 修好**，分支 `fix/halcon-accuracy`；O1 使用者決定列為接受的差異 D6、「強雜訊」改相對定義、OpenCV 的半格距現象只記錄；ADR-004 的「後續（2026-10-13）」）；（10）**2026-10-13 新增**：use case 驗證階段的漏洞（視窗裡找到的匹配離別的已知候選更近時仍當成那個缺格的元件；B2 的 570 個重複就是它，半格距的種子拿掉之後不會發生）要不要補（application 層，另開 session）；（11）**2026-10-15 新增**（ADR-028 的量測）：真實影像的標準答案（1109 根端子的 Otsu 重心）要使用者目視確認；位置的通過條件（誤差 p95 ≤ 3 px）用這份答案量不到（x 的重心不穩），要不要改用 y 誤差與兩個 back end 的一致性、或做人工標記；HALCON 的比對區沒有一個門檻同時達到召回 ≥ 99.5%、誤報 ≤ 5（0.7：99.0%、16），要不要調；2026-10-21 AI 結構升級到 2.0.0（[ADR-030](adr/030-ai-structure-2-0-0.md)，分支 `docs/ai-structure-v2`；見需求進度表 R04）。
+
+## 需求進度表
+
+本表是需求的單一事實來源（規則見 `engineering-workflow.md`「需求展開與進度表」）。2.0.0 之前的步驟 S00–S12 與「—」的修正列照舊保留，這次只加了「計畫」「驗證」兩欄；之後新的需求用 `Rnn`（細項 `Rnn.m`），完成的列不刪除。S01–S12 的「驗證」欄只摘錄各步驟紀錄裡已有的結論，細節看對應章節與 `docs/steps/Sxx-*/`。
+
+| 編號 | 類型 | 需求／細項 | 狀態 | 計畫 | 分支／commit | 驗證 |
+|---|---|---|---|---|---|---|
+| S00 | 基礎 | 版控 + 總體計畫 + 架構導覽 | ✅ 完成 |  | `step/00-master-plan` `step-00-done` | 文件與導覽頁；無程式驗證 |
+| S01 | 介面 | UX 規格與可點擊原型（含樣本庫與 Board › Component › Box 階層） | ✅ 完成 | [S01](plan/S01-ux-spec.md) | `step/01-ux-spec` `step-01-done` | 文件與可點擊原型（`docs/steps/S01-ux-spec/`） |
+| S02 | 介面 | Qt UI 骨架與影像畫布 | ✅ 完成（⚠ I1 待使用者決定） | [S02](plan/S02-ui-shell.md) | `step/02-ui-shell` `step-02-done` | 見「S01–S05」；I1 在預算邊緣（⚠） |
+| S03 | 系統 | 核心：ports、use case、DI、執行緒、PerfProbe | ✅ 完成 | [S03](plan/S03-core.md) | `step/03-core` `step-03-done` | 見「S01–S05」；單元測試 |
+| S04 | 系統 | Presenter、互動狀態機、復原/重做 | ✅ 完成（⚠ U3 超標、待使用者決定） | [S04](plan/S04-presenter.md) | `step/04-presenter` `step-04-done` | 見「S01–S05」；U3 超標（S11 已改善） |
+| S05 | 底層 | Domain：晶格估計與補漏（純 C++） | ✅ 完成 | [S05](plan/S05-lattice.md) | `step/05-lattice` `step-05-done` | 見「S01–S05」；晶格測試 1 029 種情境 |
+| S06 | 底層 | 影像緩衝、轉接器、Recipe 儲存 | ✅ 完成 | [S06](plan/S06-image-storage.md) | `step/06-image-storage` `step-06-done` | 見「S06 的產出與發現」；效能指標無預算 |
+| S07 | 底層 | OpenCV back end | ✅ 完成（⚠ 真實影像的門檻與晶格待使用者決定） | [S07](plan/S07-opencv.md) | `step/07-opencv` `step-07-done` | 見「S07 的產出與發現」；T2a p95 67–72 ms（預算 150） |
+| S08 | 底層 | HALCON back end | ✅ 完成（⚠ 影像來源與授權提醒的規則待使用者確認） | [S08](plan/S08-halcon.md) | `step/08-halcon` `step-08-done` | 見「S08 的產出與發現」；T6a 召回率 100% |
+| S09 | 底層 | 契約測試與 A/B 比較 | ✅ 完成（HALCON 2026-10-12 補測；⚠ HALCON 三種情境的準確度待決定） | [S09](plan/S09-contract-ab.md) | `step/09-contract-ab` `step-09-done` | 見「S09 的產出與發現」；契約測試、變異測試 4 個 |
+| S10 | 驗證 | 效能測試 harness 與回歸閘門 | ✅ 完成（T5 校準；閘門與基準線；⚠ 量測雜訊大，見「S10 的產出與發現」） | [S10](plan/S10-perf-harness.md) | `step/10-perf-harness` `step-10-done` | 見「S10 的產出與發現」；故意放慢 60 ms 時閘門 FAIL |
+| — | 修正 | HALCON 準確度（ADR-004 §5 的 B1–B3 與 O1） | ✅ 完成（2026-10-13：B1–B3 修好、O1 列為接受的差異 D6；見「HALCON 準確度的修正」） |  | `fix/halcon-accuracy` | 見狀態欄指向的章節與 ADR |
+| S11 | 驗證 | 效能優化（先量再改） | ✅ 完成（U3 p95 23.5 → 7.6–11.2 ms，預算 16；三個優化各有 before／after；基準線重建；見「S11 的產出與發現」） | [S11](plan/S11-optimize.md) | `step/11-optimize` `step-11-done` | 見「S11 的產出與發現」；U3 p95 7.6–11.2 ms（預算 16） |
+| — | 修正 | CAD 樣本建立的四個問題（ADR-025：樣本的建立與搜尋分開、結果依位置合併、接受整批換掉、改大小、框選、子框） | ✅ 完成（2026-10-14；見「樣本的建立與搜尋分開」） |  | `feat/cad-sample-editing` | 見狀態欄指向的章節與 ADR |
+| — | 修正 | 選取資訊表單（用數字改中心與寬高、套用大小到所有樣本、鎖定寬高比）與樣本庫 dock 列出板子上的樣本（縮圖）（ADR-025 的「後續（2026-10-14）」） | ✅ 完成（2026-10-14；見「選取資訊表單與樣本庫面板」） |  | `feat/selection-info-panel` | 見狀態欄指向的章節與 ADR |
+| — | 修正 | CAD 框吸附到陣列的格點：晶格位姿由 use case 算、預覽與接受預設用格點、參數面板的〔吸附到陣列／用匹配位置〕、不在格點上的標示（ADR-026） | ✅ 完成（2026-10-15；見「CAD 框吸附到陣列的格點」） |  | `feat/lattice-snapped-positions` | 見狀態欄指向的章節與 ADR |
+| S12 | 發行 | 匯出、打包、最終文件 | ⬜ 下一個 | [S12](plan/S12-release.md) | `step/12-release` | 尚未開始 |
+| R01 | 功能 | 比對區與 CAD 框分開（範本只用樣本裡想要的特徵） | ✅ | | `feat/match-region`，併入 5f8959c | 單元／契約測試；真實影像量測見 ADR-028 |
+| R01.1 | | application／domain：port 加 `buildFromSample`，`Match.pose` 一律是主體中心 | ✅ | | | 契約測試多 7 組 |
+| R01.2 | | 真實影像量測：整框召回 93.1%，比對區 99–100% | ✅ | | | `perf_match_region_real`（見 ADR-028） |
+| R02 | 功能 | 操作步驟的提示（左側「操作步驟」dock、示範畫面、訊息列提示補強） | ✅ | | `feat/step-guidance`，併入 1d3c137 | 見 ADR-027 與「操作步驟的提示」 |
+| R02.1 | | application：`StepGuide` 從 `InspectionSession` 推導五步與狀態 | ✅ | | 55b084f | 見 ADR-027 |
+| R02.2 | | presentation：`GuidancePanel`、示範畫面、F1 | ✅ | | 979c8b9 | 見 ADR-027 |
+| R03 | 功能 | 靜態重複性分析（多資料夾比較、P/T、Range、跨資料夾折線圖） | ✅ | | `codex/static-repeatability` b621d30 | PARTIALLY VERIFIED：Release 61／61；Debug 60／61（既有 Presenter 2 秒忙碌等待，非本功能） |
+| R03.1 | | domain／application：樣本標準差、共同完整 Box 比較 | ✅ | | b621d30 | `tst_repeatability` 8 passed（含真實五份 CSV） |
+| R03.2 | | presentation：分析視窗與設定、跨資料夾折線圖 | ✅ | | b621d30 | `tst_repeatability_ui` 5 passed；人工核對截圖 |
+| R04 | 文件 | 導入 AI 結構 2.0.0（入口四條、需求進度表、計畫與 ADR 範本、ste-lint 與結構檢查換新） | ✅ | [ADR-030](adr/030-ai-structure-2-0-0.md) | `docs/ai-structure-v2`（基於 `codex/static-repeatability`，已本機提交，未推送、未合併） | 見交接單；四個檢查指令的結果在 `docs/changelog-ai.md` |
+| R04.1 | | 範本管理檔換成 2.0.0（engineering-workflow、ai-handoff、check-ai-structure、ste-lint、兩個 `_template.md`、TEMPLATE_VERSION） | ✅ | | | `check-ai-structure.ps1 -Strict` |
+| R04.2 | | 專案擁有檔合併（AGENTS、CLAUDE、project-rules、AI_CONTEXT、MODEL_ROUTING、agents） | ✅ | | | `check-model-routing.mjs` |
+| R04.3 | | 本表、ADR-030、交接單、changelog | ✅ | | | 同上 |
+
+圖例：✅ 完成　⏳ 進行中　⬜ 尚未開始　⚠️ 有未解決問題　⛔ 取消。S12 的「下一個」是指排在最前面、尚未開始（⬜）。
+
+### 待使用者決定
+
+完整內容與證據在後面「未解決事項」與各步驟章節，這裡只列出要使用者拍板的項目：
+
+1. 真實影像上的門檻與晶格（S07）：`seedMinScore` 與預設分數門檻 0.70 會放進焊墊邊緣；晶格在非矩形陣列的空槽補假缺格。
+2. HALCON（S08）：影像來源（`read_image`）要不要做、授權提醒規則是否符合期待、兩個 back end 的預設門檻要不要分開、`nativeGray16` 要不要改成預設（ADR-004）。
+3. 預算：AB-U3、T7（流程 B 的樣本庫比對）要不要寫進 `perf/budgets.json`；I1 在預算邊緣。
+4. 存檔與開啟配方的 UI、樣本庫 UI、流程 B 的 UI（ADR-025 的 P2）要排進哪一步；S12（匯出、打包、最終文件）何時開始。
+5. Debug 的 `tst_presenter::aSlowSearchShowsBusyThenProgressAndEscCancelsToIdleAtOnce` 是不穩定的測試，要不要放寬 2 秒的等待。
+6. ADR-028 的真實影像標準答案（1109 根端子的 Otsu 重心）要使用者目視確認；HALCON 比對區沒有門檻同時達到召回 ≥ 99.5% 與誤報 ≤ 5，要不要調。
+7. 靜態重複性（ADR-029）：效能預算與基準線是否建立，等使用者指示（見「靜態重複性分析」）。
+8. AI 結構 2.0.0（R04）：已在分支 `docs/ai-structure-v2` 本機提交（未推送、未合併）；合併與推送由使用者決定（本專案沒有 CI）。
 
 ## 靜態重複性分析（2026-10-16）
 
@@ -15,28 +67,6 @@
 - 效能資訊量測：4×30×703×4，中位數951.503ms、p95 1754.735ms；沒有重建基準線。
 - 已知界線：只讀 BENANO BOX LEVEL；固定 6 倍係數；保存量測與指標定義，不保存暫時檢視狀態。多檔匯出不是交易。
 - 決策及完整說明：[ADR-029](adr/029-static-repeatability.md)、[操作與規格](steps/static-repeatability/spec.md)。
-
-| 步驟 | 層級 | 主題 | 狀態 | 分支 | tag |
-|---|---|---|---|---|---|
-| S00 | 基礎 | 版控 + 總體計畫 + 架構導覽 | ✅ 完成 | `step/00-master-plan` | `step-00-done` |
-| S01 | 介面 | UX 規格與可點擊原型（含樣本庫與 Board › Component › Box 階層） | ✅ 完成 | `step/01-ux-spec` | `step-01-done` |
-| S02 | 介面 | Qt UI 骨架與影像畫布 | ✅ 完成（⚠ I1 待使用者決定） | `step/02-ui-shell` | `step-02-done` |
-| S03 | 系統 | 核心：ports、use case、DI、執行緒、PerfProbe | ✅ 完成 | `step/03-core` | `step-03-done` |
-| S04 | 系統 | Presenter、互動狀態機、復原/重做 | ✅ 完成（⚠ U3 超標、待使用者決定） | `step/04-presenter` | `step-04-done` |
-| S05 | 底層 | Domain：晶格估計與補漏（純 C++） | ✅ 完成 | `step/05-lattice` | `step-05-done` |
-| S06 | 底層 | 影像緩衝、轉接器、Recipe 儲存 | ✅ 完成 | `step/06-image-storage` | `step-06-done` |
-| S07 | 底層 | OpenCV back end | ✅ 完成（⚠ 真實影像的門檻與晶格待使用者決定） | `step/07-opencv` | `step-07-done` |
-| S08 | 底層 | HALCON back end | ✅ 完成（⚠ 影像來源與授權提醒的規則待使用者確認） | `step/08-halcon` | `step-08-done` |
-| S09 | 底層 | 契約測試與 A/B 比較 | ✅ 完成（HALCON 2026-10-12 補測；⚠ HALCON 三種情境的準確度待決定） | `step/09-contract-ab` | `step-09-done` |
-| S10 | 驗證 | 效能測試 harness 與回歸閘門 | ✅ 完成（T5 校準；閘門與基準線；⚠ 量測雜訊大，見「S10 的產出與發現」） | `step/10-perf-harness` | `step-10-done` |
-| — | 修正 | HALCON 準確度（ADR-004 §5 的 B1–B3 與 O1） | ✅ 完成（2026-10-13：B1–B3 修好、O1 列為接受的差異 D6；見「HALCON 準確度的修正」） | `fix/halcon-accuracy` | |
-| S11 | 驗證 | 效能優化（先量再改） | ✅ 完成（U3 p95 23.5 → 7.6–11.2 ms，預算 16；三個優化各有 before／after；基準線重建；見「S11 的產出與發現」） | `step/11-optimize` | `step-11-done` |
-| — | 修正 | CAD 樣本建立的四個問題（ADR-025：樣本的建立與搜尋分開、結果依位置合併、接受整批換掉、改大小、框選、子框） | ✅ 完成（2026-10-14；見「樣本的建立與搜尋分開」） | `feat/cad-sample-editing` | |
-| — | 修正 | 選取資訊表單（用數字改中心與寬高、套用大小到所有樣本、鎖定寬高比）與樣本庫 dock 列出板子上的樣本（縮圖）（ADR-025 的「後續（2026-10-14）」） | ✅ 完成（2026-10-14；見「選取資訊表單與樣本庫面板」） | `feat/selection-info-panel` | |
-| — | 修正 | CAD 框吸附到陣列的格點：晶格位姿由 use case 算、預覽與接受預設用格點、參數面板的〔吸附到陣列／用匹配位置〕、不在格點上的標示（ADR-026） | ✅ 完成（2026-10-15；見「CAD 框吸附到陣列的格點」） | `feat/lattice-snapped-positions` | |
-| S12 | 發行 | 匯出、打包、最終文件 | ⬜ 下一個 | `step/12-release` | |
-
-圖例：✅ 完成　⏳ 下一個　⬜ 尚未開始　⚠️ 有未解決問題
 
 ## S01–S05（2026-10-05／06）
 

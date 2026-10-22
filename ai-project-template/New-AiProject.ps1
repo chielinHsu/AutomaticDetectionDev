@@ -7,8 +7,12 @@
 	  New-AiProject.ps1 -Path D:\Work\MyApp -Refresh      also update template-managed files
 
 	Files are never overwritten, with one exception: -Refresh replaces the
-	template-managed files (universal workflow, scripts, ai-handoff skill).
-	Everything else is owned by the project once created. Run it on an existing
+	template-managed files (universal workflow, TEMPLATE_VERSION, ai-handoff skill,
+	check-ai-structure.ps1, sync-skills.ps1, tools/ste-lint.mjs, and the _template
+	files under docs/plan, docs/adr, docs/steps).
+	Everything else is owned by the project once created (including the model
+	routing files and scripts/ai/check-model-routing.mjs, which projects tune).
+	Run it on an existing
 	project and it only adds what is missing; existing AGENTS.md / CLAUDE.md are
 	left alone and reported so you can merge them by hand.
 	The script does not run git init and does not commit anything.
@@ -37,7 +41,12 @@ $managedPatterns = @(
 	'.agents/harness/engineering-workflow.md',
 	'.agents/harness/TEMPLATE_VERSION',
 	'.agents/skills/ai-handoff/*',
-	'scripts/ai/*'
+	'scripts/ai/check-ai-structure.ps1',
+	'scripts/ai/sync-skills.ps1',
+	'tools/ste-lint.mjs',
+	'docs/steps/_template/*',
+	'docs/plan/_template.md',
+	'docs/adr/_template.md'
 )
 # Existing entry files signal an existing AI setup that needs a manual merge.
 $entryFiles = @('AGENTS.md', 'CLAUDE.md')
@@ -46,7 +55,8 @@ $gitignoreLines = @(
 	'# AI agent local state',
 	'.claude/settings.local.json',
 	'.claude/worktrees/',
-	'CLAUDE.local.md'
+	'CLAUDE.local.md',
+	'perf/results/'
 )
 
 if (-not (Test-Path -LiteralPath $Path))
@@ -74,6 +84,8 @@ if ([string]::IsNullOrWhiteSpace($Name))
 }
 $today = Get-Date -Format 'yyyy-MM-dd'
 $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+# .ps1 files that contain Chinese need a BOM, or Windows PowerShell 5.1 parses them with the ANSI code page.
+$utf8Bom = New-Object System.Text.UTF8Encoding($true)
 
 function Test-Managed
 {
@@ -131,7 +143,12 @@ foreach ($file in $templateFiles)
 	}
 	$text = [IO.File]::ReadAllText($file.FullName, [Text.Encoding]::UTF8)
 	$text = $text.Replace('{{PROJECT_NAME}}', $Name).Replace('{{DATE}}', $today)
-	[IO.File]::WriteAllText($destination, $text, $utf8NoBom)
+	$encoding = $utf8NoBom
+	if ($destination -like '*.ps1')
+	{
+		$encoding = $utf8Bom
+	}
+	[IO.File]::WriteAllText($destination, $text, $encoding)
 }
 
 # .gitignore: append only the lines that are missing.
@@ -207,7 +224,8 @@ Write-Host ''
 if ($skippedEntries.Count -gt 0)
 {
 	Write-Host "NOTE: existing entry file(s) were not modified: $($skippedEntries -join ', ')."
-	Write-Host '      Merge by hand: AGENTS.md must list the required reading, and CLAUDE.md must import it (see check output above).'
+	Write-Host '      Merge by hand: AGENTS.md must list the required reading and contain the four mandatory rules, and CLAUDE.md must import the shared docs (see check output above).'
 }
-Write-Host 'Next: fill every TODO(project) in AI_CONTEXT.md and .agents/harness/project-rules.md.'
+Write-Host 'Next: fill every TODO(project) in AI_CONTEXT.md, .agents/harness/project-rules.md, MODEL_ROUTING.md, docs/00-master-plan.md and docs/architecture.md,'
+Write-Host '      then run scripts/ai/check-ai-structure.ps1 -Strict.'
 exit $exitCode

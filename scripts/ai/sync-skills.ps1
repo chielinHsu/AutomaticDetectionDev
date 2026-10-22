@@ -23,7 +23,8 @@ $ErrorActionPreference = 'Stop'
 
 if ([string]::IsNullOrWhiteSpace($RepositoryRoot))
 {
-	$RepositoryRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..\..')).Path
+	# Split-Path instead of Join-Path '..\..': a backslash is an ordinary character on Linux (pwsh in CI).
+	$RepositoryRoot = (Resolve-Path -LiteralPath (Split-Path -Parent (Split-Path -Parent $PSScriptRoot))).Path
 }
 
 $manifestPath = Join-Path $RepositoryRoot '.agents/harness/skill-sync.json'

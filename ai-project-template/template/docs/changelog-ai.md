@@ -9,7 +9,7 @@
 ## YYYY-MM-DD — Claude Code (模型) ／ Codex (模型)
 
 ### 完成
-- 做了什麼（一行一件）
+- 做了什麼（一行一件；對應需求進度表的 Rnn）
 
 ### 修改的檔案
 - path/to/file
@@ -27,16 +27,16 @@
 ## {{DATE}} — 範本
 
 ### 完成
-- 建立 AI agent 共用結構（Codex 與 Claude Code）。
+- 建立 AI agent 共用結構 2.0.0（Codex 與 Claude Code）：入口、工作流程、專案規則、需求進度表、ADR、總體計畫與計畫檔範本、模型路由、檢查腳本（R01）。
 
 ### 修改的檔案
-- `AGENTS.md`、`CLAUDE.md`、`AI_CONTEXT.md`、`.agents/`、`.claude/settings.json`、`.ai/`、`docs/`、`scripts/ai/`
+- `AGENTS.md`、`CLAUDE.md`、`AI_CONTEXT.md`、`MODEL_ROUTING.md`、`.agents/`、`.claude/`、`.ai/`、`docs/`、`scripts/ai/`、`tools/ste-lint.mjs`
 
 ### 驗證
 - 未驗證（範本建立時尚無程式碼）。
 
 ### 未完成
-- 填寫 `AI_CONTEXT.md` 與 `project-rules.md` 的 `TODO(project)`。
+- 填寫 `TODO(project)`（進度表 R02）。
 
 ### 注意事項
 - 無。

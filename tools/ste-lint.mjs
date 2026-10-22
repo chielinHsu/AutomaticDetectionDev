@@ -4,12 +4,17 @@
 //
 // Scanned text:
 //   *.md   -> text between <!--STE--> and <!--/STE-->
-//   *.html -> every string under a key named "ste" in <script type="application/json" id="aoi-data">
+//   *.html -> every string under a key named "ste" in <script type="application/json" id="ste-data">
+//             (the older id "aoi-data" is accepted too)
 //
-// Usage: node tools/ste-lint.mjs [files...]   (default: all of docs/)
+// Usage: node tools/ste-lint.mjs [files...]   (default: all of docs/, except _template folders and _template.md files)
+// Run it from any folder: the default docs/ is found relative to this file.
 // Exit code 1 when an error is found. Add --strict to fail on warnings too.
-import { readFileSync, readdirSync, statSync } from 'node:fs';
-import { join, extname } from 'node:path';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import { dirname, join, extname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const DOCS_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', 'docs');
 
 const MAX_ERROR = 25; // words per sentence: hard limit (descriptive text)
 const MAX_WARN = 20; // words per sentence: procedure limit
@@ -21,7 +26,7 @@ const files = args.filter((a) => !a.startsWith('--'));
 
 function walk(dir, out = []) {
   for (const name of readdirSync(dir)) {
-    if (name === 'node_modules' || name === '_template') continue;
+    if (name === 'node_modules' || name === '_template' || name === '_template.md') continue;
     const p = join(dir, name);
     if (statSync(p).isDirectory()) walk(p, out);
     else if (['.md', '.html'].includes(extname(p))) out.push(p);
@@ -50,7 +55,7 @@ function extract(path) {
   if (extname(path) === '.md') {
     for (const m of text.matchAll(/<!--STE-->([\s\S]*?)<!--\/STE-->/g)) blocks.push(m[1]);
   } else {
-    const m = text.match(/<script type="application\/json" id="aoi-data">([\s\S]*?)<\/script>/);
+    const m = text.match(/<script type="application\/json" id="(?:ste|aoi)-data">([\s\S]*?)<\/script>/);
     if (m) collectKey(JSON.parse(m[1]), 'ste', blocks);
   }
   return blocks;
@@ -75,7 +80,7 @@ function sentences(block) {
 let errors = 0;
 let warnings = 0;
 let checked = 0;
-for (const f of files.length ? files : walk('docs')) {
+for (const f of files.length ? files : existsSync(DOCS_DIR) ? walk(DOCS_DIR) : []) {
   for (const block of extract(f)) {
     for (const s of sentences(block)) {
       checked++;

@@ -12,7 +12,7 @@
 |---|---|
 | 詢問、解釋、審查、狀態報告 | 理解 → 查證 → 回報 |
 | 診斷問題 | 取得證據 → 重現 → 現況流程圖 → 根因 → 回報 |
-| 修改程式 | 理解 → 探索 → 現況流程圖 → 決策審查 → 計畫 → 實作 → 驗證 → 審查 → 回報（附修改後流程圖） |
+| 修改程式 | 理解 → 探索 → 現況流程圖 → 決策審查 → 計畫（非單純需求要先展開成需求進度表，見「需求展開與進度表」）→ 實作 → 驗證 → 審查 → 回報（附修改後流程圖） |
 | 效能改善 | 基準 → 量測 → 找瓶頸 → 最佳化 → 重新量測 |
 | Commit | 確認驗證結果 → 精確 stage → 套用 `project-rules.md` 的 Git 規則 |
 
@@ -26,12 +26,13 @@ Claude Code 與 Codex 會輪流在同一個 repository 工作，彼此看不到�
 |---|---|---|
 | `AI_CONTEXT.md` | 專案事實 | 原地修改，很少變動 |
 | `docs/architecture.md` | 系統結構 | 原地修改 |
-| `docs/decisions.md` | 設計決策與理由（ADR） | 只新增，新紀錄在最上方 |
-| `docs/current-status.md` | 目前進度、待辦、已知問題 | 原地修改 |
+| `docs/decisions.md`、`docs/adr/NNN-slug.md` | 設計決策與理由（ADR）：內容在 `docs/adr/`，`decisions.md` 只是索引 | 只新增，索引新的在最上方 |
+| `docs/current-status.md` | 需求進度表（開頭）、目前進度、待辦、已知問題 | 原地修改 |
+| `docs/plan/<ID>-<slug>.md` | 跨 session 或多步驟需求的計畫、完成定義、Start prompt | 開工前建立，進度原地更新 |
 | `docs/changelog-ai.md` | 每個 agent session 做了什麼 | 只新增，新紀錄在最上方 |
 | `.ai/handoff.md` | 給下一位 agent 的交接單 | 每次收工整份覆寫 |
 
-**開工（非單純任務）**：讀 `.ai/handoff.md` 與 `docs/current-status.md`；要動架構時加讀 `docs/architecture.md` 與 `docs/decisions.md`；要接續別人的工作時加讀 `docs/changelog-ai.md`。再看 `git status`，確認工作目錄的狀態與交接單一致。
+**開工（非單純任務）**：讀 `.ai/handoff.md` 與 `docs/current-status.md`（先看開頭的需求進度表，找出自己要接的列）；要動架構時加讀 `docs/architecture.md` 與 `docs/decisions.md`；要接續別人的工作時加讀 `docs/changelog-ai.md`。再看 `git status`，確認工作目錄的狀態與交接單一致。
 
 **收工（有意義的變更之後）**：依 `ai-handoff` skill 更新上表的檔案。沒有改動任何程式或設計的問答，不需要寫交接。
 
@@ -39,7 +40,7 @@ Claude Code 與 Codex 會輪流在同一個 repository 工作，彼此看不到�
 
 - 不覆蓋另一個 agent 未完成的工作；先檢視 `git status`、`git diff` 與交接單。
 - 工作目錄裡不是自己改的未提交修改，視為使用者資料，不清理、不回復、不一併 stage。
-- `docs/decisions.md` 已記錄的決定，沒有新證據不推翻；要推翻就新增一筆，並標明取代哪一筆。
+- `docs/adr/` 已記錄的決定，沒有新證據不推翻；要推翻就新增一筆，並在新舊兩筆都標明取代關係。
 - 事實與推測分開寫；沒驗證的內容標明「未驗證」。
 
 ## 1. 理解
@@ -112,6 +113,8 @@ Claude Code 與 Codex 會輪流在同一個 repository 工作，彼此看不到�
 
 非單純修改先建立短計畫：要處理的根因或目標行為、要修改的檔案、最小可行變更、回歸風險與驗證方式、決策審查的結論。避免無關重構；新資訊推翻原計畫時，先更新計畫再繼續。
 
+計畫的細項要寫進 `docs/current-status.md` 的需求進度表，規則見下方「需求展開與進度表」。
+
 ## 7. 實作
 
 - 保留既有架構與公開介面，除非有證據必須改變。
@@ -149,9 +152,21 @@ Claude Code 與 Codex 會輪流在同一個 repository 工作，彼此看不到�
 - **Flow Diagram**：修改前與修改後（規則見第 5 節），需要跨檔案追蹤才能理解的改動必附。
 - **Verification**：實際執行的命令與結果。
 - **Remaining Risks**：未驗證、環境依賴或超出範圍的項目。
-- **Handoff**：更新了哪些交接文件。
+- **Handoff**：更新了哪些交接文件（含需求進度表哪些列的狀態）。
 
 核心順序始終是「Context → Decision Review → Evidence → Reasoning → Action → Verification」，而不是「Assumption → Action → Confidence」。
+
+## 需求展開與進度表
+
+使用者的需求不是一句話做完就算：非單純的需求先展開成可追蹤的細項，再動手。進度表是需求的單一事實來源，換 session、換 agent 都看這份。
+
+- **何時展開**：任何非單純修改（會動到多個檔案、需要計畫、跨 session 或要委派）在「計畫」階段就把需求展開成細項，寫進 `docs/current-status.md` 開頭的「需求進度表」，**再實作**。單一檔案的錯字、純問答、狀態詢問不必展開。
+- **編號**：需求用 `Rnn`（兩位數字遞增，不重用），細項用 `Rnn.m`。每列有類型（功能、修正、文件、雜項等）、需求／細項、狀態、計畫、分支／commit、驗證。欄位格式見 `docs/current-status.md` 開頭的表格。
+- **狀態圖例**：✅ 完成　⏳ 進行中　⬜ 尚未開始　⚠️ 有未解決問題　⛔ 取消。新展開的細項一律先標 ⬜；開始做改 ⏳；完成時改 ✅，補上分支／commit 與驗證（`VERIFIED`、`PARTIALLY VERIFIED`、`NOT VERIFIED` 與實際跑了什麼）。範圍或做法變動時，改細項文字並在備註或計畫檔記下原因。
+- **完成的列不刪除**：改狀態、補 commit 與驗證即可；取消的列標 ⛔ 並寫原因。待使用者決定的事，列在表格下方的「待使用者決定」。
+- **計畫檔**：跨多個 session 或多個步驟的需求，另寫 `docs/plan/<ID>-<slug>.md`（範本 `docs/plan/_template.md`，含完成定義、Commit 範本、Start prompt），並在表格的「計畫」欄連到它。小需求只寫在表格即可。
+- **委派規劃**：把規劃交給 architect 系列 subagent 時，由**主 agent** 把回傳的計畫寫進進度表與計畫檔；subagent 不直接修改這兩份文件（它們唯讀，或不負責提交）。委派實作時，subagent 在回報裡逐項列出細項的結果，由主 agent 更新狀態。
+- **收工**：依 `ai-handoff` skill 更新進度表（本次動到的列），並在最終回覆總結每一列的狀態變化。
 
 ## 範圍與安全
 
