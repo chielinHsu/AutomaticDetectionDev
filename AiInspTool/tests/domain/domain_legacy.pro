@@ -9,6 +9,7 @@ DIR = $$AOI_ROOT/src/domain
 SOURCES += \
     $$DIR/legacy/feature_extract_legacy.cpp \
     $$DIR/legacy/match_region_legacy.cpp \
+    $$DIR/legacy/repeatability_legacy.cpp \
     $$DIR/lattice/legacy/basis_finder_legacy.cpp \
     $$DIR/lattice/legacy/cell_components_legacy.cpp \
     $$DIR/lattice/legacy/lattice_acceptance_legacy.cpp \
@@ -21,6 +22,7 @@ SOURCES += \
 HEADERS += \
     $$DIR/legacy/feature_extract_legacy.h \
     $$DIR/legacy/match_region_legacy.h \
+    $$DIR/legacy/repeatability_legacy.h \
     $$DIR/lattice/legacy/basis_finder_legacy.h \
     $$DIR/lattice/legacy/cell_components_legacy.h \
     $$DIR/lattice/legacy/lattice_acceptance_legacy.h \

@@ -5,16 +5,16 @@
 
 - 最後一位 agent：Claude Code (Claude Opus 5.5)
 - 日期：2026-10-27
-- 分支：`refactor/r05-3-match-region` 以 `--no-ff` 合併到 `main`，tag `r05.3-done`，只在本機，沒有 push。
+- 分支：`refactor/r05-4-repeatability` 以 `--no-ff` 合併到 `main`，tag `r05.4-done`，只在本機，沒有 push。
 
 ## 上一個 session 動到的計畫
 
-- R05.3（比對區與自動擷取搬進 Rust）：[`docs/plans/active/R05-rust-domain/`](../docs/plans/active/R05-rust-domain/status.md)。設計與數字在 ADR-031 的「後續（R05.3）」。
-- `tools/perf-compare.mjs` 多一個來源 `match_region`（新的效能量測 `tests/domain/perf_match_region`）。
+- R05.4（重複性的 `summarize` 搬進 Rust）：[`docs/plans/active/R05-rust-domain/`](../docs/plans/active/R05-rust-domain/status.md)。設計與數字在 ADR-031 的「後續（R05.4）」。
+- `tools/perf-compare.mjs` 多一個來源 `repeatability_stats`（新的效能量測 `tests/domain/perf_repeatability_stats`）。
 
 ## 接下來
 
-- R05.4 重複性統計：同一個計畫資料夾，Start prompt 在它的 `plan.md` 底部（共通格式）。
+- R05.5 收尾：同一個計畫資料夾，Start prompt 在它的 `plan.md` 底部（共通格式）；要問使用者的事在 `status.md`「待使用者決定」。
 
 ## 不要動
 
@@ -25,9 +25,9 @@
 
 ## 未提交的變更
 
-- 無（本次已提交）。`build/r05-3/` 底下是本次的建置記錄與效能量測（不入版控）；`build/qmake-release*/bin/perf_match_region*_before.exe` 是搬之前的執行檔備份，可以刪。
+- 無（本次已提交）。`build/r05-4/` 底下是本次的建置記錄與效能量測（不入版控）；`build/qmake-release*/bin/perf_repeatability*_before.exe`（與 R05.3 留下的 `perf_match_region*_before.exe`）是搬之前的執行檔備份，可以刪。
 
 ## 假設與未驗證項目
 
-- `perf_match_region_real` 的影像 2026-10-20 換過，預設參數對不上，召回與位置沒有量到（`status.md`「待使用者決定」）。
+- `tst_repeatability::realFiveRuns` 的原始五份 CSV 在這台機器找不到，照舊跳過；差異測試改用 `D:\Benano\…` 的真實報表（不入版控）。
 - 沒有跑 `-NoOpenCv`、`-NoHalcon`、Profile；Qt Creator 的 GUI 沒有操作。

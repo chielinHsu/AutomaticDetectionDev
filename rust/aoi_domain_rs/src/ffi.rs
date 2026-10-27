@@ -5,7 +5,7 @@
 //! - 配置失敗回傳 `AOI_RS_NO_MEMORY`（用 `try_reserve`，不結束行程），C++ 的包裝照原本的契約丟 `std::bad_alloc`。
 //! - 誰配置誰釋放：`OverlapIndex` 由 `aoi_rs_overlap_index_new` 配置、`aoi_rs_overlap_index_free` 釋放；
 //!   輸出大小有上限的陣列（`aoi_rs_nms_keep` 的索引）由呼叫端配置，Rust 只寫進去。
-//! - 晶格（R05.2）的函式在 `ffi_lattice`；比對區與自動擷取（R05.3）在 `ffi_match`。
+//! - 晶格（R05.2）的函式在 `ffi_lattice`；比對區與自動擷取（R05.3）在 `ffi_match`；重複性的樣本統計（R05.4）在 `ffi_repeatability`。
 //! - 量法的整數：0 ＝ IoU，其他 ＝ 交集 ÷ 較小的面積（和 C++ 的 `measure == IntersectionOverUnion ? … : …` 相同）。
 
 use std::panic::{AssertUnwindSafe, catch_unwind};
@@ -21,7 +21,7 @@ pub const AOI_RS_INVALID_ARGUMENT: i32 = 3;
 pub const AOI_RS_CALLBACK_FAILED: i32 = 4;
 
 /// C 標頭的 `AOI_RS_ABI_VERSION`：C++ 包裝在第一次呼叫前比對，連到舊的程式庫時明確失敗。
-pub const AOI_RS_ABI_VERSION: u32 = 3;
+pub const AOI_RS_ABI_VERSION: u32 = 4;
 
 pub(crate) fn guard(f: impl FnOnce() -> i32) -> i32 {
     catch_unwind(AssertUnwindSafe(f)).unwrap_or(AOI_RS_PANIC)

@@ -73,6 +73,7 @@ AOI_PERF_TESTS = \
     core/perf_core \
     domain/perf_lattice \
     domain/perf_match_region \
+    domain/perf_repeatability_stats \
     infra/perf_storage \
     ui/perf_paint_micro \
     ui/perf_ui_s04 \
