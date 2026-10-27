@@ -4,14 +4,15 @@
 # ADR-031（R05）：搬進 Rust 的演算法有兩份實作，依 AOI_DOMAIN_IMPL 選一份；標頭兩種建置都一樣。
 #   cpp：lattice/legacy/*_legacy.cpp（aoi::legacy）＋ 轉呼叫它的 .cpp；rust：轉呼叫 Rust（ffi/aoi_domain_rs.h）的 *_rs.cpp
 #   （晶格共用的轉換在 lattice_rs_bridge.cpp）。R05.1：NMS；R05.2：晶格；R05.3：比對區與自動擷取（C++ 在 legacy/，
-#   operator== 在 match_region_equality.cpp，兩種建置都編）。
+#   operator== 在 match_region_equality.cpp，兩種建置都編）；R05.4：重複性的 summarize（C++ 在 legacy/，
+#   valueOf、defaultMetrics 在 repeatability_types.cpp，兩種建置都編）。
 
 AOI_MODULE = domain
 include($$AOI_QMAKE/aoi_lib.pri)
 
 DIR = $$AOI_ROOT/src/domain
 SOURCES += \
-    $$DIR/repeatability.cpp \
+    $$DIR/repeatability_types.cpp \
     $$DIR/image_buffer.cpp \
     $$DIR/image_copy.cpp \
     $$DIR/image_depth.cpp \
@@ -21,6 +22,7 @@ equals(AOI_DOMAIN_IMPL, rust) {
     SOURCES += \
         $$DIR/feature_extract_rs.cpp \
         $$DIR/match_region_rs.cpp \
+        $$DIR/repeatability_rs.cpp \
         $$DIR/lattice/basis_finder_rs.cpp \
         $$DIR/lattice/cell_components_rs.cpp \
         $$DIR/lattice/lattice_acceptance_rs.cpp \
@@ -35,8 +37,10 @@ equals(AOI_DOMAIN_IMPL, rust) {
     SOURCES += \
         $$DIR/legacy/feature_extract_legacy.cpp \
         $$DIR/legacy/match_region_legacy.cpp \
+        $$DIR/legacy/repeatability_legacy.cpp \
         $$DIR/feature_extract.cpp \
         $$DIR/match_region.cpp \
+        $$DIR/repeatability.cpp \
         $$DIR/lattice/legacy/basis_finder_legacy.cpp \
         $$DIR/lattice/legacy/cell_components_legacy.cpp \
         $$DIR/lattice/legacy/lattice_acceptance_legacy.cpp \
@@ -61,6 +65,7 @@ HEADERS += \
     $$DIR/ffi/aoi_domain_rs.h \
     $$DIR/legacy/feature_extract_legacy.h \
     $$DIR/legacy/match_region_legacy.h \
+    $$DIR/legacy/repeatability_legacy.h \
     $$DIR/match_region_rs_bridge.h \
     $$DIR/lattice/legacy/basis_finder_legacy.h \
     $$DIR/lattice/legacy/cell_components_legacy.h \

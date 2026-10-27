@@ -25,15 +25,27 @@
 //   - 浮點數（matchSpecFor 的矩形、matchSettingsFromPixels 的 µm）：agree()，理由同上（只有四則運算，實際一位不差，印在 log）。
 //   - 輸入：五種像素格式、stride 有填充、Gray16 的列起點不對齊、各種有效位元數；within 部分在影像外、整個在外、空的、NaN；
 //     點擊在亮塊上、亮塊外、NaN、很遠；遮罩的寬高 ≤ 0、bits 的個數不對、不合法的 runs；校正值 0、負的、NaN、∞。
+//
+// R05.4 擴充到重複性的樣本統計（repeatability::summarize）：
+//   - 個數、expected、complete()、每個 optional 有沒有值：完全相同。
+//   - 浮點數（最小、最大、平均、Range、標準差、P/T）：agree()，理由同上（四則運算與 sqrt，實際一位不差，印在 log）。
+//   - 輸入：長度 0–64；像真實量測的 µm、很大（差與平方和溢位）、次正規數、全部相同、±0、混著 NaN 與 ±∞；
+//     SPEC 沒有、0、−0、負的、NaN、±∞、很小、很大。有 AOI_REPEATABILITY_DATA 時另外拿真實的 BOX LEVEL 報表
+//     （那個資料夾與底下每個子資料夾各算一組，每個 (Box, 欄) 在每份 CSV 的值是一次 summarize 的輸入）。
 #include <QtTest>
+#include <QDir>
+#include <QDirIterator>
+#include <QFile>
 #include <algorithm>
 #include <cmath>
 #include <cstring>
 #include <limits>
+#include <map>
 #include <memory>
 #include <numbers>
 #include <optional>
 #include <stdexcept>
+#include <utility>
 #include <vector>
 
 #include "LatticeTestSupport.h"
@@ -42,7 +54,9 @@
 #include "domain/image_view.h"
 #include "domain/legacy/feature_extract_legacy.h"
 #include "domain/legacy/match_region_legacy.h"
+#include "domain/legacy/repeatability_legacy.h"
 #include "domain/match_region.h"
+#include "domain/repeatability.h"
 #include "domain/lattice/basis_finder.h"
 #include "domain/lattice/cell_components.h"
 #include "domain/lattice/lattice_acceptance.h"
@@ -523,6 +537,108 @@ Rect randomRect(Rng& rng, double extentX, double extentY) {
     if (roll < 0.20) return {-1e6, -1e6, 2e6, 2e6};                        // 整個蓋住
     return {rng.symmetric(extentX * 0.3) + rng.uniform() * extentX * 0.5, rng.symmetric(extentY * 0.3) + rng.uniform() * extentY * 0.5,
             rng.uniform() * extentX * 1.2, rng.uniform() * extentY * 1.2};
+}
+
+// ---- 重複性統計（R05.4）的比對工具 ----
+
+QString optText(const std::optional<double>& v) { return v ? QString::number(*v, 'g', 17) : QStringLiteral("nullopt"); }
+
+// 兩份 Statistics 不同時回傳說明（空字串 ＝ 相同）：個數完全相同、每個 optional 同樣有或沒有、值用 agree()。
+QString diffStatistics(const repeatability::Statistics& r, const repeatability::Statistics& c, FloatTally& t) {
+    if (r.count != c.count || r.expected != c.expected || r.complete() != c.complete())
+        return QStringLiteral("count %1/%2 vs %3/%4").arg(r.count).arg(r.expected).arg(c.count).arg(c.expected);
+    const std::pair<const char*, std::pair<const std::optional<double>*, const std::optional<double>*>> fields[] = {
+        {"minimum", {&r.minimum, &c.minimum}}, {"maximum", {&r.maximum, &c.maximum}}, {"average", {&r.average, &c.average}},
+        {"range", {&r.range, &c.range}},       {"deviation", {&r.deviation, &c.deviation}}, {"pt", {&r.pt, &c.pt}}};
+    for (const auto& [name, pair] : fields) {
+        const std::optional<double>& a = *pair.first;
+        const std::optional<double>& b = *pair.second;
+        if (a.has_value() != b.has_value() || (a && !t.same(*a, *b)))
+            return QStringLiteral("%1: rust %2 vs cpp %3").arg(QString::fromLatin1(name), optText(a), optText(b));
+    }
+    return {};
+}
+
+// 隨機的量測值：像真實的 µm（小數三位）、很大（平方和溢位）、很小（次正規數）、全部相同、±0、混著 NaN 與 ±∞。
+std::vector<double> randomMeasurements(Rng& rng) {
+    static const std::size_t lengths[] = {0, 1, 2, 3, 5, 5, 5, 10, 29, 30, 64};
+    const std::size_t n = lengths[rng.below(std::size(lengths))];
+    const int kind = static_cast<int>(rng.below(7));
+    const double center = rng.symmetric(80.0), spread = rng.uniform() * 10.0;
+    std::vector<double> v(n);
+    for (double& x : v) {
+        switch (kind) {
+        case 0: case 1: x = std::round((center + rng.symmetric(spread)) * 1000.0) / 1000.0; break;  // 像真實的量測
+        case 2: x = rng.symmetric(1.7e308); break;                                                  // 平方和、差會溢位
+        case 3: x = rng.symmetric(1e-310); break;                                                   // 次正規數
+        case 4: x = center; break;                                                                  // 全部相同（m2 ＝ 0）
+        case 5: x = rng.below(2) == 0 ? 0.0 : -0.0; break;                                          // ±0
+        default: x = center + rng.symmetric(spread) * 1e6; break;                                   // 大的離散
+        }
+        const double roll = rng.uniform();
+        if (roll < 0.05) x = kNaN;
+        else if (roll < 0.08) x = kInf;
+        else if (roll < 0.10) x = -kInf;
+    }
+    return v;
+}
+
+std::optional<double> randomTolerance(Rng& rng) {
+    static const double special[] = {0.0, -0.0, -200.0, kNaN, kInf, -kInf, 1e-320, 1e308, 200.0, 250.0, 350.0};
+    const double roll = rng.uniform();
+    if (roll < 0.15) return std::nullopt;
+    if (roll < 0.45) return special[rng.below(std::size(special))];
+    return rng.uniform() * 500.0;
+}
+
+// 真實的 BOX LEVEL 報表（ADR-029 的格式）：只取每份 CSV 的 BOX LEVEL 區段，第一欄是 Box（可以有引號與逗號），
+// 其他欄能讀成數字的就是值；同一個 (Box, 欄) 在每份 CSV 的值收集成一組（和 application 的對齊方式相同，只是不分 Component）。
+// 這裡不用 storage 的解析器（domain 的測試只連 domain），所以讀法簡化：不能讀成數字的欄（Decision 等）略過。
+std::vector<QString> splitCsvLine(const QString& line) {
+    std::vector<QString> out;
+    QString cell;
+    bool quoted = false;
+    for (const QChar ch : line) {
+        if (ch == QLatin1Char('"')) quoted = !quoted;
+        else if (ch == QLatin1Char(',') && !quoted) { out.push_back(cell); cell.clear(); }
+        else cell.append(ch);
+    }
+    out.push_back(cell);
+    return out;
+}
+
+// 一個資料夾（不遞迴）的 CSV：(Box, 欄) → 每份 CSV 的值（依檔名的順序）。回傳讀到的 CSV 個數。
+std::size_t readBoxLevel(const QString& folder, std::map<std::pair<QString, QString>, std::vector<double>>& series) {
+    QStringList files = QDir(folder).entryList({QStringLiteral("*.csv")}, QDir::Files, QDir::Name);
+    std::size_t reports = 0;
+    for (const QString& name : files) {
+        QFile file(QDir(folder).filePath(name));
+        if (!file.open(QIODevice::ReadOnly)) continue;
+        const QStringList lines = QString::fromUtf8(file.readAll()).split(QLatin1Char('\n'));
+        std::vector<QString> header;
+        bool inBox = false;
+        for (QString line : lines) {
+            line = line.trimmed();
+            if (line.startsWith(QStringLiteral("==="))) {
+                inBox = line.contains(QStringLiteral("BOX LEVEL"));
+                header.clear();
+                continue;
+            }
+            if (!inBox || line.isEmpty()) continue;
+            const std::vector<QString> cells = splitCsvLine(line);
+            if (header.empty()) {
+                header = cells;
+                continue;
+            }
+            for (std::size_t c = 1; c < cells.size() && c < header.size(); ++c) {
+                bool ok = false;
+                const double v = cells[c].trimmed().toDouble(&ok);
+                if (ok) series[{cells[0], header[c].trimmed()}].push_back(v);
+            }
+        }
+        ++reports;
+    }
+    return reports;
 }
 
 }  // namespace
@@ -1106,6 +1222,61 @@ private slots:
         }
         qInfo().noquote() << grown << "of 4000 grown masks are not empty: identical";
         QVERIFY(grown > 1000);
+    }
+
+    // ---- 重複性的樣本統計（R05.4） ----
+
+    void repeatabilitySummarizeAgrees() {
+        FloatTally t;
+        Rng rng(0x5401);
+        std::size_t withPt = 0, complete = 0, empty = 0;
+        for (int k = 0; k < 200000; ++k) {
+            const std::vector<double> values = randomMeasurements(rng);
+            const std::size_t expected = rng.below(3) == 0 ? values.size() + rng.below(3) : values.size();
+            const std::optional<double> tolerance = randomTolerance(rng);
+            const repeatability::Statistics r = repeatability::summarize(values, expected, tolerance);
+            const repeatability::Statistics c = legacy::summarize(values, expected, tolerance);
+            if (const QString d = diffStatistics(r, c, t); !d.isEmpty()) QFAIL(qPrintable(QStringLiteral("case %1: %2").arg(k).arg(d)));
+            if (c.pt) ++withPt;
+            if (c.complete()) ++complete;
+            if (c.count == 0) ++empty;
+        }
+        // 空的 span（data() 可以是 null）：兩邊同樣只有 expected。
+        const repeatability::Statistics none = repeatability::summarize({}, 4, 200.0);
+        if (const QString d = diffStatistics(none, legacy::summarize({}, 4, 200.0), t); !d.isEmpty()) QFAIL(qPrintable(d));
+        qInfo().noquote() << "summarize:" << t.summary()
+                          << QStringLiteral("(200 000 inputs: %1 with P/T, %2 complete, %3 without a finite value)").arg(withPt).arg(complete).arg(empty);
+        QVERIFY(withPt > 20000 && empty > 1000);
+    }
+
+    void repeatabilityRealReportsAgree() {
+        const QString root = qEnvironmentVariable("AOI_REPEATABILITY_DATA");
+        if (root.isEmpty()) QSKIP("Set AOI_REPEATABILITY_DATA to a folder of BOX LEVEL CSV reports (its subfolders are read too).");
+        QStringList folders{root};
+        for (QDirIterator it(root, QDir::Dirs | QDir::NoDotAndDotDot, QDirIterator::Subdirectories); it.hasNext();) folders << it.next();
+        const repeatability::MetricCatalog catalog = repeatability::defaultMetrics();
+        FloatTally t;
+        std::size_t datasets = 0, reports = 0, series = 0, values = 0;
+        for (const QString& folder : folders) {
+            std::map<std::pair<QString, QString>, std::vector<double>> byKey;
+            const std::size_t n = readBoxLevel(folder, byKey);
+            if (byKey.empty()) continue;
+            ++datasets;
+            reports += n;
+            for (const auto& [key, v] : byKey) {
+                const auto metric = catalog.find(key.second.toStdString());
+                const std::optional<double> tolerance = metric != catalog.end() ? metric->second.tolerance : std::nullopt;
+                const repeatability::Statistics r = repeatability::summarize(v, n, tolerance);
+                const repeatability::Statistics c = legacy::summarize(v, n, tolerance);
+                if (const QString d = diffStatistics(r, c, t); !d.isEmpty())
+                    QFAIL(qPrintable(QStringLiteral("%1 %2/%3: %4").arg(folder, key.first, key.second, d)));
+                ++series;
+                values += v.size();
+            }
+        }
+        qInfo().noquote() << QStringLiteral("real reports: %1 folders, %2 CSV files, %3 (Box, column) series, %4 values;").arg(datasets).arg(reports).arg(series).arg(values)
+                          << t.summary();
+        QVERIFY(series > 0);
     }
 };
 

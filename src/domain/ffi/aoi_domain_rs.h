@@ -1,9 +1,9 @@
 /* domain 層的 Rust 實作（rust/aoi_domain_rs）的 C ABI。ADR-031：只在 AOI_DOMAIN_IMPL=rust 的建置連結。
  *
  * 只 include C 的標準標頭；結構的欄位順序和 Rust 的 #[repr(C)] 相同（C++ 的包裝 non_max_suppression_rs.cpp、
- * lattice/lattice_rs_bridge.cpp、match_region_rs.cpp 用 static_assert 檢查大小，Rust 那一側也有）。改這裡就要改 rust/aoi_domain_rs/src/ffi.rs
- * （NMS）、ffi_lattice.rs（晶格）或 ffi_match.rs（比對區），並把 AOI_RS_ABI_VERSION 加 1。版本 1：R05.1（NMS）；版本 2：R05.2（晶格）；
- * 版本 3：R05.3（比對區與自動擷取）。
+ * lattice/lattice_rs_bridge.cpp、match_region_rs.cpp、repeatability_rs.cpp 用 static_assert 檢查大小，Rust 那一側也有）。改這裡就要改 rust/aoi_domain_rs/src/ffi.rs
+ * （NMS）、ffi_lattice.rs（晶格）、ffi_match.rs（比對區）或 ffi_repeatability.rs（重複性），並把 AOI_RS_ABI_VERSION 加 1。版本 1：R05.1（NMS）；版本 2：R05.2（晶格）；
+ * 版本 3：R05.3（比對區與自動擷取）；版本 4：R05.4（重複性的樣本統計）。
  *
  * 規則：
  *   - 回傳 AoiRsStatus 的函式：AOI_RS_OK 才有輸出。panic 被擋在 Rust 這一側（AOI_RS_PANIC，是 bug）；
@@ -12,6 +12,7 @@
  *     aoi_rs_nms_keep 的輸出陣列由呼叫端配置。晶格（R05.2）：長度有上限的輸出由呼叫端配置；長度不固定的輸出是 handle
  *     （*_get／*_model 讀到的指標指向 handle 裡的記憶體，*_free 之後不可以再用）。比對區（R05.3）同樣規則：遮罩與 runs 是 handle，
  *     maskFromRuns 的 bits 由呼叫端配置；輸入的遮罩、runs 與影像的像素直接借用（不複製）。
+ *     重複性（R05.4）：值直接借用 std::span 的資料，輸出 AoiRsStatistics 由呼叫端配置（沒有 handle）。
  *   - 自訂的分群策略（AOI_RS_CLUSTER_CALLBACK）：回呼回報失敗、或輸出違反 IVectorClustering 的契約（群數比向量多、
  *     標號超出群數）時，整個呼叫回傳 AOI_RS_CALLBACK_FAILED（C++ 的包裝重新丟出回呼記下的例外，沒有記下就丟 std::logic_error）。
  *   - 量法：0 ＝ 交集 ÷ 聯集（IoU），其他 ＝ 交集 ÷ 較小的面積。
@@ -22,7 +23,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#define AOI_RS_ABI_VERSION 3u
+#define AOI_RS_ABI_VERSION 4u
 
 #ifdef __cplusplus
 extern "C" {
@@ -322,6 +323,30 @@ AoiRsStatus aoi_rs_pick_bright_blob(const AoiRsImage* image, AoiRsBounds within,
                                     AoiRsPixelMask** blob);
 /* growMask：*out 是 null ＝ 空的遮罩。 */
 AoiRsStatus aoi_rs_grow_mask(const AoiRsPixelMaskView* blob, int32_t radius, AoiRsBounds clip, AoiRsPixelMask** out);
+
+/* ---- 重複性的樣本統計（R05.4，ffi_repeatability.rs） ---- */
+
+/* aoi::repeatability::Statistics：std::optional<double> 拆成 has_*（0 ＝ nullopt，那時值是 0）與值。由呼叫端配置。 */
+typedef struct AoiRsStatistics {
+    size_t count;
+    size_t expected;
+    int32_t has_minimum;
+    int32_t has_maximum;
+    int32_t has_average;
+    int32_t has_range;
+    int32_t has_deviation;
+    int32_t has_pt;
+    double minimum;
+    double maximum;
+    double average;
+    double range;
+    double deviation;
+    double pt;
+} AoiRsStatistics;
+
+/* summarize：values 指向 count 個 double（count 是 0 時可以是 null；直接借用 std::span 的資料）；has_tolerance 是 0 ＝ 沒有 SPEC。 */
+AoiRsStatus aoi_rs_repeatability_summarize(const double* values, size_t count, size_t expected, int32_t has_tolerance, double tolerance,
+                                           AoiRsStatistics* out);
 
 #ifdef __cplusplus
 }
