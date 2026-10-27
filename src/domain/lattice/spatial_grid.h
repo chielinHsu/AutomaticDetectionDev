@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <span>
 #include <vector>
 
@@ -23,24 +24,20 @@ public:
 
     // cellSize ≤ 0 或不是有限值時，自己依點的範圍與點數決定（平均每格約一點）。格子數最多約 4n，太多時放大格子。
     SpatialGrid(std::span<const Point2D> points, double cellSize);
+    ~SpatialGrid();
+    SpatialGrid(SpatialGrid&&) noexcept;
+    SpatialGrid& operator=(SpatialGrid&&) noexcept;
 
     // points[self] 最近的 k 個鄰居（距離 > minDistance：重疊的點不算鄰居），由近到遠寫進 out（先清空）。
     void nearest(std::size_t self, std::size_t k, double minDistance, std::vector<Neighbor>& out) const;
 
-    double cellSize() const noexcept { return cell_; }
+    double cellSize() const noexcept;
 
 private:
-    int cellX(double x) const noexcept;
-    int cellY(double y) const noexcept;
-
-    std::span<const Point2D> points_;
-    double cell_ = 1.0;
-    double x0_ = 0.0;
-    double y0_ = 0.0;
-    int nx_ = 1;
-    int ny_ = 1;
-    std::vector<std::uint32_t> start_;  // 每格在 items_ 的起點（長度 nx·ny ＋ 1）
-    std::vector<std::uint32_t> items_;  // 依格子排好的點索引
+    // R05.2（ADR-031）：實作在 AOI_DOMAIN_IMPL 選的那一份（C++：lattice/legacy/spatial_grid_legacy.cpp；
+    // Rust：rust/aoi_domain_rs 的 handle，自己保存一份點）。兩種建置的標頭相同；因此不可複製、可以移動。
+    struct Impl;
+    std::unique_ptr<Impl> impl_;
 };
 
 }  // namespace aoi

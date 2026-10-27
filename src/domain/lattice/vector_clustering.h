@@ -12,6 +12,10 @@
 // 「怎麼分群」是一個可以替換的策略（O：換方法時新增一個類別、注入 LatticeEstimator，不改估計器）。
 namespace aoi {
 
+namespace detail {
+struct ClusteringAccess;  // lattice_rs_bridge.h（R05.2：Rust 的實作要知道內建策略的參數）
+}
+
 struct VectorCluster {
     Point2D center;           // 成員的平均
     std::size_t members = 0;  // 成員數
@@ -44,6 +48,7 @@ public:
     VectorClusters cluster(std::span<const Point2D> vectors, double scale) const override;
 
 private:
+    friend struct detail::ClusteringAccess;
     double binFraction_;
 };
 
@@ -55,6 +60,7 @@ public:
     VectorClusters cluster(std::span<const Point2D> vectors, double scale) const override;
 
 private:
+    friend struct detail::ClusteringAccess;
     double tolerance_;
 };
 

@@ -6,5 +6,23 @@ AOI_MODULE = domain_legacy
 include($$AOI_QMAKE/aoi_lib.pri)
 
 DIR = $$AOI_ROOT/src/domain
-SOURCES += $$DIR/lattice/legacy/non_max_suppression_legacy.cpp
-HEADERS += $$DIR/lattice/legacy/non_max_suppression_legacy.h
+SOURCES += \
+    $$DIR/lattice/legacy/basis_finder_legacy.cpp \
+    $$DIR/lattice/legacy/cell_components_legacy.cpp \
+    $$DIR/lattice/legacy/lattice_acceptance_legacy.cpp \
+    $$DIR/lattice/legacy/lattice_accumulator_legacy.cpp \
+    $$DIR/lattice/legacy/lattice_estimator_legacy.cpp \
+    $$DIR/lattice/legacy/lattice_predictor_legacy.cpp \
+    $$DIR/lattice/legacy/non_max_suppression_legacy.cpp \
+    $$DIR/lattice/legacy/spatial_grid_legacy.cpp \
+    $$DIR/lattice/legacy/vector_clustering_legacy.cpp
+HEADERS += \
+    $$DIR/lattice/legacy/basis_finder_legacy.h \
+    $$DIR/lattice/legacy/cell_components_legacy.h \
+    $$DIR/lattice/legacy/lattice_acceptance_legacy.h \
+    $$DIR/lattice/legacy/lattice_accumulator_legacy.h \
+    $$DIR/lattice/legacy/lattice_estimator_legacy.h \
+    $$DIR/lattice/legacy/lattice_predictor_legacy.h \
+    $$DIR/lattice/legacy/non_max_suppression_legacy.h \
+    $$DIR/lattice/legacy/spatial_grid_legacy.h \
+    $$DIR/lattice/legacy/vector_clustering_legacy.h

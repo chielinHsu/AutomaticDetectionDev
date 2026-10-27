@@ -1,6 +1,7 @@
 //! 座標與角度慣例（和 `src/domain/geometry.h` 相同，ADR-010）：影像像素、y 向下、角度為度、螢幕上逆時針為正。
 
-/// 點或向量（像素）。
+/// 點或向量（像素）。`#[repr(C)]`：和 C++ 的 `Point2D`、C 的 `AoiRsPoint` 相同，直接當成 FFI 的結構。
+#[repr(C)]
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct Point {
     pub x: f64,
