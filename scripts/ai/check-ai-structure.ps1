@@ -1,5 +1,5 @@
 ﻿<#
-	Validate the shared Codex / Claude Code structure of this repository (template 2.0.0).
+	Validate the shared Codex / Claude Code structure of this repository (template 3.0.0).
 
 	  check-ai-structure.ps1            FAIL on structural errors, WARN on unfilled TODO(project)
 	  check-ai-structure.ps1 -Strict    unfilled TODO(project) also FAILs
@@ -8,16 +8,19 @@
 	This checks structure only. It does not judge whether the content is good.
 
 	What is checked (a file is only checked when it exists, unless it is in the required list):
-	  - required files of template 2.0.0 and TEMPLATE_VERSION (major version 2)
+	  - required files of template 3.0.0 and TEMPLATE_VERSION (major version 3)
 	  - git repository (WARN only: a new project has no git yet)
 	  - strict UTF-8 decoding of every scanned file, U+FFFD (replacement character) scan
 	  - AGENTS.md: required reading, the four mandatory rules (keywords), size, links, no "@" import lines
 	  - CLAUDE.md: required imports (and @MODEL_ROUTING.md when MODEL_ROUTING.md exists)
 	  - AI_CONTEXT.md has the required sections
-	  - docs/current-status.md has the requirements table (needs the Chinese heading "需求進度表")
+	  - plans (3.0.0): docs/plans/INDEX.md rows (unique IDs, link to <state>/<ID>-<slug>/plan.md, status matches the folder,
+    next free number), every plan folder is listed and has plan.md, status.md, changelog.md, frontmatter id = folder ID,
+    relative links inside the plans, docs/current-status.md and .ai/handoff.md resolve; leftovers of 2.x
+    ("## 需求進度表" in current-status.md FAIL, docs/changelog-ai.md and docs/plan/ WARN)
 	  - docs/decisions.md is an index (no embedded ADR) and docs/adr/ exists, linked ADR files exist
 	  - length limits: .ai/handoff.md 60, AGENTS.md 80, CLAUDE.md 40 lines (FAIL, same as harness 1.0.0);
-	    docs/current-status.md 150 lines (WARN)
+	    docs/current-status.md 80 lines (WARN: it is a project-level snapshot, plan details belong in the plans)
 	  - unreplaced {{PLACEHOLDER}} and fill-in markers, unfilled TODO(project): (FAIL with -Strict)
 	  - .claude/settings.json: valid JSON, no bypassPermissions, deny rules for "git add ." and "git add -A",
 	    hook command uses ${CLAUDE_PROJECT_DIR} (a bare $CLAUDE_PROJECT_DIR is empty under PowerShell)
@@ -154,7 +157,7 @@ else
 	}
 }
 
-# ---- 2. required files (template 2.0.0) --------------------------------------
+# ---- 2. required files (template 3.0.0) --------------------------------------
 $requiredFiles = @(
 	'AGENTS.md',
 	'CLAUDE.md',
@@ -169,8 +172,11 @@ $requiredFiles = @(
 	'docs/architecture.md',
 	'docs/decisions.md',
 	'docs/current-status.md',
-	'docs/changelog-ai.md',
-	'docs/plan/_template.md',
+	'docs/plans/INDEX.md',
+	'docs/plans/_template/plan.md',
+	'docs/plans/_template/status.md',
+	'docs/plans/_template/changelog.md',
+	'docs/plans/_template/tasks/_task.md',
 	'docs/adr/_template.md',
 	'docs/steps/_template/spec.md',
 	'docs/steps/_template/diagram.md',
@@ -198,9 +204,9 @@ $templateVersion = ''
 if (Test-RepoFile '.agents/harness/TEMPLATE_VERSION')
 {
 	$templateVersion = (Read-Text '.agents/harness/TEMPLATE_VERSION').Trim()
-	if ($templateVersion -notmatch '^2\.\d+\.\d+$')
+	if ($templateVersion -notmatch '^3\.\d+\.\d+$')
 	{
-		Add-Fail "TEMPLATE_VERSION is '$templateVersion'; this checker is for template 2.x (run New-AiProject.ps1 -Refresh from the 2.0.0 template)"
+		Add-Fail "TEMPLATE_VERSION is '$templateVersion'; this checker is for template 3.x (run New-AiProject.ps1 -Refresh from the 3.0.0 template, then migrate-ai-structure-3.mjs)"
 	}
 }
 
@@ -211,6 +217,7 @@ $readFirst = @(
 	'.agents/harness/project-rules.md',
 	'.ai/handoff.md',
 	'docs/current-status.md',
+	'docs/plans/INDEX.md',
 	'ai-handoff'
 )
 
@@ -219,7 +226,7 @@ $mandatoryRules = @(
 	@('rule 1 (reply in Traditional Chinese zh-TW, summarize on completion)', @('繁體中文', 'zh-TW', '總結')),
 	@('rule 2 (no fabricated verification, no hidden failures)', @('不虛構驗證', '不隱藏失敗')),
 	@('rule 3 (no unrequested commit/push, explicit staging)', @('不擅自 commit', 'git add -A')),
-	@('rule 4 (expand requests into the requirements table before implementing)', @('需求進度表', 'docs/current-status.md'))
+	@('rule 4 (route each request to its own plan and expand it before implementing)', @('docs/plans/INDEX.md', 'plan.md', '計畫分開管理'))
 )
 
 if (Test-RepoFile 'AGENTS.md')
@@ -319,22 +326,146 @@ if (Test-RepoFile 'AI_CONTEXT.md')
 	}
 }
 
-# ---- 7. requirements table in docs/current-status.md --------------------------
+# ---- 7. plans (template 3.0.0): docs/plans/INDEX.md and one folder per plan ----
+# The requirements table of template 2.x moved into the plans; a leftover table means the migration is unfinished.
 if (Test-RepoFile 'docs/current-status.md')
 {
 	$statusText = Read-Text 'docs/current-status.md'
-	if (-not [regex]::IsMatch($statusText, '(?m)^##\s+需求進度表'))
+	if ([regex]::IsMatch($statusText, '(?m)^##\s+需求進度表'))
 	{
-		Add-Fail 'docs/current-status.md has no "## 需求進度表" section (the requirements table, see engineering-workflow.md)'
+		Add-Fail 'docs/current-status.md still has the 2.x "## 需求進度表"; move each unfinished request into its own plan (docs/plans/) and the old file into docs/legacy/'
 	}
-	else
+}
+if (Test-RepoFile 'docs/changelog-ai.md')
+{
+	Add-Warn 'docs/changelog-ai.md is the 2.x global changelog; move it to docs/legacy/ and write new entries into each plan''s changelog.md'
+}
+if (Test-RepoDirectory 'docs/plan')
+{
+	Add-Warn 'docs/plan/ is the 2.x plan folder; move it to docs/legacy/plan/ (finished plans) or into docs/plans/active/<ID>-<slug>/plan.md (unfinished ones)'
+}
+
+# Relative Markdown links: [text](target). URLs, anchors and template markers (<...>, {{...}}, Rnn, NNN) are skipped.
+function Test-RelativeLinks
+{
+	param([string]$RelativePath)
+
+	$text = Read-Text $RelativePath
+	$folder = Split-Path -Parent (Join-Path $RepositoryRoot $RelativePath)
+	foreach ($match in [regex]::Matches($text, '\]\(([^)#\s]+)(#[^)]*)?\)'))
 	{
-		$firstHeading = [regex]::Match($statusText, '(?m)^##\s+(.+?)\s*$').Groups[1].Value
-		if ($firstHeading -notlike '需求進度表*')
+		$target = $match.Groups[1].Value
+		if ($target -match '^[a-zA-Z][a-zA-Z0-9+.-]*:' -or $target -match '[<>{}]|Rnn|NNN|YYYY')
 		{
-			Add-Warn "docs/current-status.md: the requirements table should be the first section (first '##' heading is '$firstHeading')"
+			continue
+		}
+		if (-not (Test-Path -LiteralPath (Join-Path $folder ([Uri]::UnescapeDataString($target)))))
+		{
+			Add-Fail "$RelativePath links to a path that does not exist: $target"
 		}
 	}
+}
+
+$planStates = [ordered]@{ 'active' = @('⬜', '⏳', '⚠️', '⚠'); 'completed' = @('✅'); 'cancelled' = @('⛔') }
+$indexIds = @{}
+if (Test-RepoFile 'docs/plans/INDEX.md')
+{
+	$indexText = Read-Text 'docs/plans/INDEX.md'
+	$maxNumber = 0
+	foreach ($line in ($indexText -split "`r?`n"))
+	{
+		$cells = @($line.Trim().Trim('|').Split('|') | ForEach-Object { $_.Trim() })
+		if (($cells.Count -lt 5) -or ($cells[0] -notmatch '^[A-Z]+\d+$'))
+		{
+			continue
+		}
+		$id = $cells[0]
+		if ($indexIds.ContainsKey($id))
+		{
+			Add-Fail "docs/plans/INDEX.md lists $id twice (plan IDs are unique)"
+			continue
+		}
+		$link = [regex]::Match($line, '\]\(((active|completed|cancelled)/([^/)]+)/plan\.md)\)')
+		if (-not $link.Success)
+		{
+			Add-Fail "docs/plans/INDEX.md row $id has no link to <active|completed|cancelled>/<ID>-<slug>/plan.md"
+			continue
+		}
+		$state = $link.Groups[2].Value
+		$folderName = $link.Groups[3].Value
+		$indexIds[$id] = "$state/$folderName"
+		if (-not $folderName.StartsWith("$id-"))
+		{
+			Add-Fail "docs/plans/INDEX.md row $id points to the folder '$folderName'; plan folders are named <ID>-<slug>"
+		}
+		$statusCell = $cells[3]
+		$allowed = $planStates[$state]
+		if (-not ($allowed | Where-Object { $statusCell.Contains($_) }))
+		{
+			Add-Fail "docs/plans/INDEX.md row $id has status '$statusCell' but lives in $state/ (✅ → completed/, ⛔ → cancelled/, others → active/)"
+		}
+		if ($id -match '^R(\d+)$') { $maxNumber = [Math]::Max($maxNumber, [int]$Matches[1]) }
+	}
+	$next = [regex]::Match($indexText, '下一個可用編號[^R]*R(\d+)')
+	if (-not $next.Success)
+	{
+		Add-Warn 'docs/plans/INDEX.md does not state the next free plan number (下一個可用編號：**Rnn**)'
+	}
+	elseif ([int]$next.Groups[1].Value -le $maxNumber)
+	{
+		Add-Fail "docs/plans/INDEX.md: the next free number R$($next.Groups[1].Value) is already used (highest is R$maxNumber)"
+	}
+	Test-RelativeLinks 'docs/plans/INDEX.md'
+}
+
+foreach ($state in $planStates.Keys)
+{
+	$stateFolder = "docs/plans/$state"
+	if (-not (Test-RepoDirectory $stateFolder))
+	{
+		Add-Fail "missing required folder: $stateFolder"
+		continue
+	}
+	foreach ($plan in (Get-ChildItem -LiteralPath (Join-Path $RepositoryRoot $stateFolder) -Directory))
+	{
+		$planPath = "$stateFolder/$($plan.Name)"
+		$planId = ($plan.Name -split '-', 2)[0]
+		if (-not $indexIds.ContainsKey($planId))
+		{
+			Add-Fail "$planPath is not listed in docs/plans/INDEX.md"
+		}
+		elseif ($indexIds[$planId] -ne "$state/$($plan.Name)")
+		{
+			Add-Fail "${planPath}: docs/plans/INDEX.md points $planId to $($indexIds[$planId])"
+		}
+		foreach ($name in @('plan.md', 'status.md', 'changelog.md'))
+		{
+			if (-not (Test-RepoFile "$planPath/$name"))
+			{
+				Add-Fail "$planPath is missing $name"
+			}
+		}
+		if (Test-RepoFile "$planPath/plan.md")
+		{
+			$frontId = [regex]::Match((Read-Text "$planPath/plan.md"), '(?m)\A---\r?\n(?:.*\r?\n)*?id:\s*(\S+)')
+			if (-not $frontId.Success)
+			{
+				Add-Warn "$planPath/plan.md has no frontmatter id"
+			}
+			elseif ($frontId.Groups[1].Value -ne $planId)
+			{
+				Add-Fail "$planPath/plan.md frontmatter id is '$($frontId.Groups[1].Value)', the folder says $planId"
+			}
+		}
+		foreach ($item in (Get-ChildItem -LiteralPath $plan.FullName -Recurse -File -Filter '*.md'))
+		{
+			Test-RelativeLinks ($planPath + '/' + $item.FullName.Substring($plan.FullName.Length + 1).Replace('\', '/'))
+		}
+	}
+}
+foreach ($file in @('docs/current-status.md', '.ai/handoff.md'))
+{
+	if (Test-RepoFile $file) { Test-RelativeLinks $file }
 }
 
 # ---- 8. decisions.md is an index, docs/adr/ holds the decisions ---------------
@@ -362,7 +493,7 @@ if (Test-RepoFile 'docs/decisions.md')
 
 # ---- 9. document length -------------------------------------------------------
 # Harness 1.0.0 failed on these limits, so they stay FAIL: handoff is overwritten each time (never accumulates),
-# and the two entry files are bootloaders. current-status.md grows with the requirements table: WARN only.
+# and the two entry files are bootloaders. current-status.md is a project-level snapshot (3.0.0): WARN only.
 $failLimits = [ordered]@{
 	'.ai/handoff.md' = 60
 	'AGENTS.md'      = 80
@@ -382,9 +513,9 @@ foreach ($file in $failLimits.Keys)
 if (Test-RepoFile 'docs/current-status.md')
 {
 	$count = Get-LineCount (Read-Text 'docs/current-status.md')
-	if ($count -gt 150)
+	if ($count -gt 80)
 	{
-		Add-Warn "docs/current-status.md has $count lines (limit 150); move history to docs/changelog-ai.md"
+		Add-Warn "docs/current-status.md has $count lines (limit 80); move plan details into the plan's status.md and history into its changelog.md"
 	}
 }
 
@@ -690,7 +821,7 @@ if (Test-Path -LiteralPath $syncScript -PathType Leaf)
 # ---- 15. model routing (Claude only; checked when MODEL_ROUTING.md exists) ------
 if (-not $hasModelRouting)
 {
-	Add-Warn 'MODEL_ROUTING.md is missing; model routing for Claude Code subagents is not set up (template 2.0.0 includes it)'
+	Add-Warn 'MODEL_ROUTING.md is missing; model routing for Claude Code subagents is not set up (template 3.0.0 includes it)'
 }
 else
 {

@@ -2,7 +2,7 @@
 
 > 規則：英文區塊用 ASD-STE100 風格（短句、主動語態、一詞一義）。繁中摘要放在每段之後。
 > 檢查：`node tools/ste-lint.mjs --strict`（只檢查句長與被動語態，不是完整 STE 驗證）。
-> 設計來源：[`docs/plan/S06-image-storage.md`](../../plan/S06-image-storage.md)、S03 的 port 契約、S04 的提醒（暫代的 `ImageLoader`／`ImageViewAdapter`）、ADR-006 §4–§6。
+> 設計來源：[`docs/legacy/plan/S06-image-storage.md`](../../legacy/plan/S06-image-storage.md)、S03 的 port 契約、S04 的提醒（暫代的 `ImageLoader`／`ImageViewAdapter`）、ADR-006 §4–§6。
 > 本檔講「為什麼這樣做」；決策在 [ADR-014](../../adr/014-image-ownership-and-copies.md)（影像）與 [ADR-015](../../adr/015-recipe-and-library-storage.md)（儲存）；圖在 [`diagram.md`](diagram.md)；實測數字在 [`perf.md`](perf.md)。
 
 <!--STE-->

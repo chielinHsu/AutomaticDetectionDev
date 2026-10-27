@@ -35,7 +35,8 @@ const rel = (p) => path.relative(root, p).split(path.sep).join("/");
 const abs = (r) => path.join(root, ...r.split("/"));
 const exists = (r) => fs.existsSync(abs(r));
 
-const SKIP_DIRS = new Set([".git", "node_modules", "build", "dist", "out", "bin", "obj", "third_party", "vendor", ".venv", "venv", "target"]);
+const SKIP_DIRS = new Set([".git", "node_modules", "build", "dist", "out", "bin", "obj", "third_party", "vendor", ".venv", "venv", "target",
+  "ai-project-template"]); // 範本本身（AutoCadCreated 帶著它）不是專案的文件
 function walk(dir, out = []) {
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
     const full = path.join(dir, e.name);

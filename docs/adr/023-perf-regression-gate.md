@@ -1,7 +1,7 @@
 # ADR-023 效能回歸閘門：用多次執行的範圍比、已知的超標列出不擋、跳過不是通過、整台變慢不下結論
 
 - 日期：2026-10-13
-- 決定者：S10 的計畫（`docs/plan/S10-perf-harness.md`）與 `docs/perf-test-plan.md` 要求「慢超過 15% 或超出預算就失敗」；S04、S05、S08、S09 完成後的提醒要求閘門用多次執行的範圍、分辨跳過與通過、有「已知、不擋」的機制、看得出整台機器變慢；使用者 2026-10-12 要求 XFAIL 列成「已知、待修」。規則的細節、閾值與工具的切法是 Claude Code (Claude Fable 5.1) 的提案並實作。
+- 決定者：S10 的計畫（`docs/legacy/plan/S10-perf-harness.md`）與 `docs/perf-test-plan.md` 要求「慢超過 15% 或超出預算就失敗」；S04、S05、S08、S09 完成後的提醒要求閘門用多次執行的範圍、分辨跳過與通過、有「已知、不擋」的機制、看得出整台機器變慢；使用者 2026-10-12 要求 XFAIL 列成「已知、待修」。規則的細節、閾值與工具的切法是 Claude Code (Claude Fable 5.1) 的提案並實作。
 - 狀態：採用（閾值是起點：15% 來自 `perf/budgets.json` 的 `regressionLimitPercent`，S10 實測的雜訊在 `docs/steps/S10-perf-harness/perf.md`）
 
 ## 背景

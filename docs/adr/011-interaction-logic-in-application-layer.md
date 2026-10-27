@@ -1,7 +1,7 @@
 # ADR-011 互動規則放在 application 層（沒有 Qt 的 `InspectionSession`），Presenter 只做 Qt 這一側
 
 - 日期：2026-10-06
-- 決定者：Claude Code (Claude Sonnet 5.5) 提出並實作（S04）。計畫（`docs/plan/S04-presenter.md`）要求「狀態機不含 Qt」「`InspectionDocument` 在 application 層」；把整套互動規則收進同一個沒有 Qt 的類別，是實作時的決定。使用者沒有針對這份 ADR 另外表示意見。
+- 決定者：Claude Code (Claude Sonnet 5.5) 提出並實作（S04）。計畫（`docs/legacy/plan/S04-presenter.md`）要求「狀態機不含 Qt」「`InspectionDocument` 在 application 層」；把整套互動規則收進同一個沒有 Qt 的類別，是實作時的決定。使用者沒有針對這份 ADR 另外表示意見。
 - 狀態：採用
 
 ## 背景

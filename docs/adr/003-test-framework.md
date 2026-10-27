@@ -1,7 +1,7 @@
 # ADR-003 測試框架：統一用 Qt Test（涵蓋 domain 到 UI）
 
 - 日期：2026-10-05
-- 決定者：Claude Code (Claude Sonnet 5.5) 依 `docs/plan/S03-core.md` 第 9 項（預定的決策，計畫經使用者於 S00 核准）提出並實作；S02 已先用於 UI 測試，S03 擴及核心。使用者沒有針對這份 ADR 另外表示意見。
+- 決定者：Claude Code (Claude Sonnet 5.5) 依 `docs/legacy/plan/S03-core.md` 第 9 項（預定的決策，計畫經使用者於 S00 核准）提出並實作；S02 已先用於 UI 測試，S03 擴及核心。使用者沒有針對這份 ADR 另外表示意見。
 - 狀態：採用；「經 CTest 執行」的部分由 [ADR-018](018-qmake-only-build.md) 取代（2026-10-07，見文末「後續」）
 
 ## 背景

@@ -13,7 +13,7 @@
 
 ### 修改的檔案
 - 新增：`rust/aoi_domain_rs/src/{cpp,fallible,ffi_lattice}.rs`、`rust/aoi_domain_rs/src/lattice/*.rs`、`src/domain/lattice/{lattice_accumulator_access.h,lattice_rs_bridge.h,lattice_rs_bridge.cpp}`、`src/domain/lattice/*_rs.cpp`（8 個）、`src/domain/lattice/legacy/*_legacy.h`（8 個）；`src/domain/lattice/{basis_finder,cell_components,lattice_acceptance,lattice_accumulator,lattice_estimator,lattice_predictor,spatial_grid,vector_clustering}.cpp` 改成轉呼叫 legacy 的包裝（原本的內容 `git mv` 到 `legacy/*_legacy.cpp`）。
-- 修改：`rust/aoi_domain_rs/src/{ffi,flat_map,geometry,lib,nms}.rs`、`src/domain/ffi/aoi_domain_rs.h`、`src/domain/lattice/{lattice_accumulator,spatial_grid,vector_clustering}.h`、`AiInspTool/src/domain/domain.pro`、`AiInspTool/tests/domain/domain_legacy.pro`、`tests/domain/tst_domain_rs_diff.cpp`、`docs/adr/031-rust-domain-hybrid.md`、`docs/architecture.md`、`docs/plan/R05-rust-domain.md`、`docs/current-status.md`、`.ai/handoff.md`。
+- 修改：`rust/aoi_domain_rs/src/{ffi,flat_map,geometry,lib,nms}.rs`、`src/domain/ffi/aoi_domain_rs.h`、`src/domain/lattice/{lattice_accumulator,spatial_grid,vector_clustering}.h`、`AiInspTool/src/domain/domain.pro`、`AiInspTool/tests/domain/domain_legacy.pro`、`tests/domain/tst_domain_rs_diff.cpp`、`docs/adr/031-rust-domain-hybrid.md`、`docs/architecture.md`、`docs/legacy/plan/R05-rust-domain.md`、`docs/current-status.md`、`.ai/handoff.md`。
 
 ### 驗證
 - `test.ps1`：Release＋Rust 66／66、Release＋Cpp 65／65、Debug＋Rust 66／66、Debug＋Cpp 65／65；0 個 LNK4。對時間敏感的測試在另一個 session 同時建置時失敗過，單獨重跑通過；Debug 的 `tst_presenter` 2 秒忙碌等待仍不穩定。
@@ -50,10 +50,10 @@
 ### 完成
 - 讀使用者提供的 ChatGPT 分享對話（影片《為什麼 AI 巨頭都在轉向 Rust？》＋ Qt＋C++＋Rust 混合開發的建議：CXX-Qt、分階段遷移、OpenCV／HALCON 留在 C++）；對照本專案（qmake 不是 CMake、Qt 6.12.0 不是 6.8、沒有 CUDA、UI 是 Widgets）。
 - 使用者 2026-10-27 用 rustup 安裝 Rust；確認 `rustc 1.99.1`、`cargo 1.99.1`、`stable-x86_64-pc-windows-msvc`、含 clippy 與 rustfmt（`%USERPROFILE%\.cargo\bin`，這個 session 的 PATH 還沒有它）。
-- 使用者決定範圍：混合架構，第一階段把 domain 的演算法搬進 Rust crate，C++ 介面不變，用既有測試做差異驗證。寫成 ADR-031（技術做法：C ABI、零外部 crate、qmake 呼叫 cargo、`AOI_DOMAIN_IMPL=cpp|rust`、`aoi::legacy` 差異測試、panic 不跨 FFI）與計畫 `docs/plan/R05-rust-domain.md`（R05.1–R05.5，R05.1 是關卡）。
+- 使用者決定範圍：混合架構，第一階段把 domain 的演算法搬進 Rust crate，C++ 介面不變，用既有測試做差異驗證。寫成 ADR-031（技術做法：C ABI、零外部 crate、qmake 呼叫 cargo、`AOI_DOMAIN_IMPL=cpp|rust`、`aoi::legacy` 差異測試、panic 不跨 FFI）與計畫 `docs/legacy/plan/R05-rust-domain.md`（R05.1–R05.5，R05.1 是關卡）。
 
 ### 修改的檔案
-- 新增 `docs/adr/031-rust-domain-hybrid.md`、`docs/plan/R05-rust-domain.md`；修改 `docs/decisions.md`（索引）、`docs/current-status.md`（更新日期、R05 與 R05.1–R05.5 列）、`.ai/handoff.md`、`docs/changelog-ai.md`。
+- 新增 `docs/adr/031-rust-domain-hybrid.md`、`docs/legacy/plan/R05-rust-domain.md`；修改 `docs/decisions.md`（索引）、`docs/current-status.md`（更新日期、R05 與 R05.1–R05.5 列）、`.ai/handoff.md`、`docs/changelog-ai.md`。
 
 ### 驗證
 - `node tools/ste-lint.mjs`：995 sentences、0 errors、0 warnings（計畫檔的 STE 段落有被檢查）。
@@ -298,7 +298,7 @@
 ## 2026-10-14 — Claude Code (Claude Fable 5.1)（CAD 樣本建立的四個問題：樣本的建立與搜尋分開，ADR-025）
 
 ### 完成
-- 分支 `feat/cad-sample-editing`（從 `main` 4986070 開）。先從程式碼確認四個問題的現況與根因（重複是跨提案的：`accept` 不比對既有元件、每次建新類型、use case 不知道板子；框由類型推導、把手只有幾何沒人用；`SelectTool` 已有整組拖曳但沒有框選；流程 B 沒接），畫現況流程圖，提出選項，使用者決定做法（[ADR-025](adr/025-sample-creation-separate-from-search.md)）。
+- 分支 `feat/cad-sample-editing`（從 `main` 4986070 開）。先從程式碼確認四個問題的現況與根因（重複是跨提案的：`accept` 不比對既有元件、每次建新類型、use case 不知道板子；框由類型推導、把手只有幾何沒人用；`SelectTool` 已有整組拖曳但沒有框選；流程 B 沒接），畫現況流程圖，提出選項，使用者決定做法（[ADR-025](../adr/025-sample-creation-separate-from-search.md)）。
 - **application**：新增 `usecases/BoardProposal`（幾個樣本的結果依位置合併：手動元件佔位先剔除、樣本自己佔位、有分數的依分數由高到低、重疊 > 0.5 壓掉、預測的最後）、`usecases/SearchBoardWithSamples`（每個樣本各跑一次 `GenerateObjectsFromSample` 再合併，進度 (i + f) ÷ n）；`ProposalSession` 改持有 `BoardProposal`（`addManual` 帶類型與大小、`typeOf`）；`InspectionDocument` 多 `addSample`（一個類型＋一個樣本元件）、`setBodySize`、`addBoxGroup`、`samples()`、`componentsOfType`、`bodySizePx`，`accept` 改成「上一次自動產生的整批換掉、樣本與手動的留著、不建新類型」；狀態機多 `ReleaseSample`（`DrawingRegion` → `Idle`）與 `SearchRequested`（`Idle`、`Searching`、`Preview`、`NoMatch` → `Searching`）；`InspectionSession` 多 `startSearch`、`resizeBody`、`addBoxGroup`、`selectAll`、`selectSameType`，`endRegion(Sample)` 回 `SampleAdded`；`CommandKind` 多 `AddSample`、`ResizeType`、`AddBoxGroup`；domain 的 `InspectionObject` 多 `typeId`。
 - **presentation**：`SelectTool` 多拖把手改大小（角改兩邊、邊改一邊）與空白處框選（Shift 加入）；新 `BoxTool`（`B`，`DraftMode::Box`）；`ToolEvent` 多把手資訊、`IToolHost::componentsIn`；`ImageCanvas` 多把手 Item（單一選取、工具沒暫停時）；`ICanvasController::onComponentResized`、`ISelectionController::selectAll`／`selectSameType`、`IProposalController::search`；`MainWindow` 多〔搜尋〕（`F5`，上方工具列與編輯選單）、〔全選〕、〔選取同類型〕、`B` 工具；`AutoRoiPresenter` 的搜尋改走 `searchBoardWithSamples`，S 放開建立樣本後切回選取工具並用吐司說「F5 搜尋」，Idle 有樣本時提示換成 `ui.sample.hintIdle`，樣本不再留拖曳中的框（只有區域掃描留）；`SceneBuilder` 的提案物件用類型展開框（子框在預覽就看得到）、`SceneCounts` 多 `merged`／`excluded`／`replaced`，預覽卡片多三行說明；`MessageBar::cardAdvice()`（測試用）。`copy.json` 新增 17 個 key、改 `ui.idle.hint`、`ui.sample.hint`。
 - **測試**：`tst_state_machine` 表 47 列；`tst_session`、`tst_document`、`tst_proposal_session`、`tst_scene` 改成新流程並各加新測試（建立樣本、搜尋需要樣本、合併後接受取代、改大小、子框、全選／同類型、`addSample`／`setBodySize`／`addBoxGroup` 的復原）；`tst_tools` 加把手、框選、`B` 工具；`tst_presenter` 加 F5 流程、兩個樣本同一片網格合併且接受不疊加、拖把手改大小、`B` 貼印、框選＋`Ctrl+A`＋同類型；`tst_messages`、`tst_shell` 跟著更新；`perf_ui_s04`、`perf_e2e` 改成樣本建一次、每回合按 F5。
@@ -308,7 +308,7 @@
 - `src/domain/match.h`；`src/application/`（`document/InspectionDocument.*`、`document/ProposalSession.*`、`document/UndoStack.h`、`interaction/InspectionSession.*`、`interaction/InteractionStateMachine.*`、`usecases/BoardProposal.*`（新）、`usecases/SearchBoardWithSamples.*`（新）、`usecases/ProposalView.*`）；`AiInspTool/src/application/application.pro`
 - `src/presentation/`（`canvas/ICanvasController.h`、`canvas/ImageCanvas.*`、`canvas/OverlayTypes.h`、`canvas/RoiGraphicsItem.cpp`、`canvas/RoiLayerItem.*`、`presenters/AutoRoiPresenter.*`、`presenters/ControllerInterfaces.h`、`presenters/MessageTexts.cpp`、`presenters/SceneBuilder.*`、`shell/MainWindow.*`、`shell/MainWindow.ui`、`shell/MessageBar.*`、`tools/ITool.h`、`tools/ToolId.h`、`tools/ToolRegistry.cpp`、`tools/Tools.*`）
 - `tests/core/`（`ProposalTestSupport.h`、`tst_document.cpp`、`tst_proposal_session.cpp`、`tst_session.cpp`、`tst_state_machine.cpp`）、`tests/ui/`（`PresenterRig.h`、`TestSupport.h`、`perf_ui_s04.cpp`、`tst_messages.cpp`、`tst_presenter.cpp`、`tst_scene.cpp`、`tst_shell.cpp`、`tst_tools.cpp`）、`tests/perf/perf_e2e.cpp`
-- `docs/adr/025-sample-creation-separate-from-search.md`（新）、`docs/decisions.md`、`docs/ux/ux-spec.md`、`docs/ux/copy.json`、`docs/architecture.md`、`docs/current-status.md`、`docs/plan/S12-release.md`、`AI_CONTEXT.md`、`docs/changelog-ai.md`、`.ai/handoff.md`
+- `docs/adr/025-sample-creation-separate-from-search.md`（新）、`docs/decisions.md`、`docs/ux/ux-spec.md`、`docs/ux/copy.json`、`docs/architecture.md`、`docs/current-status.md`、`docs/legacy/plan/S12-release.md`、`AI_CONTEXT.md`、`docs/changelog-ai.md`、`.ai/handoff.md`
 
 ### 驗證
 - `scripts/dev/test.ps1`（預設 Release＋OpenCV＋HALCON）：**57／57 通過**；有跳過項目的測試：`tst_backend_registry`、`tst_shell`、`tst_presenter`（`screenshotsForReview`，要 `AOI_SCREENSHOT_DIR`）、`tst_opencv_image`、`tst_image_sources_agree`（和改之前相同）；XFAIL 2 列和之前相同（opencv B1、`tst_image_sources_agree` 的 1 列）。`tst_tools` 的三個新測試在這次之後才加，單獨重跑的結果見交接單。
@@ -334,7 +334,7 @@
 - 開工時確認 `tst_contract_end_to_end` 28／28、HALCON 0 跳過、XFAIL 只剩 opencv B1（D6）。
 - **挑選**（S10 報表 2026-10-13 16:46 那次）：唯一超出預算的指標是 U3（p95 26.7 對 16）；互動與搜尋類都在預算內，所以只做 U3；搜尋類列成候選、沒有改（perf.md §5）。
 - **先量**：`perf_ui_s04` 加 `U3-canvas-paint-image`／`-layer` 診斷（一次重繪 14.2 ms：影像 1.1、框層 12.5）；`perf_paint_micro` 加字形 blit 的案例（2 600 個框 5.13 → 0.35 ms；dpr 2 的情況 2.31 ms）。
-- **優化 1**（`ff1f262`，[ADR-024](adr/024-box-glyph-cache.md)）：`RoiLayerItem` 小框用字形快取畫——每種（狀態、種類、螢幕寬高）用同一套 `BoxFrames` 畫一張 (w+2)×(h+2) 的 ARGB 小圖，每個框一次未轉換的 `drawImage`；`BoxFrames::snap` 是共用的取整規則；dpr ≠ 1、框超過 96 px、選取的框照舊；快取 64 張。框層 12.5 → 1.15 ms；U3 18.9／23.5 → 13.5／17.6 ms；I1 p95 8.1 → 4.5；I3 22.9 → 7.1。`tst_items` 加三個測試（四種狀態 × 三種框、三種縮放逐像素相同；dpr 2 不用字形；快取命中）。
+- **優化 1**（`ff1f262`，[ADR-024](../adr/024-box-glyph-cache.md)）：`RoiLayerItem` 小框用字形快取畫——每種（狀態、種類、螢幕寬高）用同一套 `BoxFrames` 畫一張 (w+2)×(h+2) 的 ARGB 小圖，每個框一次未轉換的 `drawImage`；`BoxFrames::snap` 是共用的取整規則；dpr ≠ 1、框超過 96 px、選取的框照舊；快取 64 張。框層 12.5 → 1.15 ms；U3 18.9／23.5 → 13.5／17.6 ms；I1 p95 8.1 → 4.5；I3 22.9 → 7.1。`tst_items` 加三個測試（四種狀態 × 三種框、三種縮放逐像素相同；dpr 2 不用字形；快取命中）。
 - **優化 2**（`a92ac95`）：`ComponentView` 的 `label` 改成 `text` ＋ `score`，`label()` 畫的時候才組（`RoiLayerItem` 只對真的要畫的標籤格式化）；提案列的 `ObjectRow.name` 留空，`displayName()` 顯示時組「#編號」。場景重建 3.46 → 0.89 ms；U3 → 8.75／11.2 ms（**進入預算**）；I6 4.4 → 1.7。
 - **優化 3**（`a317131`）：`InspectionDocument::revision()`（每次變更通知加 1；`tst_document` 加測試）＋ `SceneBuilder` 的 `DocumentSceneCache`（鍵 ＝ 修訂號 ＋ 標籤文字；命中時文件那一部分共用上一次的快照與列，沒有提案時連快照都不複製；Presenter 持有一份；`tst_scene` 加測試）。U3-bg（背景 4 883 個已接受的元件）17.8 → 7.2 ms；U3 → 6.5／7.6 ms（差異在飄移內）。
 - **預算檔**（`c8511a2`）：`perf/budgets.json` 的 U3 改 `calibrated`、新增 `uiCalibrationS11`（limit 沒有改）；`perf_ui_s04` 的 `knownOver("U3")` 拿掉。
@@ -342,7 +342,7 @@
 
 ### 修改的檔案
 - 新增：`docs/adr/024-box-glyph-cache.md`、`docs/steps/S11-optimize/{spec,diagram,storyboard,perf}.md`、`explainer.html`
-- 修改：`src/presentation/canvas/{BoxFrames.h,BoxFrames.cpp,RoiLayerItem.h,RoiLayerItem.cpp,ImageCanvas.cpp,ComponentSnapshot.h,RoiGraphicsItem.cpp}`、`src/presentation/presenters/{SceneBuilder.h,SceneBuilder.cpp,AutoRoiPresenter.h,AutoRoiPresenter.cpp}`、`src/presentation/objects/{ObjectRows.h,ObjectsModel.cpp}`、`src/presentation/dev/FakeScene.cpp`、`src/application/document/{InspectionDocument.h,InspectionDocument.cpp}`、`tests/ui/{tst_items,tst_scene,tst_presenter,perf_ui_s04,perf_paint_micro}.cpp`、`tests/core/tst_document.cpp`、`perf/budgets.json`、`perf/baseline/casparhsu1-harness.json`、`AI_CONTEXT.md`、`docs/{architecture,decisions,00-master-plan,current-status,changelog-ai}.md`、`docs/plan/S12-release.md`、`.ai/handoff.md`
+- 修改：`src/presentation/canvas/{BoxFrames.h,BoxFrames.cpp,RoiLayerItem.h,RoiLayerItem.cpp,ImageCanvas.cpp,ComponentSnapshot.h,RoiGraphicsItem.cpp}`、`src/presentation/presenters/{SceneBuilder.h,SceneBuilder.cpp,AutoRoiPresenter.h,AutoRoiPresenter.cpp}`、`src/presentation/objects/{ObjectRows.h,ObjectsModel.cpp}`、`src/presentation/dev/FakeScene.cpp`、`src/application/document/{InspectionDocument.h,InspectionDocument.cpp}`、`tests/ui/{tst_items,tst_scene,tst_presenter,perf_ui_s04,perf_paint_micro}.cpp`、`tests/core/tst_document.cpp`、`perf/budgets.json`、`perf/baseline/casparhsu1-harness.json`、`AI_CONTEXT.md`、`docs/{architecture,decisions,00-master-plan,current-status,changelog-ai}.md`、`docs/legacy/plan/S12-release.md`、`.ai/handoff.md`
 - 沒有改：`domain/`、兩個 back end、use case、`ContractTolerances.h`、`perf/budgets.json` 的 limit、`.pro`（沒有新的執行檔）
 
 ### 驗證
@@ -396,7 +396,7 @@
 ### 完成
 - 分支 `step/10-perf-harness`（從 `main` 37463db 開），`--no-ff` 合併到 `main`，tag `step-10-done`，沒有 push。
 - 一鍵流程 `scripts/dev/perf.ps1`：量測當下的環境快照（電源計畫、接電源、CPU 負載、處理器對額定速度的百分比、最忙的行程）→ `test.ps1 -Perf` → `perf-compare collect` → `compare`（→ `.html` 報表）；`-Runs N`（連跑並算雜訊）、`-WriteBaseline`、`-Filter`、`-Window`、`-Profile full`、`-InjectDelayMs`（自我測試）。
-- 閘門 `tools/perf-compare.mjs`（[ADR-023](adr/023-perf-regression-gate.md)）：`collect` 把 11 種結果檔（S03–S09 的 `perf_*` 與 S10 的）與測試 log（Totals、SKIP、XFAIL、XPASS）正規化成一份執行紀錄 `perf/results/<日期>-<commit>-<機器>.json`；`compare`（預算看 p95；基準線記範圍、中位數比上緣高超過 15% 才算回歸；已知的只在 `budgets.json`、列出不擋；跳過＝未驗證、XFAIL＝已知待修；一半以上變慢＝INCONCLUSIVE；結束碼 0／1／2／3）；`baseline`、`noise`、`html`、`--self-test`（20 項，也是 `test.ps1` 的第 5 個 node 檢查 `perf_compare_self_test`）。
+- 閘門 `tools/perf-compare.mjs`（[ADR-023](../adr/023-perf-regression-gate.md)）：`collect` 把 11 種結果檔（S03–S09 的 `perf_*` 與 S10 的）與測試 log（Totals、SKIP、XFAIL、XPASS）正規化成一份執行紀錄 `perf/results/<日期>-<commit>-<機器>.json`；`compare`（預算看 p95；基準線記範圍、中位數比上緣高超過 15% 才算回歸；已知的只在 `budgets.json`、列出不擋；跳過＝未驗證、XFAIL＝已知待修；一半以上變慢＝INCONCLUSIVE；結束碼 0／1／2／3）；`baseline`、`noise`、`html`、`--self-test`（20 項，也是 `test.ps1` 的第 5 個 node 檢查 `perf_compare_self_test`）。
 - 新的量測 `tests/perf/`：`perf_matrix`（搜尋矩陣：4 種影像大小 × 3 種樣本 × 3 種角度 × 3 種元件數 × 6 種難度 × 每個會讀像素的 back end；quick 15 格／full 648 格；時間、四個階段、峰值〔熱機之後〕、召回率、位置誤差；`H-overhead`、`H-noise`）、`perf_e2e`（T5：放開滑鼠 → `searchApplied`，走產品的接線，每個 back end 一列，`PerfProbe` 的切片）、`HarnessSupport.h`；`.pro` 在 `AiInspTool/tests/perf/`，列進 `tests.pro` 的 `AOI_PERF_TESTS`。
 - 報表 ＝ `docs/steps/S10-perf-harness/explainer.html`（嵌入第 3 次執行與基準線；篩選、搜尋、拖門檻重算、載入別次的 JSON；在瀏覽器確認過）。基準線 `perf/baseline/casparhsu1-harness.json`（整套跑 3 次，637 個指標的範圍）。
 - `perf/budgets.json`：T5 標 `calibrated`（OpenCV p95 28.7–39.2 ms、HALCON 17.5–22.1 ms，預算 300）、頂層 `status` 改 `calibrated`（limit 一個都沒改）、新增 `knownIssues`（ADR-004 §5 的 B1–B3）與 `harnessCalibrationS10`。
@@ -435,7 +435,7 @@
 - `scripts/dev/test.ps1`：每個測試讀 log 的 `XFAIL` 行，最後列出「N 個測試有預期失敗（XFAIL）的項目（已知、待修）」與列名；失敗時的摘要也印 `XPASS` 行。順帶讓既有的一個 XFAIL 浮出來：`tst_image_sources_agree` 的 `bothSourcesGiveTheSameImage(palette BMP, 16 grays)`（S06 就有，沒有動）。
 - 探測時看到、沒有加測試（ADR-004 §5）：低對比的 5 MP 板子沒有雜訊時，HALCON（雜訊 0 或 4、模糊 0）與 OpenCV（雜訊 0、模糊 1）都在半個格距多出幾百個候選——B2 那種誤判不只 HALCON、不只重模糊。
 - **HALCON dongle 第五次讀不到**（跑完整測試途中；重插兩次都沒用）。使用者裝了 CodeMeter Runtime 9.10a 之後，log 寫出「偵測到 dongle 時讀到 Box Event → 限制 5 分鐘」；5 分鐘一到 HALCON 就正常。之後的實驗（合併後的小 commit）：完整的 Release＋Debug 沒有再出現 Box Event；再拔插一次也沒有（HALCON 立刻能用）——重插與正常流程都不會觸發，事件是 dongle 內部先前記錄的，原因仍不明。查證網路上「`get_system('dongle_ids')`／`'license_info'`」的說法：24.11 的 `operators_en_US.ref` 沒有這兩個參數。都寫進 AI_CONTEXT 的 HALCON 那一列。
-- 文件：ADR-004（狀態、§5 的回歸測試／O1／探測）、AI_CONTEXT（`tests/contract` 列、測試說明、`VERIFIED` 的定義、詞彙表加 XFAIL、HALCON 列）、current-status、decisions（ADR-004 那一列）、`docs/plan/S10-perf-harness.md` 提醒第 7 點、`docs/plan/S11-optimize.md` 修正 session 的 Start prompt（加 O1 與探測的現象）、交接單。
+- 文件：ADR-004（狀態、§5 的回歸測試／O1／探測）、AI_CONTEXT（`tests/contract` 列、測試說明、`VERIFIED` 的定義、詞彙表加 XFAIL、HALCON 列）、current-status、decisions（ADR-004 那一列）、`docs/legacy/plan/S10-perf-harness.md` 提醒第 7 點、`docs/legacy/plan/S11-optimize.md` 修正 session 的 Start prompt（加 O1 與探測的現象）、交接單。
 
 ### 修改的檔案
 - tests/contract/tst_contract_end_to_end.cpp、AiInspTool/tests/contract/tst_contract_end_to_end.pro
@@ -464,7 +464,7 @@
 
 ### 完成
 - 記下使用者的決定（ADR-004 §5）：（1）S09 之後先不修；（2）在 S10 之後、S11 之前另開 session 修（分支 `fix/halcon-accuracy`）；（3）先把三種板子加進 `tst_contract_end_to_end` 當回歸測試，HALCON 的列用 `QEXPECT_FAIL` 標成預期失敗（使用者從「預期失敗」與「真的失敗」選了前者：真的失敗會讓 `test.ps1` 一直 55／56，S10 起每一步都達不到 VERIFIED）。
-- `docs/plan/S11-optimize.md` 開頭加「S11 之前先做」與修正那個 session 的 Start prompt；`依賴` 加上這個修正。`docs/plan/S10-perf-harness.md` 的提醒加第 7 點（S10 不修；XFAIL 在回歸閘門裡怎麼看；S10 收工時開修正的 session，不是 S11）。
+- `docs/legacy/plan/S11-optimize.md` 開頭加「S11 之前先做」與修正那個 session 的 Start prompt；`依賴` 加上這個修正。`docs/legacy/plan/S10-perf-harness.md` 的提醒加第 7 點（S10 不修；XFAIL 在回歸閘門裡怎麼看；S10 收工時開修正的 session，不是 S11）。
 - `current-status.md`、`decisions.md`、交接單：接下來的順序是回歸測試 → S10 → 修正 → S11。
 - 回歸測試本身沒有在這個 session 做（使用者的習慣：確認之後開新 session 實作）；用 `spawn_task` 開了回歸測試的 session，它收工時開 S10。原本的 S10 卡片撤掉。
 
@@ -608,7 +608,7 @@
 ## 2026-10-08 — Claude Code (Claude Opus 5.5)（模型與推理強度路由，ADR-020）
 
 ### 完成
-- 依使用者的第二份設定 prompt，把模型路由升級成同時決定 model 與 effort（[ADR-020](adr/020-adaptive-model-effort-routing.md)，部分取代 ADR-019）：複雜度、風險、推理深度、不確定性 1–5 分加上判準，範圍與驗證成本；五個 subagent（新增 `developer-deep` sonnet/high、`architect-deep` opus/xhigh，原本三個加上 `effort`）；兩次失敗升一級、解決後降級、最高一級仍失敗就停下來問使用者。
+- 依使用者的第二份設定 prompt，把模型路由升級成同時決定 model 與 effort（[ADR-020](../adr/020-adaptive-model-effort-routing.md)，部分取代 ADR-019）：複雜度、風險、推理深度、不確定性 1–5 分加上判準，範圍與驗證成本；五個 subagent（新增 `developer-deep` sonnet/high、`architect-deep` opus/xhigh，原本三個加上 `effort`）；兩次失敗升一級、解決後降級、最高一級仍失敗就停下來問使用者。
 - hook 改寫：回傳 `recommended_agent`／`model`／`effort`、四個分數、`scope`、`verification_cost`、`routing_reason`、失敗與升級的次數、主 session 目前的 effort；狀態存在 `%TEMP%\claude-model-router\`；agent 與背景工作的通知不處理（實測它們也會觸發 `UserPromptSubmit`）。
 - 新增 `scripts/ai/bench-model-routing.mjs`（`verify`：從 session 紀錄讀實際的 model 與 effort；`bench`：同一組任務在五個 agent 上比較），沒有 `--yes` 不花額度。
 - 查證官方文件（`claude-code-guide`）並實測：frontmatter 的 `effort` 會套用；`claude --agent` 不套用 effort；Haiku 4.5 不支援 effort（紀錄沒有 `effort` 欄位）；`haiku` 別名 2.1.292 是 Haiku 4.5、2.1.293 起是 Haiku 5.5（CLI 在 session 期間自動從 2.1.292 更新到 2.1.294）。更正 ADR-019 與第一版文件的「`haiku` 對應 Haiku 4.5」。
@@ -639,7 +639,7 @@
 ## 2026-10-08 — Claude Code (Claude Sonnet 5.5，中途換成 Claude Opus 5.5)（模型路由）
 
 ### 完成
-- 依使用者提供的 ChatGPT 討論與其中的設定 prompt，建立模型路由（[ADR-019](adr/019-model-routing.md)）：根目錄的 `MODEL_ROUTING.md`（`CLAUDE.md` 匯入）；`.claude/agents/` 的 `fast-worker`（haiku，唯讀）、`developer`（sonnet，不能再委派）、`architect`（opus，唯讀，輸出修改計畫）；`UserPromptSubmit` hook `.claude/hooks/model_router.mjs`（Node，關鍵字分類，只注入提示）；驗證腳本 `scripts/ai/check-model-routing.mjs`。
+- 依使用者提供的 ChatGPT 討論與其中的設定 prompt，建立模型路由（[ADR-019](../adr/019-model-routing.md)）：根目錄的 `MODEL_ROUTING.md`（`CLAUDE.md` 匯入）；`.claude/agents/` 的 `fast-worker`（haiku，唯讀）、`developer`（sonnet，不能再委派）、`architect`（opus，唯讀，輸出修改計畫）；`UserPromptSubmit` hook `.claude/hooks/model_router.mjs`（Node，關鍵字分類，只注入提示）；驗證腳本 `scripts/ai/check-model-routing.mjs`。
 - 第一版只寫規則（`.claude/model-routing.md`，沒有 hook 與 subagent）；使用者接著貼上完整的設定 prompt，規則搬到根目錄並加上 subagent 與 hook。session 中途主模型由 Sonnet 5.5 換成 Opus 5.5。
 - 使用者同意後在分支 `chore/model-routing` commit（`1c4f264`），再以 `--no-ff` 合併到 `main`（沒有 tag、沒有 push）。
 
@@ -1045,7 +1045,7 @@
 
 ### 未完成
 - ADR-006 未決項目（見 `docs/current-status.md`）。
-- S02 由新的 session 做（Start prompt 在 `docs/plan/S02-ui-shell.md` 底部）。
+- S02 由新的 session 做（Start prompt 在 `docs/legacy/plan/S02-ui-shell.md` 底部）。
 
 ### 注意事項
 - 過程中抓到並修正的真實缺陷：接受後復原再重做會先重做殘留動作；畫面快取鍵漏看群組內容，編輯樣本庫後「與樣本庫不同」的提示不會出現；框到多個元件時的提示是錯的（舊提示說「沒框到元件」）。

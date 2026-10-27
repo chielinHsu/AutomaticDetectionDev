@@ -1,4 +1,4 @@
-<#
+﻿<#
 	Mirror .agents/skills (source of truth, read by Codex) into .claude/skills
 	(read by Claude Code). Neither tool reads the other's directory and symlinks
 	are unreliable on Windows, so the mirror is a verified copy.
