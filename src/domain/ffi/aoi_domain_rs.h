@@ -1,15 +1,17 @@
 /* domain 層的 Rust 實作（rust/aoi_domain_rs）的 C ABI。ADR-031：只在 AOI_DOMAIN_IMPL=rust 的建置連結。
  *
  * 只 include C 的標準標頭；結構的欄位順序和 Rust 的 #[repr(C)] 相同（C++ 的包裝 non_max_suppression_rs.cpp、
- * lattice/lattice_rs_bridge.cpp 用 static_assert 檢查大小，Rust 那一側也有）。改這裡就要改 rust/aoi_domain_rs/src/ffi.rs
- * （NMS）或 ffi_lattice.rs（晶格），並把 AOI_RS_ABI_VERSION 加 1。版本 1：R05.1（NMS）；版本 2：R05.2（晶格）。
+ * lattice/lattice_rs_bridge.cpp、match_region_rs.cpp 用 static_assert 檢查大小，Rust 那一側也有）。改這裡就要改 rust/aoi_domain_rs/src/ffi.rs
+ * （NMS）、ffi_lattice.rs（晶格）或 ffi_match.rs（比對區），並把 AOI_RS_ABI_VERSION 加 1。版本 1：R05.1（NMS）；版本 2：R05.2（晶格）；
+ * 版本 3：R05.3（比對區與自動擷取）。
  *
  * 規則：
  *   - 回傳 AoiRsStatus 的函式：AOI_RS_OK 才有輸出。panic 被擋在 Rust 這一側（AOI_RS_PANIC，是 bug）；
  *     配置失敗是 AOI_RS_NO_MEMORY（C++ 的包裝丟 std::bad_alloc）；null 指標是 AOI_RS_INVALID_ARGUMENT。
  *   - 誰配置誰釋放：aoi_rs_overlap_index_new 給的 handle 用 aoi_rs_overlap_index_free 釋放；
  *     aoi_rs_nms_keep 的輸出陣列由呼叫端配置。晶格（R05.2）：長度有上限的輸出由呼叫端配置；長度不固定的輸出是 handle
- *     （*_get／*_model 讀到的指標指向 handle 裡的記憶體，*_free 之後不可以再用）。
+ *     （*_get／*_model 讀到的指標指向 handle 裡的記憶體，*_free 之後不可以再用）。比對區（R05.3）同樣規則：遮罩與 runs 是 handle，
+ *     maskFromRuns 的 bits 由呼叫端配置；輸入的遮罩、runs 與影像的像素直接借用（不複製）。
  *   - 自訂的分群策略（AOI_RS_CLUSTER_CALLBACK）：回呼回報失敗、或輸出違反 IVectorClustering 的契約（群數比向量多、
  *     標號超出群數）時，整個呼叫回傳 AOI_RS_CALLBACK_FAILED（C++ 的包裝重新丟出回呼記下的例外，沒有記下就丟 std::logic_error）。
  *   - 量法：0 ＝ 交集 ÷ 聯集（IoU），其他 ＝ 交集 ÷ 較小的面積。
@@ -20,7 +22,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#define AOI_RS_ABI_VERSION 2u
+#define AOI_RS_ABI_VERSION 3u
 
 #ifdef __cplusplus
 extern "C" {
@@ -240,6 +242,86 @@ AoiRsStatus aoi_rs_lattice_predict(const AoiRsLatticeModel* model, AoiRsBounds b
 AoiRsStatus aoi_rs_predicted_list_get(const AoiRsPredictedList* list, const AoiRsPredictedCell** data, size_t* count);
 void aoi_rs_predicted_list_free(AoiRsPredictedList* list);
 AoiRsStatus aoi_rs_lattice_order_near_to_far(AoiRsPredictedCell* cells, size_t count, AoiRsPoint anchor);
+
+/* ---- 比對區與自動擷取（R05.3）：match_region.h、feature_extract.h 的 Rust 實作 ---- */
+
+/* PixelFormat 的數值（feature_extract_rs.cpp 用 static_assert 檢查）。 */
+#define AOI_RS_PIXEL_GRAY8 0
+#define AOI_RS_PIXEL_RGB24 1
+#define AOI_RS_PIXEL_BGRX32 2
+#define AOI_RS_PIXEL_BGR24 3
+#define AOI_RS_PIXEL_GRAY16 4
+
+/* MaskRun：第 row 列的 [col_begin, col_end)（和 aoi::MaskRun 逐欄相同，C++ 直接交出 std::vector 的位址）。 */
+typedef struct AoiRsMaskRun {
+    int32_t row;
+    int32_t col_begin;
+    int32_t col_end;
+} AoiRsMaskRun;
+
+/* PixelMask 的檢視：輸入時 bits 指向呼叫端的陣列；aoi_rs_pixel_mask_get 讀出時指向 handle 裡的陣列。 */
+typedef struct AoiRsPixelMaskView {
+    int32_t x;
+    int32_t y;
+    int32_t width;
+    int32_t height;
+    const uint8_t* bits;
+    size_t bit_count;
+} AoiRsPixelMaskView;
+
+/* MatchRegion 的矩形（µm，比對區中心相對主體中心）。 */
+typedef struct AoiRsRegionUm {
+    double center_x_um;
+    double center_y_um;
+    double width_um;
+    double height_um;
+} AoiRsRegionUm;
+
+/* MatchRegion：遮罩的 runs 指向呼叫端的陣列。 */
+typedef struct AoiRsMatchRegion {
+    AoiRsRegionUm rect;
+    int32_t mask_width;
+    int32_t mask_height;
+    const AoiRsMaskRun* runs;
+    size_t run_count;
+} AoiRsMatchRegion;
+
+/* ImageView 的像素（借用）；effective_bits 是 C++ 的 effectiveBits(image)（image_depth 留在 C++）。 */
+typedef struct AoiRsImage {
+    const uint8_t* data;
+    int32_t width;
+    int32_t height;
+    int32_t stride_bytes;
+    int32_t format; /* AOI_RS_PIXEL_* */
+    int32_t effective_bits;
+} AoiRsImage;
+
+typedef struct AoiRsPixelMask AoiRsPixelMask; /* 不透明的 handle（遮罩） */
+typedef struct AoiRsMaskRuns AoiRsMaskRuns;   /* 不透明的 handle（runs） */
+
+/* 輸出的 handle 是 null ＝ 空的遮罩（PixelMask{}）或沒有遮罩。 */
+AoiRsStatus aoi_rs_pixel_mask_get(const AoiRsPixelMask* mask, AoiRsPixelMaskView* out);
+void aoi_rs_pixel_mask_free(AoiRsPixelMask* mask);
+AoiRsStatus aoi_rs_mask_runs_get(const AoiRsMaskRuns* runs, int32_t* width, int32_t* height, const AoiRsMaskRun** data, size_t* count);
+void aoi_rs_mask_runs_free(AoiRsMaskRuns* runs);
+
+/* PixelMask::count、runsFromMask（*out 一定是 handle）。 */
+AoiRsStatus aoi_rs_mask_count(const AoiRsPixelMaskView* mask, size_t* out);
+AoiRsStatus aoi_rs_runs_from_mask(const AoiRsPixelMaskView* mask, AoiRsMaskRuns** out);
+/* maskFromRuns 的 bits：width、height > 0，out_bits 由呼叫端配置 width × height 個（out_len），整個寫過。 */
+AoiRsStatus aoi_rs_mask_from_runs(const AoiRsMaskRun* runs, size_t count, int32_t width, int32_t height, uint8_t* out_bits,
+                                  size_t out_len);
+/* matchSpecFor：region 是 null ＝ 沒有比對區；*has_rect 是 0 時 *rect 不變；*mask 是 null ＝ 沒有遮罩。mode 由呼叫端照抄。 */
+AoiRsStatus aoi_rs_match_spec_for(const AoiRsMatchRegion* region, AoiRsPoint body_center, double um_per_pixel, int32_t* has_rect,
+                                  AoiRsBounds* rect, AoiRsPixelMask** mask);
+/* matchSettingsFromPixels：mask 是 null ＝ 沒有遮罩；*has_region 是 0 時 *region 不變；*mask_runs 是 null ＝ 比對區沒有遮罩。 */
+AoiRsStatus aoi_rs_match_settings_from_pixels(AoiRsBounds region_px, const AoiRsPixelMaskView* mask, AoiRsPoint body_center,
+                                              double um_per_pixel, int32_t* has_region, AoiRsRegionUm* region, AoiRsMaskRuns** mask_runs);
+/* pickBrightBlob：找到時 *found 是 1、*blob 是連通塊；找不到（含無效的影像）時 *found 是 0、*blob 是 null。 */
+AoiRsStatus aoi_rs_pick_bright_blob(const AoiRsImage* image, AoiRsBounds within, AoiRsPoint click, int32_t* found, int32_t* threshold8,
+                                    AoiRsPixelMask** blob);
+/* growMask：*out 是 null ＝ 空的遮罩。 */
+AoiRsStatus aoi_rs_grow_mask(const AoiRsPixelMaskView* blob, int32_t radius, AoiRsBounds clip, AoiRsPixelMask** out);
 
 #ifdef __cplusplus
 }

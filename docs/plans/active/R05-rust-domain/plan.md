@@ -22,6 +22,7 @@ branch: refactor/r05-<N>-<slug>（每一步一個）
 
 > **修訂紀錄**：
 > 2026-10-27：AI 結構 3.0.0（ADR-032）：本檔從 `docs/plan/R05-rust-domain.md` 搬成計畫資料夾的 `plan.md`，加上 frontmatter 與細項表（從舊的需求進度表照抄）；之前的紀錄在 `docs/legacy/`。
+> 2026-10-27：R05.3 完成（比對區與自動擷取搬進 Rust；差異測試全部一位不差；新增效能量測 `perf_match_region`；結果見 ADR-031 的「後續（R05.3）」）。
 > 2026-10-27：R05.2 完成（晶格整個搬進 Rust；差異測試全部一位不差；累加器改成零複製；結果見 ADR-031 的「後續（R05.2 晶格）」）。
 > 2026-10-27：R05.1 完成（關卡通過，做法沒有推翻；實測結果見 ADR-031 的「後續」）。
 > 2026-10-27：建立。範圍由使用者決定（混合架構、domain 先搬、C++ 介面不變、用既有測試做差異驗證）；技術做法見 ADR-031，R05.1 實測後確認。
@@ -47,7 +48,7 @@ After this plan, a Rust crate does the domain calculations. The same tests pass 
 |---|---|---|---|---|
 | R05.1 | 建置整合與 NMS 試點（關卡）：env.ps1 的 cargo、`rust/aoi_domain_rs`、qmake 呼叫 cargo、`AOI_DOMAIN_IMPL`、C ABI 標頭、NMS 改 Rust、差異測試骨架、cargo 檢查進 `test.ps1`、Debug CRT 實測 | ✅（關卡通過；Qt Creator GUI 未實際操作） | `refactor/rust-domain`，tag `r05.1-done` | PARTIALLY VERIFIED：`test.ps1` Release＋Rust 66／66（含 `tst_domain_rs_diff`：22 萬對面積一位不差、NMS 索引完全相同；cargo 4 項）、Release＋Cpp 65／65、Debug＋Rust 66／66、Debug＋Cpp 65／65、Profile＋Rust 66／66，0 個 LNK 警告；Qt Creator 條件的模擬建置（Profile、PATH 沒有 cargo）成功，GUI 未操作；`-NoOpenCv`／`-NoHalcon` 未跑；效能 before／after 見 ADR-031「後續」 |
 | R05.2 | 晶格（累加器、空間格子、分群含自訂策略回呼、基底、格子分量、接受規則、估計、預測）；T3 before／after | ✅ | `refactor/r05-2-lattice`，tag `r05.2-done` | VERIFIED：`test.ps1` Release＋Rust 66／66、Release＋Cpp 65／65、Debug＋Rust 66／66、Debug＋Cpp 65／65（完整執行時兩種的 Debug 都只有已知不穩定的 `tst_presenter::aSlowSearchShowsBusyThenProgressAndEscCancelsToIdleAtOnce`（Debug 的 2 秒忙碌等待，進度表「待使用者決定」第 5 項）失敗，單獨重跑通過；Cpp 單獨重跑 4 次 2 次通過，耗時 164–270 s 隨另一個 session 的建置負載變動。Debug＋Cpp 第一次建置遇到一次 `LNK1236`（`lattice_accumulator_legacy.obj` 寫壞），刪掉那個 .obj 重建後正常），0 個 LNK 警告；`tst_domain_rs_diff` 164 項（1 147 組點的估計、7 080 次預測等，約 177 萬個浮點值全部一位不差）；對時間敏感的 HALCON／取消延遲測試在機器滿載時失敗、單獨重跑通過；效能：rust 的 T3 0.46–0.66 ms（before 0.57–1.47），逐點呼叫累加器每次多約 11 ns（ADR-031「後續（R05.2）」）；`-NoOpenCv`／`-NoHalcon` 未跑 |
-| R05.3 | 比對區與特徵擷取（`match_region`、`feature_extract`） | ⬜ |  | 尚未開始 |
+| R05.3 | 比對區與特徵擷取（`match_region`、`feature_extract`） | ✅ | `refactor/r05-3-match-region`，tag `r05.3-done` | VERIFIED（真實影像的召回與位置除外）：`test.ps1` Release＋Rust 66／66、Release＋Cpp 65／65、Debug＋Cpp 65／65、Debug＋Rust 65／66（只有已知不穩定的 `tst_presenter::aSlowSearchShowsBusyThenProgressAndEscCancelsToIdleAtOnce` 失敗，單獨重跑通過），0 個 LNK4 警告；`tst_domain_rs_diff` 169 項（約 3.3 萬個浮點值一位不差，遮罩、runs、門檻完全相同）；cargo 4 項（36 個單元測試）、`check-deps`、`ste-lint` 通過；效能：新的 `perf_match_region` 交替 3 次（ADR-031「後續（R05.3）」）；`perf_match_region_real`：影像 2026-10-20 換過、預設參數對不上，搬之前就失敗，只比了真實影像上的擷取（before／after 相同）；`-NoOpenCv`／`-NoHalcon`／Profile 未跑 |
 | R05.4 | 重複性統計（`repeatability`） | ⬜ |  | 尚未開始 |
 | R05.5 | 收尾：預設改 `rust`、完整測試矩陣、效能閘門與基準線、C++ 重複實作的去留（問使用者）、文件 | ⬜ |  | 尚未開始 |
 

@@ -69,7 +69,7 @@ function round3(v) {
 // 結果檔 → 統一的指標列
 // ---------------------------------------------------------------------------------------------
 const PREFIX_SOURCES = [
-  ['core_', 'core'], ['lattice_', 'lattice'], ['storage_', 'storage'], ['opencv_', 'opencv'], ['halcon_', 'halcon'],
+  ['core_', 'core'], ['lattice_', 'lattice'], ['match_region_', 'match_region'], ['storage_', 'storage'], ['opencv_', 'opencv'], ['halcon_', 'halcon'],
   ['ab_', 'ab'], ['matrix_', 'matrix'], ['e2e_', 'e2e'], ['ui-baseline-', 'ui-baseline'], ['ui-s04-', 'ui-s04'], ['ui-compare-', 'ui-compare'],
 ];
 
