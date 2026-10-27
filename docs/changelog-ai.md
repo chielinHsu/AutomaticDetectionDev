@@ -3,6 +3,24 @@
 > 只新增，新紀錄放最上方。每個 agent session 一筆，讓下一位 agent 知道上一位做過什麼、為什麼。
 > agent 欄位寫實際的工具與模型；不要從舊紀錄抄。
 
+## 2026-10-27 — Claude Code (Claude Opus 5.5)（Rust 混合架構的計畫，ADR-031、R05）
+
+### 完成
+- 讀使用者提供的 ChatGPT 分享對話（影片《為什麼 AI 巨頭都在轉向 Rust？》＋ Qt＋C++＋Rust 混合開發的建議：CXX-Qt、分階段遷移、OpenCV／HALCON 留在 C++）；對照本專案（qmake 不是 CMake、Qt 6.12.0 不是 6.8、沒有 CUDA、UI 是 Widgets）。
+- 使用者 2026-10-27 用 rustup 安裝 Rust；確認 `rustc 1.99.1`、`cargo 1.99.1`、`stable-x86_64-pc-windows-msvc`、含 clippy 與 rustfmt（`%USERPROFILE%\.cargo\bin`，這個 session 的 PATH 還沒有它）。
+- 使用者決定範圍：混合架構，第一階段把 domain 的演算法搬進 Rust crate，C++ 介面不變，用既有測試做差異驗證。寫成 ADR-031（技術做法：C ABI、零外部 crate、qmake 呼叫 cargo、`AOI_DOMAIN_IMPL=cpp|rust`、`aoi::legacy` 差異測試、panic 不跨 FFI）與計畫 `docs/plan/R05-rust-domain.md`（R05.1–R05.5，R05.1 是關卡）。
+
+### 修改的檔案
+- 新增 `docs/adr/031-rust-domain-hybrid.md`、`docs/plan/R05-rust-domain.md`；修改 `docs/decisions.md`（索引）、`docs/current-status.md`（更新日期、R05 與 R05.1–R05.5 列）、`.ai/handoff.md`、`docs/changelog-ai.md`。
+
+### 驗證
+- `node tools/ste-lint.mjs`：995 sentences、0 errors、0 warnings（計畫檔的 STE 段落有被檢查）。
+- 沒建置、沒跑 `test.ps1`：只改文件。
+
+### 注意事項
+- 分支 `refactor/rust-domain`（從 `main` 1216cd9 開），R05.1 在同一個分支上繼續。
+- 要在 R05.1 實測的風險：Debug（`/MDd`）配 Rust 的 release CRT、Qt Creator 找不找得到 cargo、跨語言呼叫沒有 inline 的效能、浮點數最後一位的差異。
+
 ## 2026-10-21 — Claude Code (Claude Sonnet 5.5)（導入 AI 結構 2.0.0，ADR-030）
 
 ### 完成
