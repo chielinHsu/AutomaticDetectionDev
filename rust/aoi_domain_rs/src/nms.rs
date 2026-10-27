@@ -7,6 +7,7 @@
 use std::cmp::Ordering;
 use std::collections::TryReserveError;
 
+use crate::cpp::{cpp_clamp, cpp_max, cpp_min, cpp_min3, msvc_i32};
 use crate::flat_map::{FlatMap, pack_key};
 use crate::geometry::{Point, RectObj, rotate};
 
@@ -25,51 +26,6 @@ pub enum OverlapMeasure {
 pub struct ScoredBox {
     pub rect: RectObj,
     pub score: f64,
-}
-
-// ---- C++ 標準庫的行為（NaN 的處理和 f64::min／max／clamp 不同）----
-
-/// `std::min(a, b)`：`(b < a) ? b : a`。
-fn cpp_min(a: f64, b: f64) -> f64 {
-    if b < a { b } else { a }
-}
-
-/// `std::max(a, b)`：`(a < b) ? b : a`。
-fn cpp_max(a: f64, b: f64) -> f64 {
-    if a < b { b } else { a }
-}
-
-/// `std::min({a, b, c})`（`min_element`：比自己小才換）。
-fn cpp_min3(a: f64, b: f64, c: f64) -> f64 {
-    let mut m = a;
-    if b < m {
-        m = b;
-    }
-    if c < m {
-        m = c;
-    }
-    m
-}
-
-/// `std::clamp(v, lo, hi)`：`v < lo ? lo : (hi < v ? hi : v)`；NaN 原樣回傳。
-fn cpp_clamp(v: f64, lo: f64, hi: f64) -> f64 {
-    if v < lo {
-        lo
-    } else if hi < v {
-        hi
-    } else {
-        v
-    }
-}
-
-/// MSVC 的 `static_cast<int>(double)`（cvttsd2si）：NaN 或超出 int 範圍時得到 `INT_MIN`。
-/// Rust 的 `as i32` 是飽和轉換，所以超出範圍時另外處理，結果才和 C++ 相同。
-fn msvc_i32(v: f64) -> i32 {
-    if v.is_nan() || v >= 2_147_483_648.0 || v < -2_147_483_648.0 {
-        i32::MIN
-    } else {
-        v as i32
-    }
 }
 
 // ---- 凸多邊形的裁切 ----
@@ -448,14 +404,5 @@ mod tests {
         assert!(!index.overlaps_any(&rect(40., 40., 4., 4., 0.)));
         index.add(&rect(f64::INFINITY, 0., 4., 4., 0.)).unwrap();
         assert_eq!(index.len(), 1);
-    }
-
-    #[test]
-    fn cpp_rules_for_nan_and_conversion() {
-        assert!(cpp_min3(f64::NAN, 1.0, 2.0).is_nan());
-        assert!(cpp_clamp(f64::NAN, 0.0, 1.0).is_nan());
-        assert_eq!(msvc_i32(3.0e9), i32::MIN);
-        assert_eq!(msvc_i32(f64::NAN), i32::MIN);
-        assert_eq!(msvc_i32(-7.9), -7);
     }
 }

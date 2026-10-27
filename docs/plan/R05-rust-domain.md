@@ -9,6 +9,7 @@
 | 產出位置 | `rust/aoi_domain_rs/`、`src/domain/ffi/`、`src/domain/`（.cpp 改成包裝）、`AiInspTool/src/domain_rs/`、`AiInspTool/qmake/`、`tests/domain/tst_domain_rs_diff.cpp`、`scripts/dev/` |
 
 > **修訂紀錄**：
+> 2026-10-27：R05.2 完成（晶格整個搬進 Rust；差異測試全部一位不差；累加器改成零複製；結果見 ADR-031 的「後續（R05.2 晶格）」）。
 > 2026-10-27：R05.1 完成（關卡通過，做法沒有推翻；實測結果見 ADR-031 的「後續」）。
 > 2026-10-27：建立。範圍由使用者決定（混合架構、domain 先搬、C++ 介面不變、用既有測試做差異驗證）；技術做法見 ADR-031，R05.1 實測後確認。
 

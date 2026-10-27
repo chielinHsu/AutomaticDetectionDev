@@ -9,6 +9,16 @@ pub fn pack_key(a: i32, b: i32) -> u64 {
     ((a as u32 as u64) << 32) | (b as u32 as u64)
 }
 
+/// `detail::unpackFirst`：鍵的高 32 位元（有號）。
+pub fn unpack_first(key: u64) -> i32 {
+    (key >> 32) as u32 as i32
+}
+
+/// `detail::unpackSecond`：鍵的低 32 位元（有號）。
+pub fn unpack_second(key: u64) -> i32 {
+    key as u32 as i32
+}
+
 pub struct FlatMap<V: Copy + Default> {
     keys: Vec<u64>,
     values: Vec<V>,
@@ -70,6 +80,26 @@ impl<V: Copy + Default> FlatMap<V> {
             slot = (slot + 1) & self.mask;
         }
         None
+    }
+
+    pub fn find_mut(&mut self, key: u64) -> Option<&mut V> {
+        let mut slot = Self::hash(key) & self.mask;
+        while self.used[slot] != 0 {
+            if self.keys[slot] == key {
+                return Some(&mut self.values[slot]);
+            }
+            slot = (slot + 1) & self.mask;
+        }
+        None
+    }
+
+    /// 依槽的順序走訪（`forEach`）：同樣的插入序列永遠同樣的順序，但不是插入順序。
+    pub fn for_each(&self, mut f: impl FnMut(u64, &V)) {
+        for s in 0..self.keys.len() {
+            if self.used[s] != 0 {
+                f(self.keys[s], &self.values[s]);
+            }
+        }
     }
 
     /// 找不到就插入預設值（`operator[]`）。
@@ -140,5 +170,7 @@ mod tests {
     fn pack_key_matches_cpp() {
         assert_eq!(pack_key(-1, 2), 0xFFFF_FFFF_0000_0002);
         assert_eq!(pack_key(1, -1), 0x0000_0001_FFFF_FFFF);
+        assert_eq!(unpack_first(pack_key(-5, 7)), -5);
+        assert_eq!(unpack_second(pack_key(-5, -7)), -7);
     }
 }
