@@ -7,7 +7,7 @@
 
 | 編號 | 標題 | 狀態 | 日期 |
 |---|---|---|---|
-| [ADR-031](adr/031-rust-domain-hybrid.md) | Rust 混合架構第一階段：domain 的演算法（晶格、NMS、比對區、特徵擷取、重複性統計）搬進 Rust crate `rust/aoi_domain_rs`，C++ 標頭不變；C ABI、零外部 crate、qmake 呼叫 cargo、`AOI_DOMAIN_IMPL=cpp\|rust` 兩套並存、既有測試在兩種實作都跑＋逐筆的差異測試；UI、OpenCV、HALCON、application 留在 C++ | 採用（範圍由使用者決定；技術做法在 R05.1 實測後確認） | 2026-10-27 |
+| [ADR-031](adr/031-rust-domain-hybrid.md) | Rust 混合架構第一階段：domain 的演算法（晶格、NMS、比對區、特徵擷取、重複性統計）搬進 Rust crate `rust/aoi_domain_rs`，C++ 標頭不變；C ABI、零外部 crate、qmake 呼叫 cargo、`AOI_DOMAIN_IMPL=cpp\|rust` 兩套並存、既有測試在兩種實作都跑＋逐筆的差異測試；UI、OpenCV、HALCON、application 留在 C++ | 採用（範圍由使用者決定；技術做法 2026-10-27 R05.1 實測確認，見「後續」） | 2026-10-27 |
 | [ADR-030](adr/030-ai-structure-2-0-0.md) | 導入 AI 結構 2.0.0 與範本升級：入口改為四條（繁中含子 session、完成總結、需求進度表）、範本管理檔換成 2.0.0、專案擁有檔合併、`current-status.md` 開頭為需求進度表 | 採用（補充 ADR-000） | 2026-10-21 |
 | [ADR-029](adr/029-static-repeatability.md) | 靜態重複性分析：CSV 的 Component／Box 對齊、樣本標準差與 P/T、動態數值指標、單一資料夾全圖／最多四份各一圖、共同完整 Box 比較、資料夾橫軸的 P/T／Range 折線及指定 Box、JSON 快照與 CSV／PNG 匯出 | 採用（計算來源與介面由使用者確認） | 2026-10-16 |
 | [ADR-028](adr/028-match-region-separate-from-cad-box.md) | 比對區與 CAD 框分開：範本只用樣本裡想要的特徵（矩形、遮罩；灰階或邊緣），存在元件類型上（µm、相對主體中心）；port 加有預設實作的 `buildFromSample`，契約寫死「`Match.pose` 一律是主體中心」，use case 之後都不改；OpenCV 裁比對區、遮罩 NCC（inf／NaN 設 0）、邊緣＝Sobel 大小；HALCON 的 domain 是比對區、參考點用重心（不用 `set_shape_model_origin`）、視窗換成參考點的視窗；自動擷取（Otsu＋最近亮塊＋外擴）放 domain；`M` 工具與選取資訊表單；配方 v3、樣本庫 v2 | 採用（範圍、方向、升版與驗收條件由使用者確認；設計是 architect subagent 的提案，HALCON 的參考點做法在實作時改） | 2026-10-15 |

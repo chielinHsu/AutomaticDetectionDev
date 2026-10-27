@@ -3,6 +3,27 @@
 > 只新增，新紀錄放最上方。每個 agent session 一筆，讓下一位 agent 知道上一位做過什麼、為什麼。
 > agent 欄位寫實際的工具與模型；不要從舊紀錄抄。
 
+## 2026-10-27 — Claude Code (Claude Opus 5.5)（R05.1：建置整合與 NMS 試點，ADR-031 的「後續」）
+
+### 完成
+- 建立零外部依賴的 Rust crate `rust/aoi_domain_rs`（NMS：重疊面積、比例、`OverlapIndex`、`keep`；C ABI、panic 用 `catch_unwind` 擋下、配置失敗回狀態碼），C 標頭 `src/domain/ffi/aoi_domain_rs.h`。
+- qmake 呼叫 cargo（`AOI_DOMAIN_IMPL=cpp|rust`，預設 cpp）；C++ 實作搬到 `aoi::legacy`，公開標頭只改 `OverlapIndex` 的私有部分（pimpl）。
+- 差異測試 `tst_domain_rs_diff`、`perf_lattice` 兩個逐次呼叫的微基準、`test.ps1 -DomainImpl` 與 4 項 Rust 檢查、`tools/check-rust.mjs`。
+- 關卡的風險實測：Debug 的 CRT 不衝突（Rust 的 lib 沒有 `/DEFAULTLIB` 指示），三種組態 0 個 LNK 警告；Qt Creator 條件的模擬建置成功。
+
+### 修改的檔案
+- 新增：`rust/aoi_domain_rs/`（Cargo.toml、Cargo.lock、rustfmt.toml、src/*.rs）、`src/domain/ffi/aoi_domain_rs.h`、`src/domain/lattice/legacy/non_max_suppression_legacy.{h,cpp}`、`src/domain/lattice/non_max_suppression_rs.cpp`、`AiInspTool/qmake/aoi_rust.pri`、`AiInspTool/src/domain_rs/domain_rs.pro`、`AiInspTool/tests/domain/{domain_legacy,tst_domain_rs_diff}.pro`、`tests/domain/tst_domain_rs_diff.cpp`、`tests/core/fixtures/rust/Cargo-with-dependency.toml`、`tools/check-rust.mjs`。
+- 修改：`src/domain/lattice/non_max_suppression.{h,cpp}`、`tests/domain/perf_lattice.cpp`、`AiInspTool/qmake/{aoi_deps,aoi_options,aoi_target,aoi_test}.pri`、`AiInspTool/src/{src.pro,domain/domain.pro}`、`AiInspTool/tests/tests.pro`、`scripts/dev/{env,test}.ps1`、`.gitignore`、`AI_CONTEXT.md`、`docs/architecture.md`、`docs/adr/031-rust-domain-hybrid.md`、`docs/decisions.md`、`docs/current-status.md`、`.ai/handoff.md`。
+
+### 驗證
+- `test.ps1`：Release＋Rust 66／66、Release＋Cpp 65／65、Debug＋Rust 66／66、Debug＋Cpp 65／65、Profile＋Rust 66／66（0 個 LNK 警告；跳過的都是環境項目；XFAIL 2 列照舊）。
+- 差異測試：220 010 對面積與比例一位不差；NMS 索引與 `OverlapIndex` 完全相同。`check-deps` 0 違規、`ste-lint` 0 error。
+- 效能（資訊性）：NMS-10000 before 9.2–11.2 ms → rust 5.3–10.0；逐次 `overlapRatio` 每次多約 5–15 ns。建置：crate 乾淨 1.5 s、改一個 `.rs` 增量 12.4 s。
+- 沒跑：`-NoOpenCv`、`-NoHalcon`；Qt Creator GUI 沒有實際操作。
+
+### 注意事項
+- `AiInspTool/` 底下原地建置留下的 `.moc`／`.uic`／`.rcc` 搬到 `build/r05-insource-generated-backup/`（它們讓新的 Qt Test 函式沒被 moc）。
+
 ## 2026-10-27 — Claude Code (Claude Opus 5.5)（Rust 混合架構的計畫，ADR-031、R05）
 
 ### 完成

@@ -1,5 +1,7 @@
 # Build output（qmake：命令列的建置在 build/qmake-*，Qt Creator 預設在 AiInspTool/build/；ADR-018）
 build/
+# Rust（ADR-031）：建置一律用 --target-dir 放到 build/ 底下；直接在 crate 裡跑 cargo 時產生的 target/ 不入版控
+rust/**/target/
 out/
 *.user
 

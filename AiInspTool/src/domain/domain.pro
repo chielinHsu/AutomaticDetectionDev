@@ -1,6 +1,8 @@
 # domain 層只用 C++ 標準庫（CONFIG -= qt：誤 include Qt 會編不過）。S05 起有晶格估計的 .cpp（lattice/）；其餘多半是只有標頭的型別。
 # ADR-028：比對區（match_region）與自動擷取（feature_extract）。
 # S06：影像緩衝（image_buffer）、複製計數（image_copy）、位元深度（image_depth，12 bit 的影像）。
+# ADR-031（R05）：搬進 Rust 的演算法有兩份實作，依 AOI_DOMAIN_IMPL 選一份；標頭兩種建置都一樣。
+#   cpp：lattice/legacy/*_legacy.cpp（aoi::legacy）＋ 轉呼叫它的 .cpp；rust：轉呼叫 Rust（ffi/aoi_domain_rs.h）的 *_rs.cpp。
 
 AOI_MODULE = domain
 include($$AOI_QMAKE/aoi_lib.pri)
@@ -18,12 +20,21 @@ SOURCES += \
     $$DIR/lattice/lattice_accumulator.cpp \
     $$DIR/lattice/lattice_estimator.cpp \
     $$DIR/lattice/lattice_predictor.cpp \
-    $$DIR/lattice/non_max_suppression.cpp \
     $$DIR/lattice/spatial_grid.cpp \
     $$DIR/lattice/vector_clustering.cpp \
     $$DIR/match_region.cpp
 
+equals(AOI_DOMAIN_IMPL, rust) {
+    SOURCES += $$DIR/lattice/non_max_suppression_rs.cpp
+} else {
+    SOURCES += \
+        $$DIR/lattice/legacy/non_max_suppression_legacy.cpp \
+        $$DIR/lattice/non_max_suppression.cpp
+}
+
 HEADERS += \
+    $$DIR/ffi/aoi_domain_rs.h \
+    $$DIR/lattice/legacy/non_max_suppression_legacy.h \
     $$DIR/repeatability.h \
     $$DIR/box_expander.h \
     $$DIR/component.h \

@@ -2,7 +2,7 @@
 
 - 日期：2026-10-27
 - 決定者：使用者（範圍：混合架構、第一階段只搬 domain 的演算法、C++ 介面不變、用既有測試做差異驗證）；Claude Code (Claude Opus 5.5)（技術做法：C ABI、零外部 crate、qmake 呼叫 cargo、兩套實作並存的驗證方式）
-- 狀態：採用（技術做法在 R05.1 實測後確認；R05.1 的結論若推翻某一項，在本檔加「後續」一節）
+- 狀態：採用（技術做法 2026-10-27 在 R05.1 實測確認，沒有推翻任何一項；補充與細化見「後續（2026-10-27，R05.1 實測）」）
 
 ## 背景
 
@@ -60,3 +60,18 @@
 - `check-deps` 不掃 Rust：Rust 這一側的「只用標準庫」由「`[dependencies]` 必須空」的檢查保證。
 - 分層、依賴表與 `docs/architecture.md` 要在 R05.1 一起更新（依賴表、`aoi_deps.pri`、`check-deps` 的 `RULES` 三邊一起改）。
 - 第二階段（application 層）要不要做、FFI 要不要改用 cxx，R05 完成後由使用者決定。
+
+## 後續（2026-10-27，R05.1 實測）
+
+R05.1（建置整合與 NMS 試點）照「決定」的做法完成，關卡通過；沒有推翻任何一項，只有下面幾點補充或細化。
+
+- **CRT（Debug 的 `/MDd`）**：不衝突。`rustc --print native-static-libs` 列出 `kernel32 ntdll userenv ws2_32 dbghelp` 與 `/defaultlib:msvcrt`，但 `dumpbin /directives` 看 `aoi_domain_rs.lib`（dev 與 release 兩種）**沒有任何 `/DEFAULTLIB` 指示**：`/defaultlib:msvcrt` 只是 rustc 給的建議，不在程式庫裡。所以 Debug 的程式連到 C++ 自己選的除錯版 CRT（Rust 的程式碼也用它），沒有 LNK4098。Release、Debug、Profile 三種組態的建置記錄都是 0 個 `LNK4` 警告，連結器的警告沒有關掉任何一個（`aoi_target.pri` 只加了 Rust 的 lib 與上面五個系統程式庫）。能混用的前提是沒有 CRT 的物件跨過邊界：Rust 用自己的配置器（Windows 的 `HeapAlloc`），handle 由 Rust 釋放、陣列由呼叫端配置——就是「誰配置誰釋放」那一條。
+- **系統程式庫的清單**寫死在 `AiInspTool/qmake/aoi_rust.pri`（qmake 每個子專案都會讀選項，不能每次都跑 cargo）；`tools/check-rust.mjs` 比對 rustc 實際印出的清單（cargo 會重播快取的訊息，沒有重新編譯也印得出來），換 Rust 版本時清單變了就失敗。
+- **qmake 整合**：`AiInspTool/src/domain_rs/domain_rs.pro`（`TEMPLATE = aux`，`first` 依賴一個永遠執行的 `cargo build --lib --locked --offline [--release]` 目標，`--target-dir <建置>/cargo`），`src/src.pro` 讓 domain 依賴它；Rust 的 lib 以外部函式庫 `rust` 登記在 domain 上（`AOI_EXT_domain`），`PRE_TARGETDEPS` 讓改了 `.rs` 時重新連結。cargo 用完整路徑找（`AOI_CARGO`、`%CARGO_HOME%`、`%USERPROFILE%\.cargo\bin`），所以安裝 Rust 之前就開著的 Qt Creator 也建置得起來：用 Qt Creator 的 Profile 參數、PATH 拿掉 cargo 的模擬建置成功。**Qt Creator 的 GUI 本身沒有實際操作驗證**（要使用者在 qmake 步驟的「其他引數」加 `AOI_DOMAIN_IMPL=rust` 試一次）。
+- **所有權的細化**：輸出大小有上限的陣列（`aoi_rs_nms_keep` 的索引，最多和輸入一樣多）由呼叫端配置，Rust 只寫進去，不必回傳 handle；有狀態的物件（`OverlapIndex`）才用 handle。配置失敗用 `try_reserve` 回 `AOI_RS_NO_MEMORY`（C++ 包裝丟 `std::bad_alloc`），不讓 Rust 直接結束行程。C 標頭有 `AOI_RS_ABI_VERSION`，包裝第一次呼叫時比對。
+- **公開標頭只改私有部分**：`OverlapIndex` 改成 pimpl（`std::unique_ptr<Impl>`），兩種建置的標頭完全相同（不靠巨集切換成員，沒有 ODR 的風險）；因此變成不可複製、可以移動（專案裡沒有複製它的地方），`size()` 不再 inline。C++ 的實作搬到 `src/domain/lattice/legacy/`（命名空間 `aoi::legacy`）：cpp 建置時 `aoi_domain` 編它並轉呼叫，rust 建置時只有測試用的 `aoi_domain_legacy` 編它——C++ 的程式碼只有一份。坑：`aoi::legacy` 裡未限定的 `overlapArea(a, b)` 會因 ADL（引數是 `aoi::RectObj`）同時找到 `aoi::overlapArea` 而模稜兩可，要寫 `legacy::overlapArea`。
+- **浮點數**：Rust 照 C++ 的運算順序寫，並模仿 `std::min`／`std::max`／`std::clamp` 遇到 NaN 的行為與 MSVC `static_cast<int>` 超出範圍得到 `INT_MIN` 的行為。差異測試 220 010 對隨機旋轉矩形（含 0°、90°、45° 等特殊角度、零寬、負高、只碰到邊、非有限值），重疊面積與兩種比例**全部一位不差**（Release 與 Debug 都是），所以 Rust 的 `sin`／`cos` 與 MSVC 的結果在這些輸入上相同；測試的容差仍是相對 1e-12（理由寫在測試裡），一位不差的筆數印在 log。NMS 的索引（3 種場景 × 4 種數量 × 6 種容差 × 2 種量法）與 `OverlapIndex` 的回答（6 種格子大小）完全相同。
+- **panic**：`aoi_rs_test_panic` 在 Rust 裡 panic，C++ 拿到 `AOI_RS_PANIC`、行程繼續（`tst_domain_rs_diff` 與 `cargo test` 都測）。
+- **效能**（Release、這台機器、資訊性指標、沒有預算；交替各 3 次的中位數，before 是搬之前的 C++）：NMS-10000（`keep` 一次呼叫）before 9.2–11.2 ms → cpp 8.5–10.9、rust 5.3–10.0；NMS-1000 0.82–0.92 → cpp 0.70–0.96、rust 0.46–0.62；NMS-IDX-10000（use case 那樣一個框一次 `overlapsAny`＋`add`，每次跨 FFI）before 7.2–10.2 → cpp 6.4–7.7、rust 5.0–12.0（第一次 12.0 是暖機與雜訊，後兩次 5.0–5.6）；NMS-PAIR-20000（2 萬次 `overlapRatio`／`overlapArea`，多半是快速排除）before 0.22–0.29 → cpp 0.19–0.22、rust 0.27–0.49：**逐次呼叫的小函式每次多約 5–15 ns**（跨 FFI 沒有 inline、要複製結構），對 use case 的總時間（毫秒級）看不出來。T3 不受影響（晶格還沒搬）。
+- **建置時間**：crate 乾淨建置（release）1.5 s；只改一個 `.rs` 的增量建置 12.4 s（cargo 重編＋75 個執行檔重新連結）；沒有改動時每次建置呼叫 cargo 的成本約 0.1 s。
+- **原始碼樹裡的舊產生檔**：`AiInspTool/` 底下有 2026-10-16 原地建置留下的 `.moc`／`.uic`／`.rcc`，qmake 的相依掃描會抓到它們而不重新 moc（新加的 Qt Test 函式不執行）；R05.1 把它們搬到 `build/r05-insource-generated-backup/`。之後不要在 `AiInspTool/` 原地執行 qmake。

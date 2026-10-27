@@ -41,6 +41,13 @@ foreach ($p in $extra) {
 $env:PATH = ($extra -join ';') + ';' + $env:PATH
 $env:AOI_QT_ROOT = $qtRoot
 
+# Rust（ADR-031）：rustup 預設裝在 %USERPROFILE%\.cargo\bin（設了 CARGO_HOME 就是 %CARGO_HOME%\bin）。
+# 安裝之前就開著的程式（Claude 桌面 app、Qt Creator）的 PATH 沒有它；這裡補上（已經在 PATH 上就不重複）。
+# 沒裝 Rust 不算錯：AOI_DOMAIN_IMPL=cpp 的建置用不到 cargo；選 rust 時 qmake 會報錯（aoi_rust.pri）。
+$cargoBin = if ($env:CARGO_HOME) { Join-Path $env:CARGO_HOME 'bin' } else { Join-Path $env:USERPROFILE '.cargo\bin' }
+$hasCargo = Test-Path (Join-Path $cargoBin 'cargo.exe')
+if ($hasCargo -and -not (($env:PATH -split ';') -contains $cargoBin)) { $env:PATH = $cargoBin + ';' + $env:PATH }
+
 # 把主控台字碼頁固定成系統的 OEM 字碼頁（這台是繁中 Windows，cl.exe 的訊息是中文）。
 # CMake＋Ninja 時代這一步是必要的（Ninja 靠 /showIncludes 的中文前綴記錄標頭相依）；qmake 的 Makefile 自己掃 #include，
 # 不再依賴它，保留是為了讓 cl 的中文訊息在不同的啟動方式（例如從 Git Bash 啟動 powershell.exe）下一致。
@@ -52,6 +59,7 @@ try {
 Write-Host "MSVC  : $(cmd.exe /c "cl.exe 2>&1" | Select-Object -First 1)"
 Write-Host "qmake : $((& qmake.exe -query QT_VERSION))（$qtRoot）"
 Write-Host "jom   : $((& jom.exe /VERSION | Select-Object -First 1))"
+Write-Host "cargo : $(if ($hasCargo) { (& (Join-Path $cargoBin 'cargo.exe') --version) } else { "沒有（$cargoBin）：只能建 AOI_DOMAIN_IMPL=cpp" })"
 
 $ErrorActionPreference = $aoiPrevEap
 Remove-Variable aoiPrevEap

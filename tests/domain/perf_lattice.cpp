@@ -251,6 +251,38 @@ private slots:
         }
     }
 
+    // ---- R05.1：呼叫端一個框一個框問 OverlapIndex（use case 的 BoardProposal、GenerateObjectsFromSample 就是這樣用）、
+    // 逐對呼叫 overlapRatio（back end 的樣本庫比對器）。Rust 實作時每次呼叫都跨一次 FFI，NMS-* 量不到這個成本。----
+    void overlapIndexPerCall() {
+        const std::vector<ScoredBox> boxes = nmsBoxes(100, 75, 2500, 21);
+        const double cell = 2.0 * 0.5 * std::sqrt(24.0 * 24.0 + 16.0 * 16.0);
+        std::size_t kept = 0;
+        const std::vector<double> ms = timeRuns(
+            [&] {
+                OverlapIndex index(cell, 0.5, OverlapMeasure::IntersectionOverUnion);
+                for (const ScoredBox& b : boxes) {
+                    if (index.overlapsAny(b.rect)) continue;
+                    index.add(b.rect);
+                }
+                kept = index.size();
+                g_sink = g_sink + static_cast<double>(kept);
+            },
+            5, 30);
+        add(QStringLiteral("NMS-IDX-10000"), QStringLiteral("OverlapIndex: overlapsAny + add per box, %1 boxes in input order").arg(boxes.size()),
+            QStringLiteral("ms"), ms, -1.0, QStringLiteral("%1 kept").arg(kept));
+
+        const std::vector<double> pairs = timeRuns(
+            [&] {
+                double s = 0.0;
+                for (std::size_t k = 0; k + 1 < boxes.size(); ++k) s += overlapRatio(boxes[k].rect, boxes[k + 1].rect, OverlapMeasure::IntersectionOverSmaller);
+                for (std::size_t k = 0; k + 1 < boxes.size(); ++k) s += overlapArea(boxes[k].rect, boxes[boxes.size() - 1 - k].rect);
+                g_sink = g_sink + s;
+            },
+            5, 30);
+        add(QStringLiteral("NMS-PAIR-20000"), QStringLiteral("overlapRatio + overlapArea, %1 calls (mostly far apart: quick reject)").arg(2 * (boxes.size() - 1)),
+            QStringLiteral("ms"), pairs, -1.0);
+    }
+
     // ---- 漸進重新擬合：O(1) 的累加器 vs 每次從頭重算 ----
     void incrementalVersusFullRefit() {
         for (const int n : {100, 1000, 10000}) {
@@ -314,6 +346,7 @@ private slots:
         QJsonObject root;
         root["schema"] = 1;
         root["step"] = "S05";
+        root["domainImpl"] = AOI_DOMAIN_IMPL_NAME;  // ADR-031：cpp 或 rust（before／after）
         root["note"] = "Lattice estimation, prediction and NMS (domain, standard library only). Numbers compare only on this machine.";
         root["machine"] = machineFingerprint(hygiene_);
         root["metrics"] = rows;
