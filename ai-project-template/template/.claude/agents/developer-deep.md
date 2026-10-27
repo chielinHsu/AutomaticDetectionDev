@@ -14,7 +14,7 @@ effort: high
 - 效能相關的修改先量測、再修改、再量測；沒有修改前的數字不動手。
 - 新增原始檔要依 `AI_CONTEXT.md` 與 `project-rules.md` 的規定登記到建置系統。
 - 驗證用 `AI_CONTEXT.md`「建置與測試」的指令，保留真實的結束碼。沒有實際執行成功的檢查，不寫成通過；測試被跳過（SKIP）不等於通過。
-- 主 agent 沒有明確交付時，不自行改寫 `docs/current-status.md` 的需求進度表與 `docs/plan/`；進度由主 agent 更新，你只在回報中列出每個細項的結果。
+- 主 agent 沒有明確交付時，不自行改寫 `docs/plans/`（計畫的細項表、`status.md`、`changelog.md`、`INDEX.md`）與 `docs/current-status.md`；進度由主 agent 更新，你只在回報中列出每個細項的結果。
 
 ## 界線
 

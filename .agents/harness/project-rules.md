@@ -1,7 +1,7 @@
 # 專案規則
 
 本檔放「這個專案的慣例」，可依專案調整。流程在 `engineering-workflow.md`，專案事實在 `AI_CONTEXT.md`。
-本檔的 SOLID、四種輸出、Step Protocol、Commit 規則原本在 `CLAUDE.md`，2026-10-05 搬進來（見 `docs/adr/000-ai-agent-structure.md`），是 AI 結構 2.0.0 範本這些段落的來源。2026-10-21 對照範本 2.0.0 補上：四種輸出的適用範圍、需求進度表（Step Protocol 開工與更新）、編碼、上層共用規則檔的優先順序（見 `docs/adr/030-ai-structure-2-0-0.md`）。
+本檔的 SOLID、四種輸出、Step Protocol、Commit 規則原本在 `CLAUDE.md`，2026-10-05 搬進來（見 `docs/adr/000-ai-agent-structure.md`），是 AI 結構 2.0.0 範本這些段落的來源。2026-10-21 對照範本 2.0.0 補上：四種輸出的適用範圍、需求進度表（Step Protocol 開工與更新）、編碼、上層共用規則檔的優先順序（見 `docs/adr/030-ai-structure-2-0-0.md`）。2026-10-27 AI 結構 3.0.0：需求進度表改成每個計畫一個資料夾（見 `docs/adr/032-ai-structure-v3.md`）。
 
 ## 程式碼風格
 
@@ -22,7 +22,7 @@
 
 目的：讓讀者清楚知道這個設計的**目的（Purpose）、原因（Reason）、效果（Effect）**。放在 `docs/steps/<ID>-<slug>/`（本專案的步驟 ID 是 `Sxx`，也有以功能命名的資料夾，例如 `docs/steps/static-repeatability/`），範本在 `docs/steps/_template/`。
 
-**適用範圍**：Step Protocol 的步驟，以及 `docs/current-status.md` 需求進度表中類型標為「功能」的需求。**小修正（fix、docs、chore、refactor 等）免四種輸出**，只要依 `ai-handoff` skill 更新進度表、交接單與 changelog。
+**適用範圍**：Step Protocol 的步驟，以及類型標為「功能」的計畫（`docs/plans/INDEX.md`）。**小修正（fix、docs、chore、refactor 等）免四種輸出**，只要依 `ai-handoff` skill 更新該計畫的細項表、`status.md`、`changelog.md` 與交接單。
 
 | # | 輸出 | 檔案 | 要求 |
 |---|---|---|---|
@@ -35,15 +35,15 @@
 
 ## Step Protocol（每完成一個步驟必做；不要在同一個 session 連做下一步）
 
-步驟 ID `<ID>` 用總體計畫（`docs/00-master-plan.md`）的編號，例如 `S12`；需求進度表的 `Rnn` 若自成一步也可以當 ID。
+步驟 ID `<ID>` 用總體計畫（`docs/00-master-plan.md`）的編號，例如 `S12`；計畫的 `Rnn` 若自成一步也可以當 ID。每個步驟就是一個計畫（`docs/plans/<狀態>/<ID>-<slug>/`）。
 
-1. 開工：讀 `docs/current-status.md`（需求進度表）與 `docs/plan/<ID>-*.md`。在 `main` 上建分支 `step/NN-slug`；把本步驟在進度表裡的列標為 ⏳。
+1. 開工：讀 `docs/plans/INDEX.md` 與該步驟計畫的 `plan.md`、`status.md`。在 `main` 上建分支 `step/NN-slug`；計畫的狀態改 ⏳（`plan.md` 的 frontmatter、`status.md`、`INDEX.md`）。
 2. 實作，並同時產出四種輸出與 `perf.md`。
 3. 驗證：建置通過、單元/契約測試通過、`node tools/check-deps.mjs`（S03 起）、`node tools/ste-lint.mjs` 皆無 error；本步驟的效能指標已量測並與 `perf/budgets.json` 比對。**失敗就如實回報，不要宣稱完成。**
-4. 更新 `docs/current-status.md`（需求進度表該列改 ✅，補分支／commit 與驗證），並依 `ai-handoff` skill 更新 `.ai/handoff.md` 與 `docs/changelog-ai.md`。
-5. Commit（格式見下方「Commit 訊息」；該步驟 plan 檔的「Commit 範本」只當內容參考），合併到 `main`（`git merge --no-ff`），打 tag `step-NN-done`。僅限本機，**不要 push**，除非使用者要求。
+4. 依 `ai-handoff` skill 更新該計畫：細項表改 ✅（補分支／commit 與驗證）、`status.md`、`changelog.md`；計畫完成就把資料夾搬到 `docs/plans/completed/` 並更新 `INDEX.md`；最後覆寫 `.ai/handoff.md`。
+5. Commit（格式見下方「Commit 訊息」；該步驟 `plan.md` 的「Commit 範本」只當內容參考），合併到 `main`（`git merge --no-ff`），打 tag `step-NN-done`。僅限本機，**不要 push**，除非使用者要求。
 6. 對使用者**提示 commit 內容**：commit hash、訊息、變更檔案摘要、效能結果、未解決事項。
-7. 為下一步建立新 session（prompt 取自**下一步** plan 檔底部的「Start prompt」，並提醒新 session 回覆使用繁體中文）：Claude Code 用 `start_session` 或 `spawn_task`（工具可用時）；Codex 或工具不可用時，把 prompt 印出來讓使用者貼上。**到此為止，不要接著做下一步。**
+7. 為下一步建立新 session（prompt 取自**下一步**計畫 `plan.md` 底部的「Start prompt」，並提醒新 session 回覆使用繁體中文）：Claude Code 用 `start_session` 或 `spawn_task`（工具可用時）；Codex 或工具不可用時，把 prompt 印出來讓使用者貼上。**到此為止，不要接著做下一步。**
 
 ## Git
 
@@ -57,7 +57,7 @@
 
 ### Commit 訊息
 
-本節是 commit 訊息格式的唯一權威：任何 AI 在 commit、或只是產生一段訊息給人貼上時，都照本節產出。格式沿用使用者在其他專案的慣例（AlgoParamFineTune 的 `.clauderules`），與上層共用規則檔相同；**上層共用規則檔有規定時以上層為準**（例如固定的作者身分與 commit 指令寫法）。各步驟 plan 檔的「Commit 範本」只當內容參考（改了什麼、含哪些項目），格式與語言一律以本節為準，內容要改寫成繁體中文。
+本節是 commit 訊息格式的唯一權威：任何 AI 在 commit、或只是產生一段訊息給人貼上時，都照本節產出。格式沿用使用者在其他專案的慣例（AlgoParamFineTune 的 `.clauderules`），與上層共用規則檔相同；**上層共用規則檔有規定時以上層為準**（例如固定的作者身分與 commit 指令寫法）。各計畫 `plan.md` 的「Commit 範本」只當內容參考（改了什麼、含哪些項目），格式與語言一律以本節為準，內容要改寫成繁體中文。
 
 訊息骨架（每個空行都是格式的一部分，不可增減）：
 
@@ -90,7 +90,7 @@ Build OK, Test OK
 - 流程圖寫進文件時保留 Mermaid 原始碼。
 - 文件裡的路徑、指令與檔名必須是真的存在的；不確定就不寫。
 - 設計決策寫成 `docs/adr/NNN-slug.md`（範本 `docs/adr/_template.md`），並在 `docs/decisions.md` 的索引加一行；`decisions.md` 不放 ADR 內文。
-- 需求進度表（`docs/current-status.md`）與計畫檔（`docs/plan/`，範本 `docs/plan/_template.md`）的規則見 `engineering-workflow.md`「需求展開與進度表」。
+- 計畫（`docs/plans/`，範本 `docs/plans/_template/`）與專案層級快照（`docs/current-status.md`）的規則見 `engineering-workflow.md`「計畫分開管理」。
 
 ## 驗證
 

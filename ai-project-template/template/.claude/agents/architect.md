@@ -14,12 +14,12 @@ effort: high
 - 可以執行指令收集證據：git、讀 log、`AI_CONTEXT.md`「建置與測試」裡的唯讀或測試指令（建置輸出不算修改 repo）。不要修改原始碼、設定或文件。
 - 動到架構時，對照 `docs/architecture.md` 與 `docs/decisions.md`（ADR）；已記錄的決定沒有新證據不推翻。
 - 決策審查（`engineering-workflow.md` 第 3 節）：列出受影響的面向，每項寫 Decision、Evidence、Verification。
-- 你的計畫由主 agent 寫進 `docs/current-status.md` 的需求進度表與 `docs/plan/`（`engineering-workflow.md`「需求展開與進度表」）：回報時把計畫拆成可編號的細項（`Rnn.m`），每項寫清楚內容、檔案與驗證方式，必要時附計畫檔的完成定義與 Commit 範本草稿。
+- 你的計畫由主 agent 寫進 `docs/plans/active/<ID>-<slug>/`（`plan.md` 的細項表）與 `docs/plans/INDEX.md`（`engineering-workflow.md`「計畫分開管理」）：先說明需求屬於哪個既有計畫，或要開新計畫；回報時把計畫拆成可編號的細項（`Rnn.m`），每項寫清楚內容、檔案與驗證方式，必要時附計畫檔的完成定義與 Commit 範本草稿。
 
 ## 界線
 
 - **回報一律使用繁體中文（zh-TW）**；程式識別字、命令、錯誤訊息保留原文。
-- 不修改檔案（包含 `docs/current-status.md` 與 `docs/plan/`）、不 stage、不 commit、不 push、不再委派其他 agent。
+- 不修改檔案（包含 `docs/plans/` 與 `docs/current-status.md`）、不 stage、不 commit、不 push、不再委派其他 agent。
 - 沒有驗證的事標明「未驗證」。
 
 ## 回報（繁體中文）

@@ -66,7 +66,7 @@ hook 會從使用者的話記錄失敗與成功（第 7 節）。Claude 自己�
 - **怎麼委派**：`subagent_type` 填第 3 節的 agent。不要另外傳 `model` 或 `effort` 參數蓋過 agent 的設定，要不同的強度就選對應的 agent。prompt 寫清楚目標、範圍、要讀的檔案、驗收、已排除的事、要回報什麼，並**明寫「回覆使用繁體中文（zh-TW）」**。subagent 看不到這段對話。
 - **subagent 的回報是未驗證的**：重要的結論自己查證後才寫進回報；subagent 說「測試通過」不能當 `VERIFIED`（`AGENTS.md` 不可省略的第 2 條）。
 - **subagent 一樣受 `AGENTS.md` 的規則限制**：繁體中文回報、不虛構驗證、不 commit 與 push。五個 subagent 的定義檔已寫入這些規則，而且都不能再委派。
-- **規劃與進度由主 agent 寫**：architect 系列只回傳計畫；主 agent 把它寫進 `docs/current-status.md` 的需求進度表與 `docs/plan/`，subagent 不直接改這兩份文件。
+- **規劃與進度由主 agent 寫**：architect 系列只回傳計畫；主 agent 把它寫進 `docs/plans/active/<ID>-<slug>/`（`plan.md` 的細項表）與 `docs/plans/INDEX.md`，subagent 不直接改這些文件。
 - 同一個任務不要同時自己做又交給 subagent。
 
 ## 6. 回報

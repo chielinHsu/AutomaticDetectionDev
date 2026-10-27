@@ -6,7 +6,7 @@
 
 ## 背景
 
-S08 要做第二個 back end（`docs/plan/S08-halcon.md`）。開工時的事實（實際查過）：
+S08 要做第二個 back end（`docs/legacy/plan/S08-halcon.md`）。開工時的事實（實際查過）：
 
 - 這台機器的 HALCON 24.11.2 只有 runtime：`%HALCONROOT%\bin\x64-win64` 有 DLL、`license\` 有兩個授權檔，**沒有 `include\` 與 `lib\`**。使用者指示從 `D:\AOI_Project\SType\AlgoParamFineTune\BnSDKLibsController\CV_Algorithm\HALCON-24.11-Steady\` 複製（那個專案把 SDK 放在版控裡，版本也是 24.11.2）。
 - 授權：`license.dat` 是 RTL（CodeMeter 容器 `3-7614034`，這台有插），`license--DEVELOP-.dat` 是 SDK（容器 `3-7081033`，**沒有插**）。HALCON 會挑找得到 dongle 的那一個，所以程式照樣能跑（用 runtime 授權），不會報錯。

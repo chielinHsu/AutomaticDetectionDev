@@ -1,0 +1,7 @@
+# 列在這裡的範本管理檔案由專案自己維護，New-AiProject.ps1 -Refresh 不覆蓋；範本升級時要手動比對合併
+# docs/steps/_template/：本專案的步驟範本（範本 2.0.0 的來源）帶 AOI 專屬的量測欄位與 perf-test-plan.md 連結
+docs/steps/_template/spec.md
+docs/steps/_template/diagram.md
+docs/steps/_template/explainer.html
+docs/steps/_template/perf.md
+docs/steps/_template/storyboard.md

@@ -14,16 +14,17 @@
 
 - `AGENTS.md` 是平台中立的入口，只放「不可省略的四條」、必讀清單與平台備註；`CLAUDE.md` 用 `@AGENTS.md` 匯入，並只放 Claude 專屬規則。
 - 專案事實放 `AI_CONTEXT.md`；通用流程放 `.agents/harness/engineering-workflow.md`（範本管理）；專案慣例放 `.agents/harness/project-rules.md`（SOLID、四種輸出、Step Protocol、Git、Commit 訊息、文件規則）。
-- 交接用 `.ai/handoff.md`（覆寫）與 `docs/changelog-ai.md`（只新增）；進度用 `docs/current-status.md` 開頭的「需求進度表」，跨 session 的需求另有 `docs/plan/<ID>-<slug>.md`。
+- 計畫分開管理（3.0.0）：每個需求是一個計畫，資料夾在 `docs/plans/<狀態>/<ID>-<slug>/`（`plan.md` 的細項表是進度的單一事實來源、`status.md` 是現在的快照、`changelog.md` 只記這個計畫），`docs/plans/INDEX.md` 是索引；`docs/current-status.md` 只放專案層級的快照。交接單 `.ai/handoff.md` 每次覆寫。
 - 設計決策一檔一檔放 `docs/adr/NNN-slug.md`，`docs/decisions.md` 只是索引。
 - 模型路由（Claude 專用）：`MODEL_ROUTING.md`、`.claude/agents/` 五個 subagent、`.claude/hooks/model_router.mjs`、`scripts/ai/check-model-routing.mjs`。
-- 檢查：`scripts/ai/check-ai-structure.ps1`（必要檔案、入口規則、進度表、ADR 索引、skill 鏡像、模型路由）；`-Strict` 把未填的 `TODO(project)` 也算失敗。
+- 檢查：`scripts/ai/check-ai-structure.ps1`（必要檔案、入口規則、計畫索引與計畫資料夾、ADR 索引、skill 鏡像、模型路由）；`-Strict` 把未填的 `TODO(project)` 也算失敗。
 
 ## 否決的替代方案
 
 - 兩個入口各抄一份完整規則：會漂移。
 - 把決策內嵌在 `decisions.md`：檔案越來越長，無法單獨引用某一筆；改為 ADR 一檔一決策加索引。
-- 進度只寫在對話或 commit 訊息：換 session 就看不到。改為需求進度表，並要求非單純需求在實作前展開成細項。
+- 進度只寫在對話或 commit 訊息：換 session 就看不到。改為計畫的細項表，並要求非單純需求在實作前展開成細項。
+- 所有需求共用一份進度表與一份 changelog（範本 2.0.0 的做法）：計畫一多，檔案很長、不同需求的紀錄混在一起，難維護也難追蹤。3.0.0 改為每個計畫一個資料夾。
 
 ## 後果
 

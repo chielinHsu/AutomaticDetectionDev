@@ -9,12 +9,15 @@
 	Files are never overwritten, with one exception: -Refresh replaces the
 	template-managed files (universal workflow, TEMPLATE_VERSION, ai-handoff skill,
 	check-ai-structure.ps1, sync-skills.ps1, tools/ste-lint.mjs, and the _template
-	files under docs/plan, docs/adr, docs/steps).
+	files under docs/plans, docs/adr, docs/steps, and scripts/ai/migrate-ai-structure-3.mjs).
 	Everything else is owned by the project once created (including the model
 	routing files and scripts/ai/check-model-routing.mjs, which projects tune).
 	Run it on an existing
 	project and it only adds what is missing; existing AGENTS.md / CLAUDE.md are
 	left alone and reported so you can merge them by hand.
+	The sample plans of a new project (docs/plans/INDEX.md, R01, R02) are only copied into a folder that
+	has no AI setup yet (no AGENTS.md); an existing 2.x project is migrated with
+	node scripts/ai/migrate-ai-structure-3.mjs (see README.md, "Upgrade 2.x to 3.0.0").
 	The script does not run git init and does not commit anything.
 #>
 
@@ -45,11 +48,18 @@ $managedPatterns = @(
 	'scripts/ai/sync-skills.ps1',
 	'tools/ste-lint.mjs',
 	'docs/steps/_template/*',
-	'docs/plan/_template.md',
+	'docs/plans/_template/*',
+	'scripts/ai/migrate-ai-structure-3.mjs',
 	'docs/adr/_template.md'
 )
 # Existing entry files signal an existing AI setup that needs a manual merge.
 $entryFiles = @('AGENTS.md', 'CLAUDE.md')
+# Sample plans of a brand-new project: never copied into a project that already has an AI setup.
+$newProjectOnly = @(
+	'docs/plans/INDEX.md',
+	'docs/plans/active/R02-*',
+	'docs/plans/completed/R01-*'
+)
 
 $gitignoreLines = @(
 	'# AI agent local state',
@@ -102,6 +112,16 @@ function Test-Managed
 }
 
 $counts = @{ COPY = 0; UPDATE = 0; SKIP = 0 }
+$existingSetup = Test-Path -LiteralPath (Join-Path $targetRoot 'AGENTS.md') -PathType Leaf
+# Template-managed files that a project maintains itself (one relative path per line, '#' starts a comment):
+# -Refresh never overwrites them; merge template upgrades into them by hand.
+$overrides = @()
+$overridesFile = Join-Path $targetRoot '.agents/harness/template-overrides.txt'
+if (Test-Path -LiteralPath $overridesFile -PathType Leaf)
+{
+	$overrides = @([IO.File]::ReadAllLines($overridesFile) | ForEach-Object { $_.Trim().Replace('\', '/') } |
+		Where-Object { ($_ -ne '') -and (-not $_.StartsWith('#')) })
+}
 $skippedEntries = @()
 $templateFiles = Get-ChildItem -LiteralPath $templateRoot -Recurse -File -Force | Sort-Object FullName
 
@@ -112,6 +132,26 @@ foreach ($file in $templateFiles)
 	$exists = Test-Path -LiteralPath $destination -PathType Leaf
 	$managed = Test-Managed -RelativePath $relative
 
+	if ($existingSetup -and @($newProjectOnly | Where-Object { $relative -like $_ }).Count -gt 0)
+	{
+		Write-Host "SKIP   $relative (sample plan of a new project)"
+		$counts.SKIP++
+		continue
+	}
+	# A project that already has an AI setup owns its files: only template-managed files are added or refreshed.
+	if ($existingSetup -and -not $managed -and -not $exists)
+	{
+		Write-Host "MISS   $relative (project-owned, not copied into an existing setup; copy and merge by hand if the project wants it)"
+		$counts.SKIP++
+		continue
+	}
+
+	if ($exists -and $managed -and ($overrides -contains $relative))
+	{
+		Write-Host "KEEP   $relative (listed in .agents/harness/template-overrides.txt; merge template changes by hand)"
+		$counts.SKIP++
+		continue
+	}
 	if ($exists -and -not ($Refresh -and $managed))
 	{
 		Write-Host "SKIP   $relative (exists)"
@@ -225,6 +265,10 @@ if ($skippedEntries.Count -gt 0)
 {
 	Write-Host "NOTE: existing entry file(s) were not modified: $($skippedEntries -join ', ')."
 	Write-Host '      Merge by hand: AGENTS.md must list the required reading and contain the four mandatory rules, and CLAUDE.md must import the shared docs (see check output above).'
+}
+if ($existingSetup)
+{
+	Write-Host 'Upgrading a 2.x project: node scripts/ai/migrate-ai-structure-3.mjs --dry-run, then without --dry-run (README.md, "Upgrade 2.x to 3.0.0").'
 }
 Write-Host 'Next: fill every TODO(project) in AI_CONTEXT.md, .agents/harness/project-rules.md, MODEL_ROUTING.md, docs/00-master-plan.md and docs/architecture.md,'
 Write-Host '      then run scripts/ai/check-ai-structure.ps1 -Strict.'

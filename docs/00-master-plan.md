@@ -1,7 +1,7 @@
 # AOI 程式 — 總體計畫（Master Plan）
 
 > 互動版架構導覽：[docs/steps/S00-overview/explainer.html](steps/S00-overview/explainer.html)（用瀏覽器直接開，離線可用）
-> 進度：[current-status.md](current-status.md) ｜ 效能：[perf-test-plan.md](perf-test-plan.md) ｜ 工作規則：[../AGENTS.md](../AGENTS.md)
+> 進度：[plans/INDEX.md](plans/INDEX.md)（計畫索引）｜ 專案快照：[current-status.md](current-status.md) ｜ 效能：[perf-test-plan.md](perf-test-plan.md) ｜ 工作規則：[../AGENTS.md](../AGENTS.md)
 
 ## 1. 要做什麼
 
@@ -99,18 +99,18 @@ flowchart TB
 | 步驟 | 層級 | 主題 | 關鍵產出 | 主要量測 |
 |---|---|---|---|---|
 | **S00** | 基礎 | 版控＋總體計畫＋架構導覽 | 本計畫、規則、預算、導覽頁 | — |
-| [S01](plan/S01-ux-spec.md) | 介面 | UX 規格與可點擊原型 | 線框、狀態語言、ADR-001、原型 | UI 預算確認 |
-| [S02](plan/S02-ui-shell.md) | 介面 | Qt UI 骨架與影像畫布 | MainWindow、畫布、批次繪製 | U1 U4 I1 I2 I5 |
-| [S03](plan/S03-core.md) | 系統 | Ports、use case、DI、執行緒、PerfProbe | 可用假 back end 跑通的核心 | PerfProbe 成本 |
-| [S04](plan/S04-presenter.md) | 系統 | Presenter、狀態機、復原/重做 | 畫面接上核心、可取消 | U2 U3 I3 I4 I6 |
-| [S05](plan/S05-lattice.md) | 底層 | 晶格估計與補漏（純 C++） | 擬合、預測、NMS | T3 |
-| [S06](plan/S06-image-storage.md) | 底層 | 影像緩衝、轉接器、Recipe | 零複製、合成板子產生器 | 載入時間、複製次數＝0 |
-| [S07](plan/S07-opencv.md) | 底層 | OpenCV back end | 第一個可用的完整流程 | T1 T2a T4 T6 |
-| [S08](plan/S08-halcon.md) | 底層 | HALCON back end | 第二個 back end | T2b T6 |
-| [S09](plan/S09-contract-ab.md) | 底層 | 契約測試與 A/B 比較 | 可互換的證明、並排畫面 | 並排比較 |
-| [S10](plan/S10-perf-harness.md) | 驗證 | 效能 harness 與回歸閘門 | 完整矩陣、報表、baseline | T5＋全部 |
-| [S11](plan/S11-optimize.md) | 驗證 | 先量再改 | 每項優化的 before/after | 依報表 |
-| [S12](plan/S12-release.md) | 發行 | 匯出、打包、文件 | v0.1.0 | Release 重跑 |
+| [S01](legacy/plan/S01-ux-spec.md) | 介面 | UX 規格與可點擊原型 | 線框、狀態語言、ADR-001、原型 | UI 預算確認 |
+| [S02](legacy/plan/S02-ui-shell.md) | 介面 | Qt UI 骨架與影像畫布 | MainWindow、畫布、批次繪製 | U1 U4 I1 I2 I5 |
+| [S03](legacy/plan/S03-core.md) | 系統 | Ports、use case、DI、執行緒、PerfProbe | 可用假 back end 跑通的核心 | PerfProbe 成本 |
+| [S04](legacy/plan/S04-presenter.md) | 系統 | Presenter、狀態機、復原/重做 | 畫面接上核心、可取消 | U2 U3 I3 I4 I6 |
+| [S05](legacy/plan/S05-lattice.md) | 底層 | 晶格估計與補漏（純 C++） | 擬合、預測、NMS | T3 |
+| [S06](legacy/plan/S06-image-storage.md) | 底層 | 影像緩衝、轉接器、Recipe | 零複製、合成板子產生器 | 載入時間、複製次數＝0 |
+| [S07](legacy/plan/S07-opencv.md) | 底層 | OpenCV back end | 第一個可用的完整流程 | T1 T2a T4 T6 |
+| [S08](legacy/plan/S08-halcon.md) | 底層 | HALCON back end | 第二個 back end | T2b T6 |
+| [S09](legacy/plan/S09-contract-ab.md) | 底層 | 契約測試與 A/B 比較 | 可互換的證明、並排畫面 | 並排比較 |
+| [S10](legacy/plan/S10-perf-harness.md) | 驗證 | 效能 harness 與回歸閘門 | 完整矩陣、報表、baseline | T5＋全部 |
+| [S11](legacy/plan/S11-optimize.md) | 驗證 | 先量再改 | 每項優化的 before/after | 依報表 |
+| [S12](legacy/plan/S12-release.md) | 發行 | 匯出、打包、文件 | v0.1.0 | Release 重跑 |
 
 為什麼這個順序：**介面先定（S01–S02）**，因為 UX 錯誤改起來最貴；**系統骨架（S03–S04）**用假 back end 先跑通整條路；**純 domain 邏輯（S05）**在沒有視覺函式庫的情況下測好；**才接真實 back end（S07–S08）**，這時其他一切都已經可測。效能量測不等到最後：S02 就建立 UI 基準線，S07 建立搜尋基準線，S10 再整合。
 
@@ -138,19 +138,19 @@ flowchart TB
 建置／測試／check-deps／ste-lint 全部通過？ ──否──► 如實回報，修好再繼續
         │是
         ▼
-更新 current-status.md 與交接單 → commit → merge --no-ff 到 main → tag step-NN-done
+更新該計畫（細項表、status、changelog、INDEX）與交接單 → commit → merge --no-ff 到 main → tag step-NN-done
         │
         ▼
 對你提示：commit hash、訊息、變更摘要、效能結果、未解決事項
         │
         ▼
-spawn_task：為下一步開新 session（prompt 在下一步 plan 檔底部）
+spawn_task：為下一步開新 session（prompt 在下一步計畫 plan.md 的底部）
         │
         ▼
 本 session 結束，不接著做下一步
 ```
 
-為什麼每步開新 session：每個步驟的上下文（程式碼細節、除錯過程）很大，彼此獨立；新 session 只靠 `AGENTS.md`（含它列出的必讀文件）、`current-status.md` 與該步 plan 檔就能接手，不會被前一步的雜訊拖累，也避免上下文過長導致品質下降。
+為什麼每步開新 session：每個步驟的上下文（程式碼細節、除錯過程）很大，彼此獨立；新 session 只靠 `AGENTS.md`（含它列出的必讀文件）、`plans/INDEX.md` 與該步計畫的 `plan.md`、`status.md` 就能接手，不會被前一步的雜訊拖累，也避免上下文過長導致品質下降。
 
 ## 9. 風險與待決策
 

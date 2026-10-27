@@ -2,7 +2,7 @@
 
 > 規則：英文區塊用 ASD-STE100 風格（短句、主動語態、一詞一義）。繁中摘要放在每段之後。
 > 檢查：`node tools/ste-lint.mjs --strict`（只檢查句長與被動語態，不是完整 STE 驗證）。
-> 設計來源：[`docs/plan/S09-contract-ab.md`](../../plan/S09-contract-ab.md)（含 S01、S03、S06、S07、S08、session B 的提醒）、port 的契約（`ITemplateBuilder.h`、`IPatternSearcher.h`、`ILibraryMatcher.h`）、ADR-010、ADR-016、ADR-017、ADR-021。
+> 設計來源：[`docs/legacy/plan/S09-contract-ab.md`](../../legacy/plan/S09-contract-ab.md)（含 S01、S03、S06、S07、S08、session B 的提醒）、port 的契約（`ITemplateBuilder.h`、`IPatternSearcher.h`、`ILibraryMatcher.h`）、ADR-010、ADR-016、ADR-017、ADR-021。
 > 本檔講「為什麼這樣做」；接受的差異與哪些算 bug 在 [ADR-004](../../adr/004-backend-divergence.md)；圖在 [`diagram.md`](diagram.md)；實測數字在 [`perf.md`](perf.md)。
 
 <!--STE-->

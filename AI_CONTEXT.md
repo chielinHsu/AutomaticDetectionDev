@@ -11,8 +11,9 @@ AOI 教學工具：使用者在影像上框一個（或幾個）樣本 ROI → �
 2026-10-05（S01）起有第二個流程：使用者框**任意區域** → 程式與**樣本庫**所有樣本比對 → 列出對應的 CAD 框。資料模型是 Board › Component › Box，框由「元件類型」推導，見 `docs/adr/006-sample-library-and-hierarchy.md`。
 
 - 完整計畫：`docs/00-master-plan.md`
-- 目前進度與需求進度表：`docs/current-status.md`（開工前先讀）
-- 每一步的細節與交接 prompt：`docs/plan/Sxx-*.md`
+- 計畫索引：`docs/plans/INDEX.md`（每個計畫一個資料夾 `docs/plans/<active|completed|cancelled>/<ID>-<slug>/`，開工前先讀；AI 結構 3.0.0，ADR-032）
+- 專案層級的快照：`docs/current-status.md`（階段、跨計畫的已知問題與待使用者決定）
+- 3.0.0 之前的紀錄（舊的需求進度表、AI 工作紀錄、S01–S12 與 R05 的舊計畫檔）：`docs/legacy/`（只讀）
 - 效能測試計畫：`docs/perf-test-plan.md`；預算：`perf/budgets.json`
 
 ## 技術棧
@@ -69,7 +70,8 @@ AOI 教學工具：使用者在影像上框一個（或幾個）樣本 ROI → �
 | `scripts/dev/` | `env.ps1`（進入開發環境：MSVC、qmake、jom）、`test.ps1`（qmake＋jom 建置、照清單跑測試與 5 個 node 檢查，失敗時印 log；ADR-018）、`perf.ps1`（S10：一鍵效能測試——環境快照 → `test.ps1 -Perf` → 彙整 → 和基準線與預算比 → 報表；`-Runs N`、`-WriteBaseline`、`-Filter`、`-Window`、`-Profile full`、`-InjectDelayMs`） |
 | `perf/baseline/` | 各機器的效能基準線（入版控）：S02–S09 各步驟自己的 `casparhsu1*.json`，S10 起回歸閘門用的是 `casparhsu1-harness.json`（`perf.ps1 -Runs 3 -WriteBaseline` 產生：每個指標幾次執行的範圍）；原始量測與彙整的執行紀錄在 `perf/results/`（不入版控） |
 | `docs/` | 計畫、ADR、AI 交接文件 |
-| `docs/plan/` | S01–S12 每一步的計畫與 Start prompt；`_template.md` 是跨 session 需求的計畫檔範本（AI 結構 2.0.0） |
+| `docs/plans/` | AI 結構 3.0.0（ADR-032）：`INDEX.md` 計畫索引、`_template/` 新計畫的範本、`active/`（進行中與規劃中：S12、R05）、`completed/`、`cancelled/`；每個計畫有 `plan.md`（細項表）、`status.md`（快照）、`changelog.md` |
+| `docs/legacy/` | 3.0.0 之前的全域紀錄：`current-status.md`（舊的需求進度表與各步驟的「產出與發現」）、`changelog-ai.md`、`plan/`（S01–S12、R05 的舊計畫檔）；只讀 |
 | `docs/steps/` | 每一步的四種輸出；範本在 `_template/` |
 | `docs/adr/` | 設計決策，一檔一決策（`NNN-slug.md`） |
 | `perf/` | 效能預算；實測結果在 `perf/results/`（不入版控） |
@@ -124,8 +126,8 @@ AOI 教學工具：使用者在影像上框一個（或幾個）樣本 ROI → �
 
 | 任務 | 必讀文件／skill | 注意 |
 |---|---|---|
-| 開始任一步驟 | `docs/current-status.md`、`docs/plan/Sxx-*.md`、`project-rules.md` 的 Step Protocol | 一個 session 只做一步 |
-| 展開新需求、更新進度 | `docs/current-status.md` 的「需求進度表」、`engineering-workflow.md`「需求展開與進度表」、`docs/plan/_template.md`（跨 session 的需求才寫計畫檔） | 非單純需求先展開成 `Rnn.m` 細項（⬜）再實作；完成的列不刪除 |
+| 開始任一步驟 | `docs/plans/INDEX.md`、該計畫的 `plan.md` 與 `status.md`、`project-rules.md` 的 Step Protocol | 一個 session 只做一步 |
+| 新需求、展開細項、更新進度 | `docs/plans/INDEX.md`、`docs/plans/_template/`、`engineering-workflow.md`「計畫分開管理」 | 先判斷屬於哪個計畫（無關的需求開新計畫）；非單純需求先在該計畫 `plan.md` 展開 `Rnn.m` 細項（⬜）再實作；完成的列不刪除 |
 | 改分層、新增模組 | `docs/architecture.md`、`docs/decisions.md`（索引，連到 `docs/adr/`）、`AiInspTool/qmake/aoi_deps.pri` | 已記錄的決定沒有新證據不推翻；依賴表、`architecture.md`、`check-deps` 的 `RULES` 三邊一起改 |
 | 改建置（`.pro`、`.pri`、選項、測試清單） | [ADR-018](docs/adr/018-qmake-only-build.md)、`AiInspTool/qmake/*.pri`、`AiInspTool/tests/tests.pro` | 改完跑 `test.ps1` 的預設與 `-Config Debug`；動到選項時加 `-NoOpenCv`、`-NoHalcon` 的組合；Qt Creator 的三種組態要建得起來 |
 | 寫步驟文件 | `docs/steps/_template/`、`project-rules.md` 的「每一步的四種輸出」 | 跑 `node tools/ste-lint.mjs` |
@@ -134,7 +136,7 @@ AOI 教學工具：使用者在影像上框一個（或幾個）樣本 ROI → �
 | 改 OpenCV 的搜尋 | `docs/steps/S07-opencv/spec.md`、ADR-016、`OpenCvSearchOptions.h`、`docs/steps/S07-opencv/perf.md` | 改完跑 `tst_opencv_*` 與 `perf_opencv`（T2a、T4、T6；`test.ps1 -Perf -Filter 'perf_opencv*'`）；真實影像用 `perf_opencv_real` |
 | 改任何 back end 的行為、新增 back end、改 port 的契約 | [ADR-004](docs/adr/004-backend-divergence.md)、`tests/contract/ContractTolerances.h`、`docs/steps/S09-contract-ab/spec.md` 的契約表 | 改完跑 `test.ps1 -Filter 'tst_contract*'`（每個 back end 一列）；放寬容差要在 ADR-004 寫理由；新 back end 在組裝根註冊就自動多一列 |
 | 改 HALCON 的搜尋或授權 | `docs/steps/S08-halcon/spec.md`、ADR-017、ADR-010 的 S08 後續、`HalconSearchOptions.h`、`docs/steps/S08-halcon/perf.md`；運算子的行為查 `%HALCONROOT%\help\operators_en_US.ref` 或 `get_operator_info`，不憑記憶 | 改完跑 `tst_halcon_*`、`tst_cli` 與 `perf_halcon`（T2b、T4、T6、AS-*）；換 HALCON 版本要重跑全部 |
-| 接續別人的工作 | `.ai/handoff.md`、`docs/changelog-ai.md` | 先看 `git status`，別覆蓋未完成的修改 |
+| 接續別人的工作 | `.ai/handoff.md`、該計畫的 `status.md`（需要歷史才讀 `changelog.md`；3.0.0 之前的歷史在 `docs/legacy/changelog-ai.md`） | 先看 `git status`，別覆蓋未完成的修改 |
 | 收工、換 agent | `ai-handoff` skill | |
 
 ## 詞彙表

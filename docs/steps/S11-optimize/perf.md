@@ -1,6 +1,6 @@
 # S11 — 效能量測紀錄
 
-方法見 [docs/perf-test-plan.md](../../perf-test-plan.md)：熱機 5 次、正式量 30 次、看中位數與 p95；閘門用幾次執行的範圍（[ADR-023](../../adr/023-perf-regression-gate.md)）。本步驟的規則（`docs/plan/S11-optimize.md`）：沒有 before 數字不動手；每個優化一個 commit、附 before／after；改善不到 5% 就回復。
+方法見 [docs/perf-test-plan.md](../../perf-test-plan.md)：熱機 5 次、正式量 30 次、看中位數與 p95；閘門用幾次執行的範圍（[ADR-023](../../adr/023-perf-regression-gate.md)）。本步驟的規則（`docs/legacy/plan/S11-optimize.md`）：沒有 before 數字不動手；每個優化一個 commit、附 before／after；改善不到 5% 就回復。
 
 ## 機器指紋
 

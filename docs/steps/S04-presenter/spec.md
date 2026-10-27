@@ -2,7 +2,7 @@
 
 > 規則：英文區塊用 ASD-STE100 風格（短句、主動語態、一詞一義）。繁中摘要放在每段之後。
 > 檢查：`node tools/ste-lint.mjs --strict`（只檢查句長與被動語態，不是完整 STE 驗證）。
-> 設計來源：[`docs/plan/S04-presenter.md`](../../plan/S04-presenter.md)、[`ux-spec.md`](../../ux/ux-spec.md) 第 5、6、8、9、12 節、[ADR-002](../../adr/002-undo-model.md)。本檔只講「為什麼這樣切」；實測數字在 [`perf.md`](perf.md)；決策在 [ADR-011](../../adr/011-interaction-logic-in-application-layer.md)、[ADR-012](../../adr/012-dashed-frames-as-fill-rects.md)。
+> 設計來源：[`docs/legacy/plan/S04-presenter.md`](../../legacy/plan/S04-presenter.md)、[`ux-spec.md`](../../ux/ux-spec.md) 第 5、6、8、9、12 節、[ADR-002](../../adr/002-undo-model.md)。本檔只講「為什麼這樣切」；實測數字在 [`perf.md`](perf.md)；決策在 [ADR-011](../../adr/011-interaction-logic-in-application-layer.md)、[ADR-012](../../adr/012-dashed-frames-as-fill-rects.md)。
 
 <!--STE-->
 ## Purpose

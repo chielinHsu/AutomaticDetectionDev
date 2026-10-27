@@ -1,7 +1,7 @@
 # {{PROJECT_NAME}} — 總體計畫（Master Plan）
 
-> 進度：[current-status.md](current-status.md)（需求進度表）｜ 架構：[architecture.md](architecture.md) ｜ 決策：[decisions.md](decisions.md) ｜ 工作規則：[../AGENTS.md](../AGENTS.md)
-> 建立日期：{{DATE}}。本檔回答「整個專案要做什麼、不做什麼、分幾步做」；每一步的細節在 `docs/plan/<ID>-<slug>.md`，目前做到哪在 `docs/current-status.md`。
+> 進度：[plans/INDEX.md](plans/INDEX.md)（計畫索引）｜ 專案快照：[current-status.md](current-status.md) ｜ 架構：[architecture.md](architecture.md) ｜ 決策：[decisions.md](decisions.md) ｜ 工作規則：[../AGENTS.md](../AGENTS.md)
+> 建立日期：{{DATE}}。本檔回答「整個專案要做什麼、不做什麼、分幾步做」；每一步是一個計畫，細節與進度在 `docs/plans/<狀態>/<ID>-<slug>/`（入口 `docs/plans/INDEX.md`）。
 
 ## 修改紀錄
 
@@ -46,7 +46,7 @@ TODO(project): 效能目標、量測方法與預算；沒有效能需求就寫�
 
 ## 5. 實作步驟
 
-每一步在 `docs/plan/` 有一份計畫檔（範本 [plan/_template.md](plan/_template.md)），做法依 `project-rules.md` 的 Step Protocol。步驟的狀態寫在 `docs/current-status.md` 的需求進度表，本表只放順序與依賴。
+每一步是一個計畫，資料夾在 `docs/plans/<狀態>/<ID>-<slug>/`（範本 [plans/_template/](plans/_template/)），做法依 `project-rules.md` 的 Step Protocol。步驟的狀態寫在該計畫的 `plan.md` 與 [plans/INDEX.md](plans/INDEX.md)，本表只放順序與依賴。
 
 | 步驟 | 層級 | 主題 | 關鍵產出 | 主要量測 |
 |---|---|---|---|---|
@@ -56,7 +56,7 @@ TODO(project): 效能目標、量測方法與預算；沒有效能需求就寫�
 
 ## 6. 每一步的輸出規範（4 種輸出形式）
 
-適用範圍：Step Protocol 的步驟與進度表中類型為「功能」的需求；小修正免。範本在 [steps/_template/](steps/_template/)。
+適用範圍：Step Protocol 的步驟與類型為「功能」的計畫；小修正免。範本在 [steps/_template/](steps/_template/)。
 
 | 輸出 | 用法 | 檔案 |
 |---|---|---|
@@ -73,13 +73,13 @@ TODO(project): 效能目標、量測方法與預算；沒有效能需求就寫�
 flowchart TD
   A["實作 + 四種輸出 + perf.md"] --> B{"建置／測試／lint 全部通過？"}
   B -- 否 --> C["如實回報，修好再繼續"] --> A
-  B -- 是 --> D["更新需求進度表、交接單 → commit → merge --no-ff → tag step-NN-done"]
+  B -- 是 --> D["更新計畫（細項表、status、changelog、INDEX）與交接單 → commit → merge --no-ff → tag step-NN-done"]
   D --> E["對使用者提示：commit hash、訊息、變更摘要、效能、未解決事項"]
-  E --> F["為下一步開新 session（Start prompt 在下一步 plan 檔底部）"]
+  E --> F["為下一步開新 session（Start prompt 在下一步計畫 plan.md 的底部）"]
   F --> G["本 session 結束，不接著做下一步"]
 ```
 
-為什麼每步開新 session：每個步驟的上下文很大且彼此獨立；新 session 只靠 `AGENTS.md`、`docs/current-status.md` 與該步 plan 檔就能接手，不被前一步的雜訊拖累。
+為什麼每步開新 session：每個步驟的上下文很大且彼此獨立；新 session 只靠 `AGENTS.md`、`docs/plans/INDEX.md` 與該步計畫的 `plan.md`、`status.md` 就能接手，不被前一步的雜訊拖累。
 
 ## 8. 風險與待決策
 

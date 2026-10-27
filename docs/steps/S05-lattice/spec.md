@@ -2,7 +2,7 @@
 
 > 規則：英文區塊用 ASD-STE100 風格（短句、主動語態、一詞一義）。繁中摘要放在每段之後。
 > 檢查：`node tools/ste-lint.mjs --strict`（只檢查句長與被動語態，不是完整 STE 驗證）。
-> 設計來源：[`docs/plan/S05-lattice.md`](../../plan/S05-lattice.md)、S00 示範頁（[`../S00-overview/explainer.html`](../S00-overview/explainer.html)）的演算法、S03 的暫代版 `SimpleGrid` 與它的測試。本檔只講「為什麼這樣做」；實測數字在 [`perf.md`](perf.md)；決策在 [ADR-013](../../adr/013-lattice-acceptance-rules.md)；圖在 [`diagram.md`](diagram.md)。
+> 設計來源：[`docs/legacy/plan/S05-lattice.md`](../../legacy/plan/S05-lattice.md)、S00 示範頁（[`../S00-overview/explainer.html`](../S00-overview/explainer.html)）的演算法、S03 的暫代版 `SimpleGrid` 與它的測試。本檔只講「為什麼這樣做」；實測數字在 [`perf.md`](perf.md)；決策在 [ADR-013](../../adr/013-lattice-acceptance-rules.md)；圖在 [`diagram.md`](diagram.md)。
 
 <!--STE-->
 ## Purpose

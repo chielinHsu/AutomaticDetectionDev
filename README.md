@@ -16,7 +16,7 @@ The build uses qmake only ([ADR-018](docs/adr/018-qmake-only-build.md)). OpenCV 
 `AiInspTool.exe` opens TIFF and 16-bit images and has the `fake`, `opencv` and `halcon` back ends.
 HALCON needs the HALCON 24.11 runtime and license on the computer (the headers and the import library are in `third_party/halcon`).
 The default `fake` back end draws a synthetic grid.
-See [docs/current-status.md](docs/current-status.md) and [docs/00-master-plan.md](docs/00-master-plan.md).
+See [docs/plans/INDEX.md](docs/plans/INDEX.md), [docs/current-status.md](docs/current-status.md) and [docs/00-master-plan.md](docs/00-master-plan.md).
 
 Build and test on Windows 11 (MSVC 2022, Qt 6.12.0, OpenCV 4.9.0, HALCON 24.11):
 

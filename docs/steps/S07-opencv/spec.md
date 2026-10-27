@@ -2,7 +2,7 @@
 
 > 規則：英文區塊用 ASD-STE100 風格（短句、主動語態、一詞一義）。繁中摘要放在每段之後。
 > 檢查：`node tools/ste-lint.mjs --strict`（只檢查句長與被動語態，不是完整 STE 驗證）。
-> 設計來源：[`docs/plan/S07-opencv.md`](../../plan/S07-opencv.md)（含 S01、S03–S06 的提醒）、port 的契約（`ITemplateBuilder.h`、`IPatternSearcher.h`、`ILibraryMatcher.h`）、ADR-010、ADR-013、ADR-014。
+> 設計來源：[`docs/legacy/plan/S07-opencv.md`](../../legacy/plan/S07-opencv.md)（含 S01、S03–S06 的提醒）、port 的契約（`ITemplateBuilder.h`、`IPatternSearcher.h`、`ILibraryMatcher.h`）、ADR-010、ADR-013、ADR-014。
 > 本檔講「為什麼這樣做」；決策在 [ADR-016](../../adr/016-opencv-coarse-to-fine-search.md)（搜尋）與 [ADR-014 的 S07 後續](../../adr/014-image-ownership-and-copies.md)（有效位元數）；圖在 [`diagram.md`](diagram.md)；實測數字在 [`perf.md`](perf.md)。
 
 <!--STE-->
