@@ -6,12 +6,16 @@
 //!
 //! R05.1：非極大值抑制（重疊面積、重疊比例、空間索引、`keep`）。
 //! R05.2：晶格（累加器、空間格子、分群、基底、格子分量、接受規則、估計、預測）。
+//! R05.3：比對區的換算（`match_region`）與自動擷取（`feature_extract`：Otsu、最近的亮塊、外擴）。
 
 pub mod cpp;
 pub mod fallible;
+pub mod feature_extract;
 pub mod ffi;
 pub mod ffi_lattice;
+pub mod ffi_match;
 pub mod flat_map;
 pub mod geometry;
 pub mod lattice;
+pub mod match_region;
 pub mod nms;

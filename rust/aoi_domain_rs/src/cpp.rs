@@ -49,6 +49,17 @@ pub fn msvc_i32(v: f64) -> i32 {
     }
 }
 
+/// MSVC（UCRT）的 `std::lround`（R05.3）：四捨五入、.5 遠離 0（和 `f64::round` 相同），結果超出 `long`（Windows 是 32 bit）
+/// 或是 NaN 時得到 **0**（實測：NaN、±∞、±1e20、2147483647.5、−2147483648.5 都是 0；和 `static_cast<int>` 的 `INT_MIN` 不同）。
+pub fn msvc_lround(v: f64) -> i32 {
+    let r = v.round();
+    if r.is_nan() || r >= 2_147_483_648.0 || r < -2_147_483_648.0 {
+        0
+    } else {
+        r as i32
+    }
+}
+
 /// C++ 的比較函式（「小於」）換成 Rust 的 `Ordering`：`less(a, b)` 是 Less、`less(b, a)` 是 Greater、都不是就 Equal。
 /// 用在排序：C++ 的比較函式只要嚴格弱序，排序的鍵都不同時，任何排序演算法的結果都相同。
 pub fn by_less<T>(less: impl Fn(&T, &T) -> bool) -> impl Fn(&T, &T) -> Ordering {
@@ -87,6 +98,28 @@ mod tests {
         assert_eq!(msvc_i32(3.0e9), i32::MIN);
         assert_eq!(msvc_i32(f64::NAN), i32::MIN);
         assert_eq!(msvc_i32(-7.9), -7);
+    }
+
+    #[test]
+    fn lround_follows_msvc() {
+        // R05.3 用 MSVC 19.44（/O2）實際印出來的值。
+        assert_eq!(msvc_lround(2.5), 3);
+        assert_eq!(msvc_lround(-2.5), -3);
+        assert_eq!(msvc_lround(0.499_999_999_999_999_94), 0);
+        assert_eq!(msvc_lround(2_147_483_647.4), i32::MAX);
+        assert_eq!(msvc_lround(-2_147_483_648.4), i32::MIN);
+        for v in [
+            f64::NAN,
+            f64::INFINITY,
+            f64::NEG_INFINITY,
+            1e20,
+            -1e20,
+            2_147_483_647.5,
+            -2_147_483_648.5,
+            -2_147_483_649.0,
+        ] {
+            assert_eq!(msvc_lround(v), 0, "{v}");
+        }
     }
 
     #[test]

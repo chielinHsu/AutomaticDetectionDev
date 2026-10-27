@@ -3,7 +3,8 @@
 # S06：影像緩衝（image_buffer）、複製計數（image_copy）、位元深度（image_depth，12 bit 的影像）。
 # ADR-031（R05）：搬進 Rust 的演算法有兩份實作，依 AOI_DOMAIN_IMPL 選一份；標頭兩種建置都一樣。
 #   cpp：lattice/legacy/*_legacy.cpp（aoi::legacy）＋ 轉呼叫它的 .cpp；rust：轉呼叫 Rust（ffi/aoi_domain_rs.h）的 *_rs.cpp
-#   （晶格共用的轉換在 lattice_rs_bridge.cpp）。R05.1：NMS；R05.2：晶格。
+#   （晶格共用的轉換在 lattice_rs_bridge.cpp）。R05.1：NMS；R05.2：晶格；R05.3：比對區與自動擷取（C++ 在 legacy/，
+#   operator== 在 match_region_equality.cpp，兩種建置都編）。
 
 AOI_MODULE = domain
 include($$AOI_QMAKE/aoi_lib.pri)
@@ -11,14 +12,15 @@ include($$AOI_QMAKE/aoi_lib.pri)
 DIR = $$AOI_ROOT/src/domain
 SOURCES += \
     $$DIR/repeatability.cpp \
-    $$DIR/feature_extract.cpp \
     $$DIR/image_buffer.cpp \
     $$DIR/image_copy.cpp \
     $$DIR/image_depth.cpp \
-    $$DIR/match_region.cpp
+    $$DIR/match_region_equality.cpp
 
 equals(AOI_DOMAIN_IMPL, rust) {
     SOURCES += \
+        $$DIR/feature_extract_rs.cpp \
+        $$DIR/match_region_rs.cpp \
         $$DIR/lattice/basis_finder_rs.cpp \
         $$DIR/lattice/cell_components_rs.cpp \
         $$DIR/lattice/lattice_acceptance_rs.cpp \
@@ -31,6 +33,10 @@ equals(AOI_DOMAIN_IMPL, rust) {
         $$DIR/lattice/lattice_rs_bridge.cpp
 } else {
     SOURCES += \
+        $$DIR/legacy/feature_extract_legacy.cpp \
+        $$DIR/legacy/match_region_legacy.cpp \
+        $$DIR/feature_extract.cpp \
+        $$DIR/match_region.cpp \
         $$DIR/lattice/legacy/basis_finder_legacy.cpp \
         $$DIR/lattice/legacy/cell_components_legacy.cpp \
         $$DIR/lattice/legacy/lattice_acceptance_legacy.cpp \
@@ -53,6 +59,9 @@ equals(AOI_DOMAIN_IMPL, rust) {
 
 HEADERS += \
     $$DIR/ffi/aoi_domain_rs.h \
+    $$DIR/legacy/feature_extract_legacy.h \
+    $$DIR/legacy/match_region_legacy.h \
+    $$DIR/match_region_rs_bridge.h \
     $$DIR/lattice/legacy/basis_finder_legacy.h \
     $$DIR/lattice/legacy/cell_components_legacy.h \
     $$DIR/lattice/legacy/lattice_acceptance_legacy.h \

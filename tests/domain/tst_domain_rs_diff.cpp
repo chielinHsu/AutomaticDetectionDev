@@ -18,17 +18,31 @@
 //     如果 exp 或 hypot 真的差了一位，會先在「整數完全相同」那一條失敗（門檻比較翻轉），不會被容差蓋掉。
 //   - 掃描的情境：tst_lattice_scenarios 的 1 029 種（同樣的 seed）＋兩組晶格、一排、間距差 20 倍、散佈的點、很少的點、
 //     重複與非有限值的點、別的選項與分群策略。
+//
+// R05.3 擴充到比對區與自動擷取（PixelMask::count、runsFromMask、maskFromRuns、matchSpecFor、matchSettingsFromPixels、
+// pickBrightBlob、growMask）：
+//   - 遮罩（位置、大小、每個 bit）、runs、Otsu 的門檻、找不找得到：完全相同。
+//   - 浮點數（matchSpecFor 的矩形、matchSettingsFromPixels 的 µm）：agree()，理由同上（只有四則運算，實際一位不差，印在 log）。
+//   - 輸入：五種像素格式、stride 有填充、Gray16 的列起點不對齊、各種有效位元數；within 部分在影像外、整個在外、空的、NaN；
+//     點擊在亮塊上、亮塊外、NaN、很遠；遮罩的寬高 ≤ 0、bits 的個數不對、不合法的 runs；校正值 0、負的、NaN、∞。
 #include <QtTest>
+#include <algorithm>
 #include <cmath>
 #include <cstring>
 #include <limits>
 #include <memory>
 #include <numbers>
+#include <optional>
 #include <stdexcept>
 #include <vector>
 
 #include "LatticeTestSupport.h"
+#include "domain/feature_extract.h"
 #include "domain/ffi/aoi_domain_rs.h"
+#include "domain/image_view.h"
+#include "domain/legacy/feature_extract_legacy.h"
+#include "domain/legacy/match_region_legacy.h"
+#include "domain/match_region.h"
 #include "domain/lattice/basis_finder.h"
 #include "domain/lattice/cell_components.h"
 #include "domain/lattice/lattice_acceptance.h"
@@ -75,6 +89,7 @@ RectObj randomBox(Rng& rng, double spread) {
 }
 
 bool agree(double rust, double cpp) {
+    if (rust == cpp) return true;  // R05.3：兩邊同樣是 ±∞（校正值 ∞）時 rust − cpp 是 NaN，不能用下面的相減
     if (std::isnan(rust) || std::isnan(cpp)) return std::isnan(rust) && std::isnan(cpp);
     return std::abs(rust - cpp) <= kRelTol * std::max(1.0, std::abs(cpp));
 }
@@ -366,6 +381,148 @@ std::vector<Point2D> finitePoints(const std::vector<Point2D>& pts) {
         if (std::isfinite(p.x) && std::isfinite(p.y)) out.push_back(p);
     }
     return out;
+}
+
+
+// ---- 比對區與自動擷取（R05.3）的比對工具 ----
+
+QString maskText(const PixelMask& m) {
+    return QStringLiteral("(%1, %2, %3x%4, %5 bits, %6 set)").arg(m.x).arg(m.y).arg(m.width).arg(m.height).arg(m.bits.size()).arg(legacy::maskCount(m));
+}
+
+// 遮罩完全相同（位置、大小、每個 bit）。
+QString diffMask(const char* what, const PixelMask& r, const PixelMask& c) {
+    if (r.x == c.x && r.y == c.y && r.width == c.width && r.height == c.height && r.bits == c.bits) return {};
+    return QStringLiteral("%1: rust %2 vs cpp %3").arg(what, maskText(r), maskText(c));
+}
+
+QString diffRuns(const char* what, const MatchMask& r, const MatchMask& c) {
+    if (r == c) return {};
+    return QStringLiteral("%1: rust %2x%3 with %4 runs vs cpp %5x%6 with %7 runs")
+        .arg(what)
+        .arg(r.width)
+        .arg(r.height)
+        .arg(r.runs.size())
+        .arg(c.width)
+        .arg(c.height)
+        .arg(c.runs.size());
+}
+
+// 隨機的遮罩：亮塊狀（幾個橢圓）或雜點，偶爾空的、寬或高 ≤ 0、bits 的個數不對（＝ 空的遮罩）。
+PixelMask randomMask(Rng& rng, int maxW, int maxH) {
+    PixelMask m;
+    m.x = static_cast<int>(rng.symmetric(300.0));
+    m.y = static_cast<int>(rng.symmetric(300.0));
+    m.width = 1 + static_cast<int>(rng.below(static_cast<std::size_t>(maxW)));
+    m.height = 1 + static_cast<int>(rng.below(static_cast<std::size_t>(maxH)));
+    m.bits.assign(static_cast<std::size_t>(m.width) * static_cast<std::size_t>(m.height), 0);
+    const double roll = rng.uniform();
+    if (roll < 0.45) {
+        const int ellipses = 1 + static_cast<int>(rng.below(4));
+        for (int e = 0; e < ellipses; ++e) {
+            const double cx = rng.uniform() * m.width, cy = rng.uniform() * m.height;
+            const double rx = 0.5 + rng.uniform() * m.width / 2.0, ry = 0.5 + rng.uniform() * m.height / 2.0;
+            for (int y = 0; y < m.height; ++y) {
+                for (int x = 0; x < m.width; ++x) {
+                    const double dx = (x + 0.5 - cx) / rx, dy = (y + 0.5 - cy) / ry;
+                    if (dx * dx + dy * dy <= 1.0) m.bits[static_cast<std::size_t>(y) * static_cast<std::size_t>(m.width) + static_cast<std::size_t>(x)] = 1;
+                }
+            }
+        }
+    } else if (roll < 0.85) {
+        const double density = rng.uniform();
+        for (std::uint8_t& b : m.bits) b = rng.uniform() < density ? static_cast<std::uint8_t>(1 + rng.below(255)) : 0;  // 非 0 都算 1
+    } else if (roll < 0.90) {
+        std::fill(m.bits.begin(), m.bits.end(), std::uint8_t{1});
+    } else if (roll < 0.94) {
+        // 全部是 0
+    } else if (roll < 0.97) {
+        m.bits.pop_back();  // bits 的個數不對
+    } else {
+        m.width = -static_cast<int>(rng.below(3));  // 寬 ≤ 0
+    }
+    return m;
+}
+
+// 隨機的 runs：大多合法（從遮罩來），偶爾超出格子、反過來、重疊、負的、格子的寬高 ≤ 0。
+MatchMask randomRuns(Rng& rng) {
+    MatchMask r;
+    r.width = static_cast<int>(rng.below(50)) - 2;
+    r.height = static_cast<int>(rng.below(40)) - 2;
+    const std::size_t n = rng.below(30);
+    for (std::size_t k = 0; k < n; ++k) {
+        const int row = static_cast<int>(rng.below(static_cast<std::size_t>(std::max(1, r.height) + 4))) - 2;
+        const int a = static_cast<int>(rng.below(static_cast<std::size_t>(std::max(1, r.width) + 8))) - 4;
+        const int b = static_cast<int>(rng.below(static_cast<std::size_t>(std::max(1, r.width) + 8))) - 4;
+        r.runs.push_back({row, a, b});
+    }
+    return r;
+}
+
+double pickUm(Rng& rng) {
+    static const double special[] = {0.0, -2.0, kNaN, kInf, 6.08, 2.5, 1.0};
+    return rng.uniform() < 0.25 ? special[rng.below(std::size(special))] : 0.5 + rng.uniform() * 20.0;
+}
+
+// 隨機的影像：五種格式、stride 有填充、Gray16 的列起點偶爾不是 2 byte 對齊；暗底上幾個亮塊，偶爾整張一樣亮。
+struct RandomImage {
+    std::vector<std::uint8_t> storage;
+    ImageView view;
+};
+
+RandomImage randomImage(Rng& rng) {
+    static const PixelFormat formats[] = {PixelFormat::Gray8, PixelFormat::Rgb24, PixelFormat::Bgrx32, PixelFormat::Bgr24, PixelFormat::Gray16};
+    static const int bitsChoices[] = {0, 8, 10, 12, 14, 16, 20};
+    RandomImage img;
+    ImageView& v = img.view;
+    v.format = formats[rng.below(std::size(formats))];
+    v.width = 1 + static_cast<int>(rng.below(90));
+    v.height = 1 + static_cast<int>(rng.below(70));
+    const int bpp = bytesPerPixel(v.format);
+    v.strideBytes = v.width * bpp + static_cast<int>(rng.below(8));
+    v.significantBits = bitsChoices[rng.below(std::size(bitsChoices))];
+    const std::size_t offset = rng.below(2);  // 1 ＝ 列的起點不對齊
+    img.storage.assign(offset + static_cast<std::size_t>(v.strideBytes) * static_cast<std::size_t>(v.height), 0);
+    v.data = img.storage.data() + offset;
+    std::uint8_t* base = img.storage.data() + offset;
+    const bool flat = rng.uniform() < 0.05;
+    const int full = v.format == PixelFormat::Gray16 ? (rng.uniform() < 0.5 ? 4095 : 65535) : 255;
+    struct Blob {
+        double cx, cy, rx, ry;
+    };
+    std::vector<Blob> blobs;
+    const int nb = flat ? 0 : static_cast<int>(rng.below(5));
+    for (int k = 0; k < nb; ++k) blobs.push_back({rng.uniform() * v.width, rng.uniform() * v.height, 0.5 + rng.uniform() * 12.0, 0.5 + rng.uniform() * 10.0});
+    const double noise = rng.uniform() * 0.25;
+    for (int y = 0; y < v.height; ++y) {
+        for (int x = 0; x < v.width; ++x) {
+            bool in = false;
+            for (const Blob& b : blobs) {
+                const double dx = (x - b.cx) / b.rx, dy = (y - b.cy) / b.ry;
+                in = in || dx * dx + dy * dy <= 1.0;
+            }
+            double level = flat ? 0.4 : (in ? 0.8 : 0.15) + rng.symmetric(noise);
+            level = std::clamp(level, 0.0, 1.0);
+            std::uint8_t* p = base + static_cast<std::size_t>(y) * static_cast<std::size_t>(v.strideBytes) + static_cast<std::size_t>(x) * static_cast<std::size_t>(bpp);
+            if (v.format == PixelFormat::Gray16) {
+                const auto g = static_cast<std::uint16_t>(std::lround(level * full));
+                std::memcpy(p, &g, sizeof g);
+            } else {
+                for (int c = 0; c < bpp; ++c) p[c] = static_cast<std::uint8_t>(std::clamp<long>(std::lround(level * full) + static_cast<long>(rng.symmetric(30.0)), 0, 255));
+            }
+        }
+    }
+    return img;
+}
+
+Rect randomRect(Rng& rng, double extentX, double extentY) {
+    const double roll = rng.uniform();
+    if (roll < 0.03) return {kNaN, 0.0, 10.0, 10.0};
+    if (roll < 0.06) return {5.0, 5.0, 0.0, 10.0};                         // 空的
+    if (roll < 0.09) return {extentX + 50.0, extentY + 50.0, 10.0, 10.0};  // 在外面
+    if (roll < 0.20) return {-1e6, -1e6, 2e6, 2e6};                        // 整個蓋住
+    return {rng.symmetric(extentX * 0.3) + rng.uniform() * extentX * 0.5, rng.symmetric(extentY * 0.3) + rng.uniform() * extentY * 0.5,
+            rng.uniform() * extentX * 1.2, rng.uniform() * extentY * 1.2};
 }
 
 }  // namespace
@@ -806,6 +963,149 @@ private slots:
         }
         qInfo().noquote() << predictions << "predictions;" << t.summary();
         QVERIFY(predictions > 1000);
+    }
+
+    // ---- 比對區與自動擷取（R05.3） ----
+
+    void maskCountRunsAndBackAgree() {
+        Rng rng(0x5203);
+        std::size_t masks = 0, junk = 0;
+        for (int k = 0; k < 4000; ++k) {
+            const PixelMask m = randomMask(rng, 48, 36);
+            ++masks;
+            QCOMPARE(m.count(), legacy::maskCount(m));
+            const MatchMask r = runsFromMask(m);
+            const MatchMask c = legacy::runsFromMask(m);
+            if (const QString d = diffRuns("runsFromMask", r, c); !d.isEmpty()) QFAIL(qPrintable(d));
+            const int x = static_cast<int>(rng.symmetric(800.0));
+            const int y = static_cast<int>(rng.symmetric(800.0));
+            if (const QString d = diffMask("maskFromRuns", maskFromRuns(r, x, y), legacy::maskFromRuns(c, x, y)); !d.isEmpty()) QFAIL(qPrintable(d));
+            // 不合法的 runs（超出格子、反過來、重疊）：兩邊同樣忽略。
+            const MatchMask bad = randomRuns(rng);
+            ++junk;
+            if (const QString d = diffMask("maskFromRuns (invalid runs)", maskFromRuns(bad, x, y), legacy::maskFromRuns(bad, x, y)); !d.isEmpty())
+                QFAIL(qPrintable(d));
+        }
+        qInfo().noquote() << masks << "masks and" << junk << "run lists: count, runs and masks identical";
+    }
+
+    void matchSpecForAgrees() {
+        FloatTally t;
+        Rng rng(0x5204);
+        std::size_t withMask = 0, withRect = 0;
+        for (int k = 0; k < 5000; ++k) {
+            MatchSettings s;
+            s.mode = rng.below(2) == 0 ? MatchMode::Intensity : MatchMode::Edges;
+            if (rng.uniform() >= 0.15) {
+                MatchRegion region;
+                region.centerXUm = rng.symmetric(900.0);
+                region.centerYUm = rng.symmetric(900.0);
+                region.widthUm = rng.uniform() < 0.05 ? -rng.uniform() * 50.0 : rng.uniform() * 1500.0;
+                region.heightUm = rng.uniform() < 0.05 ? 0.0 : rng.uniform() * 1500.0;
+                const double roll = rng.uniform();
+                if (roll < 0.45) region.mask = legacy::runsFromMask(randomMask(rng, 70, 70));
+                else if (roll < 0.60) region.mask = randomRuns(rng);
+                s.region = region;
+            }
+            const Point2D center = rng.uniform() < 0.02 ? Point2D{kNaN, 10.0} : Point2D{rng.uniform() * 5000.0, rng.uniform() * 4000.0};
+            const double um = pickUm(rng);
+            const MatchSpec r = matchSpecFor(s, center, um);
+            const MatchSpec c = legacy::matchSpecFor(s, center, um);
+            QCOMPARE(r.mode, c.mode);
+            QCOMPARE(r.rect.has_value(), c.rect.has_value());
+            if (r.rect) {
+                ++withRect;
+                const double rv[] = {r.rect->x, r.rect->y, r.rect->w, r.rect->h};
+                const double cv[] = {c.rect->x, c.rect->y, c.rect->w, c.rect->h};
+                for (std::size_t i = 0; i < 4; ++i) {
+                    if (!t.same(rv[i], cv[i])) QFAIL(qPrintable(QStringLiteral("matchSpecFor rect #%1: rust %2 vs cpp %3").arg(i).arg(rv[i], 0, 'g', 17).arg(cv[i], 0, 'g', 17)));
+                }
+            }
+            if (!c.mask.empty()) ++withMask;
+            if (const QString d = diffMask("matchSpecFor mask", r.mask, c.mask); !d.isEmpty()) QFAIL(qPrintable(d));
+        }
+        qInfo().noquote() << withRect << "specs with a rectangle," << withMask << "with a mask;" << t.summary();
+        QVERIFY(withMask > 1000);
+    }
+
+    void matchSettingsFromPixelsAgrees() {
+        FloatTally t;
+        Rng rng(0x5205);
+        std::size_t regions = 0, masks = 0;
+        for (int k = 0; k < 5000; ++k) {
+            const Rect regionPx = randomRect(rng, 600.0, 500.0);
+            const PixelMask m = randomMask(rng, 60, 50);
+            const PixelMask* mask = rng.uniform() < 0.3 ? nullptr : &m;
+            const MatchMode mode = rng.below(2) == 0 ? MatchMode::Intensity : MatchMode::Edges;
+            const Point2D center{rng.symmetric(400.0) + 300.0, rng.symmetric(400.0) + 250.0};
+            const double um = pickUm(rng);
+            const MatchSettings r = matchSettingsFromPixels(regionPx, mask, mode, center, um);
+            const MatchSettings c = legacy::matchSettingsFromPixels(regionPx, mask, mode, center, um);
+            QCOMPARE(r.mode, c.mode);
+            QCOMPARE(r.region.has_value(), c.region.has_value());
+            if (!r.region) continue;
+            ++regions;
+            const double rv[] = {r.region->centerXUm, r.region->centerYUm, r.region->widthUm, r.region->heightUm};
+            const double cv[] = {c.region->centerXUm, c.region->centerYUm, c.region->widthUm, c.region->heightUm};
+            for (std::size_t i = 0; i < 4; ++i) {
+                if (!t.same(rv[i], cv[i])) QFAIL(qPrintable(QStringLiteral("matchSettingsFromPixels #%1: rust %2 vs cpp %3").arg(i).arg(rv[i], 0, 'g', 17).arg(cv[i], 0, 'g', 17)));
+            }
+            if (c.region->mask.width > 0) ++masks;
+            if (const QString d = diffRuns("matchSettingsFromPixels mask", r.region->mask, c.region->mask); !d.isEmpty()) QFAIL(qPrintable(d));
+        }
+        qInfo().noquote() << regions << "regions," << masks << "with a mask;" << t.summary();
+        QVERIFY(masks > 1000);
+    }
+
+    void pickBrightBlobAgrees() {
+        Rng rng(0x5206);
+        std::size_t images = 0, found = 0;
+        for (int k = 0; k < 2500; ++k) {
+            const RandomImage img = randomImage(rng);
+            ++images;
+            for (int c = 0; c < 3; ++c) {
+                const Rect within = randomRect(rng, img.view.width, img.view.height);
+                const double roll = rng.uniform();
+                const Point2D click = roll < 0.03 ? Point2D{kNaN, 3.0}
+                                    : roll < 0.08 ? Point2D{1e7, -1e7}
+                                                  : Point2D{rng.symmetric(10.0) + rng.uniform() * img.view.width, rng.symmetric(10.0) + rng.uniform() * img.view.height};
+                const std::optional<BlobPick> r = pickBrightBlob(img.view, within, click);
+                const std::optional<BlobPick> cp = legacy::pickBrightBlob(img.view, within, click);
+                QCOMPARE(r.has_value(), cp.has_value());
+                if (!r) continue;
+                ++found;
+                QCOMPARE(r->threshold8, cp->threshold8);
+                if (const QString d = diffMask("pickBrightBlob", r->blob, cp->blob); !d.isEmpty())
+                    QFAIL(qPrintable(QStringLiteral("format %1: %2").arg(QString::fromLatin1(toString(img.view.format).data())).arg(d)));
+            }
+        }
+        // 無效的影像：兩邊都找不到。
+        ImageView invalid;
+        invalid.width = 10;
+        invalid.height = 10;
+        invalid.strideBytes = 10;
+        QVERIFY(!pickBrightBlob(invalid, {0.0, 0.0, 5.0, 5.0}, {1.0, 1.0}) && !legacy::pickBrightBlob(invalid, {0.0, 0.0, 5.0, 5.0}, {1.0, 1.0}));
+        qInfo().noquote() << images << "images," << found << "blobs picked: thresholds and masks identical";
+        QVERIFY(found > 3000);
+    }
+
+    void growMaskAgrees() {
+        Rng rng(0x5207);
+        std::size_t grown = 0;
+        static const int radii[] = {-3, 0, 1, 2, 3, 4, 6, 9, 12};
+        for (int k = 0; k < 4000; ++k) {
+            const PixelMask blob = randomMask(rng, 40, 30);
+            const int radius = radii[rng.below(std::size(radii))];
+            const Rect clip = rng.uniform() < 0.5 ? Rect{blob.x - rng.uniform() * 20.0, blob.y - rng.uniform() * 20.0, blob.width + rng.uniform() * 40.0,
+                                                         blob.height + rng.uniform() * 40.0}
+                                                  : randomRect(rng, 600.0, 600.0);
+            const PixelMask r = growMask(blob, radius, clip);
+            const PixelMask c = legacy::growMask(blob, radius, clip);
+            if (!c.empty()) ++grown;
+            if (const QString d = diffMask("growMask", r, c); !d.isEmpty()) QFAIL(qPrintable(d));
+        }
+        qInfo().noquote() << grown << "of 4000 grown masks are not empty: identical";
+        QVERIFY(grown > 1000);
     }
 };
 
