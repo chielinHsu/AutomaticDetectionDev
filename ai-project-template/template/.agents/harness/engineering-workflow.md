@@ -204,7 +204,7 @@ docs/plans/
 - **小修改**：單一檔案的錯字、純問答、狀態詢問不必開計畫。其他「有意義的變更」都要屬於某個計畫（範圍很小的修正就開一個小計畫，細項只有一列也可以）。
 - **委派規劃**：把規劃交給 architect 系列 subagent 時，由**主 agent** 把回傳的計畫寫進計畫資料夾與 `INDEX.md`；subagent 不直接修改這些文件。委派實作時，subagent 在回報裡逐項列出細項的結果，由主 agent 更新細項表、`status.md` 與 `changelog.md`。
 - **收工**：依 `ai-handoff` skill 更新本次動到的計畫，並在最終回覆總結每個細項的狀態變化。
-- **舊紀錄**：3.0.0 之前的全域紀錄（`docs/current-status.md` 的需求進度表、`docs/changelog-ai.md`、`docs/plan/`）搬到 `docs/legacy/`，只讀不追加；未完成的需求在遷移時拆成各自的計畫。
+- **舊紀錄**：3.0.0 之前的全域紀錄（舊 `current-status.md` 的需求進度表、`changelog-ai.md`、`plan/`）搬到 `docs/legacy/`，只讀不追加；未完成的需求在遷移時拆成各自的計畫。
 
 ## 範圍與安全
 

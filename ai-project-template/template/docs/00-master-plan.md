@@ -75,7 +75,7 @@ flowchart TD
   B -- 否 --> C["如實回報，修好再繼續"] --> A
   B -- 是 --> D["更新計畫（細項表、status、changelog、INDEX）與交接單 → commit → merge --no-ff → tag step-NN-done"]
   D --> E["對使用者提示：commit hash、訊息、變更摘要、效能、未解決事項"]
-  E --> F["為下一步開新 session（Start prompt 在下一步 plan 檔底部）"]
+  E --> F["為下一步開新 session（Start prompt 在下一步計畫 plan.md 的底部）"]
   F --> G["本 session 結束，不接著做下一步"]
 ```
 
