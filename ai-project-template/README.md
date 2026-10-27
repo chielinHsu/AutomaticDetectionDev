@@ -150,6 +150,7 @@ architect 系列 subagent 只回傳計畫，由主 agent 寫進計畫資料夾�
 ## 維護規則
 
 **範本管理**（`-Refresh` 會覆蓋，不要在專案裡改）：`engineering-workflow.md`、`TEMPLATE_VERSION`、`.agents/skills/ai-handoff/`、`scripts/ai/check-ai-structure.ps1`、`scripts/ai/sync-skills.ps1`、`tools/ste-lint.mjs`、`scripts/ai/migrate-ai-structure-3.mjs`、`docs/steps/_template/*`、`docs/plans/_template/*`、`docs/adr/_template.md`。
+**專案自己維護的範本管理檔**：專案若必須加強某個範本管理的檔案（例如在 `check-ai-structure.ps1` 加專案專屬的檢查），把它的相對路徑寫進 `.agents/harness/template-overrides.txt`（一行一個，`#` 開頭是註解）；`-Refresh` 遇到清單裡的檔案只印 `KEEP`、不覆蓋，範本升級時要自己比對合併。沒有登記就會被覆蓋。
 **專案擁有**（建立後永遠不會被覆蓋）：其餘所有檔案，包含 `AGENTS.md`、`CLAUDE.md`、`AI_CONTEXT.md`、`project-rules.md`、`MODEL_ROUTING.md`、`.claude/`（agents、hook、settings）、`scripts/ai/check-model-routing.mjs`、`scripts/ai/bench-model-routing.mjs`。後兩者刻意不列入管理：它們含專案調好的案例與任務，覆蓋會洗掉專案的調整。
 
 - 新增共用必讀文件：在 `AGENTS.md` 的清單加一行，在 `CLAUDE.md` 加 `@路徑`，執行 `check-ai-structure.ps1` 確認。
@@ -162,7 +163,7 @@ architect 系列 subagent 只回傳計畫，由主 agent 寫進計畫資料夾�
 照順序做；機械性的部分由腳本做，需要判斷的部分由 agent 做。原則：**未完成的需求拆成計畫，已完成的紀錄原樣封存**，專案擁有的規則文字保留專案自己的事實與特殊規則，只把 2.x 的做法改寫成 3.0.0 的說法。
 
 1. 確認工作目錄乾淨（`git status`），沒有進行中的分支或 worktree 會動到 `docs/`；有 git 時從預設分支開 `docs/ai-structure-v3` 分支。
-2. `New-AiProject.ps1 -Path <專案> -Refresh`：更新範本管理的檔案（工作流程、`ai-handoff` skill、檢查腳本、`_template`、遷移腳本）。這時結構檢查會失敗，正常。
+2. 先比對專案裡的範本管理檔案和它當初的範本版本（例如 `check-ai-structure.ps1`）：專案加強過的，把路徑登記到 `.agents/harness/template-overrides.txt`，升級後自己把 3.0.0 的改動合併進去（版本號、必要檔案、第 4 條的關鍵字、計畫的檢查）。然後 `New-AiProject.ps1 -Path <專案> -Refresh`：更新範本管理的檔案（工作流程、`ai-handoff` skill、檢查腳本、`_template`、遷移腳本）。這時結構檢查會失敗，正常。
 3. `node scripts/ai/migrate-ai-structure-3.mjs --dry-run` 看一遍，再不加 `--dry-run` 執行：舊的 `docs/current-status.md`、`docs/changelog-ai.md`、`docs/plan/` 搬到 `docs/legacy/`（git mv），改寫相對連結，建立新的 `docs/current-status.md`（含 `TODO(migrate)`）與空的 `docs/plans/INDEX.md`（下一個可用編號已算好），並列出「舊進度表裡未完成的需求」與「還在講 2.x 做法的文字」。
 4. **拆出計畫**：腳本列出的每個未完成的頂層需求（⬜、⏳、⚠️）建一個 `docs/plans/active/<ID>-<slug>/`（從 `_template/` 複製）。編號照舊；`plan.md` 的細項表放它所有的細項（含已完成的，狀態照抄）；舊的 `docs/legacy/plan/<ID>-*.md` 有內容就整理進 `plan.md`（目標、範圍、完成定義、Start prompt）；`status.md` 寫現在的狀態（取自舊 current-status 的相關段落與交接單）；`changelog.md` 寫一筆「3.0.0 遷移」，說明舊紀錄在 `docs/legacy/changelog-ai.md`（不搬舊紀錄）。在 `INDEX.md` 各加一列。已完成的需求不建資料夾，留在 `docs/legacy/current-status.md`。
 5. **專案層級的快照**：新的 `docs/current-status.md` 填 `TODO(migrate)`：階段一句話、跨計畫的已知問題與待使用者決定（只屬於某個計畫的放進那個計畫的 `status.md`）。

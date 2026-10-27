@@ -113,6 +113,15 @@ function Test-Managed
 
 $counts = @{ COPY = 0; UPDATE = 0; SKIP = 0 }
 $existingSetup = Test-Path -LiteralPath (Join-Path $targetRoot 'AGENTS.md') -PathType Leaf
+# Template-managed files that a project maintains itself (one relative path per line, '#' starts a comment):
+# -Refresh never overwrites them; merge template upgrades into them by hand.
+$overrides = @()
+$overridesFile = Join-Path $targetRoot '.agents/harness/template-overrides.txt'
+if (Test-Path -LiteralPath $overridesFile -PathType Leaf)
+{
+	$overrides = @([IO.File]::ReadAllLines($overridesFile) | ForEach-Object { $_.Trim().Replace('\', '/') } |
+		Where-Object { ($_ -ne '') -and (-not $_.StartsWith('#')) })
+}
 $skippedEntries = @()
 $templateFiles = Get-ChildItem -LiteralPath $templateRoot -Recurse -File -Force | Sort-Object FullName
 
@@ -137,6 +146,12 @@ foreach ($file in $templateFiles)
 		continue
 	}
 
+	if ($exists -and $managed -and ($overrides -contains $relative))
+	{
+		Write-Host "KEEP   $relative (listed in .agents/harness/template-overrides.txt; merge template changes by hand)"
+		$counts.SKIP++
+		continue
+	}
 	if ($exists -and -not ($Refresh -and $managed))
 	{
 		Write-Host "SKIP   $relative (exists)"
