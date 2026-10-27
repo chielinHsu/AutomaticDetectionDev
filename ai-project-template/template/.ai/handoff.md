@@ -1,36 +1,20 @@
 # Agent Handoff
 
-> 覆寫式交接單：每次收工整份重寫，不累積歷史（歷史在 `docs/changelog-ai.md`）。保持在 60 行內。
-> 流程見 `ai-handoff` skill。進度的單一事實來源是 `docs/current-status.md` 的需求進度表，這裡只寫「下一位第一件要知道的事」。
+> 覆寫式交接單：每次收工整份重寫，不累積歷史，保持在 60 行內。流程見 `ai-handoff` skill。
+> 本檔只寫「上一個 session 留下了什麼」：動了哪些計畫、未提交的變更、不要動的東西。計畫的進度與接續資訊在各計畫的 `status.md`（入口 `docs/plans/INDEX.md`），這裡不重抄。
 
 - 最後一位 agent：（尚無，專案建立於 {{DATE}}）
 - 日期：{{DATE}}
 
-## 正在做
+## 上一個 session 動到的計畫
 
-尚無。專案剛建立，請先填寫 `AI_CONTEXT.md` 的 `TODO(project)`（進度表 R02）。
+- R01（套用 AI 結構，已完成）。
 
-## 已完成
+## 接下來
 
-- 建立 AI agent 共用結構 2.0.0（Codex 與 Claude Code）（進度表 R01）。
-
-## 下一步
-
-- 填寫 `AI_CONTEXT.md`：用途、技術棧、目錄、建置與測試指令。
-- 填寫 `.agents/harness/project-rules.md`、`MODEL_ROUTING.md`「本專案案例」、`docs/00-master-plan.md`、`docs/architecture.md` 的 `TODO(project)`。
-- 用 `scripts/ai/check-ai-structure.ps1 -Strict` 確認都填完。
-
-## 相關檔案
-
-- `AI_CONTEXT.md`
-- `.agents/harness/project-rules.md`
-- `docs/current-status.md`
+- R02：填寫 `TODO(project)`（[`docs/plans/active/R02-fill-project-todos/`](../docs/plans/active/R02-fill-project-todos/plan.md)）。
 
 ## 不要動
-
-- 無。
-
-## 已知問題
 
 - 無。
 

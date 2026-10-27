@@ -2,7 +2,7 @@
 
 > 規則：英文區塊用 ASD-STE100 風格（短句、主動語態、一詞一義）。繁中摘要放在每段之後。
 > 檢查：`node tools/ste-lint.mjs`
-> 範圍：Step Protocol 的步驟與進度表中類型為「功能」的需求要有四種輸出；小修正免（見 `project-rules.md`）。
+> 範圍：Step Protocol 的步驟與類型為「功能」的計畫要有四種輸出；小修正免（見 `project-rules.md`）。
 
 ## 修改紀錄
 
