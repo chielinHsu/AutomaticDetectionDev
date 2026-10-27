@@ -2,7 +2,8 @@
 # ADR-028：比對區（match_region）與自動擷取（feature_extract）。
 # S06：影像緩衝（image_buffer）、複製計數（image_copy）、位元深度（image_depth，12 bit 的影像）。
 # ADR-031（R05）：搬進 Rust 的演算法有兩份實作，依 AOI_DOMAIN_IMPL 選一份；標頭兩種建置都一樣。
-#   cpp：lattice/legacy/*_legacy.cpp（aoi::legacy）＋ 轉呼叫它的 .cpp；rust：轉呼叫 Rust（ffi/aoi_domain_rs.h）的 *_rs.cpp。
+#   cpp：lattice/legacy/*_legacy.cpp（aoi::legacy）＋ 轉呼叫它的 .cpp；rust：轉呼叫 Rust（ffi/aoi_domain_rs.h）的 *_rs.cpp
+#   （晶格共用的轉換在 lattice_rs_bridge.cpp）。R05.1：NMS；R05.2：晶格。
 
 AOI_MODULE = domain
 include($$AOI_QMAKE/aoi_lib.pri)
@@ -14,27 +15,55 @@ SOURCES += \
     $$DIR/image_buffer.cpp \
     $$DIR/image_copy.cpp \
     $$DIR/image_depth.cpp \
-    $$DIR/lattice/basis_finder.cpp \
-    $$DIR/lattice/cell_components.cpp \
-    $$DIR/lattice/lattice_acceptance.cpp \
-    $$DIR/lattice/lattice_accumulator.cpp \
-    $$DIR/lattice/lattice_estimator.cpp \
-    $$DIR/lattice/lattice_predictor.cpp \
-    $$DIR/lattice/spatial_grid.cpp \
-    $$DIR/lattice/vector_clustering.cpp \
     $$DIR/match_region.cpp
 
 equals(AOI_DOMAIN_IMPL, rust) {
-    SOURCES += $$DIR/lattice/non_max_suppression_rs.cpp
+    SOURCES += \
+        $$DIR/lattice/basis_finder_rs.cpp \
+        $$DIR/lattice/cell_components_rs.cpp \
+        $$DIR/lattice/lattice_acceptance_rs.cpp \
+        $$DIR/lattice/lattice_accumulator_rs.cpp \
+        $$DIR/lattice/lattice_estimator_rs.cpp \
+        $$DIR/lattice/lattice_predictor_rs.cpp \
+        $$DIR/lattice/non_max_suppression_rs.cpp \
+        $$DIR/lattice/spatial_grid_rs.cpp \
+        $$DIR/lattice/vector_clustering_rs.cpp \
+        $$DIR/lattice/lattice_rs_bridge.cpp
 } else {
     SOURCES += \
+        $$DIR/lattice/legacy/basis_finder_legacy.cpp \
+        $$DIR/lattice/legacy/cell_components_legacy.cpp \
+        $$DIR/lattice/legacy/lattice_acceptance_legacy.cpp \
+        $$DIR/lattice/legacy/lattice_accumulator_legacy.cpp \
+        $$DIR/lattice/legacy/lattice_estimator_legacy.cpp \
+        $$DIR/lattice/legacy/lattice_predictor_legacy.cpp \
         $$DIR/lattice/legacy/non_max_suppression_legacy.cpp \
-        $$DIR/lattice/non_max_suppression.cpp
+        $$DIR/lattice/legacy/spatial_grid_legacy.cpp \
+        $$DIR/lattice/legacy/vector_clustering_legacy.cpp \
+        $$DIR/lattice/basis_finder.cpp \
+        $$DIR/lattice/cell_components.cpp \
+        $$DIR/lattice/lattice_acceptance.cpp \
+        $$DIR/lattice/lattice_accumulator.cpp \
+        $$DIR/lattice/lattice_estimator.cpp \
+        $$DIR/lattice/lattice_predictor.cpp \
+        $$DIR/lattice/non_max_suppression.cpp \
+        $$DIR/lattice/spatial_grid.cpp \
+        $$DIR/lattice/vector_clustering.cpp
 }
 
 HEADERS += \
     $$DIR/ffi/aoi_domain_rs.h \
+    $$DIR/lattice/legacy/basis_finder_legacy.h \
+    $$DIR/lattice/legacy/cell_components_legacy.h \
+    $$DIR/lattice/legacy/lattice_acceptance_legacy.h \
+    $$DIR/lattice/legacy/lattice_accumulator_legacy.h \
+    $$DIR/lattice/legacy/lattice_estimator_legacy.h \
+    $$DIR/lattice/legacy/lattice_predictor_legacy.h \
     $$DIR/lattice/legacy/non_max_suppression_legacy.h \
+    $$DIR/lattice/legacy/spatial_grid_legacy.h \
+    $$DIR/lattice/legacy/vector_clustering_legacy.h \
+    $$DIR/lattice/lattice_accumulator_access.h \
+    $$DIR/lattice/lattice_rs_bridge.h \
     $$DIR/repeatability.h \
     $$DIR/box_expander.h \
     $$DIR/component.h \

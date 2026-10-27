@@ -3,6 +3,27 @@
 > 只新增，新紀錄放最上方。每個 agent session 一筆，讓下一位 agent 知道上一位做過什麼、為什麼。
 > agent 欄位寫實際的工具與模型；不要從舊紀錄抄。
 
+## 2026-10-27 — Claude Code (Claude Opus 5.5)（R05.2：晶格搬進 Rust，ADR-031 的「後續（R05.2 晶格）」）
+
+### 完成
+- 晶格的其餘部分（累加器、空間格子、分群、找基底、連通、接受規則、估計、預測）在 `AOI_DOMAIN_IMPL=rust` 時由 Rust 計算（`rust/aoi_domain_rs/src/lattice/`，逐檔對應 C++；C ABI 版本 2）。估計一次 FFI 呼叫；內建分群策略用列舉，自訂的用回呼（C++ 例外記下後重新丟出）。
+- C++ 的 8 個 .cpp 搬到 `src/domain/lattice/legacy/`（`aoi::legacy`）；公開標頭只改私有部分（`SpatialGrid` pimpl、`LatticeAccumulator` 的狀態合成 `detail::LatticeSums`、friend）。
+- 第一版的包裝每次呼叫複製累加器的狀態，量到逐點加入慢 2–9 倍；改成兩種實作直接操作同一個 `detail::LatticeSums`（Rust 拿位址，逐欄 `offsetof` 檢查）後，cpp 建置與搬之前相同。
+- 差異測試 `tst_domain_rs_diff` 擴充到 164 項（晶格每一部分、1 029 種情境＋其他、回呼、例外、預測器）。
+
+### 修改的檔案
+- 新增：`rust/aoi_domain_rs/src/{cpp,fallible,ffi_lattice}.rs`、`rust/aoi_domain_rs/src/lattice/*.rs`、`src/domain/lattice/{lattice_accumulator_access.h,lattice_rs_bridge.h,lattice_rs_bridge.cpp}`、`src/domain/lattice/*_rs.cpp`（8 個）、`src/domain/lattice/legacy/*_legacy.h`（8 個）；`src/domain/lattice/{basis_finder,cell_components,lattice_acceptance,lattice_accumulator,lattice_estimator,lattice_predictor,spatial_grid,vector_clustering}.cpp` 改成轉呼叫 legacy 的包裝（原本的內容 `git mv` 到 `legacy/*_legacy.cpp`）。
+- 修改：`rust/aoi_domain_rs/src/{ffi,flat_map,geometry,lib,nms}.rs`、`src/domain/ffi/aoi_domain_rs.h`、`src/domain/lattice/{lattice_accumulator,spatial_grid,vector_clustering}.h`、`AiInspTool/src/domain/domain.pro`、`AiInspTool/tests/domain/domain_legacy.pro`、`tests/domain/tst_domain_rs_diff.cpp`、`docs/adr/031-rust-domain-hybrid.md`、`docs/architecture.md`、`docs/plan/R05-rust-domain.md`、`docs/current-status.md`、`.ai/handoff.md`。
+
+### 驗證
+- `test.ps1`：Release＋Rust 66／66、Release＋Cpp 65／65、Debug＋Rust 66／66、Debug＋Cpp 65／65；0 個 LNK4。對時間敏感的測試在另一個 session 同時建置時失敗過，單獨重跑通過；Debug 的 `tst_presenter` 2 秒忙碌等待仍不穩定。
+- 差異測試：約 177 萬個浮點值全部一位不差（Release 與 Debug）。`check-deps` 0 違規、`ste-lint` 0 error、cargo 4 項通過。
+- 效能（資訊性）：rust 的 T3 0.46–0.66 ms（before 0.57–1.47）、L-1000-random 1.8–2.3（before 3.0–4.7）；逐點呼叫累加器每次多約 11 ns；cpp 建置與搬之前相同。
+- 沒跑：`-NoOpenCv`、`-NoHalcon`、Profile；Qt Creator GUI 沒有操作。
+
+### 注意事項
+- `AiInspTool/` 底下有 2026-10-27 13:00 的完整原地建置（不是這次產生的，沒有動）；原地的 `.moc` 可能讓新的測試函式不執行。
+
 ## 2026-10-27 — Claude Code (Claude Opus 5.5)（R05.1：建置整合與 NMS 試點，ADR-031 的「後續」）
 
 ### 完成

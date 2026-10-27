@@ -20,17 +20,35 @@
 // （建構時指定；離資料越近越好，例如第一個點）。索引是整數，與索引有關的總和在 2^53 以內是精確的。
 namespace aoi {
 
+namespace detail {
+
+// LatticeAccumulator 的狀態（R05.2）：參考點、參考格子、16 個總和。兩種實作直接對它操作（C++：lattice/legacy/
+// lattice_accumulator_legacy.cpp 的自由函式；Rust：欄位順序和 C 的 AoiRsLatticeSums 相同，lattice_rs_bridge.cpp 逐欄檢查）。
+struct LatticeSums {
+    Point2D referencePoint;
+    LatticeIndex referenceCell;
+    long long count = 0;
+    // 索引的總和（相對於參考格子；整數，精確）
+    double n = 0.0, si = 0.0, sj = 0.0, sii = 0.0, sij = 0.0, sjj = 0.0;
+    // 座標的總和（相對於參考點）
+    double sx = 0.0, six = 0.0, sjx = 0.0, sxx = 0.0;
+    double sy = 0.0, siy = 0.0, sjy = 0.0, syy = 0.0;
+};
+
+struct LatticeAccumulatorAccess;  // lattice_accumulator_access.h（兩種實作之間換狀態）
+
+}  // namespace detail
+
 class LatticeAccumulator {
 public:
     LatticeAccumulator() noexcept = default;
-    LatticeAccumulator(Point2D referencePoint, LatticeIndex referenceCell) noexcept
-        : referencePoint_(referencePoint), referenceCell_(referenceCell) {}
+    LatticeAccumulator(Point2D referencePoint, LatticeIndex referenceCell) noexcept : sums_{referencePoint, referenceCell} {}
 
     void add(LatticeIndex cell, Point2D p) noexcept { accumulate(cell, p, 1.0); }
     // 拿掉一個先前加過的點（同樣的格子與座標）。拿掉沒加過的點，結果沒有意義。
     void remove(LatticeIndex cell, Point2D p) noexcept { accumulate(cell, p, -1.0); }
 
-    std::size_t count() const noexcept { return count_ > 0 ? static_cast<std::size_t>(count_) : 0u; }
+    std::size_t count() const noexcept { return sums_.count > 0 ? static_cast<std::size_t>(sums_.count) : 0u; }
 
     // j 有變化而且 (i, j) 不共線：可以解出 v（二維）。
     bool twoDimensional() const noexcept;
@@ -43,20 +61,15 @@ public:
     // 有效位數取決於參考點：點離參考點越遠，相消誤差越大（spec.md「數值」一節）。
     double residualSumOfSquares(const LatticeBasis& basis) const noexcept;
 
-    Point2D referencePoint() const noexcept { return referencePoint_; }
-    LatticeIndex referenceCell() const noexcept { return referenceCell_; }
+    Point2D referencePoint() const noexcept { return sums_.referencePoint; }
+    LatticeIndex referenceCell() const noexcept { return sums_.referenceCell; }
 
 private:
+    friend struct detail::LatticeAccumulatorAccess;
+
     void accumulate(LatticeIndex cell, Point2D p, double weight) noexcept;
 
-    Point2D referencePoint_;
-    LatticeIndex referenceCell_;
-    long long count_ = 0;
-    // 索引的總和（相對於參考格子；整數，精確）
-    double n_ = 0.0, si_ = 0.0, sj_ = 0.0, sii_ = 0.0, sij_ = 0.0, sjj_ = 0.0;
-    // 座標的總和（相對於參考點）
-    double sx_ = 0.0, six_ = 0.0, sjx_ = 0.0, sxx_ = 0.0;
-    double sy_ = 0.0, siy_ = 0.0, sjy_ = 0.0, syy_ = 0.0;
+    detail::LatticeSums sums_;
 };
 
 }  // namespace aoi
