@@ -6,12 +6,19 @@
 #   AOI_PRO_<模組>   .pro 的位置（相對於 AiInspTool/）；程式庫叫 aoi_<模組>.lib
 #   AOI_DEPS_<模組>  它直接依賴的模組（間接的由 aoiClosure 展開）
 #   AOI_QT_<模組>    它自己用到的 Qt 模組（沒寫 ＝ 不用 Qt）
-#   AOI_EXT_<模組>   它自己用到的外部函式庫（opencv、halcon；設定在 aoi_opencv.pri、aoi_halcon.pri）
+#   AOI_EXT_<模組>   它自己用到的外部函式庫（opencv、halcon、rust；設定在 aoi_opencv.pri、aoi_halcon.pri、aoi_rust.pri）
 # 用到某個模組，就繼承它（與它所有依賴）的 Qt 模組與外部函式庫：標頭互相 include，所以編譯與連結都要。
 
 # ---- domain：只用 C++ 標準庫 ----
+# ADR-031：AOI_DOMAIN_IMPL=rust 時，演算法的實作在 Rust 的 crate（rust/aoi_domain_rs，也只用 Rust 的標準庫）。
+# domain_rs 不是 C++ 的程式庫：它的 .pro 只呼叫 cargo（src/src.pro 把它排在 domain 之前），產出的 staticlib 以外部函式庫「rust」
+# 登記在 domain 上，所以每個連到 domain 的程式都帶得到（aoi_target.pri）。
 AOI_PRO_domain = src/domain/domain.pro
 AOI_DEPS_domain =
+equals(AOI_DOMAIN_IMPL, rust) {
+    AOI_PRO_domain_rs = src/domain_rs/domain_rs.pro
+    AOI_EXT_domain = rust
+}
 
 # ---- application：use case 與 port（只依賴 domain，不用 Qt、OpenCV、HALCON）----
 AOI_PRO_application = src/application/application.pro
@@ -61,6 +68,10 @@ AOI_PRO_app_core = src/app/app_core.pro
 AOI_DEPS_app_core = application backend_fake image_qt storage perf threading threading_qt
 equals(AOI_WITH_OPENCV, ON): AOI_DEPS_app_core += backend_opencv
 equals(AOI_WITH_HALCON, ON): AOI_DEPS_app_core += backend_halcon
+
+# ---- 差異測試的對照組（ADR-031）：AOI_DOMAIN_IMPL=rust 時，domain 的 C++ 實作（aoi::legacy）另外編成這個程式庫，只給 tst_domain_rs_diff 用 ----
+AOI_PRO_domain_legacy = tests/domain/domain_legacy.pro
+AOI_DEPS_domain_legacy = domain
 
 # ---- 測試共用：合成板子產生器（標準庫）與存成 PNG＋JSON（Qt）----
 AOI_PRO_test_support = tests/support/test_support.pro

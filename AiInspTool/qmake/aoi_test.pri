@@ -26,6 +26,8 @@ SOURCES += $$AOI_ROOT/tests/support/test_environment.cpp
 
 # 效能量測寫結果（perf/results/）、讀預算（perf/budgets.json）與文件裡的資料時用到 repo 的位置。
 DEFINES += AOI_SOURCE_DIR=\\\"$$AOI_ROOT\\\" AOI_BUILD_TYPE=\\\"$$AOI_BUILD_TYPE\\\"
+# ADR-031：domain 的實作（cpp／rust），效能量測寫進結果檔，before／after 才分得出來。
+DEFINES += AOI_DOMAIN_IMPL_NAME=\\\"$$AOI_DOMAIN_IMPL\\\"
 # 字型資料夾（tst_cli 給它啟動的 AiInspTool.exe）；用 / 分隔，放進 C 字串不必跳脫。
 AOI_FONT_DIR = $$clean_path($$(WINDIR)/Fonts)
 # Debug 的數字沒有意義（沒最佳化），所以只有 Release、Profile 才把效能預算當成失敗條件。

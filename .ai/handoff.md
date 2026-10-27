@@ -1,38 +1,37 @@
 # Agent Handoff
 
-- 最後一位 agent：Claude Code (Claude Sonnet 5.5)，由主 session 委派的 developer-deep 執行
-- 日期：2026-10-21
-- 分支：`docs/ai-structure-v2`（git worktree，基於 `codex/static-repeatability` b621d30）；本次修改已本機提交，留在此分支，未推送、未合併；合併與推送由使用者決定。
+- 最後一位 agent：Claude Code (Claude Opus 5.5)
+- 日期：2026-10-27
+- 分支：`refactor/rust-domain` 已以 `--no-ff` 合併到 `main`，tag `r05.1-done`（只在本機，沒有 push）。
 
-## 本次交付：導入 AI 結構 2.0.0（[ADR-030](../docs/adr/030-ai-structure-2-0-0.md)，需求進度表 R04）
+## 本次交付：R05.1 建置整合與 NMS 試點（關卡通過，[ADR-031](../docs/adr/031-rust-domain-hybrid.md) 的「後續」）
 
-- 範本管理檔換成範本 2.0.0 版：`.agents/harness/engineering-workflow.md`、`.agents/skills/ai-handoff/SKILL.md`（鏡像已用 `sync-skills.ps1` 同步）、`scripts/ai/check-ai-structure.ps1`、`tools/ste-lint.mjs`、`.agents/harness/TEMPLATE_VERSION`（2.0.0）；新增 `docs/plan/_template.md`、`docs/adr/_template.md`。`scripts/ai/sync-skills.ps1` 與範本相同，沒有更動。
-- 專案擁有檔合併：`AGENTS.md` 改為四條、`CLAUDE.md`、`.agents/harness/project-rules.md`（補四種輸出適用範圍、進度表連動、編碼、上層規則優先、驗證指令）、`AI_CONTEXT.md`（Context Routing 加進度表一列）、`MODEL_ROUTING.md` 與 `.claude/agents/`（四條、architect 計畫由主 agent 寫進進度表）。
-- `docs/current-status.md`：現有進度表升格為「需求進度表」並移到最前面，加「計畫」「驗證」欄，新增 R01–R04 與「待使用者決定」；其餘章節原樣保留在表格後。
-- ADR-030 與 `docs/decisions.md` 索引一行；`docs/changelog-ai.md` 新增一筆。
+- `rust/aoi_domain_rs`：零外部依賴的 crate（`staticlib`＋`rlib`，edition 2024，`Cargo.lock` 入版控）；`nms.rs`、`flat_map.rs`、`geometry.rs`、`ffi.rs`（C ABI、`catch_unwind`、`try_reserve`）。
+- C 標頭 `src/domain/ffi/aoi_domain_rs.h`；`non_max_suppression.h` 只改私有部分（`OverlapIndex` 改 pimpl、不可複製可移動）；C++ 實作搬到 `src/domain/lattice/legacy/`（`aoi::legacy`）；`non_max_suppression.cpp`（cpp）與 `non_max_suppression_rs.cpp`（rust）是包裝。
+- qmake：`AOI_DOMAIN_IMPL=cpp|rust`（預設 cpp）、`aoi_rust.pri`（找 cargo、系統程式庫）、`AiInspTool/src/domain_rs/domain_rs.pro`（呼叫 cargo）、`aoi_deps.pri` 的 `domain_rs`、`domain_legacy`、`aoi_target.pri` 連結 Rust 的 lib。
+- 測試：`tests/domain/tst_domain_rs_diff`（只在 rust 建置）；`perf_lattice` 多 `NMS-IDX-10000`、`NMS-PAIR-20000` 與結果檔的 `domainImpl`；`test.ps1 -DomainImpl Cpp|Rust` 與 4 項 Rust 檢查（`tools/check-rust.mjs`、cargo test／clippy／fmt）；`env.ps1` 把 cargo 加進 PATH。
 
-## 實際驗證（在 worktree 根目錄）
+## 實際驗證
 
-- `scripts/ai/sync-skills.ps1 -Check`：OK（1 mirrored）。
-- `scripts/ai/check-ai-structure.ps1 -Strict`：RESULT OK，0 FAIL、1 WARN（`docs/current-status.md` 198 行，超過範本上限 150 行；內容未刪，要不要把歷史章節移到 changelog 等使用者決定）。
-- `node scripts/ai/check-model-routing.mjs`：68 passed、0 warning。
-- `node tools/ste-lint.mjs`：984 sentences、0 errors、0 warnings（與升級前相同）。
-- 沒有建置、沒有跑 `scripts/dev/test.ps1`：本次不改程式、測試或建置設定。
+- `test.ps1`：Release＋Rust 66／66、Release＋Cpp 65／65、Debug＋Rust 66／66、Debug＋Cpp 65／65、Profile＋Rust 66／66；建置記錄 0 個 `LNK4` 警告。跳過的項目都是環境（重複性資料、截圖、EXR 等），HALCON 有授權、沒有跳過。XFAIL 2 列照舊。
+- 差異測試：22 萬對旋轉矩形的面積與比例一位不差；NMS 索引、`OverlapIndex` 完全相同；panic 被擋在 Rust。
+- Qt Creator 條件的模擬建置（Profile 參數、PATH 沒有 cargo）成功；**Qt Creator GUI 沒有實際操作**。
+- `-NoOpenCv`、`-NoHalcon` 的組合沒跑（R05.5 的完整矩陣）。
+- `check-deps` 0 違規、`ste-lint` 0 error。效能數字在 ADR-031「後續」（資訊性，沒有預算）。
+
+## 下一步
+
+- R05.2 晶格（從 `main` 開 `refactor/r05-2-lattice`），prompt 依計畫檔「Start prompt（R05.2 起的共通格式）」。照 R05.1 的模式：C++ 搬到 `lattice/legacy/`（`aoi::legacy`）、`*_rs.cpp` 包裝、差異測試擴充；自訂 `IVectorClustering` 用 C 函式指標＋context。
+
+## 注意
+
+- 不要在 `AiInspTool/` 原地執行 qmake：原地建置的舊 `.moc` 會被相依掃描抓到、不重新 moc（R05.1 把它們搬到 `build/r05-insource-generated-backup/`）。
+- `aoi::legacy` 裡呼叫同名函式要寫 `legacy::`（ADL 會找到 `aoi::` 的同名函式）。
+- 換 Rust 版本後 `rust_manifest` 失敗時，照它印的清單更新 `aoi_rust.pri` 的 `AOI_RUST_SYSLIBS`。
+- 效能量測雜訊大（剛建置完會慢 2 倍）：建置後等一下再量，前後交替。
 
 ## 不要動與界線
 
-- `ai-project-template/` 已升級成 2.0.0（New-AiProject.ps1、README、template 全套），與本次一起提交。
-- `scripts/ai/check-model-routing.mjs`、`bench-model-routing.mjs`、`.claude/hooks/model_router.mjs` 與 `AOI_*` 環境變數維持專案版本（範本版用 `AI_*`）；`docs/steps/_template/` 保留專案版。
-- 不改程式原始碼、測試、perf 資料。靜態重複性（ADR-029）、S12 的狀態沒有變動。
-
-## 還沒確認
-
-- 上層規則 `D:\AOI_Project\Qt\CLAUDE.md` 的完成後流程含推送與開 PR；本專案 `project-rules.md` 對 push 的規定較具體，已註明該流程不適用、推送與開 PR 要使用者當次要求。
-- Codex 端沒有實際跑過 2.0.0 的流程；`check-ai-structure.ps1` 只檢查結構。
-
-## 先前仍有效的提醒（靜態重複性，2026-10-16）
-
-- 建置：沙箱 `env.ps1` 曾選到 MSVC 19.00；要用本機權限並前置 `VCToolsInstallDir/bin/Hostx64/x64`（確認 19.44）。source-side 的舊 `.moc` 會污染 qmake 依賴，已備份在 `build/repeatability-cache-backup`，不要回填。
-- 真實資料測試：`AOI_REPEATABILITY_DATA` 指向 `D:/Benano/20261014_20261014_4677_AdvancePin_Proj`；`AOI_REPEATABILITY_SCREENSHOTS` 設輸出目錄可重產畫面。
-- 效能預算與基準線要等使用者指示才重建；Debug 的 Presenter 2 秒忙碌等待案例是既有的不穩定測試。
-- 其他待決定事項見 `docs/current-status.md` 的「待使用者決定」。
+- 不改 Qt Widgets、OpenCV、HALCON 的 adapter 與 application 層（不在 R05 範圍）。
+- 預算與基準線等使用者指示（R05.5 會問）；C++ 重複實作的去留由使用者決定（R05.5）。
+- 先前的提醒：Debug 的 Presenter 2 秒忙碌等待是既有的不穩定測試；HALCON 讀不到授權時等 5 分鐘、看 CodeMeter 的 log。

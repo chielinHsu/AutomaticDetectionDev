@@ -1,0 +1,14 @@
+# tools/check-rust.mjs 的自我測試：這份有依賴，檢查一定要抓到（至少兩個）。不是真的 crate。
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+cxx = "1"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.59" }
+
+[dependencies.serde]
+version = "1"

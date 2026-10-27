@@ -101,12 +101,20 @@ equals(AOI_WITH_HALCON, ON) {
     equals(AOI_WITH_OPENCV, ON): AOI_PERF_TESTS += backend/perf_halcon_real
 }
 
+# ADR-031（R05）：domain 的 Rust 實作。差異測試同時連結 Rust 與 C++（aoi::legacy）的實作。
+equals(AOI_DOMAIN_IMPL, rust) {
+    SUBDIRS += domain_legacy
+    domain_legacy.file = domain/domain_legacy.pro
+    AOI_TESTS += domain/tst_domain_rs_diff
+}
+
 for(test, $$list($$AOI_TESTS $$AOI_PERF_TESTS $$AOI_TOOLS)) {
     name = $$basename(test)
     SUBDIRS += $$name
     $${name}.file = $${test}.pro
     $${name}.depends = test_support
 }
+equals(AOI_DOMAIN_IMPL, rust): tst_domain_rs_diff.depends += domain_legacy
 
 aoi_test_names =
 for(test, AOI_TESTS): aoi_test_names += $$basename(test)

@@ -56,6 +56,11 @@ equals(TEMPLATE, app) {
         PRE_TARGETDEPS += $$AOI_LIB_DIR/aoi_$${module}.lib
     }
     contains(AOI_EXTERNALS, opencv): LIBS += $$AOI_OPENCV_LIB
+    contains(AOI_EXTERNALS, rust) {
+        # ADR-031：domain 的 Rust 實作（staticlib）與它要的系統程式庫（aoi_rust.pri）。Rust 的 lib 變了（改了 .rs）就重新連結。
+        LIBS += $$AOI_RUST_LIB $$AOI_RUST_SYSLIBS
+        PRE_TARGETDEPS += $$AOI_RUST_LIB
+    }
     contains(AOI_EXTERNALS, halcon) {
         # delayimp：/DELAYLOAD 的輔助程式；version：GetFileVersionInfo（HalconRuntime.cpp 檢查 DLL 的版本）。
         LIBS += $$AOI_HALCON_LIB delayimp.lib version.lib

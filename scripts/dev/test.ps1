@@ -4,6 +4,7 @@
 #   .\scripts\dev\test.ps1                          # Release，OpenCV ＋ HALCON（預設全開）
 #   .\scripts\dev\test.ps1 -Config Debug            # Debug（Profile 也可以：Release ＋ 除錯資訊，同 Qt Creator）
 #   .\scripts\dev\test.ps1 -NoOpenCv -NoHalcon      # 關掉其中一個或兩個；每種組合有自己的建置資料夾
+#   .\scripts\dev\test.ps1 -DomainImpl Rust         # domain 的演算法用 Rust 的實作（ADR-031；預設 Cpp），多一個差異測試 tst_domain_rs_diff
 #   .\scripts\dev\test.ps1 -Perf                    # 只跑效能量測（perf_*；要 Release）
 #   .\scripts\dev\test.ps1 -Filter 'tst_lattice*'   # 只跑名稱符合的項目（萬用字元）
 #   .\scripts\dev\test.ps1 -NoBuild                 # 不建置，直接跑上次建好的
@@ -12,12 +13,15 @@
 #
 # 建置資料夾：build\qmake-<config>[-noopencv][-nohalcon]（執行檔在 bin\，log 在 test-logs\，測試的工作資料夾 test-work\）。
 # 跑哪些測試：qmake 寫的 aoi-tests.txt（-Perf 時 aoi-perf-tests.txt），清單本身在 AiInspTool/tests/tests.pro；
-# 不是 -Perf 時再加 5 個 node 的檢查（依賴方向 3 個、S00 示範頁的 fixture 1 個、S10 效能閘門的自我測試 1 個）。
+# 不是 -Perf 時再加 5 個 node 的檢查（依賴方向 3 個、S00 示範頁的 fixture 1 個、S10 效能閘門的自我測試 1 個），
+# 與 Rust crate 的 4 個檢查（ADR-031：cargo test、clippy、fmt --check、tools/check-rust.mjs；兩種 -DomainImpl 都跑，
+# cargo 的輸出放 build\cargo-checks）。
 # 一鍵的效能測試（建置 → -Perf → 彙整 → 和基準線與預算比 → 報表）是 scripts/dev/perf.ps1（S10）。
 # 環境（CMake 時代由 CTest 設定）：QT_QPA_PLATFORM=offscreen、QT_QPA_FONTDIR、PATH（Qt、HALCON 的 bin；OpenCV 的 DLL 已複製到 bin\）、
 # 每個項目逾時 -TimeoutSec 秒、參數 -o <log>,txt（這台機器的 Qt Test 純文字輸出不寫到被接走的 stdout）。
 param(
     [ValidateSet('Release', 'Debug', 'Profile')][string]$Config = 'Release',
+    [ValidateSet('Cpp', 'Rust')][string]$DomainImpl = 'Cpp',
     [switch]$NoOpenCv,
     [switch]$NoHalcon,
     [switch]$Perf,
@@ -34,6 +38,7 @@ $root = (Resolve-Path "$PSScriptRoot\..\..").Path
 $name = 'qmake-' + $Config.ToLower()
 if ($NoOpenCv) { $name += '-noopencv' }
 if ($NoHalcon) { $name += '-nohalcon' }
+if ($DomainImpl -eq 'Rust') { $name += '-rust' }
 $build = Join-Path $root "build\$name"
 if ($BuildDir) {
     $build = if ([IO.Path]::IsPathRooted($BuildDir)) { $BuildDir } else { Join-Path $root $BuildDir }
@@ -54,6 +59,7 @@ if (-not $NoBuild) {
     }
     if ($NoOpenCv) { $qmakeArgs += 'AOI_WITH_OPENCV=OFF' }
     if ($NoHalcon) { $qmakeArgs += 'AOI_WITH_HALCON=OFF' }
+    if ($DomainImpl -eq 'Rust') { $qmakeArgs += 'AOI_DOMAIN_IMPL=rust' }
 
     New-Item -ItemType Directory -Force $build | Out-Null
     Push-Location $build
@@ -83,7 +89,21 @@ if (-not $Perf) {
         @{ Name = 'check_deps_self_test'; Args = @('tools/check-deps.mjs', '--self-test'); ExpectFail = $false },
         @{ Name = 'check_deps_catches_a_violation'; Args = @('tools/check-deps.mjs', '--root', 'tests/core/fixtures/deps/domain-qt'); ExpectFail = $true },
         @{ Name = 's00_demo_fixture_is_current'; Args = @('tools/s00-demo-fixture.mjs', '--check'); ExpectFail = $false },
-        @{ Name = 'perf_compare_self_test'; Args = @('tools/perf-compare.mjs', '--self-test'); ExpectFail = $false }
+        @{ Name = 'perf_compare_self_test'; Args = @('tools/perf-compare.mjs', '--self-test'); ExpectFail = $false },
+        # ADR-031：crate 沒有依賴（含自我測試）、qmake 登記的系統程式庫和 rustc 要的相同。
+        @{ Name = 'rust_manifest'; Args = @('tools/check-rust.mjs'); ExpectFail = $false }
+    ) | Where-Object { $_.Name -like $Filter }
+}
+
+# Rust crate 的檢查（ADR-031）：--locked --offline 和建置相同（不改 Cargo.lock、不連網路）。
+$cargoChecks = @()
+if (-not $Perf) {
+    $manifestArgs = @('--manifest-path', 'rust/aoi_domain_rs/Cargo.toml')
+    $targetArgs = @('--target-dir', 'build/cargo-checks', '--locked', '--offline')
+    $cargoChecks = @(
+        @{ Name = 'cargo_test'; Args = @('test') + $manifestArgs + $targetArgs; ExpectFail = $false },
+        @{ Name = 'cargo_clippy'; Args = @('clippy') + $manifestArgs + $targetArgs + @('--all-targets', '--', '-D', 'warnings'); ExpectFail = $false },
+        @{ Name = 'cargo_fmt_check'; Args = @('fmt') + $manifestArgs + @('--check'); ExpectFail = $false }
     ) | Where-Object { $_.Name -like $Filter }
 }
 
@@ -135,7 +155,7 @@ function Invoke-AoiItem([string]$display, [string]$file, [string[]]$arguments, [
 }
 
 Write-Host ''
-Write-Host "== $name：$($tests.Count) 個測試執行檔$(if ($nodeChecks.Count) { " ＋ $($nodeChecks.Count) 個 node 檢查" })（逾時 $TimeoutSec 秒）"
+Write-Host "== $name：$($tests.Count) 個測試執行檔$(if ($nodeChecks.Count) { " ＋ $($nodeChecks.Count) 個 node 檢查" })$(if ($cargoChecks.Count) { " ＋ $($cargoChecks.Count) 個 cargo 檢查" })（逾時 $TimeoutSec 秒）"
 foreach ($test in $tests) {
     $exe = Join-Path $bin "$test.exe"
     $log = Join-Path $logs "$test.txt"
@@ -158,6 +178,19 @@ if ($nodeChecks.Count) {
             continue
         }
         Invoke-AoiItem $check.Name $node.Source $check.Args $log $check.ExpectFail $true
+    }
+}
+
+if ($cargoChecks.Count) {
+    $cargo = Get-Command cargo.exe -ErrorAction SilentlyContinue
+    foreach ($check in $cargoChecks) {
+        $log = Join-Path $logs "$($check.Name).txt"
+        if (-not $cargo) {
+            Write-Host ('{0,-8} {1,-34} 找不到 cargo（Rust 要裝在 %USERPROFILE%\.cargo\bin，env.ps1 會加進 PATH）' -f 'FAIL', $check.Name)
+            $results.Add([pscustomobject]@{ Name = $check.Name; Status = 'FAIL'; Code = -1; Log = ''; Skipped = 0; XFails = @() })
+            continue
+        }
+        Invoke-AoiItem $check.Name $cargo.Source $check.Args $log $check.ExpectFail $true
     }
 }
 

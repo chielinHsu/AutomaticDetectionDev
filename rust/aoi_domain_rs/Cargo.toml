@@ -1,0 +1,21 @@
+# domain 層的演算法（ADR-031：Rust 混合架構第一階段）。C++ 經 C ABI 呼叫（src/domain/ffi/aoi_domain_rs.h），
+# 由 qmake 的子專案 AiInspTool/src/domain_rs 呼叫 cargo 建置（AOI_DOMAIN_IMPL=rust 時）。
+[package]
+name = "aoi_domain_rs"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[lib]
+# staticlib：連進 C++ 的程式；rlib：cargo test 用。
+crate-type = ["staticlib", "rlib"]
+
+# 必須是空的：domain 只用標準庫（對應 check-deps 對 C++ 的規則）。tools/check-rust.mjs 檢查，scripts/dev/test.ps1 的 rust_manifest。
+[dependencies]
+
+# panic 不可以是 abort：每個 extern "C" 函式用 catch_unwind 把 panic 擋在 Rust 這一側（ADR-031 第 4 點）。
+[profile.dev]
+panic = "unwind"
+
+[profile.release]
+panic = "unwind"

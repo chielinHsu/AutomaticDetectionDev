@@ -7,11 +7,18 @@
 TEMPLATE = subdirs
 include($$AOI_QMAKE/aoi_options.pri)
 
+# ADR-031：Rust 的 crate（cargo）在 domain 之前建置。
+equals(AOI_DOMAIN_IMPL, rust) {
+    SUBDIRS += domain_rs
+    domain_rs.file = $$relative_path($$clean_path($$AOI_QMAKE/../$$AOI_PRO_domain_rs), $$PWD)
+}
+
 for(module, AOI_MODULES) {
     SUBDIRS += $$module
     $${module}.file = $$relative_path($$clean_path($$AOI_QMAKE/../$$eval(AOI_PRO_$${module})), $$PWD)
     $${module}.depends = $$eval(AOI_DEPS_$${module})
 }
+equals(AOI_DOMAIN_IMPL, rust): domain.depends += domain_rs
 
 SUBDIRS += AiInspTool
 AiInspTool.file = app/app.pro
