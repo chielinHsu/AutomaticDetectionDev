@@ -111,7 +111,7 @@ impl<'a> Fitter<'a> {
             return Ok(false);
         }
         let model = self.finalize(candidate)?;
-        if !holes_are_backed(&model) {
+        if !holes_are_backed(&model)? {
             if out.reason != Reason::LowConfidence {
                 out.reason = Reason::TooManyHoles;
             }
@@ -434,7 +434,7 @@ impl<'a> Fitter<'a> {
         }
         model.inliers = members;
         model.cells = cells;
-        model.coverage = model.inliers.len() as f64 / model.cell_count() as f64;
+        model.coverage = model.inliers.len() as f64 / model.cell_count()? as f64;
         model.consistency = consistency(&model, self.pts)?;
         model.confidence = assess_confidence(
             model.inliers.len(),

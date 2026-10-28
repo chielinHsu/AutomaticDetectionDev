@@ -92,7 +92,7 @@ equals(AOI_WITH_OPENCV, ON) {
         infra/tst_opencv_image \
         infra/tst_image_sources_agree \
         backend/tst_opencv_backend
-    AOI_PERF_TESTS += backend/perf_opencv_real backend/perf_opencv backend/perf_match_region_real
+    AOI_PERF_TESTS += backend/perf_opencv_real backend/perf_opencv backend/perf_match_region_real backend/perf_multi_sample_real
 }
 # S08：HALCON（沒有授權或沒有 DLL 時，測試跳過並說原因）。真實影像的並排量測讀 TIFF 要 OpenCV。
 equals(AOI_WITH_HALCON, ON) {

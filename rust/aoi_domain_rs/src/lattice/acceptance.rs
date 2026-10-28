@@ -139,8 +139,13 @@ pub fn enough_evidence(c: &Candidate, points: &[Point], o: &Options) -> Res<bool
 }
 
 /// 補缺格要有夠多的證據：缺格數 ＜ 內點數 − 3（一維）或 − 4（二維）；沒有缺格的晶格不受限。
-pub fn holes_are_backed(m: &Model) -> bool {
-    holes_are_backed_of(m.inliers.len(), m.cell_count(), m.basis.has_v)
+pub fn holes_are_backed(m: &Model) -> Res<bool> {
+    // R07.2：格子數是區域的「證據數」（內點 ＋ 有證據的空格 ＋ 貼著內點的空格），不是外接矩形（region.rs）。
+    Ok(holes_are_backed_of(
+        m.inliers.len(),
+        m.region()?.evidence_count(&m.basis),
+        m.basis.has_v,
+    ))
 }
 
 /// `holesAreBacked` 的本體（FFI 只有內點數，不必複製內點）。

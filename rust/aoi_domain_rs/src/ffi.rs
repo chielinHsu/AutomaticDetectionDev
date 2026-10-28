@@ -21,7 +21,7 @@ pub const AOI_RS_INVALID_ARGUMENT: i32 = 3;
 pub const AOI_RS_CALLBACK_FAILED: i32 = 4;
 
 /// C 標頭的 `AOI_RS_ABI_VERSION`：C++ 包裝在第一次呼叫前比對，連到舊的程式庫時明確失敗。
-pub const AOI_RS_ABI_VERSION: u32 = 4;
+pub const AOI_RS_ABI_VERSION: u32 = 5;
 
 pub(crate) fn guard(f: impl FnOnce() -> i32) -> i32 {
     catch_unwind(AssertUnwindSafe(f)).unwrap_or(AOI_RS_PANIC)

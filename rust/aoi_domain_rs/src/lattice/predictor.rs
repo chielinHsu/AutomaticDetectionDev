@@ -5,6 +5,7 @@ use crate::fallible::{Res, TryPush, vec_filled, vec_with_capacity};
 use crate::flat_map::{FlatMap, pack_key};
 use crate::geometry::Point;
 use crate::lattice::basis::{Basis, Bounds, Cell, MAX_INDEX};
+use crate::lattice::region::Region;
 
 /// `PredictedCell`。`#[repr(C)]`：和 C 的 `AoiRsPredictedCell` 相同。
 #[repr(C)]
@@ -59,10 +60,12 @@ pub fn cells_in_range(m: &ModelGeometry, bounds: Bounds, margin: i32, max_count:
     Ok(out)
 }
 
-/// 索引範圍內、沒有內點佔據的格點（缺格）。順序：依 i，再依 j。最多 max_count 個。
+/// 索引區域內（`region.rs`：R07.2 起交錯陣列不含外接矩形多出來的角）、沒有內點佔據的格點（缺格）。
+/// 順序：依 i，再依 j。最多 max_count 個。
 pub fn holes(m: &ModelGeometry, bounds: Bounds, max_count: usize) -> Res<Vec<PredictedCell>> {
     let mut out = Vec::new();
     let b = &m.basis;
+    let region = Region::of(b, m.min_i, m.max_i, m.min_j, m.max_j, m.cells)?;
     let j_from = if b.has_v { m.min_j } else { 0 };
     let j_to = if b.has_v { m.max_j } else { 0 };
     let w = f64::from(m.max_i) - f64::from(m.min_i) + 1.0;
@@ -97,7 +100,7 @@ pub fn holes(m: &ModelGeometry, bounds: Bounds, max_count: usize) -> Res<Vec<Pre
             } else {
                 sparse.find(pack_key(i, j)).is_some()
             };
-            if occupied {
+            if occupied || !region.contains(b, i, j) {
                 continue;
             }
             let p = b.at(i, j);

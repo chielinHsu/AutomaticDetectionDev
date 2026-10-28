@@ -5,6 +5,8 @@
 #include <utility>
 #include <vector>
 
+#include "domain/lattice/lattice_region.h"
+
 namespace aoi::legacy {
 
 using namespace aoi::detail;  // lattice_detail.h、flat_map.h 的小工具（原本的程式在 aoi::detail 裡）
@@ -103,7 +105,8 @@ bool enoughEvidence(const LatticeCandidate& c, std::span<const Point2D> points, 
 
 bool holesAreBacked(const LatticeModel& m) {
     const long long inliers = static_cast<long long>(m.inliers.size());
-    const long long holes = static_cast<long long>(m.cellCount()) - inliers;
+    // R07.2：格子數是區域的「證據數」（內點 ＋ 有證據的空格 ＋ 貼著內點的空格），不是外接矩形（lattice_region.h）。
+    const long long holes = static_cast<long long>(LatticeRegion(m.basis, m.minI, m.maxI, m.minJ, m.maxJ, m.cells).evidenceCount()) - inliers;
     return holes == 0 || holes < inliers - (m.hasV() ? 4 : 3);
 }
 

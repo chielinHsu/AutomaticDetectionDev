@@ -56,6 +56,25 @@ struct Oracle {
     std::vector<fake::FakeCell> cells;
     int minI = 0, maxI = 0, minJ = 0, maxJ = 0;
     bool insideSeedBox(const fake::FakeCell& c) const { return c.i >= minI && c.i <= maxI && c.j >= minJ && c.j <= maxJ; }
+    bool strongAt(int i, int j) const {
+        return std::any_of(cells.begin(), cells.end(), [&](const fake::FakeCell& c) { return c.i == i && c.j == j && c.kind == fake::FakeCellKind::Strong; });
+    }
+    // 空格有沒有兩側的證據（ADR-013 的「後續（R07.2）」、lattice_region.h 的條件 3）：沿欄或沿列的兩側各在 3 格之內都有種子
+    // （Strong），或角落（沿欄與沿列各有一個相鄰的種子）。沒有的缺件與弱零件，晶格不補、視窗驗證也找不到。
+    bool backed(const fake::FakeCell& c) const {
+        const auto reaches = [&](int di, int dj) {
+            for (int step = 1; step <= 3; ++step) {
+                if (strongAt(c.i + di * step, c.j + dj * step)) return true;
+            }
+            return false;
+        };
+        const bool betweenI = reaches(1, 0) && reaches(-1, 0);
+        const bool betweenJ = reaches(0, 1) && reaches(0, -1);
+        const bool corner = (strongAt(c.i + 1, c.j) || strongAt(c.i - 1, c.j)) && (strongAt(c.i, c.j + 1) || strongAt(c.i, c.j - 1));
+        return betweenI || betweenJ || corner;
+    }
+    // 二維的格子裡，晶格會補（或驗證會找到）的那些：在種子的索引範圍內，而且有兩側的證據。
+    bool predicted(const fake::FakeCell& c) const { return insideSeedBox(c) && backed(c); }
 };
 
 Oracle makeOracle(const fake::FakeSpec& spec, Rect sample) {
@@ -246,7 +265,7 @@ private slots:
         const Oracle oracle = makeOracle(spec, kSample);
         std::size_t expectedPredicted = 0;
         for (const fake::FakeCell& c : oracle.cells) {
-            if (c.kind == fake::FakeCellKind::Missing && oracle.insideSeedBox(c)) ++expectedPredicted;
+            if (c.kind == fake::FakeCellKind::Missing && oracle.predicted(c)) ++expectedPredicted;
         }
         QVERIFY2(expectedPredicted >= 2, "the fixture itself must contain missing parts");
 
@@ -255,7 +274,7 @@ private slots:
         QCOMPARE(countSource(p.candidates, CandidateSource::Predicted), expectedPredicted);
         QCOMPARE(p.grid.holes, expectedPredicted);
         for (const fake::FakeCell& c : oracle.cells) {
-            if (c.kind == fake::FakeCellKind::Missing && oracle.insideSeedBox(c)) {
+            if (c.kind == fake::FakeCellKind::Missing && oracle.predicted(c)) {
                 QVERIFY(hasCandidateAt(p.candidates, c.pose, CandidateSource::Predicted));
             }
         }
@@ -278,8 +297,8 @@ private slots:
         std::size_t strong = 0, weakIn = 0, missingIn = 0;
         for (const fake::FakeCell& c : oracle.cells) {
             if (c.kind == fake::FakeCellKind::Strong) ++strong;
-            if (c.kind == fake::FakeCellKind::Weak && oracle.insideSeedBox(c)) ++weakIn;
-            if (c.kind == fake::FakeCellKind::Missing && oracle.insideSeedBox(c)) ++missingIn;
+            if (c.kind == fake::FakeCellKind::Weak && oracle.predicted(c)) ++weakIn;
+            if (c.kind == fake::FakeCellKind::Missing && oracle.predicted(c)) ++missingIn;
         }
         Fixture f(spec);
         const SampleProposal p = f.run().value();

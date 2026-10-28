@@ -16,7 +16,8 @@ SOURCES += \
     $$DIR/image_buffer.cpp \
     $$DIR/image_copy.cpp \
     $$DIR/image_depth.cpp \
-    $$DIR/match_region_equality.cpp
+    $$DIR/match_region_equality.cpp \
+    $$DIR/lattice/lattice_region.cpp
 
 equals(AOI_DOMAIN_IMPL, rust) {
     SOURCES += \
@@ -98,6 +99,7 @@ HEADERS += \
     $$DIR/lattice/lattice_estimator.h \
     $$DIR/lattice/lattice_model.h \
     $$DIR/lattice/lattice_predictor.h \
+    $$DIR/lattice/lattice_region.h \
     $$DIR/lattice/non_max_suppression.h \
     $$DIR/lattice/spatial_grid.h \
     $$DIR/lattice/vector_clustering.h \

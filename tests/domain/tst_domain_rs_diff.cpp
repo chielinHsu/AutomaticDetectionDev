@@ -357,6 +357,22 @@ std::vector<LatticeCase> extraCases() {
         for (Point2D& p : pts) p = {p.x + 25000.0, p.y + 18000.0};
         add(QStringLiteral("far from the origin"), pts);
     }
+    for (int k = 0; k < 12; ++k) {  // R07.2：交錯排列的矩形區塊（索引空間是平行四邊形），完整、缺件、加雜訊與離群點
+        std::vector<Point2D> pts;
+        const int cols = 6 + static_cast<int>(rng.below(8));
+        const int rows = 4 + static_cast<int>(rng.below(5));
+        const double missing = k < 3 ? 0.0 : rng.uniform() * 0.5;
+        const double noise = k < 6 ? 0.0 : rng.uniform() * 3.0;
+        for (int c = 0; c < cols; ++c) {
+            for (int r = 0; r < rows; ++r) {
+                if (rng.uniform() < missing) continue;
+                pts.push_back({600.0 + 266.0 * c + rng.symmetric(noise), 400.0 + 154.0 * r + 77.0 * (c % 2) + rng.symmetric(noise)});
+            }
+        }
+        const std::size_t outliers = rng.below(6);
+        for (std::size_t q = 0; q < outliers; ++q) pts.push_back({rng.uniform() * 3500.0, rng.uniform() * 1500.0});
+        add(QStringLiteral("staggered %1").arg(k), pts);
+    }
     for (int k = 0; k < 30; ++k) {  // 別的選項與分群策略（掃描的一部分情境）
         Scenario s;
         s.grid = sweepGrid(rng.symmetric(90.0));

@@ -203,9 +203,10 @@ private slots:
         Rig r;
         r.open();
         QVERIFY(r.teachSample(QRectF(560, 360, 60, 32)));
-        // 假世界：樣本左右各 4 格、上下各 2 格 → 9 × 5 ＝ 45 格；樣本自己是其中一格。
+        // 假世界：樣本左右各 4 格、上下各 2 格 → 9 × 5 ＝ 45 格；樣本自己是其中一格。R07.2 起沒有兩側證據的缺件與弱零件
+        // 不補、也不驗證（ADR-013 的「後續」），所以提案裡少於 44 格（假世界是決定性的：37）。
         const SceneCounts& c = r.scene().counts;
-        QCOMPARE(c.components, std::size_t{44});  // 樣本自己已經是板子上的元件，不在提案裡（ADR-025）
+        QCOMPARE(c.components, std::size_t{37});  // 樣本自己已經是板子上的元件，不在提案裡（ADR-025）
         QCOMPARE(c.found + c.inferred + c.rejected, c.components);
         QVERIFY(c.found >= 2);
         QVERIFY(c.rejected >= 1);  // 約 20% 分數低

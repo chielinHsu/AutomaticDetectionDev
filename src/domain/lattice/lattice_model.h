@@ -28,12 +28,9 @@ struct LatticeModel {
     LatticeAccumulator equations;
 
     bool hasV() const noexcept { return basis.hasV; }
-    // 索引範圍內的格子數（一維時是 maxI − minI ＋ 1）。
-    std::size_t cellCount() const noexcept {
-        const auto w = static_cast<std::size_t>(maxI - minI + 1);
-        const auto h = basis.hasV ? static_cast<std::size_t>(maxJ - minJ + 1) : std::size_t{1};
-        return w * h;
-    }
+    // 索引區域裡的格子數（一維時是 maxI − minI ＋ 1）。R07.2 起二維不是外接矩形：內點的格子加上有兩側證據的空格
+    // （lattice_region.h；定義在 lattice_region.cpp，兩種建置都編；佔用表要配置記憶體，所以不是 noexcept）。
+    std::size_t cellCount() const;
 };
 
 // 為什麼沒有晶格（LatticeFit::models 是空的時候）。spec.md 的「退化情況決策樹」。

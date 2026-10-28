@@ -138,6 +138,25 @@ inline Observed generate(const Scenario& s) {
     return o;
 }
 
+// 一個缺件的格子有沒有兩側的證據（ADR-013 的「後續（R07.2）」、lattice_region.h 的條件 3）：沿欄或沿列的兩側各在 3 格之內
+// 都有元件，或是角落（沿欄與沿列各有一個相鄰的元件）。沒有的缺件估計器不補，比對時不算「漏補」。
+inline bool holeIsBacked(const Observed& o, const GridSpec& g, int col, int row) {
+    const auto present = [&](int c, int r) {
+        if (c < 0 || c >= g.cols || r < 0 || r >= g.rows) return false;
+        return std::find(o.missing.begin(), o.missing.end(), std::make_pair(c, r)) == o.missing.end();
+    };
+    const auto reaches = [&](int dc, int dr) {
+        for (int step = 1; step <= 3; ++step) {
+            if (present(col + dc * step, row + dr * step)) return true;
+        }
+        return false;
+    };
+    const bool betweenCols = reaches(1, 0) && reaches(-1, 0);
+    const bool betweenRows = reaches(0, 1) && reaches(0, -1);
+    const bool corner = (present(col + 1, row) || present(col - 1, row)) && (present(col, row + 1) || present(col, row - 1));
+    return betweenCols || betweenRows || corner;
+}
+
 // 與標準答案比對的結果。
 struct Agreement {
     std::size_t inliers = 0;          // 模型的內點數
@@ -186,6 +205,7 @@ inline Agreement compare(const LatticeModel& m, const Observed& o, const GridSpe
     }
     for (const auto& [c, r] : o.missing) {
         if (c < minCol || c > maxCol || r < minRow || r > maxRow) continue;  // 範圍外的缺件本來就不預測
+        if (!holeIsBacked(o, g, c, r)) continue;  // 沒有兩側證據的缺件本來就不預測（R07.2）
         const Point2D truth = cellPosition(g, c, r);
         if (!bounds.contains(truth)) continue;
         if (!hasPointNear(positions(holes), truth, tolerance)) ++a.missedHoles;
