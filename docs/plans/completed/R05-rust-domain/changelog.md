@@ -3,6 +3,30 @@
 > 只新增，新紀錄放最上方；格式見 `docs/plans/_template/changelog.md`。
 > 3.0.0 之前（R05.1、R05.2）的紀錄在 [`docs/legacy/changelog-ai.md`](../../../legacy/changelog-ai.md) 的 2026-10-27 各筆，沒有搬進來；結果與數字在 ADR-031 的「後續」。
 
+## 2026-10-28 — Claude Code (Claude Opus 5.5)：R05.5（計畫完成）
+
+### 細項
+- R05.5 ⬜ → ✅：`AOI_DOMAIN_IMPL` 的預設改成 `rust`；`test.ps1`、`perf.ps1` 的 `-DomainImpl` 預設 `Rust`，建置資料夾 Rust 沒有字尾、C++ 加 `-cpp`（之前相反）。
+- 問使用者（2026-10-28）：保留 `cpp` 選項與 C++ 的實作；效能先比再決定，有影響就重建基準線；第二階段先不做；兩項真實資料的測試跳過、標未驗證；`AiInspTool/` 的原地建置搬到 `build/r05-5-insource-backup/`。
+- 完整矩陣 10 組、效能閘門（`-Runs 3`）、cpp 與 rust 交替量 3 次、重建基準線。
+- 計畫完成：資料夾從 `docs/plans/active/` 搬到 `docs/plans/completed/`，`INDEX.md` 改 ✅。
+
+### 修改的檔案
+- `AiInspTool/qmake/aoi_options.pri`（預設 `rust`）、`AiInspTool/qmake/aoi_rust.pri`（註解）
+- `scripts/dev/test.ps1`（預設 `Rust`、`-cpp` 字尾、一律把 `AOI_DOMAIN_IMPL` 傳給 qmake）、`scripts/dev/perf.ps1`（新增 `-DomainImpl`）、`scripts/dev/env.ps1`（找不到 cargo 時的說明）
+- `perf/baseline/casparhsu1-harness.json`（重建）
+- `AI_CONTEXT.md`、`docs/architecture.md`、`docs/current-status.md`、`docs/decisions.md`、`docs/adr/031-rust-domain-hybrid.md`（「後續（R05.5）」）、本計畫的 `plan.md`／`status.md`、`docs/plans/INDEX.md`、`.ai/handoff.md`
+
+### 驗證
+- `test.ps1`：Release＋Rust 66／66、Release＋Cpp 65／65、Debug＋Rust 66／66、Debug＋Cpp 64／65 → `tst_presenter` 單獨重跑通過、Profile＋Rust 65／66 → `tst_presenter` 單獨重跑通過、Profile＋Cpp 65／65、Release＋Rust `-NoOpenCv` 63／63、`-NoHalcon` 64／64、兩個都關 61／61、Release＋Cpp 兩個都關 60／60；10 次建置 0 個 LNK4。HALCON 有授權；XFAIL 只有既有的兩列；跳過的都是環境因素。
+- 第一次跑矩陣失敗的兩件事（都不是程式的問題）：改名的建置資料夾裡 `tst_cli` 指向舊路徑（刪掉物件檔重編）、`AiInspTool/` 的原地 `.moc` 讓新的建置資料夾編不起來（使用者同意搬走）；細節在 ADR-031「後續（R05.5）」。
+- 效能：`perf.ps1 -Runs 3` 對舊基準線三次都判失敗（雜訊大，第 1 次 CPU 負載 87%）；cpp 與 rust 交替量 3 次：use case 與晶格估計相同或較快，逐次呼叫的 `INC-*`／`FULL-*`／`NMS-PAIR` 較慢（FFI 成本），`ui-s04` 的 I4／I6 兩種建置都比基準線慢（不是 Rust）。用同一份程式 6 次完整量測裡最安靜的三次（123143、124030、130058）重建 `perf/baseline/casparhsu1-harness.json`（`-WriteBaseline` 那三次的後兩次有 Visual Studio 的建置在跑，沒有採用），新的基準線對這三次通過；預算不動。
+- `check-deps` 0 違規、`ste-lint` 0 error、`check-ai-structure.ps1 -Strict` OK（7 個既有的警告）。
+- **未驗證**：`perf_match_region_real`、`tst_repeatability::realFiveRuns`（真實資料）；Qt Creator 的 GUI 沒有操作。
+
+### Commit
+- `refactor/r05-5-finish`，合併到 `main`（`--no-ff`），tag `r05.5-done`。
+
 ## 2026-10-27 — Claude Code (Claude Opus 5.5)：R05.4
 
 ### 細項

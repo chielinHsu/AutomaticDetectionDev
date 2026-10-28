@@ -4,14 +4,14 @@
 #   .\scripts\dev\test.ps1                          # Release，OpenCV ＋ HALCON（預設全開）
 #   .\scripts\dev\test.ps1 -Config Debug            # Debug（Profile 也可以：Release ＋ 除錯資訊，同 Qt Creator）
 #   .\scripts\dev\test.ps1 -NoOpenCv -NoHalcon      # 關掉其中一個或兩個；每種組合有自己的建置資料夾
-#   .\scripts\dev\test.ps1 -DomainImpl Rust         # domain 的演算法用 Rust 的實作（ADR-031；預設 Cpp），多一個差異測試 tst_domain_rs_diff
+#   .\scripts\dev\test.ps1 -DomainImpl Cpp          # domain 的演算法用原本的 C++ 實作（ADR-031；R05.5 起預設 Rust，Rust 多一個差異測試 tst_domain_rs_diff）
 #   .\scripts\dev\test.ps1 -Perf                    # 只跑效能量測（perf_*；要 Release）
 #   .\scripts\dev\test.ps1 -Filter 'tst_lattice*'   # 只跑名稱符合的項目（萬用字元）
 #   .\scripts\dev\test.ps1 -NoBuild                 # 不建置，直接跑上次建好的
 #   .\scripts\dev\test.ps1 -BuildDir AiInspTool\build\Desktop_Qt_6_12_0_MSVC2022_64bit_Debug -Config Debug -NoBuild
 #                                                   # 跑 Qt Creator 建好的（-Config 與選項要和那個建置相同）
 #
-# 建置資料夾：build\qmake-<config>[-noopencv][-nohalcon]（執行檔在 bin\，log 在 test-logs\，測試的工作資料夾 test-work\）。
+# 建置資料夾：build\qmake-<config>[-noopencv][-nohalcon][-cpp]（執行檔在 bin\，log 在 test-logs\，測試的工作資料夾 test-work\）。
 # 跑哪些測試：qmake 寫的 aoi-tests.txt（-Perf 時 aoi-perf-tests.txt），清單本身在 AiInspTool/tests/tests.pro；
 # 不是 -Perf 時再加 5 個 node 的檢查（依賴方向 3 個、S00 示範頁的 fixture 1 個、S10 效能閘門的自我測試 1 個），
 # 與 Rust crate 的 4 個檢查（ADR-031：cargo test、clippy、fmt --check、tools/check-rust.mjs；兩種 -DomainImpl 都跑，
@@ -21,7 +21,7 @@
 # 每個項目逾時 -TimeoutSec 秒、參數 -o <log>,txt（這台機器的 Qt Test 純文字輸出不寫到被接走的 stdout）。
 param(
     [ValidateSet('Release', 'Debug', 'Profile')][string]$Config = 'Release',
-    [ValidateSet('Cpp', 'Rust')][string]$DomainImpl = 'Cpp',
+    [ValidateSet('Cpp', 'Rust')][string]$DomainImpl = 'Rust',
     [switch]$NoOpenCv,
     [switch]$NoHalcon,
     [switch]$Perf,
@@ -38,7 +38,7 @@ $root = (Resolve-Path "$PSScriptRoot\..\..").Path
 $name = 'qmake-' + $Config.ToLower()
 if ($NoOpenCv) { $name += '-noopencv' }
 if ($NoHalcon) { $name += '-nohalcon' }
-if ($DomainImpl -eq 'Rust') { $name += '-rust' }
+if ($DomainImpl -eq 'Cpp') { $name += '-cpp' }
 $build = Join-Path $root "build\$name"
 if ($BuildDir) {
     $build = if ([IO.Path]::IsPathRooted($BuildDir)) { $BuildDir } else { Join-Path $root $BuildDir }
@@ -59,7 +59,8 @@ if (-not $NoBuild) {
     }
     if ($NoOpenCv) { $qmakeArgs += 'AOI_WITH_OPENCV=OFF' }
     if ($NoHalcon) { $qmakeArgs += 'AOI_WITH_HALCON=OFF' }
-    if ($DomainImpl -eq 'Rust') { $qmakeArgs += 'AOI_DOMAIN_IMPL=rust' }
+    # 明確傳給 qmake（不靠 aoi_options.pri 的預設），建置資料夾的內容才一定和名稱相符
+    $qmakeArgs += 'AOI_DOMAIN_IMPL=' + $DomainImpl.ToLower()
 
     New-Item -ItemType Directory -Force $build | Out-Null
     Push-Location $build

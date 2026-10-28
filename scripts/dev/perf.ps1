@@ -9,6 +9,7 @@
 #   .\scripts\dev\perf.ps1 -Window                 # 真機視窗模式（QT_QPA_PLATFORM=windows）：量 GPU 與實際顯示相關的指標，結果另外標示
 #   .\scripts\dev\perf.ps1 -Profile full           # perf_matrix 跑整個外積（540 格；逾時自動放大到 3600 秒）
 #   .\scripts\dev\perf.ps1 -InjectDelayMs 60       # harness 的自我測試：每次量測多 60 ms，閘門應該失敗（結果不能當基準線）
+#   .\scripts\dev\perf.ps1 -DomainImpl Cpp         # domain 用原本的 C++ 實作（ADR-031；R05.5 起預設 Rust，建置資料夾多 -cpp，同 test.ps1）
 #
 # 輸出（perf/results/，不入版控）：<yyyyMMdd-HHmmss>-<commit>-<機器>.json（執行紀錄）、同名的 .html（報表）、-compare.json（閘門的結果）。
 # 結束碼 ＝ 閘門的結束碼（tools/perf-compare.mjs）：0 通過、1 失敗、2 輸入有問題、3 無法判定（整台機器變慢）；-Runs 多次時取最差的。
@@ -16,6 +17,7 @@
 # 不要同時建置；每次執行紀錄都有量測當下的 CPU 負載與時脈，報表會標出負載高的那一次。
 param(
     [ValidateSet('Release', 'Profile')][string]$Config = 'Release',
+    [ValidateSet('Cpp', 'Rust')][string]$DomainImpl = 'Rust',
     [switch]$NoOpenCv,
     [switch]$NoHalcon,
     [switch]$NoBuild,
@@ -34,6 +36,7 @@ $root = (Resolve-Path "$PSScriptRoot\..\..").Path
 $name = 'qmake-' + $Config.ToLower()
 if ($NoOpenCv) { $name += '-noopencv' }
 if ($NoHalcon) { $name += '-nohalcon' }
+if ($DomainImpl -eq 'Cpp') { $name += '-cpp' }
 $build = Join-Path $root "build\$name"
 $resultsDir = Join-Path $root 'perf\results'
 New-Item -ItemType Directory -Force $resultsDir | Out-Null
@@ -96,7 +99,7 @@ for ($i = 1; $i -le $Runs; $i++) {
     Write-Host ''
     Write-Host "== perf run $i／$Runs（$name，profile $Profile$(if ($Window) { '，windows 平台' })$(if ($InjectDelayMs -gt 0) { "，注入延遲 $InjectDelayMs ms" })）"
 
-    $testArgs = @('-ExecutionPolicy', 'Bypass', '-File', (Join-Path $PSScriptRoot 'test.ps1'), '-Perf', '-Config', $Config, '-Filter', $Filter, '-TimeoutSec', "$TimeoutSec")
+    $testArgs = @('-ExecutionPolicy', 'Bypass', '-File', (Join-Path $PSScriptRoot 'test.ps1'), '-Perf', '-Config', $Config, '-DomainImpl', $DomainImpl, '-Filter', $Filter, '-TimeoutSec', "$TimeoutSec")
     if ($NoOpenCv) { $testArgs += '-NoOpenCv' }
     if ($NoHalcon) { $testArgs += '-NoHalcon' }
     if ($NoBuild -or $i -gt 1) { $testArgs += '-NoBuild' }

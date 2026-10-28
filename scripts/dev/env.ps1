@@ -43,7 +43,7 @@ $env:AOI_QT_ROOT = $qtRoot
 
 # Rust（ADR-031）：rustup 預設裝在 %USERPROFILE%\.cargo\bin（設了 CARGO_HOME 就是 %CARGO_HOME%\bin）。
 # 安裝之前就開著的程式（Claude 桌面 app、Qt Creator）的 PATH 沒有它；這裡補上（已經在 PATH 上就不重複）。
-# 沒裝 Rust 不算錯：AOI_DOMAIN_IMPL=cpp 的建置用不到 cargo；選 rust 時 qmake 會報錯（aoi_rust.pri）。
+# 沒裝 Rust 不算錯：AOI_DOMAIN_IMPL=cpp 的建置用不到 cargo；預設（rust，R05.5 起）找不到 cargo 時 qmake 會報錯（aoi_rust.pri）。
 $cargoBin = if ($env:CARGO_HOME) { Join-Path $env:CARGO_HOME 'bin' } else { Join-Path $env:USERPROFILE '.cargo\bin' }
 $hasCargo = Test-Path (Join-Path $cargoBin 'cargo.exe')
 if ($hasCargo -and -not (($env:PATH -split ';') -contains $cargoBin)) { $env:PATH = $cargoBin + ';' + $env:PATH }
@@ -59,7 +59,7 @@ try {
 Write-Host "MSVC  : $(cmd.exe /c "cl.exe 2>&1" | Select-Object -First 1)"
 Write-Host "qmake : $((& qmake.exe -query QT_VERSION))（$qtRoot）"
 Write-Host "jom   : $((& jom.exe /VERSION | Select-Object -First 1))"
-Write-Host "cargo : $(if ($hasCargo) { (& (Join-Path $cargoBin 'cargo.exe') --version) } else { "沒有（$cargoBin）：只能建 AOI_DOMAIN_IMPL=cpp" })"
+Write-Host "cargo : $(if ($hasCargo) { (& (Join-Path $cargoBin 'cargo.exe') --version) } else { "沒有（$cargoBin）：預設的建置（rust）會失敗，只能建 AOI_DOMAIN_IMPL=cpp" })"
 
 $ErrorActionPreference = $aoiPrevEap
 Remove-Variable aoiPrevEap
