@@ -6,6 +6,7 @@
 
 | 日期 | 修改者 | 說明 |
 |---|---|---|
+| 2026-10-28 | Claude Code (Claude Opus 5.5) | R05.5（ADR-031 的「後續（R05.5）」）：`AOI_DOMAIN_IMPL` 的預設改成 `rust`（`aoi_options.pri`；`test.ps1`／`perf.ps1` 的 `-DomainImpl` 預設 `Rust`，建置資料夾 `build/qmake-<組態>` 是 Rust、`-cpp` 是 C++）。依賴表、公開標頭、程式碼都沒有變；`cpp` 選項與 C++ 的實作（`src/domain/legacy/`、`src/domain/lattice/legacy/`）照使用者的決定保留，當差異測試的對照組與退路 |
 | 2026-10-27 | Claude Code (Claude Opus 5.5) | R05.4（ADR-031 的「後續（R05.4）」）：重複性的樣本統計（`repeatability` 的 `summarize`）在 `AOI_DOMAIN_IMPL=rust` 時由 Rust 計算；依賴表與公開標頭都沒有變。C++ 的實作搬到 `src/domain/legacy/repeatability_legacy.cpp`（`aoi::legacy`），`valueOf`、`defaultMetrics`（型別的存取與預設的指標表）分到兩種建置共用的 `repeatability_types.cpp`；rust 建置的包裝 `repeatability_rs.cpp`（值直接借用 `std::span` 的資料，輸出是呼叫端配置的 `AoiRsStatistics`）。C ABI 版本 4。新增效能量測 `tests/domain/perf_repeatability_stats`（`tools/perf-compare.mjs` 的來源 `repeatability_stats`） |
 | 2026-10-27 | Claude Code (Claude Opus 5.5) | R05.3（ADR-031 的「後續（R05.3）」）：比對區的換算（`match_region`）與自動擷取（`feature_extract`：Otsu、最近的亮塊、外擴）在 `AOI_DOMAIN_IMPL=rust` 時由 Rust 計算；依賴表與公開標頭都沒有變。C++ 的實作搬到 `src/domain/legacy/`（`aoi::legacy`），`operator==` 分到兩種建置共用的 `match_region_equality.cpp`；rust 建置的包裝 `match_region_rs.cpp`、`feature_extract_rs.cpp` 與內部標頭 `match_region_rs_bridge.h`（輸入的遮罩、runs 與影像的像素直接借給 Rust，輸出是 handle）。C ABI 版本 3。新增效能量測 `tests/domain/perf_match_region`（`tools/perf-compare.mjs` 的來源 `match_region`） |
 | 2026-10-27 | Claude Code (Claude Opus 5.5) | R05.2（ADR-031 的「後續（R05.2）」）：晶格的其餘部分（累加器、空間格子、分群、找基底、連通、接受規則、估計、預測）在 `AOI_DOMAIN_IMPL=rust` 時由 Rust 計算；依賴表沒有變。公開標頭只改私有部分：`SpatialGrid` 改 pimpl（不可複製、可以移動）、`LatticeAccumulator` 與兩個內建分群策略多一個 friend（`detail::LatticeAccumulatorAccess`、`detail::ClusteringAccess`）。新增內部標頭 `lattice/lattice_accumulator_access.h`（兩種實作共用的累加器狀態）、`lattice/lattice_rs_bridge.h/.cpp`（只在 rust 建置：C 結構的轉換、分群策略的橋：內建的用列舉、其他的用回呼，C++ 的例外記下再重新丟出）；C++ 的實作搬到 `lattice/legacy/`；估計一次 FFI 呼叫（整個流程在 Rust）。C ABI 版本 2 |
@@ -60,7 +61,7 @@ app ──► presentation ──► application ──► domain
 
 | 層（`src/` 下） | 可以依賴 | 禁止 |
 |---|---|---|
-| `domain` | C++ 標準庫；`AOI_DOMAIN_IMPL=rust` 時加 Rust 的 crate `rust/aoi_domain_rs`（只用 Rust 標準庫，經 C ABI，ADR-031） | Qt、OpenCV、HALCON、任何 I/O；Rust crate 的外部依賴 |
+| `domain` | C++ 標準庫；`AOI_DOMAIN_IMPL=rust`（R05.5 起是預設）時加 Rust 的 crate `rust/aoi_domain_rs`（只用 Rust 標準庫，經 C ABI，ADR-031） | Qt、OpenCV、HALCON、任何 I/O；Rust crate 的外部依賴 |
 | `application` | `domain` | Qt、OpenCV、HALCON |
 | `infrastructure/backend_opencv` | `application`(ports)、`domain`、OpenCV | Qt Widgets、HALCON、其他 adapter |
 | `infrastructure/backend_halcon` | `application`(ports)、`domain`、HALCON | Qt Widgets、OpenCV、其他 adapter |

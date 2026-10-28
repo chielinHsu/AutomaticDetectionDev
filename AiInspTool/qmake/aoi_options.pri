@@ -8,7 +8,8 @@
 #   AOI_DEMO_SCENE    ON／OFF（預設 ON）--demo（合成板子與框）
 #   AOI_OPENCV_DIR    OpenCV 的 build 資料夾（預設 D:/opencv/opencv/build，見 aoi_opencv.pri）
 #   AOI_HALCON_SDK_DIR  HALCON 的標頭與匯入程式庫（預設 repo 的 third_party/halcon，見 aoi_halcon.pri）
-#   AOI_DOMAIN_IMPL   cpp／rust（預設 cpp）domain 演算法的實作（ADR-031）：rust ＝ rust/aoi_domain_rs，建置時呼叫 cargo（見 aoi_rust.pri）
+#   AOI_DOMAIN_IMPL   rust／cpp（預設 rust，R05.5 起）domain 演算法的實作（ADR-031）：rust ＝ rust/aoi_domain_rs，建置時呼叫 cargo（見 aoi_rust.pri）；
+#                     cpp ＝ 原本的 C++ 實作（src/domain/legacy/、src/domain/lattice/legacy/，保留當對照與退路），用不到 cargo
 #   AOI_CARGO         cargo.exe 的位置（預設 %CARGO_HOME%/bin、%USERPROFILE%/.cargo/bin，見 aoi_rust.pri）
 # 打開的選項找不到函式庫時直接報錯，不會悄悄關掉（ADR-018：功能悄悄不見就是這次要解決的問題）。
 
@@ -18,7 +19,7 @@ isEmpty(AOI_WITH_OPENCV): AOI_WITH_OPENCV = ON
 isEmpty(AOI_WITH_HALCON): AOI_WITH_HALCON = ON
 isEmpty(AOI_BUILD_TESTS): AOI_BUILD_TESTS = ON
 isEmpty(AOI_DEMO_SCENE): AOI_DEMO_SCENE = ON
-isEmpty(AOI_DOMAIN_IMPL): AOI_DOMAIN_IMPL = cpp
+isEmpty(AOI_DOMAIN_IMPL): AOI_DOMAIN_IMPL = rust
 for(option, $$list(AOI_WITH_OPENCV AOI_WITH_HALCON AOI_BUILD_TESTS AOI_DEMO_SCENE)) {
     !equals($$option, ON):!equals($$option, OFF): \
         error("$$option must be ON or OFF, not '$$eval($$option)'.")

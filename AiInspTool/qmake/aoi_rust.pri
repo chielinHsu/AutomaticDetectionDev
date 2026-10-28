@@ -1,4 +1,4 @@
-# Rust：domain 演算法的 Rust 實作（rust/aoi_domain_rs；AOI_DOMAIN_IMPL=rust 時由 aoi_options.pri include；ADR-031）。
+# Rust：domain 演算法的 Rust 實作（rust/aoi_domain_rs；AOI_DOMAIN_IMPL=rust（R05.5 起是預設）時由 aoi_options.pri include；ADR-031）。
 #
 # 建置：子專案 src/domain_rs/domain_rs.pro 在 domain 之前呼叫 cargo，產出 staticlib（aoi_domain_rs.lib）；
 # 連到 domain 的每個程式（AOI_EXT_domain = rust，aoi_target.pri）都連結它與下面的系統程式庫。

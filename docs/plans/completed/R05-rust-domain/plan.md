@@ -2,9 +2,9 @@
 id: R05
 title: Rust 混合架構第一階段：domain 的演算法搬進 Rust
 type: 重構
-status: 進行中
+status: 完成
 created: 2026-10-27
-updated: 2026-10-27
+updated: 2026-10-28
 depends_on: []
 related: [R01, R03]
 branch: refactor/r05-<N>-<slug>（每一步一個）
@@ -21,6 +21,7 @@ branch: refactor/r05-<N>-<slug>（每一步一個）
 | 產出位置 | `rust/aoi_domain_rs/`、`src/domain/ffi/`、`src/domain/`（.cpp 改成包裝）、`AiInspTool/src/domain_rs/`、`AiInspTool/qmake/`、`tests/domain/tst_domain_rs_diff.cpp`、`scripts/dev/` |
 
 > **修訂紀錄**：
+> 2026-10-28：R05.5 完成，計畫完成、資料夾搬到 `docs/plans/completed/`（預設改 `rust`；完整矩陣 10 組全部通過；效能交替量測：產品路徑相同或較快、逐次呼叫的微基準較慢，重建基準線；使用者決定保留 `cpp` 選項與 C++ 的實作、第二階段先不做；結果見 ADR-031 的「後續（R05.5）」）。
 > 2026-10-27：AI 結構 3.0.0（ADR-032）：本檔從 `docs/plan/R05-rust-domain.md` 搬成計畫資料夾的 `plan.md`，加上 frontmatter 與細項表（從舊的需求進度表照抄）；之前的紀錄在 `docs/legacy/`。
 > 2026-10-27：R05.4 完成（重複性的 `summarize` 搬進 Rust；差異測試含真實報表全部一位不差；新增效能量測 `perf_repeatability_stats`；結果見 ADR-031 的「後續（R05.4）」）。
 > 2026-10-27：R05.3 完成（比對區與自動擷取搬進 Rust；差異測試全部一位不差；新增效能量測 `perf_match_region`；結果見 ADR-031 的「後續（R05.3）」）。
@@ -51,7 +52,7 @@ After this plan, a Rust crate does the domain calculations. The same tests pass 
 | R05.2 | 晶格（累加器、空間格子、分群含自訂策略回呼、基底、格子分量、接受規則、估計、預測）；T3 before／after | ✅ | `refactor/r05-2-lattice`，tag `r05.2-done` | VERIFIED：`test.ps1` Release＋Rust 66／66、Release＋Cpp 65／65、Debug＋Rust 66／66、Debug＋Cpp 65／65（完整執行時兩種的 Debug 都只有已知不穩定的 `tst_presenter::aSlowSearchShowsBusyThenProgressAndEscCancelsToIdleAtOnce`（Debug 的 2 秒忙碌等待，進度表「待使用者決定」第 5 項）失敗，單獨重跑通過；Cpp 單獨重跑 4 次 2 次通過，耗時 164–270 s 隨另一個 session 的建置負載變動。Debug＋Cpp 第一次建置遇到一次 `LNK1236`（`lattice_accumulator_legacy.obj` 寫壞），刪掉那個 .obj 重建後正常），0 個 LNK 警告；`tst_domain_rs_diff` 164 項（1 147 組點的估計、7 080 次預測等，約 177 萬個浮點值全部一位不差）；對時間敏感的 HALCON／取消延遲測試在機器滿載時失敗、單獨重跑通過；效能：rust 的 T3 0.46–0.66 ms（before 0.57–1.47），逐點呼叫累加器每次多約 11 ns（ADR-031「後續（R05.2）」）；`-NoOpenCv`／`-NoHalcon` 未跑 |
 | R05.3 | 比對區與特徵擷取（`match_region`、`feature_extract`） | ✅ | `refactor/r05-3-match-region`，tag `r05.3-done` | VERIFIED（真實影像的召回與位置除外）：`test.ps1` Release＋Rust 66／66、Release＋Cpp 65／65、Debug＋Cpp 65／65、Debug＋Rust 65／66（只有已知不穩定的 `tst_presenter::aSlowSearchShowsBusyThenProgressAndEscCancelsToIdleAtOnce` 失敗，單獨重跑通過），0 個 LNK4 警告；`tst_domain_rs_diff` 169 項（約 3.3 萬個浮點值一位不差，遮罩、runs、門檻完全相同）；cargo 4 項（36 個單元測試）、`check-deps`、`ste-lint` 通過；效能：新的 `perf_match_region` 交替 3 次（ADR-031「後續（R05.3）」）；`perf_match_region_real`：影像 2026-10-20 換過、預設參數對不上，搬之前就失敗，只比了真實影像上的擷取（before／after 相同）；`-NoOpenCv`／`-NoHalcon`／Profile 未跑 |
 | R05.4 | 重複性統計（`repeatability` 的 `summarize`；`valueOf`、`defaultMetrics` 是型別的存取與預設的指標表，兩種建置共用）；新增效能量測 `perf_repeatability_stats` | ✅ | `refactor/r05-4-repeatability`，tag `r05.4-done` | VERIFIED（`realFiveRuns` 的原始資料除外）：`test.ps1` Release＋Rust 66／66、Release＋Cpp 65／65、Debug＋Rust 66／66、Debug＋Cpp 65／65，0 個 LNK4 警告；`tst_domain_rs_diff` 171 項（20 萬組隨機輸入的 98.8 萬個浮點值、真實 BOX LEVEL 報表 309 份 CSV 的 37.2 萬個浮點值，全部一位不差）；cargo 4 項（41 個單元測試）、`check-deps`、`ste-lint` 通過；效能交替 3 次（ADR-031「後續（R05.4）」）；`tst_repeatability::realFiveRuns` 的五份 CSV 在這台機器找不到，照舊跳過；`-NoOpenCv`／`-NoHalcon`／Profile 未跑 |
-| R05.5 | 收尾：預設改 `rust`、完整測試矩陣、效能閘門與基準線、C++ 重複實作的去留（問使用者）、文件 | ⬜ |  | 尚未開始 |
+| R05.5 | 收尾：預設改 `rust`、完整測試矩陣、效能閘門與基準線、C++ 重複實作的去留（問使用者）、文件 | ✅（使用者決定保留 `cpp` 選項與 C++ 的實作；第二階段先不做） | `refactor/r05-5-finish`，tag `r05.5-done` | VERIFIED（真實資料的兩項除外）：`test.ps1` 10 組——Release／Debug／Profile × Rust 66／66、× Cpp 65／65，Release＋Rust 的 `-NoOpenCv` 63／63、`-NoHalcon` 64／64、兩個都關 61／61，Release＋Cpp 兩個都關 60／60；0 個 LNK4 警告；只有已知對時間敏感的 `tst_presenter` 在 Debug＋Cpp、Profile＋Rust 各失敗一次，單獨重跑通過；HALCON 有授權、XFAIL 只有既有的兩列。效能：`perf.ps1 -Runs 3` 對舊基準線失敗（雜訊大；三次都變慢的是 `lattice/FULL-*` 與 `ui-s04` 的 I4／I6／U3-scene），cpp 與 rust 交替量 3 次證明產品路徑相同或較快、只有逐次呼叫的 `INC-*`／`FULL-*`／`NMS-PAIR` 較慢、`ui-s04` 的變慢兩種建置都有（不是 Rust），重建基準線（同一份程式 6 次完整量測裡最安靜的三次，`-WriteBaseline` 那次有兩次受其他建置干擾而不採用；預算不動）。**未驗證**：`perf_match_region_real`（影像換過、預設參數對不上）、`tst_repeatability::realFiveRuns`（CSV 找不到）；Qt Creator 的 GUI 沒有操作 |
 
 圖例：✅ 完成　⏳ 進行中　⬜ 尚未開始　⚠️ 有未解決問題　⛔ 取消
 
