@@ -21,7 +21,7 @@
 - 沒有跑 `-DomainImpl Cpp`（改的是 application 層，domain 兩種實作都沒動）、沒有跑 `-Perf`。
 
 ### Commit
-- 見 `status.md`／下一筆。
+- `ad88b05` [Caspar]fix: 影像上驗證不到的推算格預設不回報（分支 `fix/r07-multi-sample`，本機，沒有合併、沒有 push）。
 
 ## 2026-10-29 — Codex (gpt-6.1-sol)：四個回歸修復收尾
 
