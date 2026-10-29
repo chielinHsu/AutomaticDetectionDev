@@ -1,16 +1,19 @@
-// 真實影像、幾個樣本（R07）：使用者回報「樣本越多，匹配越差」。這個量測在使用者的影像上用 1、2、3 個樣本各搜尋一次
+﻿// 真實影像、幾個樣本（R07）：使用者回報「樣本越多，匹配越差」。這個量測在使用者的影像上用 1、2、3 個樣本各搜尋一次
 // （走產品的 searchBoardWithSamples：每個樣本一條 GenerateObjectsFromSample，再依位置合併），倒出每一種情況的
 // 候選來源（Seed／Verified／Predicted）、分數分布、合併數、門檻 0.69 與 0.87 的分類、不在格點上的數量，
 // 以及每個樣本自己的晶格；另外畫一張縮小的疊圖（<建置目錄>/multi-<檔名>-<back end>-<n>.png）給人看。
 // 先量再改（S11 規則）：改驗證下限與合併規則之前的 before、之後的 after 都用這個工具。
 //
 // 環境變數：AOI_REAL_IMAGE_DIR 指到影像的資料夾才執行（沒有就 QSKIP）；AOI_MULTI_FILE 檔名（預設 0_0_HA.tif）；
+// AOI_MULTI_MATCH 第一個樣本的比對區："x,y,w,h[,edge]" 矩形或 "mask:cx,cy[,grow][,edge]" 自動擷取的遮罩（見 matchFor；沒設 ＝ 整框、灰階）；
 // AOI_MULTI_SAMPLE="x,y,w,h" 第一個樣本（預設 AdvancePin 的 0_0_HA.tif 一根端子：1621,328,100,100，和使用者畫的一樣是
 // 100×100 的方框）。第二、第三個樣本不用手挑：從第一個樣本的種子裡取分數 ≥ 0.90、離已有樣本最遠的（使用者畫的是同一種
 // 零件的幾個實例）。每個註冊而且可用的 back end 一列；HALCON 不能用時那一列跳過並說原因。
 // 讀 TIFF 要 OpenCV 的影像來源，所以只在 AOI_WITH_OPENCV=ON 時建置（AiInspTool/tests/tests.pro）。
 #include <QDir>
+#include <QFile>
 #include <QFileInfo>
+#include <QTextStream>
 #include <QtTest>
 #include <algorithm>
 #include <array>
@@ -27,6 +30,7 @@
 #include "application/usecases/ProposalView.h"
 #include "application/usecases/SearchBoardWithSamples.h"
 #include "domain/image_depth.h"
+#include "domain/feature_extract.h"
 #include "domain/lattice/lattice_estimator.h"
 #include "domain/lattice/lattice_predictor.h"
 #include "infrastructure/backend_opencv/OpenCvImageSource.h"
@@ -45,6 +49,44 @@ Rect firstSample() {
 
 Rect sampleAround(Point2D center, const Rect& like) {
     return {std::round(center.x - like.w / 2.0), std::round(center.y - like.h / 2.0), like.w, like.h};
+}
+
+// 比對區（ADR-028）：AOI_MULTI_MATCH 設定第一個樣本的比對區（影像像素、絕對座標），其他樣本用同一個相對主體框的位移：
+//  - "x,y,w,h[,edge]"：矩形（edge ＝ 邊緣特徵）；
+//  - "mask:cx,cy[,grow][,edge]"：和 M 工具點一下一樣——主體框內 Otsu、離 (cx,cy) 最近的亮連通塊、外擴 grow px。
+// 沒有設定 ＝ 整個主體框、灰階（和使用者沒有按 M 一樣）。
+MatchSpec matchFor(const ImageView& image, const Rect& body, const Rect& firstBody) {
+    QString text = qEnvironmentVariable("AOI_MULTI_MATCH");
+    const bool mask = text.startsWith(QLatin1String("mask:"), Qt::CaseInsensitive);
+    if (mask) text = text.mid(5);
+    const QStringList parts = text.split(QLatin1Char(','));
+    MatchSpec spec;
+    const bool edges = !parts.isEmpty() && parts.back().trimmed().compare(QLatin1String("edge"), Qt::CaseInsensitive) == 0;
+    const int dx = static_cast<int>(std::lround(body.x - firstBody.x));
+    const int dy = static_cast<int>(std::lround(body.y - firstBody.y));
+    if (mask) {
+        if (parts.size() < 2) return {};
+        const Point2D click{parts[0].toDouble(), parts[1].toDouble()};
+        const int grow = parts.size() > 2 ? parts[2].toInt() : 0;
+        const std::optional<BlobPick> pick = pickBrightBlob(image, firstBody, click);
+        if (!pick) qFatal("AOI_MULTI_MATCH: no bright blob near (%.0f, %.0f) inside the first sample", click.x, click.y);
+        PixelMask m = growMask(pick->blob, grow, firstBody);
+        static bool reported = false;
+        if (!reported) {
+            reported = true;
+            qInfo("  match mask: Otsu %d, blob %zu px -> grown %d px: %zu px, bounds (%d,%d %dx%d)", pick->threshold8, pick->blob.count(),
+                  grow, m.count(), m.x, m.y, m.width, m.height);
+        }
+        m.x += dx;
+        m.y += dy;
+        spec.rect = Rect{static_cast<double>(m.x), static_cast<double>(m.y), static_cast<double>(m.width), static_cast<double>(m.height)};
+        spec.mask = std::move(m);
+    } else {
+        if (parts.size() < 4) return {};
+        spec.rect = Rect{parts[0].toDouble() + dx, parts[1].toDouble() + dy, parts[2].toDouble(), parts[3].toDouble()};
+    }
+    if (edges) spec.mode = MatchMode::Edges;
+    return spec;
 }
 
 // 從第一個樣本的結果裡挑下一個樣本：分數 ≥ minScore 的種子中，離已有樣本的最小距離最大的那一個。
@@ -156,23 +198,24 @@ private:
         SampleRequest request;
         request.image = view;
         request.sample = sample;
+        request.match = matchFor(view, sample, firstSample());
         const Result<SampleProposal> r = core.engine->generate->run(request, CancelToken());
         QVERIFY2(r.ok(), r.ok() ? "" : r.error().message.c_str());
         const SampleProposal& p = r.value();
         std::size_t bySource[4] = {0, 0, 0, 0};
         for (const Candidate& c : p.candidates) ++bySource[static_cast<int>(c.source)];
         qInfo("  sample %zu (%.0f,%.0f %.0fx%.0f): problem %s | candidates %zu: seed %zu, verified %zu, predicted %zu | lattice found %d, "
-              "lattices %zu, u (%.1f, %.1f), v (%.1f, %.1f), rms %.2f px, coverage %.3f, confidence %.3f, holes %zu | %.0f ms",
+              "lattices %zu, u (%.1f, %.1f), v (%.1f, %.1f), rms %.2f px, coverage %.3f, confidence %.3f, holes %zu (unverified %zu) | %.0f ms",
               index + 1, sample.x, sample.y, sample.w, sample.h, p.sampleProblem ? "yes" : "no", p.candidates.size(), bySource[1],
               bySource[2], bySource[3], p.grid.found, p.grid.lattices, p.grid.u.x, p.grid.u.y, p.grid.v.x, p.grid.v.y, p.grid.rmsPx,
-              p.grid.coverage, p.grid.confidence, p.grid.holes, p.timings.totalMs);
+              p.grid.coverage, p.grid.confidence, p.grid.holes, p.grid.unverified, p.timings.totalMs);
     }
 
     void reportMerged(const char* backend, const app::CoreServices& core, const ImageView& view, const std::vector<Rect>& samples) {
         BoardSearchRequest request;
         request.image = view;
         for (std::size_t i = 0; i < samples.size(); ++i) {
-            request.samples.push_back(SampleSearch{"t" + std::to_string(i + 1), samples[i], MatchSpec{}});
+            request.samples.push_back(SampleSearch{"t" + std::to_string(i + 1), samples[i], matchFor(view, samples[i], samples.front())});
         }
         const Result<BoardProposal> r = searchBoardWithSamples(*core.engine->generate, request, CancelToken());
         QVERIFY2(r.ok(), r.ok() ? "" : r.error().message.c_str());
@@ -206,6 +249,18 @@ private:
             const ProposalView v = classify(p, threshold);
             qInfo("[%s] %zu sample(s): threshold %.2f -> found %zu, rejected %zu, inferred %zu, off lattice %zu", backend, samples.size(),
                   threshold, v.found, v.rejected, v.inferred, v.offLattice);
+        }
+        // AOI_MULTI_DUMP=<檔案>：一個樣本時把所有候選倒成 CSV（x, y, score, source, onLattice），給外面的腳本分區統計。
+        const QString dump = qEnvironmentVariable("AOI_MULTI_DUMP");
+        if (!dump.isEmpty() && samples.size() == 1) {
+            QFile f(dump);
+            QVERIFY2(f.open(QIODevice::WriteOnly | QIODevice::Text), qPrintable(dump));
+            QTextStream out(&f);
+            out << "x,y,score,source,onLattice\n";
+            for (const BoardCandidate& c : p.candidates) {
+                out << c.pose.x << ',' << c.pose.y << ',' << (c.hasScore() ? c.score : -1.0) << ',' << static_cast<int>(c.source) << ','
+                    << (c.onLattice() ? 1 : 0) << '\n';
+            }
         }
         writeOverlay(view, p, samples, 0.87,
                      QDir::current().filePath(QStringLiteral("multi-%1-%2-%3.png").arg(QFileInfo(file_).baseName(), QString::fromLatin1(backend)).arg(samples.size())));
@@ -256,6 +311,7 @@ private slots:
             SampleRequest request;
             request.image = view;
             request.sample = samples.front();
+            request.match = matchFor(view, samples.front(), samples.front());
             const Result<SampleProposal> r = core.engine->generate->run(request, CancelToken());
             QVERIFY2(r.ok(), r.ok() ? "" : r.error().message.c_str());
             QVERIFY2(!r.value().sampleProblem, "the first sample has a problem; set AOI_MULTI_SAMPLE");

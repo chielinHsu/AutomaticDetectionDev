@@ -337,7 +337,10 @@ Result<SampleProposal> GenerateObjectsFromSample::run(const SampleRequest& reque
                 if (member[k]) c.latticePose = Pose2D{node.x, node.y, sampleAngle};
                 proposal.candidates.push_back(c);
             } else {
-                // 影像上沒有找到：只有預測的位置，沒有分數（Inferred）。角度沿用樣本的角度（同一個陣列的元件方向一致）。
+                // 影像上沒有找到：只有預測的位置，沒有分數（Inferred）。預設不回報（ADR-035：真實影像上這種格子都是
+                // 陣列角落與長槽邊緣的誤判），只記數量；打開 reportUnverifiedHoles 才回報，角度沿用樣本的角度。
+                ++proposal.grid.unverified;
+                if (!options.reportUnverifiedHoles) continue;
                 Candidate c{Pose2D{node.x, node.y, sampleAngle}, 0.0, CandidateSource::Predicted};
                 c.latticePose = c.pose;
                 c.latticeDeviationPx = 0.0;

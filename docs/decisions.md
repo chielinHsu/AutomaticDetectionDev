@@ -7,6 +7,10 @@
 
 | 編號 | 標題 | 狀態 | 日期 |
 |---|---|---|---|
+| [ADR-035](adr/035-unverified-holes-not-reported.md) | 影像上驗證不到的推算格預設不回報：`GenerateOptions::reportUnverifiedHoles`（預設 false）、`GridSummary::unverified`；真實影像上這種格子全是長槽角落的誤判，教學影像是好板子；核心與契約測試打開選項驗證機制，`tst_presenter` 與新測試驗證預設；畫面不加選項 | 採用（不畫由使用者決定；做法是 Claude Code 的提案） | 2026-10-29 |
+| [ADR-034](adr/034-socket-table-batch-column-sizing.md) | Socket 表格在批次更新後統一調整欄寬，避免拖移放開時反覆內容排版 | 採用 | 2026-10-29 |
+| [ADR-034](adr/034-socket-sample-search.md) | Socket 教多個樣本後搜尋整張圖、第一樣本統一輸出尺寸、相似度篩選及 v3 配方保存 | 採用 | 2026-10-29 |
+| [ADR-033](adr/033-socket-teaching-mvp.md) | Socket 焊點教學：獨立視窗、區域亮塊定位、單框編輯與既有 v3 配方 | 採用 | 2026-10-28 |
 | [ADR-032](adr/032-ai-structure-v3.md) | AI 結構 3.0.0：每個計畫一個資料夾（取代 ADR-030 的需求進度表與 changelog 部分；範本同步升級） | 採用 | 2026-10-27 |
 | [ADR-031](adr/031-rust-domain-hybrid.md) | Rust 混合架構第一階段：domain 的演算法（晶格、NMS、比對區、特徵擷取、重複性統計）搬進 Rust crate `rust/aoi_domain_rs`，C++ 標頭不變；C ABI、零外部 crate、qmake 呼叫 cargo、`AOI_DOMAIN_IMPL=cpp\|rust` 兩套並存、既有測試在兩種實作都跑＋逐筆的差異測試；UI、OpenCV、HALCON、application 留在 C++ | 採用（範圍由使用者決定；技術做法 2026-10-27 R05.1 實測確認，見「後續」；2026-10-28 R05.5 起預設 `rust`、`cpp` 保留） | 2026-10-27 |
 | [ADR-030](adr/030-ai-structure-2-0-0.md) | 導入 AI 結構 2.0.0 與範本升級：入口改為四條（繁中含子 session、完成總結、需求進度表）、範本管理檔換成 2.0.0、專案擁有檔合併、`current-status.md` 開頭為需求進度表 | 採用（補充 ADR-000） | 2026-10-21 |

@@ -4,7 +4,7 @@ title: 多樣本搜尋的合併與驗證規則：樣本越多結果不應越差
 type: 修正
 status: 進行中
 created: 2026-10-28
-updated: 2026-10-28
+updated: 2026-10-29
 depends_on: []
 related: [ADR-025, ADR-026]
 branch: fix/r07-multi-sample
@@ -40,6 +40,10 @@ branch: fix/r07-multi-sample
 | R07.2 | （使用者 2026-10-28 決定：改晶格估計）晶格的索引區域不再是外接矩形：索引的外接矩形 ∩ 影像空間裡沿 u 的外接矩形 ∩ 有兩側證據的空格（`lattice_region.h/.cpp`、Rust 的 `region.rs`；`cellCount`、涵蓋率、`holes` 用它，規則 2 用「證據數」；C ABI 版本 5）；ADR-013 的「後續（R07.2）」 | ✅ | `fix/r07-multi-sample` | `cargo test`／clippy／fmt 通過；`tst_lattice*`（含 1 029 種情境）、`tst_domain_rs_diff` 通過；完整的 `test.ps1`（Rust 預設與 `-DomainImpl Cpp`）見 `changelog.md` |
 | R07.3 | 回歸測試：`tst_lattice` 加三個交錯陣列的測試、差異測試加 12 種交錯情境、Rust 的 `region.rs` 單元測試；`LatticeTestSupport` 的標準答案用同一條證據規則；說明頁的資料重新產生；真實影像的 after 數字（下方） | ✅ | `fix/r07-multi-sample` | 同上 |
 | R07.4 | 原本的 R07.2（驗證下限相對於種子分數、合併時同類型優先與衝突標記、同一種零件的幾個樣本只擬合一組晶格）：等 R07.2 的 after 數字再決定要不要做 | ⬜ | | |
+| R07.5 | 重現並區分四個回歸失敗的建置產物、Rust/C++、FFI 與標準答案原因；保留 R07 原有工作 | ✅ | 未提交 | PARTIALLY VERIFIED：3 組為過期 C++ 產物；Lattice 為範圍與缺件證據的測資問題；紅→綠各兩次，詳見 tasks/regression-repair.md |
+| R07.6 | 依證據修復根因並鎖定回歸；不放寬既有斷言、不回復交錯陣列／長槽功能 | ✅ | 未提交 | PARTIALLY VERIFIED：Rust／C++ Lattice 各 77 passed；精確驗證 6／15 個缺格，另補裁切、無證據角落與棋盤缺件案例；未改演算法 |
+| R07.7 | 重建受影響目標、完整回歸、Socket 真實圖操作及配方存讀；更新交接 | ✅ | 未提交；使用者明確禁止 commit／push | PARTIALLY VERIFIED：67/67 執行成功；Socket 10/0/0；保留 7 組既有 skip 與 2 個 XFAIL；交接已更新 |
+| R07.8 | 影像驗證不到的推算格預設不回報（使用者 2026-10-29 決定）：`GenerateOptions::reportUnverifiedHoles`（預設 false）、`GridSummary::unverified`；核心與契約測試打開選項驗證補漏的機制，`tst_presenter` 與新測試驗證預設；量測工具 `perf_multi_sample_real` 多 `AOI_MULTI_MATCH`（矩形／自動擷取的遮罩）、`AOI_MULTI_DUMP`；ADR-035 | ✅ | `fix/r07-multi-sample`（commit 見 `changelog.md`） | VERIFIED：完整 `test.ps1`（Release、Rust）66／67 → 改 `tst_presenter` 的格數後通過，最後 `-NoBuild` 67／67；真實影像 HALCON 推算 13 → 0、OpenCV 7 → 0，其餘數字不變 |
 
 圖例：✅ 完成　⏳ 進行中　⬜ 尚未開始　⚠️ 有未解決問題　⛔ 取消
 
@@ -78,8 +82,25 @@ branch: fix/r07-multi-sample
 - 驗證找到的候選（verified）都是視窗裡真的端子（predicted 0 ＝ 每個缺格都找到東西）；長槽裡沒有任何框（疊圖 `build/qmake-release/test-work/multi-0_0_HA-*.png`）。
 - HALCON 的召回（210／約 360）是另一個問題（搜尋器的參數），不在本計畫。
 
+## R07.8 的量測（2026-10-29，使用者實際用的影像）
+
+影像 `20261014_4677_AdvancePin_LeftTopRegion_Proj\FovImages\0_0_HA.tif`（整張都是端子，右下角一個長槽；和 before／after 用的不是同一張），樣本 (427, 634, 100×100)＝使用者畫面上中心 (477, 684) 的 X1。分區：長槽內部 (4340, 3000)–(5314, 3813)、鋸齒帶＝內部往外 90 px、其餘＝真端子。每一格是「分數 ≥ 0.70 的數量／有分數的數量（中位數）」；槽內是沒有影像支持的推算格。
+
+| 範本 | HALCON 真端子 | HALCON 鋸齒 | HALCON 槽內推算 | OpenCV 真端子 | OpenCV 鋸齒 | OpenCV 槽內推算 |
+|---|---|---|---|---|---|---|
+| 整框 100×100（使用者的設定） | 855／1068（0.89） | 0，最高 0.70 | 4（13 個 unverified） | 1081／1112（0.92） | 1，最高 0.71 | 7（＋5 個 0.45–0.69） |
+| 矩形比對區（使用者圖四的紅框 429,659 82×43） | 2250（遍地誤報） | 6 | 0 | 1771（誤報） | 1 | 0 |
+| 點端子自動擷取的遮罩（Otsu 142，688 px，41×21）外擴 0 | **1059／1087（0.79）**，離格 0 | 1，最高 **0.48** | 1 | 1191／1209（0.84），約 100 個離格誤報 | 4 | 11 |
+| 同上，外擴 8 px（57×37） | 1075／1113（0.81） | 0，最高 0.56 | 8 | 1991（誤報） | 8 | 0 |
+
+- 樣本框裡沒有完整的焊墊（上緣與左下角的白色是鄰居焊墊的邊），自動擷取抓到的是端子。
+- 結論：槽內的推算格和範本無關（是角落規則補的）→ R07.8 不回報；HALCON 建議 `M` 點端子（外擴 0），門檻留 0.70；OpenCV 維持整框。
+- R07.8 之後（整框）：HALCON `predicted 0 (unverified 13)`、OpenCV `predicted 0 (unverified 7)`，其餘數字不變。
+- 工具：`AOI_MULTI_MATCH`、`AOI_MULTI_DUMP`；分區統計的腳本在 session 的 scratchpad（`slot_stats.mjs`，不入版控）；log、CSV、疊圖在 `build/qmake-release/test-work/lt-*`、`after-*`。
+
 ## 決策
 
+- 本次（2026-10-28，Codex）追加四個回歸失敗的修復：先檢查靜態庫與測試是否為同一份來源，再查 Rust/C++ 與 FFI；沿用 ADR-013 的交錯陣列及長槽規則、ADR-031 的雙實作契約。以現有最小失敗測試作為回饋迴圈；只在實際證明標準答案錯誤時才修正它。變更前後流程與驗證記錄放在本計畫 tasks/regression-repair.md。本次不提交、不推送。
 - R07.1 的結論：多樣本的合併規則不是主因；主因是晶格估計不支援交錯排列（索引範圍用外接矩形）與陣列中間的大片空區（長槽）。使用者 2026-10-28 決定改晶格估計（R07.2）；設計與代價記在 ADR-013 的「後續（2026-10-28，R07.2）」。
 - R07.4（原本的合併規則）：after 的數字顯示 3 個樣本沒有比 1 個差（不在格點 0、沒有低分的垃圾候選），先不做；使用者再看到問題時再開。
 

@@ -2,6 +2,39 @@
 
 > 只新增，新紀錄放最上方；只記本計畫的事。每個 agent session 一筆。
 
+## 2026-10-29 — Claude Code (Claude Fable 5.1)：R07.8 影像上驗證不到的推算格預設不回報
+
+### 細項
+- 使用者在程式裡驗證 R07.2（LeftTopRegion 的 `0_0_HA.tif`、HALCON、樣本 427,634 100×100）：長槽角落仍有「推算」框、槽緣有 0.71 的「找到」；另問「只框端子當比對區會不會比較好」。量測（本次把工具加上比對區與 CSV）：槽內的推算格是陣列角落「兩個方向都貼著內點」的規則補出來的、驗證不到（< 0.30），換範本（整框、矩形、自動擷取的遮罩、外擴）都還在；槽緣鋸齒的分數整框時剛好 0.70；矩形比對區在兩個 back end 都遍地誤報（HALCON 2250、OpenCV 1771 個）；點端子自動擷取的遮罩在 HALCON 有效（鋸齒 0.70 → 0.48、≥ 0.70 的真端子 855 → 1059、沒有離格的，但分數壓到 0.73–0.85），OpenCV 用遮罩多約 100 個離格誤報。數字在 `plan.md` 的「R07.8 的量測」。
+- R07.8：完成。使用者決定槽內那些格子不畫：`GenerateOptions::reportUnverifiedHoles`（預設 false）、`GridSummary::unverified`；use case 第 5 步只在打開時回報 `Predicted`。核心（`CoreTestSupport.h` 的 `makeRequest`）與契約（`tst_contract_end_to_end`）的請求打開選項，繼續驗證補漏的機制；新測試 `tst_generate_objects::unverifiedHolesAreCountedButNotReportedByDefault`；`tst_presenter` 的提案格數 37 → 32、推算 ≥ 1 → 0。畫面沒有改。設計：ADR-035。
+
+### 修改的檔案
+- src/application/usecases/GenerateObjectsFromSample.h、.cpp
+- tests/core/CoreTestSupport.h、tests/core/tst_generate_objects.cpp、tests/contract/tst_contract_end_to_end.cpp、tests/ui/tst_presenter.cpp
+- tests/backend/perf_multi_sample_real.cpp（`AOI_MULTI_MATCH`：矩形或 `mask:cx,cy[,grow][,edge]` 自動擷取的遮罩；`AOI_MULTI_DUMP`：候選倒成 CSV；log 多 `unverified`）
+- docs/adr/035-unverified-holes-not-reported.md（新增）、docs/decisions.md、docs/architecture.md、docs/plans/active/R07-multi-sample-merge/（plan、status、changelog）、.ai/handoff.md
+
+### 驗證
+- 完整的 `test.ps1`（Release、Rust 預設、含建置）：改完 use case 後 66／67，只有 `tst_presenter` 的格數 37 → 32；改了標準答案之後 `test.ps1 -Filter tst_presenter` 通過（85 passed、1 skipped：原本就有）。最後再跑一次 `test.ps1 -NoBuild`：67／67 通過。原本就有的 2 個 XFAIL（OpenCV 的 B1、palette BMP）與 8 個有跳過項目的測試不變。
+- 真實影像（LeftTopRegion、`perf_multi_sample_real`）：HALCON 推算 13 → 0（`unverified 13`），OpenCV 7 → 0（`unverified 7`）；找到、拒絕、離格的數字不變（HALCON 0.69 門檻 found 862／rejected 216，OpenCV 1083／42）。
+- 一度建置失敗（`AiInspTool.exe` 連結不到 Codex R08 的 `GenerateSocketCad`、`OpenCvSocketRegionRecognizer`）：是另一個 session 進行中的檔案，幾分鐘後自己好了，不是本計畫的事。
+- 沒有跑 `-DomainImpl Cpp`（改的是 application 層，domain 兩種實作都沒動）、沒有跑 `-Perf`。
+
+### Commit
+- 見 `status.md`／下一筆。
+
+## 2026-10-29 — Codex (gpt-6.1-sol)：四個回歸修復收尾
+
+- R07.5–R07.7 完成；診斷及測試於 2026-10-28 執行，本日完成文件收尾。原 R07.1–R07.3 紀錄及 R07.4 待決定事項保留。
+- GenerateObjects、Presenter 與 Rust/C++ 差異的失敗來自過期 C++ 測試／wrapper／legacy 物件混入較新的 Rust 庫。來源已是新規則，但舊 exe 仍預期 44（來源為 37）；重編對應目標後轉綠，未改演算法。
+- Lattice 的剩餘問題是測資：交錯板到 x=2994，卻用只到 x=2000 的範圍取缺格；新增專用範圍，保留精確 6 格斷言，另驗證舊範圍裁掉 2 格。
+- 原半缺件資料為棋盤式刪除，沒有 154 px 相鄰對，不符合預設方向投票證據。正面案例仍缺 30/60，每欄保留連續三點；保留一組二維、30 個內點、154 px 間距，並逐點驗證手列的 15 個有證據缺格。原棋盤資料保留為安全性案例，另補無證據角落案例。
+- 修改：`tests/domain/tst_lattice.cpp`、本計畫 plan/status/tasks/changelog、R08 的驗證快照與交接。`src/domain`、`rust/aoi_domain_rs` 的來源 hash 與開工快照相同；不回復交錯陣列／長槽設計。
+- 驗證：四個最小案例紅→綠各兩次；完整 `test.ps1 -BuildDir build/qmake-r08 -NoBuild` exit 0、67/67；Rust 與 C++ Lattice 各 77 passed。四組分別為 GenerateObjects 54/0/0、Lattice 77/0/0、Presenter 86/0/1、Rust/C++ 差異 170/0/1（passed/failed/skipped）。
+- Socket 專項 10/0/0；真實圖選區 28 框，圈選、單框編輯、取消與配方存讀正常；截圖 `build/r09-repro/Socket-verified.png`。更新見 [R08 changelog](../R08-socket-teaching/changelog.md)。
+- 全域仍有原本 7 組 skip 與 2 個 XFAIL，整體不標為完全 VERIFIED。詳見 [診斷與驗證](tasks/regression-repair.md)。未做效能最佳化或修改預算。
+- 未 stage、未 commit、未 push；HEAD 仍為 `970ac5f`。保留 R08 未提交內容、`.archify/` 與 `AiInspTool/cargo/`。
+
 ## 2026-10-28 — Claude Code (Claude Fable 5.1)
 
 ### 細項

@@ -286,6 +286,29 @@ private slots:
         }
     }
 
+    // ADR-035：產品的預設（GenerateOptions 不動）不回報影像上驗證不到的缺格，只記數量；其餘的候選和打開時相同。
+    void unverifiedHolesAreCountedButNotReportedByDefault() {
+        fake::FakeSpec spec = gridSpec();
+        spec.missingFraction = 0.2;
+        spec.seed = 3;
+        Fixture f(spec);
+        const SampleProposal reported = f.run().value();  // makeRequest 打開 reportUnverifiedHoles
+        const std::size_t missing = countSource(reported.candidates, CandidateSource::Predicted);
+        QVERIFY2(missing >= 2, "the fixture itself must contain missing parts");
+
+        SampleRequest request = makeRequest(image800x600(), kSample);
+        request.options = GenerateOptions{};
+        QVERIFY(!request.options.reportUnverifiedHoles);
+        const SampleProposal p = f.useCase.run(request, CancelToken()).value();
+        QCOMPARE(countSource(p.candidates, CandidateSource::Predicted), std::size_t{0});
+        QCOMPARE(p.grid.unverified, missing);
+        QCOMPARE(reported.grid.unverified, missing);
+        QCOMPARE(p.grid.holes, reported.grid.holes);  // 預測的缺格數照舊：差別只在回不回報
+        QCOMPARE(p.candidates.size() + missing, reported.candidates.size());
+        for (const Candidate& c : p.candidates) QVERIFY(c.source != CandidateSource::Predicted);
+        QCOMPARE(classify(p, 0.80).inferred, std::size_t{0});
+    }
+
     void aRotatedNoisyGridWithMixedPartsMatchesTheOracle() {
         fake::FakeSpec spec = gridSpec();
         spec.gridAngleDeg = 3.0;
