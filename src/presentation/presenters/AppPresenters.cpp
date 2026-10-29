@@ -51,6 +51,7 @@ AppPresenters::AppPresenters(MainWindow& window, PresenterServices services, Bac
     QObject::connect(presenter, &AutoRoiPresenter::stateChanged, compare_.get(), &ComparePresenter::refreshEntry);
     // 錯誤卡片：名稱以 BackendPresenter 為準；〔改用 OpenCV〕交給它換（ADR-021）。
     presenter->setBackendLabels(backendPresenter->labels());
+    presenter->setBackendTraits(backendPresenter->traits());  // 比對區的建議看它（R09）
     QObject::connect(presenter, &AutoRoiPresenter::backendSwitchRequested, backendPresenter,
                      [backendPresenter](const QString& id) { backendPresenter->selectBackend(id.toStdString()); });
 }

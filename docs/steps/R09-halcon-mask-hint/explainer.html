@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>R09 比對區的建議</title>
+<style>
+:root{--bg:#f6f7f9;--panel:#fff;--ink:#18212b;--muted:#566273;--line:#d3d9e0;--accent:#1d4ed8;--accent-ink:#fff;
+  --sample:#1d4ed8;--found:#15803d;--infer:#b45309;--reject:#b91c1c;--pred:#6b7787}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#0f141a;--panel:#18202a;--ink:#e7edf4;--muted:#9aa8b8;--line:#2c3846;
+  --accent:#7aa7ff;--accent-ink:#0b1220;--sample:#7aa7ff;--found:#4ade80;--infer:#fbbf24;--reject:#f87171;--pred:#8fa0b4}}
+:root[data-theme="dark"]{--bg:#0f141a;--panel:#18202a;--ink:#e7edf4;--muted:#9aa8b8;--line:#2c3846;
+  --accent:#7aa7ff;--accent-ink:#0b1220;--sample:#7aa7ff;--found:#4ade80;--infer:#fbbf24;--reject:#f87171;--pred:#8fa0b4}
+*{box-sizing:border-box} html{color-scheme:light dark}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 system-ui,"Segoe UI","Microsoft JhengHei",sans-serif}
+.wrap{max-width:1100px;margin:0 auto;padding:16px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px}
+h1{font-size:22px;margin:0 0 12px} h2{font-size:16px;margin:16px 0 6px}
+h3{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--accent);margin:12px 0 2px}
+.zh{color:var(--muted);font-size:13.5px}
+.row{display:flex;flex-wrap:wrap;gap:12px;margin:8px 0}
+.row label{display:flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:8px;padding:6px 10px;cursor:pointer}
+.bar{border:1px solid var(--line);border-radius:8px;background:var(--bg);min-height:96px;padding:10px;margin-top:10px}
+.bar .title{font-weight:600}
+.bar .adv{color:var(--muted);font-size:13.5px;margin:4px 0}
+.bar button{margin-right:8px;margin-top:6px;border:1px solid var(--line);border-radius:6px;padding:4px 10px;background:var(--panel);color:var(--ink);cursor:pointer}
+.bar button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.hint{color:var(--muted)}
+table{border-collapse:collapse;width:100%;font-size:14px;margin-top:8px}
+th,td{border:1px solid var(--line);padding:5px 8px;text-align:left}
+.good{color:var(--found);font-weight:600} .bad{color:var(--reject);font-weight:600}
+.why{font-size:13px;color:var(--muted);margin-top:6px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>R09 比對區的建議：HALCON 建好樣本後建議用 M 點端子的遮罩</h1>
+
+  <div class="card" id="stage">
+    <h2>規則模擬器（application 的 <code>MatchAdvice::pending</code>）</h2>
+    <p class="zh">切換四個條件，看訊息列會不會出現建議卡片。規則：back end 的旗標 ∧ Idle ∧ 類型的比對區是預設 ∧ 沒按過〔關閉〕。</p>
+    <div class="row">
+      <label><input type="radio" name="be" value="halcon" checked> HALCON（suggestsMatchMask ＝ true）</label>
+      <label><input type="radio" name="be" value="opencv"> OpenCV（false）</label>
+      <label><input type="radio" name="be" value="fake"> 假 back end（false）</label>
+    </div>
+    <div class="row">
+      <label><input type="radio" name="st" value="Idle" checked> Idle</label>
+      <label><input type="radio" name="st" value="Searching"> Searching</label>
+      <label><input type="radio" name="st" value="Preview"> Preview</label>
+    </div>
+    <div class="row">
+      <label><input type="checkbox" id="sample" checked> 板上有樣本</label>
+      <label><input type="checkbox" id="region"> 樣本的類型已有比對區（或改了特徵）</label>
+      <label><input type="checkbox" id="dismissed"> 這個類型按過〔關閉〕</label>
+    </div>
+    <div class="bar" id="bar"></div>
+    <div class="why" id="why"></div>
+  </div>
+
+  <div class="card" style="margin-top:14px">
+    <h2>為什麼只有 HALCON：R07.8 在真實影像上的量測（分數 ≥ 0.70 的數量／有分數的數量）</h2>
+    <table>
+      <thead><tr><th>範本</th><th>HALCON 真端子</th><th>HALCON 長槽鋸齒</th><th>OpenCV 真端子</th><th>OpenCV 鋸齒</th></tr></thead>
+      <tbody>
+        <tr><td>整個主體框 100×100</td><td class="bad">855／1068</td><td class="bad">最高 0.70</td><td class="good">1081／1112</td><td>最高 0.71</td></tr>
+        <tr><td>M 點端子自動擷取的遮罩（外擴 0）</td><td class="good">1059／1087，離格 0</td><td class="good">最高 0.48</td><td class="bad">1191／1209，約 100 個離格誤報</td><td>4</td></tr>
+      </tbody>
+    </table>
+    <p class="zh">影像 <code>20261014_4677_AdvancePin_LeftTopRegion_Proj\FovImages\0_0_HA.tif</code>，樣本中心 (477, 684)。HALCON 的 shape model 是邊緣：整框時鄰居焊墊的邊也進了模型，鋸齒剛好拼出 0.70；遮罩只留端子。OpenCV 的 NCC 用遮罩反而誤報變多，所以維持整框。</p>
+  </div>
+
+  <div class="card" id="text" style="margin-top:14px"></div>
+</div>
+
+<script type="application/json" id="aoi-data">
+{
+  "sections": [
+    { "title": "Purpose",
+      "ste": { "text": "The message bar shows one advice card when three conditions are true. The back end prefers a mask. A sample has no match region. The tool is idle. The user can still press F5." },
+      "zh": "三個條件同時成立時，訊息列出現一張建議卡片：back end 偏好遮罩、有樣本還沒設定比對區、程式在 Idle。照樣可以按 F5。" },
+    { "title": "Reason",
+      "ste": { "text": "HALCON builds a shape model from edges. The whole body box adds the edges of the pads next to the pin. The slot teeth then get 0.70. A mask keeps the pin only. OpenCV gets more false matches with a mask. So only HALCON sets the flag." },
+      "zh": "HALCON 的 shape model 是邊緣，整框把鄰居焊墊的邊也放進去，長槽的鋸齒就拿到 0.70；遮罩只留端子。OpenCV 用遮罩誤報變多，所以只有 HALCON 填旗標。" },
+    { "title": "Effect",
+      "ste": { "text": "The card shows after a new sample, after a switch to HALCON, and after an accept or a discard. One button selects the sample and starts the M tool. The other button closes the card for these samples. A new sample shows the card again." },
+      "zh": "建完樣本、切到 HALCON、接受或捨棄之後都看得到建議。一個按鈕選取樣本並切到 M 工具，另一個按鈕關閉（這些樣本不再提醒）；再框一個新樣本會再提醒。" }
+  ]
+}
+</script>
+<script>
+(() => {
+  const data = JSON.parse(document.getElementById('aoi-data').textContent);
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  document.getElementById('text').innerHTML = data.sections
+    .map((s) => `<h3>${esc(s.title)}</h3><p lang="en">${esc(s.ste.text)}</p><p class="zh" lang="zh-Hant">${esc(s.zh)}</p>`).join('');
+
+  const names = { halcon: 'HALCON', opencv: 'OpenCV', fake: 'Fake' };
+  const q = (sel) => document.querySelector(sel);
+  function render() {
+    const be = q('input[name=be]:checked').value;
+    const st = q('input[name=st]:checked').value;
+    const sample = q('#sample').checked, region = q('#region').checked, dismissed = q('#dismissed').checked;
+    const flag = be === 'halcon';
+    const reasons = [];
+    if (!flag) reasons.push(`${names[be]} 的 suggestsMatchMask 是 false`);
+    if (st !== 'Idle') reasons.push(`狀態是 ${st}，不是 Idle（由那個狀態的卡片或進度列說話）`);
+    if (!sample) reasons.push('板上沒有樣本');
+    else if (region) reasons.push('類型的 match 不是預設：使用者處理過了');
+    else if (dismissed) reasons.push('這個類型按過〔關閉〕');
+    const show = reasons.length === 0;
+    const bar = q('#bar');
+    if (show) {
+      bar.innerHTML = `<div class="title">${names[be]}：建議用遮罩當比對區</div>
+        <div>用整個主體框建的範本，會把相鄰的焊墊與長槽的鋸齒也當成端子（實測分數約 0.70，和真端子分不開）。用 M 工具在樣本裡點一下端子，自動擷取的遮罩只比對端子本身。不改也可以直接按 F5 搜尋。</div>
+        <div class="adv">• 1 個樣本還沒有設定比對區。設定之後、或按〔關閉〕之後，不再提醒這些樣本。</div>
+        <button class="primary" id="pick">用 M 點端子</button><button id="close">關閉</button>`;
+      q('#pick').onclick = () => { q('#region').checked = true; render(); };
+      q('#close').onclick = () => { q('#dismissed').checked = true; render(); };
+    } else if (st === 'Searching') {
+      bar.innerHTML = `<div class="title">搜尋中… 62%</div><div class="hint">進度列蓋過一切；回到 Idle 再評估</div>`;
+    } else if (st === 'Preview') {
+      bar.innerHTML = `<div class="title">找到 28 個元件</div><div class="hint">預覽的卡片；接受或捨棄回到 Idle 再評估</div>`;
+    } else {
+      bar.innerHTML = `<div class="hint">${sample ? 'F5 搜尋（1 個樣本） · S 再建立一個樣本 · B 在所選元件上畫框 · 拖把手改大小' : 'S 教一個新樣本'}</div>`;
+    }
+    q('#why').textContent = show ? 'pending() 回傳 [這個樣本] → 卡片' : 'pending() 回傳空 → 沒有卡片：' + reasons.join('；');
+  }
+  document.querySelectorAll('input').forEach((el) => el.addEventListener('change', render));
+  render();
+})();
+</script>
+</body>
+</html>

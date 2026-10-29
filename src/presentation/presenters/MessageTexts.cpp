@@ -135,6 +135,16 @@ CardSpec errorCard(const Error& error, ErrorSource source, const QString& imageN
     return spec;
 }
 
+CardSpec matchAdviceCard(const QString& backendName, std::size_t sampleCount) {
+    CardSpec spec;
+    spec.card.title = uiText("ui.match.advice.title", {{"backend", backendName}});
+    spec.card.body = uiText("ui.match.advice.body");
+    spec.card.advice << uiText("ui.match.advice.samples", {{"count", QString::number(sampleCount)}});
+    spec.card.actions << uiText("ui.match.advice.action.pick") << uiText("action.dismiss");
+    spec.actions = {CardAction::PickMatchFeature, CardAction::CloseAdvice};
+    return spec;
+}
+
 QString historyLabel(CommandKind kind, std::size_t count) {
     const QString n = QString::number(count);
     switch (kind) {

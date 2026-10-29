@@ -29,6 +29,15 @@ struct BackendNotice {
     std::string message;
 };
 
+// back end 的特性（2026-10-29，R09、ADR-036）：adapter 自己最清楚它的範本怎麼比對，所以由它的工廠填；
+// 規則（application）與畫面（presentation）只看這些旗標，不比對 back end 的名稱或 id。
+struct BackendTraits {
+    // 用整個主體框建的範本容易把相鄰的結構（焊墊、長槽的鋸齒）也當成元件，建議使用者用自動擷取的遮罩當比對區
+    // （M 工具點一下端子，ADR-028）。R07.8 在真實影像上的量測：HALCON 的 shape model 整框時召回 855／1068、鋸齒 0.70，
+    // 遮罩時 1059、鋸齒 0.48；OpenCV 的 NCC 用遮罩反而多約 100 個離格的誤報，所以只有 HALCON 是 true。
+    bool suggestsMatchMask = false;
+};
+
 // 一個可用的 back end：一組互相配套的 adapter（範本與搜尋器要同一家，它們可以共用快取等內部狀態）。
 struct Backend {
     std::string id;
@@ -36,6 +45,7 @@ struct Backend {
     std::unique_ptr<ITemplateBuilder> templateBuilder;
     std::unique_ptr<IPatternSearcher> searcher;
     std::vector<BackendNotice> notices;  // 建立時發現的提醒（工廠填）；沒有 ＝ 空
+    BackendTraits traits;                // 這個 back end 的特性（工廠填；預設全部 false）
 };
 
 struct BackendInfo {

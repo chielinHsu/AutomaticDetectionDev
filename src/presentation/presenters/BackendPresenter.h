@@ -66,6 +66,8 @@ public:
     bool noticePending() const { return noticePending_; }
     // 目前的 back end 與錯誤卡片建議改用的那一個（可用、不是目前的第一個；BackendSwitch::fallback）。
     BackendLabels labels() const;
+    // 目前的 back end 的特性（Backend::traits；沒有 engine 時全部 false）。
+    BackendTraits traits() const { return engine_ ? engine_->backend.traits : BackendTraits{}; }
 
 signals:
     // 換成功（id 是新的 back end）；noticeMessages 是它的提醒的英文說明（stderr）。

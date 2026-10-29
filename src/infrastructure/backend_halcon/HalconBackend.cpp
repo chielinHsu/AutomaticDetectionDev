@@ -22,6 +22,8 @@ Result<Backend> makeHalconBackend(const HalconSearchOptions& options) {
     backend.displayName = "HALCON";
     backend.templateBuilder = std::make_unique<HalconTemplateBuilder>(options);
     backend.searcher = std::make_unique<HalconPatternSearcher>(options);
+    // shape model 整框時把長槽的鋸齒也當成端子（R07.8 的量測，ADR-036）：畫面上建議用 M 點端子的遮罩當比對區。
+    backend.traits.suggestsMatchMask = true;
     return backend;
 }
 

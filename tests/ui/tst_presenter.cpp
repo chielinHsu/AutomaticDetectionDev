@@ -1030,7 +1030,7 @@ private slots:
         QCOMPARE(r.window.backendStatusLabel()->toolTip(), zh("ui.backend.status.tip", {{"backend", "Fake (test)"}}));
         r.presenters->backend().applyNoticeAction(0);  // 沒有提醒時按鈕不存在；呼叫了也不會怎樣
         QVERIFY(!r.window.messageBar()->noticePending());
-        QCOMPARE(r.presenters->backend().availableBackends().size(), std::size_t{4});  // fake、other、broken、off
+        QCOMPARE(r.presenters->backend().availableBackends().size(), std::size_t{5});  // fake、maskhint、broken、other、off
     }
 
     // ---- 執行中切換 back end（ADR-021；規則在 application 的 BackendSwitch，tst_backend_switch）----
@@ -1290,7 +1290,8 @@ private slots:
             std::shared_ptr<const GenerateObjectsFromSample> used;
             InteractionState interactionState() const override { return InteractionState::Idle; }
             void pauseSearch() override {}
-            void useSearchEngine(std::shared_ptr<const GenerateObjectsFromSample> useCase, const BackendLabels&) override {
+            void useSearchEngine(std::shared_ptr<const GenerateObjectsFromSample> useCase, const BackendLabels&,
+                                 const BackendTraits&) override {
                 used = std::move(useCase);
             }
             void researchSameRegion() override {}
@@ -1384,6 +1385,16 @@ private slots:
         r.searchByDrag(QRectF(100, 100, 60, 32));
         QVERIFY(r.waitState(S::Error));
         grab("p6-error");
+        // R09：建議用遮罩當比對區的卡片（像 HALCON 的 back end、Idle、樣本是整框）
+        r.cardButtons().first()->click();  // 錯誤卡片的〔關閉〕（最後一個是〔再試一次〕）
+        QVERIFY(r.waitState(S::Idle));
+        r.probe->fail = false;
+        QSignalSpy finished(&r.presenters->backend(), &BackendPresenter::switchFinished);
+        r.chooseBackend(QStringLiteral("maskhint"));
+        QVERIFY(QTest::qWaitFor([&] { return finished.count() >= 1; }, 8000));
+        QVERIFY(r.drawSample(QRectF(100, 100, 60, 32)));
+        QVERIFY(r.presenter().matchAdviceShown());
+        grab("p7-match-advice");
         QVERIFY(true);
     }
 
@@ -1567,6 +1578,91 @@ private slots:
         press(r.vp(), r.at(100, 100));
         release(r.vp(), r.at(120, 110));
         QCOMPARE(r.hint(), zh("ui.match.needOne"));
+    }
+
+    // 比對區的建議（R09、ADR-036）：back end 說它建議遮罩（traits.suggestsMatchMask，產品裡是 HALCON）時，Idle 而且樣本還是整框
+    // 就在訊息列用卡片建議用 M 點端子；不擋搜尋；設了比對區或按〔關閉〕就不再提醒；再框一個新樣本再提醒。
+    void aBackendThatSuggestsMasksAdvisesTheMatchToolForSamplesWithoutARegion() {
+        Rig r;
+        r.open();
+        QVERIFY(r.drawSample(QRectF(560, 360, 60, 32)));
+        QVERIFY(!r.window.messageBar()->cardVisible());  // fake 不建議
+        QVERIFY(!r.presenter().matchAdviceShown());
+        QVERIFY(r.hint().contains(QStringLiteral("F5")));  // 提示列（建完樣本的吐司也含 F5）
+
+        // 切到建議遮罩的 back end：Idle、樣本是整框 → 卡片（標題是 back end 的名稱）；提示被卡片蓋住
+        QSignalSpy finished(&r.presenters->backend(), &BackendPresenter::switchFinished);
+        r.chooseBackend(QStringLiteral("maskhint"));
+        QVERIFY(QTest::qWaitFor([&] { return finished.count() >= 1; }, 8000));
+        QCOMPARE(r.presenters->backend().current(), std::string("maskhint"));
+        QVERIFY(r.presenter().matchAdviceShown());
+        QVERIFY(r.window.messageBar()->cardVisible());
+        QCOMPARE(r.window.messageBar()->cardTitle(), zh("ui.match.advice.title", {{"backend", "MaskHint (test)"}}));
+        QVERIFY(r.window.messageBar()->cardAdvice().contains(QStringLiteral("1 個樣本")));
+        QCOMPARE(r.cardButtons().size(), 2);
+        QCOMPARE(r.cardButtons().first()->text(), zh("ui.match.advice.action.pick"));
+        QCOMPARE(r.cardButtons().last()->text(), zh("action.dismiss"));
+
+        // 不擋搜尋：F5 照舊 → 預覽的卡片；接受回到 Idle，樣本還是整框 → 再建議
+        QVERIFY(r.searchAndWait());
+        QCOMPARE_STATE(r.state(), S::Preview);
+        QVERIFY(!r.presenter().matchAdviceShown());
+        QVERIFY(r.window.messageBar()->cardTitle() != zh("ui.match.advice.title", {{"backend", "MaskHint (test)"}}));
+        r.key(Qt::Key_Return);
+        QVERIFY(r.waitState(S::Idle));
+        QVERIFY(r.presenter().matchAdviceShown());
+        QCOMPARE(r.window.messageBar()->cardTitle(), zh("ui.match.advice.title", {{"backend", "MaskHint (test)"}}));
+
+        // 〔用 M 點端子〕：樣本被選取、工具切到 M；卡片留著
+        r.cardButtons().first()->click();
+        QCOMPARE(r.canvas()->activeTool(), ToolId::Match);
+        QCOMPARE(r.presenter().session().selection(), (std::vector<int>{r.document().samples().front().componentId}));
+        QVERIFY(r.window.messageBar()->cardVisible());
+        // 在樣本上設了比對區（拖一個矩形；點一下是自動擷取，規則一樣）→ 不再符合條件，卡片收起、提示回來
+        press(r.vp(), r.at(565, 365));
+        move(r.vp(), r.at(590, 385));
+        release(r.vp(), r.at(590, 385));
+        QVERIFY(r.document().findType("t1")->match.region);
+        QVERIFY(!r.presenter().matchAdviceShown());
+        QVERIFY(!r.window.messageBar()->cardVisible());
+
+        // 再框一個樣本：新的類型 → 再建議；〔關閉〕→ 不再提醒它，提示回來
+        r.window.toolAction(ToolId::Select)->trigger();
+        QVERIFY(r.drawSample(QRectF(200, 200, 60, 32)));
+        QVERIFY(r.presenter().matchAdviceShown());
+        r.cardButtons().last()->click();
+        QVERIFY(!r.presenter().matchAdviceShown());
+        QVERIFY(!r.window.messageBar()->cardVisible());
+        QVERIFY(r.hint().contains(QStringLiteral("F5")));  // 提示列回來（吐司還在時是吐司，也含 F5）
+        // 換到不建議的 back end 再換回來：關閉過的不再提醒（同一個樣本只提醒一次）
+        r.chooseBackend(QStringLiteral("fake"));
+        QVERIFY(QTest::qWaitFor([&] { return finished.count() >= 2; }, 8000));
+        QVERIFY(!r.presenter().matchAdviceShown());
+        r.chooseBackend(QStringLiteral("maskhint"));
+        QVERIFY(QTest::qWaitFor([&] { return finished.count() >= 3; }, 8000));
+        QVERIFY(!r.presenter().matchAdviceShown());
+    }
+
+    // Esc 在 Idle：有選取先清選取，沒有選取就關掉建議的卡片（和無匹配的卡片一樣）；開新影像之後關閉過的記錄重來。
+    void escClosesTheMatchAdviceAndANewImageForgetsTheDismissals() {
+        Rig r;
+        r.open();
+        QSignalSpy finished(&r.presenters->backend(), &BackendPresenter::switchFinished);
+        r.chooseBackend(QStringLiteral("maskhint"));
+        QVERIFY(QTest::qWaitFor([&] { return finished.count() >= 1; }, 8000));
+        QVERIFY(!r.presenter().matchAdviceShown());  // 還沒有樣本
+        QVERIFY(r.drawSample(QRectF(560, 360, 60, 32)));
+        QVERIFY(r.presenter().matchAdviceShown());
+        r.key(Qt::Key_Escape);  // 清掉樣本的選取
+        QVERIFY(r.presenter().session().selection().empty());
+        QVERIFY(r.presenter().matchAdviceShown());
+        r.key(Qt::Key_Escape);  // 關掉卡片
+        QVERIFY(!r.presenter().matchAdviceShown());
+        QVERIFY(!r.window.messageBar()->cardVisible());
+        r.open();  // 新的板子：樣本沒了，之後框的樣本又會提醒
+        QVERIFY(!r.presenter().matchAdviceShown());
+        QVERIFY(r.drawSample(QRectF(560, 360, 60, 32)));
+        QVERIFY(r.presenter().matchAdviceShown());
     }
 
     void marqueeSelectAllAndSameTypeSelectManyParts() {

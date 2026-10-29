@@ -16,6 +16,7 @@ SOURCES += \
     $$DIR/image/ImageSourceChain.cpp \
     $$DIR/interaction/InspectionSession.cpp \
     $$DIR/interaction/InteractionStateMachine.cpp \
+    $$DIR/interaction/MatchAdvice.cpp \
     $$DIR/interaction/StepGuide.cpp \
     $$DIR/jobs/JobRunner.cpp \
     $$DIR/usecases/BoardProposal.cpp \
@@ -40,6 +41,7 @@ HEADERS += \
     $$DIR/image/ImageSourceChain.h \
     $$DIR/interaction/InspectionSession.h \
     $$DIR/interaction/InteractionStateMachine.h \
+    $$DIR/interaction/MatchAdvice.h \
     $$DIR/interaction/StepGuide.h \
     $$DIR/jobs/JobRunner.h \
     $$DIR/ports/IExecutor.h \

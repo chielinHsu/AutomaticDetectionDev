@@ -1,35 +1,26 @@
 # Agent Handoff
 
 - 更新者：Claude Code (Claude Fable 5.1)
-- 更新日期：2026-10-29（R07 完成並合併；末段濃縮保留 Codex 2026-10-29 的 R07 回歸修復與 R08 交接）
-- 分支：`fix/r07-multi-sample` 以 `--no-ff` 合併回 `main`（本機，沒有 push）；現在在 `main`。
+- 更新日期：2026-10-29（R09 實作完成，提交在分支上）
+- 分支：`claude/r09-halcon-mask-hint-f0d064`（worktree `.claude/worktrees/r09-halcon-mask-hint-f0d064`，從 `main` 的 `37bd396` 切出；沒有 push、沒有合併）
 
 ## 本次工作與狀態
 
-- [R07 status](../docs/plans/completed/R07-multi-sample-merge/status.md)：✅ 完成，資料夾搬到 `completed/`。這個 session 做了 R07.8（影像上驗證不到的推算格預設不回報）與 R07.9（低分的補漏候選要有 4 個鄰居；一維兩側都要有），都在 use case（`GenerateOptions::reportUnverifiedHoles`、`minNeighboursForWeakHoles`；`GridSummary::unverified`、`unsupported`），domain 與 Rust 沒動；設計與量測在 ADR-035（含後續）。R07.4 取消（主因是晶格，不是合併規則）。
-- 量測工具 `tests/backend/perf_multi_sample_real` 多 `AOI_MULTI_MATCH`（矩形或自動擷取的遮罩）、`AOI_MULTI_DUMP`（CSV）、log 的 `unverified`／`unsupported`。比對區的結論（矩形遍地誤報、HALCON 點端子的遮罩有效、OpenCV 維持整框）在 R07 `plan.md` 的「R07.8 的量測」。
-- 畫面沒有改：「推算」永遠 0、「拒絕」少掉邊界的雜訊。
+- [R09 status](../docs/plans/active/R09-halcon-mask-hint/status.md)：R09.1–R09.5 ✅，計畫狀態「進行中（待合併）」。HALCON 建好樣本、還沒設定比對區時，訊息列用卡片建議「用 M 點端子的遮罩當比對區」並說明原因（R07.8 的量測：整框召回 855／1068、鋸齒 0.70；遮罩 1059、鋸齒 0.48）；OpenCV 與假 back end 不提醒。設計：[ADR-036](../docs/adr/036-match-mask-advice.md)。
+- 做法：`Backend::traits.suggestsMatchMask`（HALCON 的工廠填）→ `application/interaction/MatchAdvice`（Idle、類型的 match 是預設、沒按過〔關閉〕）→ `AutoRoiPresenter::publishMessage` 的 Idle 分支用 `MessageTexts::matchAdviceCard`（〔用 M 點端子〕選取樣本並切到 M 工具；〔關閉〕或 Esc 之後同類型不再提醒；新樣本再提醒；開新影像重來）。不擋搜尋。
+- 四種輸出在 `docs/steps/R09-halcon-mask-hint/`；`perf.md` 說明本步驟無效能指標。
 
 ## 實際驗證
 
-- R07.9：完整 `test.ps1`（Release、Rust、含建置）66／67，只有 `tst_presenter` 的提案格數 32 → 28；改標準答案後 `-Filter tst_presenter` 通過。R07.8 當時完整 `-NoBuild` 67／67。原本就有的 2 個 XFAIL（`tst_contract_end_to_end` OpenCV B1、`tst_image_sources_agree` palette BMP）與 8 個有跳過項目的測試不變。
-- 真實影像（LeftTopRegion、整框）：HALCON 推算 13 → 0、拒絕 216 → 180，OpenCV 推算 7 → 0、拒絕 42 → 9；找到的數字不變。沒有跑 `-DomainImpl Cpp`、`-Perf`；合併後沒有再建置（`main` 側沒有改到同一批檔案）。
+- 完整 `test.ps1`（Release＋OpenCV＋HALCON＋Rust，67 項）第一次 64／67、修好測試台後 `-NoBuild` 重跑 65／67；`tst_compare` 的 2 項是測試台順序造成，修好後重跑通過（`tst_compare` 11／11、`tst_presenter` 88 passed、1 skipped）；`tst_lattice` 2 項、`tst_generate_objects` 1 項是 `main` 已提交狀態本來就有的失敗（見下）。`check-deps` 0、`ste-lint` 0。真實程式 `--backend halcon --demo 5000` 看到卡片（截圖在 session 的共用筆記資料夾）。沒跑 Debug、`-DomainImpl Cpp`、`-Perf`。
 
 ## 未提交與不要動
 
-- Codex 的 R08（Socket 教學；`src/presentation/solder/`、`GenerateSocketCad`、`OpenCvSocketRegionRecognizer` 等）、`tests/domain/tst_lattice.cpp`、`docs/plans/INDEX.md` 的 R08 列與「下一個可用編號 R09」、`docs/plans/active/R08-socket-teaching/`、`docs/plans/completed/R07-multi-sample-merge/tasks/regression-repair.md`（隨資料夾搬過來）仍未提交：不清理、不回復、不一併 stage（INDEX 只 stage 了 R07 那一列）。R08 的 `changelog.md` 裡指到 R07 `tasks/` 的連結因為搬資料夾改成 `../../completed/…`（只改那一行）。R08 進行中時 `AiInspTool.exe` 曾連結失敗，幾分鐘後自己好；再遇到先等一下再建。
-- `.archify/`、`AiInspTool/cargo/` 不是本計畫新增的；`build/` 與產線影像不入版控。
-- 主視窗沒有儲存配方的功能（〔儲存〕停用）；要重現使用者的樣本用「選取資訊」表單的數字。
+- **主 checkout**（`D:\AOI_Project\Qt\AutoCadCreated`）有 Codex 的 R08（Socket 教學）大量未提交修改，以及 `tests/domain/tst_lattice.cpp`、`tests/core/tst_generate_objects.cpp` 的未提交修改（R07.5–R07.7 的回歸修復）。本 worktree 看不到這些；`main` 已提交的狀態 `tst_lattice`、`tst_generate_objects` 會失敗，要讓 `main` 自己通過得把那兩個測試檔提交。不要去動主 checkout。
+- `docs/plans/INDEX.md`：本分支把下一個可用編號改成 R10 並加了 R09 列；主 checkout 未提交的 INDEX 有 R08 列，合併時會衝突，保留兩列、編號 R10。
+- `%APPDATA%\AOI\AutoCadCreated.ini` 的 `backend/last` 因為實際執行程式變成 `halcon`。
 
-## 後續範圍（待使用者決定）
+## 待使用者決定
 
-- HALCON 的召回／畫面上建議用 `M` 點端子的遮罩；產品方向（通用的樣本比對與 Socket 結構偵測並存或整合、問題 3 的深度學習方向）；問題 2（右側 dock 重疊）。都還沒開計畫。
-
----
-
-# （保留、濃縮）Codex (gpt-6.1-sol) 2026-10-29 的交接
-
-- 當時分支 `fix/r07-multi-sample`、HEAD `970ac5f`；使用者當時要求不 commit、不 push。
-- R07.5–R07.7（已併入 R07）：四個回歸失敗中三組是過期 C++ obj／測試與新 Rust lib 混用，重建後轉綠；Lattice 是測資（合成圖界、半缺件的間距證據），只改 `tests/domain/tst_lattice.cpp`，`src/domain`、`rust/aoi_domain_rs` 沒動。證據：[regression-repair.md](../docs/plans/completed/R07-multi-sample-merge/tasks/regression-repair.md)；log 與快照在 `build/r09-repro/`（scratch 名稱，沒有 R09 計畫）。
-- [R08 status](../docs/plans/active/R08-socket-teaching/status.md)：MVP 已交付；R08.5–R08.7 樣本全圖搜尋完成（`SearchSocketSamples`、`ISocketSampleSearcher`、`SolderTeachingSession`、`SolderSampleWorkflow`、視窗／UI、app 組裝、文案／qmake／測試；ADR-034）。專項 15/0/0、全量 67/67；真實圖 3 樣本得到 632 個 44×24 結果；不宣稱精確率／召回率。入口 `build/SocketTeaching-Samples/StartSocketSamples.cmd`；log／截圖在 `build/r08-samples`。另一聊天的 R08.8 拖移修正由該聊天維護。
-- 規則：`docs/legacy/` 只讀；範本管理檔不改；不要在 `AiInspTool/` 原地 qmake；其他 session 同時改來源時先比對 source／obj 時間，不要以 `-NoBuild` 當成完整重建。
+- 合併本分支回 `main`（建議 `--no-ff`）；合併後把 `docs/plans/active/R09-halcon-mask-hint/` 搬到 `completed/`、INDEX 改 ✅。
+- R07 留下的另外兩件後續：通用樣本比對與 Socket 結構偵測（R08）並存或整合；右側 dock 重疊。都還沒開計畫。

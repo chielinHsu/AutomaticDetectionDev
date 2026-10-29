@@ -153,6 +153,17 @@ private slots:
     }
 
     // ---- 復原按鈕 ----
+    // 比對區的建議（R09、ADR-036）：標題是 back end 的名稱、做法列出樣本數、〔用 M 點端子〕〔關閉〕。
+    void theMatchAdviceCardNamesTheBackendAndOffersTheMatchTool() {
+        const CardSpec spec = matchAdviceCard(QStringLiteral("HALCON"), 2);
+        QCOMPARE(spec.card.title, uiText("ui.match.advice.title", {{"backend", "HALCON"}}));
+        QCOMPARE(spec.card.body, uiText("ui.match.advice.body"));
+        QVERIFY(spec.card.body.contains(QStringLiteral("F5")));  // 不擋搜尋
+        QCOMPARE(spec.card.advice, QStringList{uiText("ui.match.advice.samples", {{"count", "2"}})});
+        QCOMPARE(spec.card.actions, (QStringList{uiText("ui.match.advice.action.pick"), uiText("action.dismiss")}));
+        QVERIFY(spec.actions == (std::vector<CardAction>{CardAction::PickMatchFeature, CardAction::CloseAdvice}));
+    }
+
     void historyLabelsNameTheCommandAndTheCount() {
         QCOMPARE(historyLabel(CommandKind::Accept, 4), QStringLiteral("接受 4 個元件"));
         QCOMPARE(historyLabel(CommandKind::DeleteComponents, 12), QStringLiteral("刪除 12 個元件"));
@@ -228,7 +239,10 @@ private slots:
                                 "ui.preview.offLattice", "ui.selection.position", "ui.selection.position.lattice",
                                 "ui.selection.position.member", "ui.selection.position.matched", "ui.selection.position.moved",
                                 "ui.selection.position.noLattice", "ui.selection.position.board", "ui.params.position",
-                                "ui.params.position.lattice", "ui.params.position.matched", "ui.params.position.tip"}) {
+                                "ui.params.position.lattice", "ui.params.position.matched", "ui.params.position.tip",
+                                // 2026-10-29（R09、ADR-036）：比對區的建議卡片
+                                "ui.match.advice.title", "ui.match.advice.body", "ui.match.advice.samples",
+                                "ui.match.advice.action.pick"}) {
             const QJsonObject entry = keys.value(QLatin1String(key)).toObject();
             QVERIFY2(!entry.value("zh_TW").toString().isEmpty() && !entry.value("en").toString().isEmpty(), key);
         }
