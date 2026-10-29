@@ -28,7 +28,7 @@
 - 沒有跑 `-Config Debug`、`-DomainImpl Cpp`、`-Perf`。
 
 ### Commit
-- 見本筆底下的補充（提交後填 hash）。
+- `330f7cb` [Caspar]feat: HALCON 建好樣本後在訊息列建議用 M 點端子的遮罩當比對區（本筆文件的 hash 補記是下一筆 docs 提交）。
 
 ### 注意事項
 - 不要把 `maskhint` 移到 `broken` 之後（`tst_compare` 的預設配對）或 `other` 之後（錯誤卡片的〔改用 Other (test)〕）。
