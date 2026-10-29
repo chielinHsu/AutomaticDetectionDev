@@ -5,6 +5,7 @@
 #include <cmath>
 #include <cstring>
 #include <limits>
+#include <set>
 #include <utility>
 
 #include "domain/image_depth.h"
@@ -307,6 +308,38 @@ Result<SampleProposal> GenerateObjectsFromSample::run(const SampleRequest& reque
             if (best[nearest] == nullptr || m.score > best[nearest]->score) best[nearest] = &m;
         }
 
+        // 低分的缺格（驗證分數 < seedMinScore：整張搜尋沒找到、補漏才撿到的）要有足夠的鄰居才算數（ADR-035 的「後續
+        // （R07.9）」）：二維時 8 個鄰居裡被佔的至少 minNeighboursForWeakHoles 個，一維時兩側都要有。被佔 ＝ 樣本與種子的
+        // 內點、驗證分數 ≥ seedMinScore 的缺格（一次算完，不遞迴）。鄰居不夠的不回報、也不拿來修正晶格：真實影像上它們是
+        // 長槽鋸齒、板邊、陣列角落外面的雜訊。
+        std::vector<bool> supported(holes.size(), true);
+        if (options.minNeighboursForWeakHoles > 0) {
+            std::vector<std::set<std::pair<int, int>>> occupied(lattices.size());
+            for (std::size_t l = 0; l < lattices.size(); ++l) {
+                for (const LatticeIndex& cell : lattices[l].cells) occupied[l].insert({cell.i, cell.j});
+            }
+            for (std::size_t k = 0; k < holes.size(); ++k) {
+                if (best[k] != nullptr && best[k]->score >= options.seedMinScore) occupied[holes[k].lattice].insert({holes[k].cell.i, holes[k].cell.j});
+            }
+            for (std::size_t k = 0; k < holes.size(); ++k) {
+                if (best[k] == nullptr || best[k]->score >= options.seedMinScore) continue;
+                const std::set<std::pair<int, int>>& cells = occupied[holes[k].lattice];
+                const LatticeIndex c = holes[k].cell;
+                if (lattices[holes[k].lattice].hasV()) {
+                    std::size_t neighbours = 0;
+                    for (int di = -1; di <= 1; ++di) {
+                        for (int dj = -1; dj <= 1; ++dj) {
+                            if ((di != 0 || dj != 0) && cells.count({c.i + di, c.j + dj}) != 0) ++neighbours;
+                        }
+                    }
+                    supported[k] = neighbours >= options.minNeighboursForWeakHoles;
+                } else {
+                    supported[k] = cells.count({c.i - 1, c.j}) != 0 && cells.count({c.i + 1, c.j}) != 0;
+                }
+                if (!supported[k]) ++proposal.grid.unsupported;
+            }
+        }
+
         // 驗證找到的元件加進各自的晶格重新擬合（正規方程累加器：每個 O(1)，S00 示範頁的 Refit while verifying），
         // 沒找到的缺格放在修正後的位置。離預測位置超過晶格容差的匹配不加（可能是視窗裡的另一個東西）：
         // 它不是晶格的成員（沒有晶格位姿），只記下它離格點多遠。
@@ -317,7 +350,7 @@ Result<SampleProposal> GenerateObjectsFromSample::run(const SampleRequest& reque
             for (const LatticeModel& m : lattices) equations.push_back(m.equations);
             std::vector<bool> changed(lattices.size(), false);
             for (std::size_t k = 0; k < holes.size(); ++k) {
-                if (best[k] == nullptr) continue;
+                if (best[k] == nullptr || !supported[k]) continue;
                 const LatticeModel& m = lattices[holes[k].lattice];
                 if (distance(best[k]->pose.position(), holes[k].position) > m.tolerancePx) continue;
                 equations[holes[k].lattice].add(holes[k].cell, best[k]->pose.position());
@@ -332,6 +365,7 @@ Result<SampleProposal> GenerateObjectsFromSample::run(const SampleRequest& reque
             const std::optional<LatticeBasis>& basis = refined[holes[k].lattice];
             const Point2D node = basis ? basis->at(holes[k].cell) : holes[k].position;
             if (best[k] != nullptr) {
+                if (!supported[k]) continue;  // 低分而且鄰居不夠：不回報（數量在 grid.unsupported）
                 Candidate c{best[k]->pose, best[k]->score, CandidateSource::Verified};
                 c.latticeDeviationPx = distance(c.pose.position(), node);
                 if (member[k]) c.latticePose = Pose2D{node.x, node.y, sampleAngle};

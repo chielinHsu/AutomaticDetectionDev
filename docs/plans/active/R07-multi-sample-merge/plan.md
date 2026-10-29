@@ -39,10 +39,11 @@ branch: fix/r07-multi-sample
 | R07.1 | 量測工具 `tests/backend/perf_multi_sample_real`：真實影像上 1／2／3 個樣本的候選來源、分數分布、合併數、晶格；疊圖；before 的數字記進 `status.md` | ✅ | `fix/r07-multi-sample` | `test.ps1 -Perf -Filter perf_multi_sample_real`（`AOI_REAL_IMAGE_DIR` 指到 AdvancePin）兩個 back end 都跑過，數字見下方「量測（before）」 |
 | R07.2 | （使用者 2026-10-28 決定：改晶格估計）晶格的索引區域不再是外接矩形：索引的外接矩形 ∩ 影像空間裡沿 u 的外接矩形 ∩ 有兩側證據的空格（`lattice_region.h/.cpp`、Rust 的 `region.rs`；`cellCount`、涵蓋率、`holes` 用它，規則 2 用「證據數」；C ABI 版本 5）；ADR-013 的「後續（R07.2）」 | ✅ | `fix/r07-multi-sample` | `cargo test`／clippy／fmt 通過；`tst_lattice*`（含 1 029 種情境）、`tst_domain_rs_diff` 通過；完整的 `test.ps1`（Rust 預設與 `-DomainImpl Cpp`）見 `changelog.md` |
 | R07.3 | 回歸測試：`tst_lattice` 加三個交錯陣列的測試、差異測試加 12 種交錯情境、Rust 的 `region.rs` 單元測試；`LatticeTestSupport` 的標準答案用同一條證據規則；說明頁的資料重新產生；真實影像的 after 數字（下方） | ✅ | `fix/r07-multi-sample` | 同上 |
-| R07.4 | 原本的 R07.2（驗證下限相對於種子分數、合併時同類型優先與衝突標記、同一種零件的幾個樣本只擬合一組晶格）：等 R07.2 的 after 數字再決定要不要做 | ⬜ | | |
+| R07.4 | 原本的 R07.2（驗證下限相對於種子分數、合併時同類型優先與衝突標記、同一種零件的幾個樣本只擬合一組晶格）：等 R07.2 的 after 數字再決定要不要做 | ⛔ | | 取消（2026-10-29，使用者同意）：R07.2 的 after 數字顯示 3 個樣本沒有比 1 個差（離格 251 → 0、合併後沒有多出框），主因是晶格不是合併規則；需要時另開計畫 |
 | R07.5 | 重現並區分四個回歸失敗的建置產物、Rust/C++、FFI 與標準答案原因；保留 R07 原有工作 | ✅ | 未提交 | PARTIALLY VERIFIED：3 組為過期 C++ 產物；Lattice 為範圍與缺件證據的測資問題；紅→綠各兩次，詳見 tasks/regression-repair.md |
 | R07.6 | 依證據修復根因並鎖定回歸；不放寬既有斷言、不回復交錯陣列／長槽功能 | ✅ | 未提交 | PARTIALLY VERIFIED：Rust／C++ Lattice 各 77 passed；精確驗證 6／15 個缺格，另補裁切、無證據角落與棋盤缺件案例；未改演算法 |
 | R07.7 | 重建受影響目標、完整回歸、Socket 真實圖操作及配方存讀；更新交接 | ✅ | 未提交；使用者明確禁止 commit／push | PARTIALLY VERIFIED：67/67 執行成功；Socket 10/0/0；保留 7 組既有 skip 與 2 個 XFAIL；交接已更新 |
+| R07.9 | 低分的補漏候選要有足夠的鄰居（使用者 2026-10-29 決定）：`GenerateOptions::minNeighboursForWeakHoles`（預設 4；一維兩側都要有）、`GridSummary::unsupported`；鄰居不夠的不回報、不修正晶格；假世界的標準答案 `Oracle::supported`，新增兩個腳本測試；ADR-035 的「後續（R07.9）」 | ✅ | `fix/r07-multi-sample`（commit 見 `changelog.md`） | VERIFIED：完整 `test.ps1`（Release、Rust）66／67，只有 `tst_presenter` 的格數 32 → 28，改後通過；真實影像 HALCON 拒絕 216 → 180（unsupported 37）、OpenCV 42 → 9（33），找到不變 |
 | R07.8 | 影像驗證不到的推算格預設不回報（使用者 2026-10-29 決定）：`GenerateOptions::reportUnverifiedHoles`（預設 false）、`GridSummary::unverified`；核心與契約測試打開選項驗證補漏的機制，`tst_presenter` 與新測試驗證預設；量測工具 `perf_multi_sample_real` 多 `AOI_MULTI_MATCH`（矩形／自動擷取的遮罩）、`AOI_MULTI_DUMP`；ADR-035 | ✅ | `fix/r07-multi-sample`（commit 見 `changelog.md`） | VERIFIED：完整 `test.ps1`（Release、Rust）66／67 → 改 `tst_presenter` 的格數後通過，最後 `-NoBuild` 67／67；真實影像 HALCON 推算 13 → 0、OpenCV 7 → 0，其餘數字不變 |
 
 圖例：✅ 完成　⏳ 進行中　⬜ 尚未開始　⚠️ 有未解決問題　⛔ 取消

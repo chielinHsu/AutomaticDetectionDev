@@ -2,6 +2,27 @@
 
 > 只新增，新紀錄放最上方；只記本計畫的事。每個 agent session 一筆。
 
+## 2026-10-29 — Claude Code (Claude Fable 5.1)：R07.9 低分的補漏候選要有足夠的鄰居；R07 收尾
+
+### 細項
+- 使用者看了 R07.8 之後的畫面：長槽鋸齒、板邊還有紅色虛線的「拒絕」（補漏驗證到 0.30–0.69 的候選）。用同一張影像的候選分區統計「晶格上 8 個鄰居裡被佔的數量」：鋸齒、板邊、槽內的最多 3–4 個，陣列裡真端子的低分候選 HALCON 190 個裡 183 個 ≥ 4（數字在 ADR-035 的「後續（R07.9）」）。
+- R07.9：完成。`GenerateOptions::minNeighboursForWeakHoles`（預設 4；一維兩側都要有；0 ＝ 不檢查）、`GridSummary::unsupported`：驗證分數低於 `seedMinScore` 的缺格鄰居不夠就不回報、也不拿來修正晶格。假世界的標準答案 `Oracle::supported`／`weakReported`（`tst_generate_objects` 的 `weakPartsAreRecoveredByWindowVerification`、`aRotatedNoisyGridWithMixedPartsMatchesTheOracle`），新增 `aWeakPartWithFewerThanFourNeighboursIsNotReported`（6 × 4 缺角，關掉規則照舊回報）與 `aWeakPartInARowNeedsBothNeighbours`（一維）；`tst_presenter` 的提案格數 32 → 28。
+- R07.4：取消（使用者同意）。after 的數字顯示主因是晶格、不是合併規則。
+- 計畫完成：資料夾搬到 `completed/`，`fix/r07-multi-sample` 以 `--no-ff` 合併回 `main`（本機，沒有 push）。
+
+### 修改的檔案
+- src/application/usecases/GenerateObjectsFromSample.h、.cpp
+- tests/core/tst_generate_objects.cpp、tests/ui/tst_presenter.cpp、tests/backend/perf_multi_sample_real.cpp（log 多 `unsupported`）
+- docs/adr/035-unverified-holes-not-reported.md（後續）、docs/plans/INDEX.md、docs/plans/completed/R07-multi-sample-merge/（plan、status、changelog）、.ai/handoff.md
+
+### 驗證
+- 完整的 `test.ps1`（Release、Rust 預設、含建置）：66／67，只有 `tst_presenter` 的格數 32 → 28（邊上 4 個低分的弱零件不回報）；改標準答案後 `test.ps1 -Filter tst_presenter` 通過（見下一行）。原本就有的 2 個 XFAIL 與 8 個有跳過項目的測試不變。
+- 真實影像（LeftTopRegion、`perf_multi_sample_real`）：HALCON 拒絕 216 → 180（`unsupported 37`：鋸齒 10、板邊 20、陣列裡 7）、分數 0.3–0.5 的候選 20 → 0、離格 1 → 0；OpenCV 拒絕 42 → 9（`unsupported 33`）；兩邊「找到」的數字不變（861／1083）。疊圖 `build/qmake-release/test-work/r079-*`：槽角只剩鋸齒上 2 個剛好有 4 個鄰居的灰框。
+- 沒有跑 `-DomainImpl Cpp`、`-Perf`。
+
+### Commit
+- 見下方（提交後補）。
+
 ## 2026-10-29 — Claude Code (Claude Fable 5.1)：R07.8 影像上驗證不到的推算格預設不回報
 
 ### 細項

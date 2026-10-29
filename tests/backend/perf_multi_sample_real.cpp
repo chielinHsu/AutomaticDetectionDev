@@ -205,10 +205,10 @@ private:
         std::size_t bySource[4] = {0, 0, 0, 0};
         for (const Candidate& c : p.candidates) ++bySource[static_cast<int>(c.source)];
         qInfo("  sample %zu (%.0f,%.0f %.0fx%.0f): problem %s | candidates %zu: seed %zu, verified %zu, predicted %zu | lattice found %d, "
-              "lattices %zu, u (%.1f, %.1f), v (%.1f, %.1f), rms %.2f px, coverage %.3f, confidence %.3f, holes %zu (unverified %zu) | %.0f ms",
+              "lattices %zu, u (%.1f, %.1f), v (%.1f, %.1f), rms %.2f px, coverage %.3f, confidence %.3f, holes %zu (unverified %zu, unsupported %zu) | %.0f ms",
               index + 1, sample.x, sample.y, sample.w, sample.h, p.sampleProblem ? "yes" : "no", p.candidates.size(), bySource[1],
               bySource[2], bySource[3], p.grid.found, p.grid.lattices, p.grid.u.x, p.grid.u.y, p.grid.v.x, p.grid.v.y, p.grid.rmsPx,
-              p.grid.coverage, p.grid.confidence, p.grid.holes, p.grid.unverified, p.timings.totalMs);
+              p.grid.coverage, p.grid.confidence, p.grid.holes, p.grid.unverified, p.grid.unsupported, p.timings.totalMs);
     }
 
     void reportMerged(const char* backend, const app::CoreServices& core, const ImageView& view, const std::vector<Rect>& samples) {
