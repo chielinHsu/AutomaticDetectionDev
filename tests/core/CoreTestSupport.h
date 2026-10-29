@@ -48,10 +48,13 @@ private:
     std::shared_ptr<std::vector<std::uint8_t>> pixels_;
 };
 
+// 核心的測試驗證的是補漏的機制（缺格要有 Predicted），所以打開 reportUnverifiedHoles；產品的預設（不回報）另外有
+// tst_generate_objects 的 unverifiedHolesAreCountedButNotReportedByDefault 與 tst_presenter 看（ADR-035）。
 inline SampleRequest makeRequest(const TestImage& image, Rect sample) {
     SampleRequest request;
     request.image = image.view();
     request.sample = sample;
+    request.options.reportUnverifiedHoles = true;
     return request;
 }
 

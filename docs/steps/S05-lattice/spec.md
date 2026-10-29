@@ -134,6 +134,8 @@ use case（`application/usecases/GenerateObjectsFromSample`）的改變：
 | 11 | 非矩形的陣列（L 形、環形） | 索引範圍包含空的部分，可能在空的地方補缺格 | 證據規則與信心會擋住空得多的情況 | 空的部分不大時仍可能補出假缺格：**沒有測**，S07 用真實影像確認 | — |
 | 12 | 只有 2 個點、全部重疊、有 NaN | 當機或無意義的結果 | 2 點 ＝ 一組 2 點的一維晶格（不補缺格、信心低）；重疊 ＝ 沒有方向；非有限值不參與 | — | `tooFewOrDegeneratePointsGiveNoModel`、`degenerateInputsNeverCrash` |
 | 13 | 同一個元件被找到兩次 | 重複的候選；晶格的同一格有兩個點 | use case 先 NMS；估計器同一格只留殘差小的 | — | `duplicateSeedMatchesAreMergedIntoOne`、`aDuplicatePointOccupiesItsCellOnce` |
+| 14 | 交錯排列的陣列（相鄰兩欄差半個格距；密排端子，2026-10-28 使用者的板子） | 矩形的區塊在索引空間是平行四邊形，外接矩形多出兩個三角形的空格；規則 2 擋掉二維、退回一維，缺格一個都不補（R07.2 之前） | 索引區域 ＝ 索引的外接矩形 ∩ 影像空間裡沿 u 的外接矩形（`lattice_region.h`；ADR-013 的「後續（R07.2）」） | 區塊沒有沿 u 對齊的斜切陣列仍是外接矩形（多預測） | `aStaggeredBlockIsOneTwoDimensionalLatticeWithoutFalseHoles`、`aStaggeredBlockPredictsExactlyItsMissingCells`、`aStaggeredBlockWithHalfMissingStillFitsOneLattice` |
+| 15 | 陣列中間有大片空的區域（長槽），而且被一條完整的邊連起來（同一塊板子） | 規則 4 拆不開，空的區域整片被當成缺格（幾百個假的推算框） | 空格要有兩側的證據：沿 u 或沿 w 的兩側各在 3 格之內都有內點，或角落兩個相鄰的內點（`lattice_region.h` 條件 3） | 槽口貼著元件的那一格仍算缺格（每個槽口 1 格）；缺角而且相鄰也缺的角落不補 | `region.rs` 的 `a_big_empty_area_inside_the_box_is_not_full_of_holes`、`perf_multi_sample_real` 的真實影像 |
 
 退化情況的決策樹在 [`diagram.md`](diagram.md)。
 

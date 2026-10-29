@@ -24,6 +24,7 @@ use crate::lattice::estimator::fit_lattices;
 use crate::lattice::model::{Fit, Model};
 use crate::lattice::options::Options;
 use crate::lattice::predictor::{self, ModelGeometry, PredictedCell};
+use crate::lattice::region::Region;
 use crate::lattice::spatial_grid::{Neighbor, OwnedSpatialGrid};
 
 pub const AOI_RS_CLUSTER_GRID_VOTE: i32 = 0;
@@ -675,24 +676,24 @@ pub unsafe extern "C" fn aoi_rs_lattice_candidate_rule(
 /// `holesAreBacked`。`*out` 是 1 或 0。
 ///
 /// # Safety
-/// `model` 有效（只用到純量欄位與 `inlier_count`）；`out` 可寫。
+/// `model` 與它的 `cells` 有效（R07.2 起索引區域要看內點的格子；`inliers` 不讀，只要 `inlier_count`）；`out` 可寫。
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn aoi_rs_lattice_holes_are_backed(model: *const FfiModel, out: *mut i32) -> i32 {
     guard(|| {
         if model.is_null() || out.is_null() {
             return AOI_RS_INVALID_ARGUMENT;
         }
-        // SAFETY: model 有效（上面已排除 null）；陣列不讀（只要內點數）。
+        // SAFETY: model 有效（上面已排除 null），cells 由呼叫端保證。
         let m = unsafe { &*model };
-        let shape = Model {
-            basis: m.basis.into(),
-            min_i: m.min_i,
-            max_i: m.max_i,
-            min_j: m.min_j,
-            max_j: m.max_j,
-            ..Model::default()
+        let Some(cells) = (unsafe { slice(m.cells, m.cell_count) }) else {
+            return AOI_RS_INVALID_ARGUMENT;
         };
-        let backed = acceptance::holes_are_backed_of(m.inlier_count, shape.cell_count(), shape.basis.has_v);
+        let basis: Basis = m.basis.into();
+        let region = match Region::of(&basis, m.min_i, m.max_i, m.min_j, m.max_j, cells) {
+            Ok(r) => r,
+            Err(e) => return status_of(e),
+        };
+        let backed = acceptance::holes_are_backed_of(m.inlier_count, region.evidence_count(&basis), basis.has_v);
         // SAFETY: out 有效。
         unsafe { *out = i32::from(backed) };
         AOI_RS_OK

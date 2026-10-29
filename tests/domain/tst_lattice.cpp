@@ -26,6 +26,20 @@ std::vector<Point2D> holesOf(const LatticeModel& m, const Rect& bounds = kBig, s
 
 double len(Point2D v) { return std::hypot(v.x, v.y); }
 
+// 交錯排列的矩形區塊（R07.2；密排端子的樣子）：cols 欄 × rows 列，欄距 266、列距 154，奇數欄往下差半個列距（77）。
+// 在索引空間是平行四邊形（u ＝ (0, 154)、v ＝ (266, 77)）：外接矩形多出兩個三角形的空格。
+Point2D staggeredPosition(int col, int row) { return {600.0 + 266.0 * col, 400.0 + 154.0 * row + 77.0 * (col % 2)}; }
+std::vector<Point2D> staggeredPoints(int cols, int rows, const std::vector<std::pair<int, int>>& skip = {}) {
+    std::vector<Point2D> points;
+    for (int c = 0; c < cols; ++c) {
+        for (int r = 0; r < rows; ++r) {
+            if (std::find(skip.begin(), skip.end(), std::make_pair(c, r)) != skip.end()) continue;
+            points.push_back(staggeredPosition(c, r));
+        }
+    }
+    return points;
+}
+
 // 每個內點都落在它的格點上（容差內），而且每格只有一個內點。
 void checkInliersSitOnTheirCells(const LatticeModel& m, const std::vector<Point2D>& points) {
     QCOMPARE(m.inliers.size(), m.cells.size());
@@ -292,13 +306,15 @@ private slots:
         QVERIFY(holesOf(*model).empty());
     }
 
-    // 第二排找到的不多：找到 3 個，二維成立、第二排其餘 9 格補上；只找到 2 個，證據不夠補 10 格（holesAreBacked），
-    // 退回一排、不補。這條界線是刻意的：散佈的零件常有幾個點湊巧排得像晶格（randomPointsPredictAtMostAFlaggedHole）。
+    // 第二排找到的不多：找到 3 個（第 3、6、8 格），二維成立、第二排有證據的空格補上（R07.2 起只補兩側 3 格內都有元件的
+    // 第 4、5、7 格，與貼著找到的那幾個的第 2、9 格；第 0、1、10、11 格沒有證據，不補）；只找到 2 個，證據不夠補 10 格
+    // （holesAreBacked 算的是貼著內點的空格：第二排 10 格都貼著第一排），退回一排、不補。
+    // 這條界線是刻意的：散佈的零件常有幾個點湊巧排得像晶格（randomPointsPredictAtMostAFlaggedHole）。
     void aSparseSecondRowNeedsEnoughEvidence_data() {
         QTest::addColumn<QList<int>>("found");
         QTest::addColumn<bool>("twoDimensional");
         QTest::addColumn<int>("holes");
-        QTest::newRow("three found") << QList<int>{3, 6, 8} << true << 9;
+        QTest::newRow("three found") << QList<int>{3, 6, 8} << true << 5;
         QTest::newRow("two found") << QList<int>{3, 8} << false << 0;
     }
     void aSparseSecondRowNeedsEnoughEvidence() {
@@ -663,6 +679,65 @@ private slots:
         QVERIFY(distance(r.clusters[0].center, {30.0, 0.0}) < 0.5);
         QVERIFY(distance(r.clusters[1].center, {0.0, 20.0}) < 0.5);
         QCOMPARE(c.cluster({}, 1.0).clusters.size(), std::size_t{0});
+    }
+
+    // ---- R07.2：交錯排列的陣列（索引區域不是外接矩形，lattice_region.h） ----
+
+    // 完美的 10×6 交錯區塊是一組二維晶格、沒有缺格。R07.2 之前：外接矩形多 90 格，規則 2 擋掉二維，退回一維
+    // （只擬合出 24 個內點的二維加三條一維，使用者的板子上缺格一個都不補）。
+    void aStaggeredBlockIsOneTwoDimensionalLatticeWithoutFalseHoles() {
+        const std::vector<Point2D> points = staggeredPoints(10, 6);
+        const LatticeFit fit = LatticeEstimator().fitAll(points);
+        QCOMPARE(fit.models.size(), std::size_t{1});
+        const LatticeModel& m = fit.models.front();
+        QVERIFY(m.hasV());
+        QCOMPARE(m.inliers.size(), points.size());
+        QVERIFY(m.rmsPx < 1e-6);
+        QCOMPARE(m.cellCount(), points.size());
+        QCOMPARE(m.coverage, 1.0);
+        QVERIFY(holesOf(m).empty());
+        QVERIFY(!m.suggestCheck);
+        checkInliersSitOnTheirCells(m, points);
+    }
+
+    // 缺的格子（包括角落與邊上的）就是預測的缺格，位置精確；區塊外面不補。
+    void aStaggeredBlockPredictsExactlyItsMissingCells() {
+        const std::vector<std::pair<int, int>> skip{{0, 0}, {9, 5}, {3, 2}, {4, 2}, {7, 0}, {5, 5}};
+        const std::vector<Point2D> points = staggeredPoints(10, 6, skip);
+        const LatticeFit fit = LatticeEstimator().fitAll(points);
+        QCOMPARE(fit.models.size(), std::size_t{1});
+        const LatticeModel& m = fit.models.front();
+        QVERIFY(m.hasV());
+        QCOMPARE(m.inliers.size(), points.size());
+        const std::vector<Point2D> holes = holesOf(m);
+        QCOMPARE(holes.size(), skip.size());
+        for (const auto& [c, r] : skip) QVERIFY2(hasPointNear(holes, staggeredPosition(c, r), 1e-6), qPrintable(QString("(%1, %2)").arg(c).arg(r)));
+        QCOMPARE(m.cellCount(), std::size_t{60});
+    }
+
+    // 少了一半（和使用者的板子一樣：搜尋只找到約一半的端子）：仍然是同一組二維晶格，缺格補在區塊裡面。
+    void aStaggeredBlockWithHalfMissingStillFitsOneLattice() {
+        std::vector<std::pair<int, int>> skip;
+        for (int c = 0; c < 10; ++c) {
+            for (int r = 0; r < 6; ++r) {
+                if ((c * 7 + r * 3) % 2 == 0) skip.emplace_back(c, r);
+            }
+        }
+        const std::vector<Point2D> points = staggeredPoints(10, 6, skip);
+        const LatticeFit fit = LatticeEstimator().fitAll(points);
+        QCOMPARE(fit.models.size(), std::size_t{1});
+        const LatticeModel& m = fit.models.front();
+        QVERIFY(m.hasV());
+        QVERIFY(std::abs(len(m.basis.u) - 154.0) < 1e-6);
+        QCOMPARE(m.inliers.size(), points.size());
+        const std::vector<Point2D> holes = holesOf(m);
+        QVERIFY(holes.size() <= skip.size());
+        for (const Point2D& h : holes) {
+            bool inside = false;
+            for (const auto& [c, r] : skip) inside = inside || distance(h, staggeredPosition(c, r)) < 1e-6;
+            QVERIFY2(inside, "a hole outside the block");
+        }
+        QVERIFY(holes.size() >= skip.size() / 2);  // 邊上整排缺的不往外推（規則 6）、沒有兩側證據的角落不補，其餘都補
     }
 };
 

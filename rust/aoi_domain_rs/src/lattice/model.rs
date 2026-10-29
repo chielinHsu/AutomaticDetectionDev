@@ -1,8 +1,10 @@
 //! `LatticeModel`、`LatticeFit`、`NoLatticeReason`（`lattice_model.h`）與信心分數（`lattice_confidence.h`）。
 
 use crate::cpp::cpp_clamp;
+use crate::fallible::Res;
 use crate::lattice::accumulator::Accumulator;
 use crate::lattice::basis::{Basis, Cell};
+use crate::lattice::region::Region;
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Model {
@@ -23,15 +25,13 @@ pub struct Model {
 }
 
 impl Model {
-    /// `cellCount()`：size_t 的乘法（溢位時繞回，和 C++ 相同）。
-    pub fn cell_count(&self) -> usize {
-        let w = self.max_i.wrapping_sub(self.min_i).wrapping_add(1) as usize;
-        let h = if self.basis.has_v {
-            self.max_j.wrapping_sub(self.min_j).wrapping_add(1) as usize
-        } else {
-            1
-        };
-        w.wrapping_mul(h)
+    /// `cellCount()`：索引區域裡的格子數（R07.2 起不是外接矩形，見 `region.rs`；佔用表配置失敗時回錯誤）。
+    pub fn cell_count(&self) -> Res<usize> {
+        Ok(self.region()?.cell_count(&self.basis))
+    }
+
+    pub fn region(&self) -> Res<Region> {
+        Region::of(&self.basis, self.min_i, self.max_i, self.min_j, self.max_j, &self.cells)
     }
 }
 

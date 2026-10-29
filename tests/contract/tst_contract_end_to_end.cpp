@@ -158,6 +158,7 @@ Result<SampleProposal> run(const SearchEngine& engine, const SyntheticBoard& boa
     SampleRequest request;
     request.image = image;
     request.sample = sampleBoxAround(board, middlePresentIndex(board));
+    request.options.reportUnverifiedHoles = true;  // 契約量的是「缺件的格子每個 back end 都補成 Inferred」；產品預設不回報（ADR-035）
     return engine.generate->run(request, CancelToken());
 }
 

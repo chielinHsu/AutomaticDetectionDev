@@ -36,6 +36,14 @@ struct GenerateOptions {
     double minContrast = 3.0;     // 樣本亮度標準差（0..255）低於這個值，判定對比太低
     double windowScale = 1.5;     // 驗證視窗的大小 ＝ 範本大小 × 這個倍數
     std::size_t maxPredictions = 20000;  // 最多預測幾個缺格（超過時留離樣本最近的）
+    // 視窗驗證什麼都沒找到（分數 < candidateFloor）的缺格要不要回報成 Predicted（畫面上的「推算」）。預設不回報：
+    // 真實影像上這種格子到目前為止都是陣列角落、長槽邊緣的誤判，教學用的影像本來就是好板子（ADR-035）。
+    // 要補「影像上真的沒有的元件」時打開；數量照樣記在 GridSummary::unverified。
+    bool reportUnverifiedHoles = false;
+    // 視窗驗證的分數低於 seedMinScore 的缺格（整張搜尋沒找到、補漏才撿到的低分候選）要有足夠的鄰居才回報：二維時晶格上
+    // 8 個鄰居裡被佔的（樣本、種子的內點、驗證分數 ≥ seedMinScore 的缺格）至少這麼多個，一維時兩側都要有。0 ＝ 不檢查。
+    // 真實影像上長槽鋸齒、板邊的低分候選最多 3–4 個鄰居，陣列裡的真零件幾乎都 ≥ 4（ADR-035 的「後續（R07.9）」）。
+    std::size_t minNeighboursForWeakHoles = 4;
     LatticeOptions lattice;       // 晶格估計（S05，domain/lattice）
     NmsOptions nms;               // 重疊多少算「同一個元件」：種子搜尋的重複匹配、與已有候選重疊的缺格（主體框大小）
 };
@@ -66,6 +74,8 @@ struct GridSummary {
     Point2D v;
     double rmsPx = 0.0;
     std::size_t holes = 0;     // 預測的缺格數（所有晶格合計，扣掉與已有候選重疊的）
+    std::size_t unverified = 0;  // 其中視窗驗證什麼都沒找到的（GenerateOptions::reportUnverifiedHoles 決定要不要回報成 Predicted）
+    std::size_t unsupported = 0; // 其中驗證到低分、但鄰居不夠而沒有回報的（GenerateOptions::minNeighboursForWeakHoles）
     std::size_t lattices = 0;  // 幾組晶格（例如上下兩排方向不同時是 2）
     double coverage = 0.0;     // 主晶格：找到的格子 ÷ 索引範圍內的格子
     double confidence = 0.0;   // 主晶格的信心（0..1；domain/lattice/lattice_confidence.h）

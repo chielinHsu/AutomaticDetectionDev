@@ -33,16 +33,10 @@ bool enoughEvidence(const LatticeCandidate& c, std::span<const Point2D> points, 
 
 bool holesAreBacked(const LatticeModel& m) {
     rs::checkAbi();
-    // 只用到內點數與索引範圍（不必複製內點與格子）。
-    AoiRsLatticeModel view{};
-    view.basis = rs::toRs(m.basis);
-    view.min_i = m.minI;
-    view.max_i = m.maxI;
-    view.min_j = m.minJ;
-    view.max_j = m.maxJ;
-    view.inlier_count = m.inliers.size();
+    // 內點數、索引範圍與內點的格子（R07.2 起索引區域要看格子）；ModelView 也複製內點，和走訪的格子數比很小。
+    const rs::ModelView view(m);
     int32_t out = 0;
-    rs::check(aoi_rs_lattice_holes_are_backed(&view, &out), "aoi_rs_lattice_holes_are_backed");
+    rs::check(aoi_rs_lattice_holes_are_backed(view.get(), &out), "aoi_rs_lattice_holes_are_backed");
     return out != 0;
 }
 

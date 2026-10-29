@@ -56,6 +56,37 @@ struct Oracle {
     std::vector<fake::FakeCell> cells;
     int minI = 0, maxI = 0, minJ = 0, maxJ = 0;
     bool insideSeedBox(const fake::FakeCell& c) const { return c.i >= minI && c.i <= maxI && c.j >= minJ && c.j <= maxJ; }
+    bool strongAt(int i, int j) const {
+        return std::any_of(cells.begin(), cells.end(), [&](const fake::FakeCell& c) { return c.i == i && c.j == j && c.kind == fake::FakeCellKind::Strong; });
+    }
+    // 空格有沒有兩側的證據（ADR-013 的「後續（R07.2）」、lattice_region.h 的條件 3）：沿欄或沿列的兩側各在 3 格之內都有種子
+    // （Strong），或角落（沿欄與沿列各有一個相鄰的種子）。沒有的缺件與弱零件，晶格不補、視窗驗證也找不到。
+    bool backed(const fake::FakeCell& c) const {
+        const auto reaches = [&](int di, int dj) {
+            for (int step = 1; step <= 3; ++step) {
+                if (strongAt(c.i + di * step, c.j + dj * step)) return true;
+            }
+            return false;
+        };
+        const bool betweenI = reaches(1, 0) && reaches(-1, 0);
+        const bool betweenJ = reaches(0, 1) && reaches(0, -1);
+        const bool corner = (strongAt(c.i + 1, c.j) || strongAt(c.i - 1, c.j)) && (strongAt(c.i, c.j + 1) || strongAt(c.i, c.j - 1));
+        return betweenI || betweenJ || corner;
+    }
+    // 二維的格子裡，晶格會補（或驗證會找到）的那些：在種子的索引範圍內，而且有兩側的證據。
+    bool predicted(const fake::FakeCell& c) const { return insideSeedBox(c) && backed(c); }
+    // 低分的零件（Weak：視窗驗證找到、分數 < 0.70）還要有足夠的鄰居才回報（ADR-035 的「後續（R07.9）」）：8 個鄰居裡
+    // 至少 4 個種子（假世界裡的 Strong；Weak 與 Missing 不算）。
+    bool supported(const fake::FakeCell& c) const {
+        std::size_t neighbours = 0;
+        for (int di = -1; di <= 1; ++di) {
+            for (int dj = -1; dj <= 1; ++dj) {
+                if ((di != 0 || dj != 0) && strongAt(c.i + di, c.j + dj)) ++neighbours;
+            }
+        }
+        return neighbours >= 4;
+    }
+    bool weakReported(const fake::FakeCell& c) const { return c.kind == fake::FakeCellKind::Weak && predicted(c) && supported(c); }
 };
 
 Oracle makeOracle(const fake::FakeSpec& spec, Rect sample) {
@@ -196,21 +227,23 @@ private slots:
         spec.weakFraction = 0.25;
         spec.seed = 7;
         const Oracle oracle = makeOracle(spec, kSample);
-        std::size_t expectedVerified = 0;
+        std::size_t expectedVerified = 0, unsupported = 0;
         for (const fake::FakeCell& c : oracle.cells) {
-            if (c.kind == fake::FakeCellKind::Weak && oracle.insideSeedBox(c)) ++expectedVerified;
+            if (oracle.weakReported(c)) ++expectedVerified;
+            if (c.kind == fake::FakeCellKind::Weak && oracle.predicted(c) && !oracle.supported(c)) ++unsupported;
         }
         QVERIFY2(expectedVerified >= 3, "the fixture itself must contain weak parts, or the test proves nothing");
+        QVERIFY2(unsupported >= 1, "the fixture must have a weak part at the edge (fewer than 4 neighbours), or the rule is not exercised");
 
         Fixture f(spec);
         const SampleProposal p = f.run().value();
         QCOMPARE(countSource(p.candidates, CandidateSource::Verified), expectedVerified);
         QCOMPARE(countSource(p.candidates, CandidateSource::Predicted), std::size_t{0});
+        QCOMPARE(p.grid.unsupported, unsupported);
         QVERIFY2(f.searcher.windowCalls >= 1, "weak parts can only be found by the windowed search");
         for (const fake::FakeCell& c : oracle.cells) {
-            if (c.kind == fake::FakeCellKind::Weak && oracle.insideSeedBox(c)) {
-                QVERIFY(hasCandidateAt(p.candidates, c.pose, CandidateSource::Verified));
-            }
+            if (oracle.weakReported(c)) QVERIFY(hasCandidateAt(p.candidates, c.pose, CandidateSource::Verified));
+            if (c.kind == fake::FakeCellKind::Weak && !oracle.supported(c)) QVERIFY(!hasCandidateAt(p.candidates, c.pose, CandidateSource::Verified));
         }
         for (const Candidate& c : p.candidates) {
             if (c.source == CandidateSource::Verified) QVERIFY(c.score >= 0.30 && c.score < 0.70);
@@ -246,7 +279,7 @@ private slots:
         const Oracle oracle = makeOracle(spec, kSample);
         std::size_t expectedPredicted = 0;
         for (const fake::FakeCell& c : oracle.cells) {
-            if (c.kind == fake::FakeCellKind::Missing && oracle.insideSeedBox(c)) ++expectedPredicted;
+            if (c.kind == fake::FakeCellKind::Missing && oracle.predicted(c)) ++expectedPredicted;
         }
         QVERIFY2(expectedPredicted >= 2, "the fixture itself must contain missing parts");
 
@@ -255,7 +288,7 @@ private slots:
         QCOMPARE(countSource(p.candidates, CandidateSource::Predicted), expectedPredicted);
         QCOMPARE(p.grid.holes, expectedPredicted);
         for (const fake::FakeCell& c : oracle.cells) {
-            if (c.kind == fake::FakeCellKind::Missing && oracle.insideSeedBox(c)) {
+            if (c.kind == fake::FakeCellKind::Missing && oracle.predicted(c)) {
                 QVERIFY(hasCandidateAt(p.candidates, c.pose, CandidateSource::Predicted));
             }
         }
@@ -265,6 +298,29 @@ private slots:
         for (const InspectionObject& o : v.objects) {
             if (o.state == ObjectState::Inferred) QVERIFY2(!o.score.has_value(), "an inferred part has no score, and the core must not invent one");
         }
+    }
+
+    // ADR-035：產品的預設（GenerateOptions 不動）不回報影像上驗證不到的缺格，只記數量；其餘的候選和打開時相同。
+    void unverifiedHolesAreCountedButNotReportedByDefault() {
+        fake::FakeSpec spec = gridSpec();
+        spec.missingFraction = 0.2;
+        spec.seed = 3;
+        Fixture f(spec);
+        const SampleProposal reported = f.run().value();  // makeRequest 打開 reportUnverifiedHoles
+        const std::size_t missing = countSource(reported.candidates, CandidateSource::Predicted);
+        QVERIFY2(missing >= 2, "the fixture itself must contain missing parts");
+
+        SampleRequest request = makeRequest(image800x600(), kSample);
+        request.options = GenerateOptions{};
+        QVERIFY(!request.options.reportUnverifiedHoles);
+        const SampleProposal p = f.useCase.run(request, CancelToken()).value();
+        QCOMPARE(countSource(p.candidates, CandidateSource::Predicted), std::size_t{0});
+        QCOMPARE(p.grid.unverified, missing);
+        QCOMPARE(reported.grid.unverified, missing);
+        QCOMPARE(p.grid.holes, reported.grid.holes);  // 預測的缺格數照舊：差別只在回不回報
+        QCOMPARE(p.candidates.size() + missing, reported.candidates.size());
+        for (const Candidate& c : p.candidates) QVERIFY(c.source != CandidateSource::Predicted);
+        QCOMPARE(classify(p, 0.80).inferred, std::size_t{0});
     }
 
     void aRotatedNoisyGridWithMixedPartsMatchesTheOracle() {
@@ -278,8 +334,8 @@ private slots:
         std::size_t strong = 0, weakIn = 0, missingIn = 0;
         for (const fake::FakeCell& c : oracle.cells) {
             if (c.kind == fake::FakeCellKind::Strong) ++strong;
-            if (c.kind == fake::FakeCellKind::Weak && oracle.insideSeedBox(c)) ++weakIn;
-            if (c.kind == fake::FakeCellKind::Missing && oracle.insideSeedBox(c)) ++missingIn;
+            if (oracle.weakReported(c)) ++weakIn;
+            if (c.kind == fake::FakeCellKind::Missing && oracle.predicted(c)) ++missingIn;
         }
         Fixture f(spec);
         const SampleProposal p = f.run().value();
@@ -898,6 +954,70 @@ private slots:
 
     // 一個種子離它的格點 12.5 px（超過容差 11.25 px，所以不是內點），那一格因此是「缺格」；但那裡已經有這個種子
     // （主體框重疊 IoU 0.52 > 0.5）：不補，否則同一個元件會多一個推算的框。
+    // ADR-035 的「後續（R07.9）」：低分的缺格（驗證 < 0.70）要有 4 個以上被佔的鄰居才回報。6 × 4 的區塊缺右上角 (5,0)：
+    // 角落靠「沿欄與沿列各有相鄰的種子」被預測，視窗裡找到 0.5 的東西，但鄰居只有 (4,0)、(4,1)、(5,1) 三個 → 不回報；
+    // 內部的 (2,1) 同樣 0.5、8 個鄰居 → 回報。
+    void aWeakPartWithFewerThanFourNeighboursIsNotReported() {
+        ScriptedBuilder builder({40.0, 30.0});
+        ScriptedSearcher searcher;
+        const Point2D origin{100.0, 100.0};
+        for (int c = 0; c < 6; ++c) {
+            for (int r = 0; r < 4; ++r) {
+                const Point2D p = at(origin, 60.0, 45.0, c, r);
+                if ((c == 5 && r == 0) || (c == 2 && r == 1)) {
+                    searcher.world.push_back({{p.x, p.y, 0.0}, 0.5});
+                    continue;
+                }
+                searcher.seeds.push_back({{p.x, p.y, 0.0}, 0.9});
+            }
+        }
+        GenerateObjectsFromSample useCase(builder, searcher);
+        const SampleProposal p = useCase.run(makeRequest(image800x600(), sampleAround(origin)), CancelToken()).value();
+        QVERIFY(p.grid.found);
+        QVERIFY(p.grid.hasV);
+        QCOMPARE(countSource(p.candidates, CandidateSource::Verified), std::size_t{1});
+        QVERIFY(hasCandidateAt(p.candidates, Pose2D{at(origin, 60.0, 45.0, 2, 1).x, at(origin, 60.0, 45.0, 2, 1).y, 0.0}, CandidateSource::Verified));
+        QVERIFY(!hasCandidateAt(p.candidates, Pose2D{at(origin, 60.0, 45.0, 5, 0).x, at(origin, 60.0, 45.0, 5, 0).y, 0.0}, CandidateSource::Verified));
+        QCOMPARE(p.grid.unsupported, std::size_t{1});
+        QCOMPARE(countSource(p.candidates, CandidateSource::Predicted), std::size_t{0});
+
+        // 關掉規則：角落那個照舊回報。
+        SampleRequest request = makeRequest(image800x600(), sampleAround(origin));
+        request.options.minNeighboursForWeakHoles = 0;
+        const SampleProposal all = useCase.run(request, CancelToken()).value();
+        QCOMPARE(countSource(all.candidates, CandidateSource::Verified), std::size_t{2});
+        QCOMPARE(all.grid.unsupported, std::size_t{0});
+    }
+
+    // 一維：低分的缺格兩側都要有。一排 7 格，(3) 是 0.5 的弱零件、(4) 缺：(3) 的右邊沒有 → 不回報；把 (4) 補成種子就回報。
+    void aWeakPartInARowNeedsBothNeighbours() {
+        ScriptedBuilder builder({40.0, 30.0});
+        const Point2D origin{100.0, 100.0};
+        const auto run = [&](bool fourPresent) {
+            ScriptedSearcher searcher;
+            for (int c = 0; c < 7; ++c) {
+                const Point2D p = at(origin, 60.0, 45.0, c, 0);
+                if (c == 3) {
+                    searcher.world.push_back({{p.x, p.y, 0.0}, 0.5});
+                    continue;
+                }
+                if (c == 4 && !fourPresent) continue;
+                searcher.seeds.push_back({{p.x, p.y, 0.0}, 0.9});
+            }
+            GenerateObjectsFromSample useCase(builder, searcher);
+            return useCase.run(makeRequest(image800x600(), sampleAround(origin)), CancelToken()).value();
+        };
+        const SampleProposal gap = run(false);
+        QVERIFY(gap.grid.found);
+        QVERIFY(!gap.grid.hasV);
+        QCOMPARE(countSource(gap.candidates, CandidateSource::Verified), std::size_t{0});
+        QCOMPARE(gap.grid.unsupported, std::size_t{1});
+        const SampleProposal full = run(true);
+        QVERIFY(!full.grid.hasV);
+        QCOMPARE(countSource(full.candidates, CandidateSource::Verified), std::size_t{1});
+        QCOMPARE(full.grid.unsupported, std::size_t{0});
+    }
+
     void aHoleUnderAnOffLatticeSeedIsNotPredicted() {
         ScriptedBuilder builder({40.0, 30.0});
         ScriptedSearcher searcher;

@@ -16,4 +16,5 @@ pub mod estimator;
 pub mod model;
 pub mod options;
 pub mod predictor;
+pub mod region;
 pub mod spatial_grid;

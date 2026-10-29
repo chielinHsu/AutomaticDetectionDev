@@ -6,6 +6,7 @@
 #include <numeric>
 
 #include "domain/lattice/flat_map.h"
+#include "domain/lattice/lattice_region.h"
 
 namespace aoi::legacy {
 
@@ -44,6 +45,8 @@ std::vector<PredictedCell> LatticePredictor::holes(std::size_t maxCount) const {
     const double w = static_cast<double>(model_.maxI) - model_.minI + 1.0;
     const double h = static_cast<double>(jTo) - jFrom + 1.0;
     if (w < 1.0 || h < 1.0 || maxCount == 0 || w * h > kMaxVisited) return out;
+    // R07.2：只在索引區域裡找（交錯陣列不含外接矩形多出來的角）。
+    const detail::LatticeRegion region(b, model_.minI, model_.maxI, model_.minJ, model_.maxJ, model_.cells);
 
     // 佔用表：索引範圍通常不大（信心夠的晶格涵蓋率不低），用密集陣列；很大時用雜湊表。
     const bool dense = w * h <= 64.0 * static_cast<double>(model_.cells.size()) + 4096.0;
@@ -61,7 +64,7 @@ std::vector<PredictedCell> LatticePredictor::holes(std::size_t maxCount) const {
     for (int i = model_.minI; i <= model_.maxI; ++i) {
         for (int j = jFrom; j <= jTo; ++j) {
             const bool occupied = dense ? grid[slot(i, j)] != 0 : sparse.find(detail::packKey(i, j)) != nullptr;
-            if (occupied) continue;
+            if (occupied || !region.contains(i, j)) continue;
             const Point2D p = b.at(i, j);
             if (!bounds_.contains(p)) continue;
             out.push_back({{i, j}, p});

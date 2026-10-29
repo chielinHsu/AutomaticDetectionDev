@@ -3,7 +3,8 @@
  * 只 include C 的標準標頭；結構的欄位順序和 Rust 的 #[repr(C)] 相同（C++ 的包裝 non_max_suppression_rs.cpp、
  * lattice/lattice_rs_bridge.cpp、match_region_rs.cpp、repeatability_rs.cpp 用 static_assert 檢查大小，Rust 那一側也有）。改這裡就要改 rust/aoi_domain_rs/src/ffi.rs
  * （NMS）、ffi_lattice.rs（晶格）、ffi_match.rs（比對區）或 ffi_repeatability.rs（重複性），並把 AOI_RS_ABI_VERSION 加 1。版本 1：R05.1（NMS）；版本 2：R05.2（晶格）；
- * 版本 3：R05.3（比對區與自動擷取）；版本 4：R05.4（重複性的樣本統計）。
+ * 版本 3：R05.3（比對區與自動擷取）；版本 4：R05.4（重複性的樣本統計）；版本 5：R07.2（aoi_rs_lattice_holes_are_backed 要讀 cells：
+ * 索引區域不再是外接矩形）。
  *
  * 規則：
  *   - 回傳 AoiRsStatus 的函式：AOI_RS_OK 才有輸出。panic 被擋在 Rust 這一側（AOI_RS_PANIC，是 bug）；
@@ -23,7 +24,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#define AOI_RS_ABI_VERSION 4u
+#define AOI_RS_ABI_VERSION 5u
 
 #ifdef __cplusplus
 extern "C" {
@@ -222,7 +223,8 @@ AoiRsStatus aoi_rs_basis_second_direction(const AoiRsLatticeOptions* options, co
 AoiRsStatus aoi_rs_point_list_get(const AoiRsPointList* list, const AoiRsPoint** data, size_t* count);
 void aoi_rs_point_list_free(AoiRsPointList* list);
 
-/* detail::largestComponent（out_indices 由呼叫端配置 count 個）與接受規則（which：0 ＝ twoDimensionalIsValid、1 ＝ enoughEvidence）。 */
+/* detail::largestComponent（out_indices 由呼叫端配置 count 個）與接受規則（which：0 ＝ twoDimensionalIsValid、1 ＝ enoughEvidence）。
+ * holes_are_backed 讀 model 的 inlier_count 與 cells（R07.2 起索引區域要看內點的格子）；inliers 不讀。 */
 AoiRsStatus aoi_rs_lattice_largest_component(const AoiRsCell* cells, size_t count, int32_t link, int32_t two_dimensional,
                                              size_t* out_indices, size_t* out_count);
 AoiRsStatus aoi_rs_lattice_candidate_rule(int32_t which, const AoiRsLatticeCandidate* candidate, const AoiRsPoint* points,
