@@ -21,7 +21,7 @@
 - 沒有跑 `-DomainImpl Cpp`、`-Perf`。
 
 ### Commit
-- 見下方（提交後補）。
+- `ac71fba` [Caspar]fix: 低分的補漏候選要有足夠的鄰居才回報；收尾的文件（資料夾搬到 `completed/`、INDEX、status、交接單）是下一筆 docs 提交；之後 `fix/r07-multi-sample` 以 `--no-ff` 合併回 `main`（本機，沒有 push）。
 
 ## 2026-10-29 — Claude Code (Claude Fable 5.1)：R07.8 影像上驗證不到的推算格預設不回報
 
@@ -52,7 +52,7 @@
 - 原半缺件資料為棋盤式刪除，沒有 154 px 相鄰對，不符合預設方向投票證據。正面案例仍缺 30/60，每欄保留連續三點；保留一組二維、30 個內點、154 px 間距，並逐點驗證手列的 15 個有證據缺格。原棋盤資料保留為安全性案例，另補無證據角落案例。
 - 修改：`tests/domain/tst_lattice.cpp`、本計畫 plan/status/tasks/changelog、R08 的驗證快照與交接。`src/domain`、`rust/aoi_domain_rs` 的來源 hash 與開工快照相同；不回復交錯陣列／長槽設計。
 - 驗證：四個最小案例紅→綠各兩次；完整 `test.ps1 -BuildDir build/qmake-r08 -NoBuild` exit 0、67/67；Rust 與 C++ Lattice 各 77 passed。四組分別為 GenerateObjects 54/0/0、Lattice 77/0/0、Presenter 86/0/1、Rust/C++ 差異 170/0/1（passed/failed/skipped）。
-- Socket 專項 10/0/0；真實圖選區 28 框，圈選、單框編輯、取消與配方存讀正常；截圖 `build/r09-repro/Socket-verified.png`。更新見 [R08 changelog](../R08-socket-teaching/changelog.md)。
+- Socket 專項 10/0/0；真實圖選區 28 框，圈選、單框編輯、取消與配方存讀正常；截圖 `build/r09-repro/Socket-verified.png`。更新見 [R08 changelog](../../active/R08-socket-teaching/changelog.md)。
 - 全域仍有原本 7 組 skip 與 2 個 XFAIL，整體不標為完全 VERIFIED。詳見 [診斷與驗證](tasks/regression-repair.md)。未做效能最佳化或修改預算。
 - 未 stage、未 commit、未 push；HEAD 仍為 `970ac5f`。保留 R08 未提交內容、`.archify/` 與 `AiInspTool/cargo/`。
 

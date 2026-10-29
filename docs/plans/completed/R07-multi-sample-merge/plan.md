@@ -2,7 +2,7 @@
 id: R07
 title: 多樣本搜尋的合併與驗證規則：樣本越多結果不應越差
 type: 修正
-status: 進行中
+status: 完成
 created: 2026-10-28
 updated: 2026-10-29
 depends_on: []
