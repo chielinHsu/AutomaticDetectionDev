@@ -989,13 +989,13 @@ private slots:
         QCOMPARE(all.grid.unsupported, std::size_t{0});
     }
 
-    // 一維：低分的缺格兩側都要有。一排 7 格，(3) 是 0.5 的弱零件、(4) 缺：(3) 的右邊沒有 → 不回報；把 (4) 補成種子就回報。
+    // 一維：保留足夠連續種子鎖定 60 px 間距；(3) 是弱零件、(4) 缺時不回報，補上 (4) 才回報。
     void aWeakPartInARowNeedsBothNeighbours() {
         ScriptedBuilder builder({40.0, 30.0});
         const Point2D origin{100.0, 100.0};
         const auto run = [&](bool fourPresent) {
             ScriptedSearcher searcher;
-            for (int c = 0; c < 7; ++c) {
+            for (int c = 0; c < 12; ++c) {
                 const Point2D p = at(origin, 60.0, 45.0, c, 0);
                 if (c == 3) {
                     searcher.world.push_back({{p.x, p.y, 0.0}, 0.5});
@@ -1010,6 +1010,7 @@ private slots:
         const SampleProposal gap = run(false);
         QVERIFY(gap.grid.found);
         QVERIFY(!gap.grid.hasV);
+        QVERIFY(std::abs(std::hypot(gap.grid.u.x, gap.grid.u.y)-60.0)<1e-6);
         QCOMPARE(countSource(gap.candidates, CandidateSource::Verified), std::size_t{0});
         QCOMPARE(gap.grid.unsupported, std::size_t{1});
         const SampleProposal full = run(true);
