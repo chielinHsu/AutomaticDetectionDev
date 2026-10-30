@@ -1,7 +1,12 @@
 # Agent Handoff
 
-- 更新：Codex (gpt-6.1-sol)，2026-10-30；本次 [R09](../docs/plans/active/R09-deep-learning-cad/status.md) R09.15–R09.17 已實作，驗證 PARTIALLY VERIFIED。沒有 stage／commit／push。
+- 更新：Codex (gpt-6.1-sol)，2026-10-30；使用者授權 R09 合回主線。功能提交 `abe86ef500b3` 已透過 `666d0d15d615` 合併至本機 main；不 push。驗證仍 PARTIALLY VERIFIED。
 - 使用者要求概念落實至程式、同一 AiInspTool.pro 建置兩個工具，並指示不要限定 PCB。產品名 **Vision CAD Studio／元件深度學習 CAD**；模組與 JSON 格式保留相容。
+
+## 本次合併
+
+- 只提交 R09 的 66 個檔案／文件段落，R08／R07 與來源不明修改保留；合併前後其他 tracked diff 與 untracked 路徑雜湊相同。共同文件只暫存兩個 R08 段落並原樣還原，本次臨時 stash 已移除。
+- 暫存索引匯出獨立快照：5 項 shell 測試（11.391s）、qmake／jom 工作台建置與 OBB／segment 啟動均通過，證據 build/r09-merge-*.log。先前完整 C++ 結果來自含其他未提交工作的共用工作目錄，本輪未重跑隔離主線整套。
 
 ## 本次程式與入口
 

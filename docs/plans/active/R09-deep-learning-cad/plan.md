@@ -7,7 +7,7 @@ created: 2026-10-29
 updated: 2026-10-30
 depends_on: [R08]
 related: [ADR-015, ADR-036, ADR-037, ADR-038, ADR-039, ADR-040, ADR-041]
-branch: codex/r09-vision-workbench → main（使用者 2026-10-30 授權本機提交與合併；不 push）
+branch: main（合併 666d0d15d615；來源 codex/r09-vision-workbench；不 push）
 ---
 
 # R09 — PCB 多類元件深度學習 CAD
@@ -36,23 +36,23 @@ branch: codex/r09-vision-workbench → main（使用者 2026-10-30 授權本機�
 
 | 編號 | 細項 | 狀態 | 分支／commit | 驗證 |
 |---|---|---|---|---|
-| R09.1 | 盤點訓練／推論環境、訂定元件類別與標註／CAD 規格契約 | ✅ | 未提交 | PARTIALLY VERIFIED：Python 3.12.14、PySide6 6.12.0、Ultralytics 8.4.192、Torch 2.15.0 CPU、ONNX Runtime 1.31.1；pip check 成功，鎖定版本。 |
-| R09.2 | 建立圖片／多邊形／旋轉框標註、資料保存、分割與 OBB 匯出及資料檢查 | ✅ | 未提交 | PARTIALLY VERIFIED：審核輪廓／矩形與可拖動頂點、group 隔離、重複／越界／自交檢查；雙資料匯出及 SHA-256 清單驗證通過。 |
-| R09.3 | 實作 OBB 模型匯入、ROI／分塊推論、座標／角度轉換與 CAD 類別對應 | ✅ | 未提交 | PARTIALLY VERIFIED：實際 OBB ONNX Runtime fixture 與短訓練模型推論通過；ROI 全圖座標、旋轉、固定／覆寫 CAD 規格與 NMS。 |
-| R09.4 | 實作實例分割模型匯入、遮罩還原、物件位置／方向與 CAD 類別對應 | ✅ | 未提交 | PARTIALLY VERIFIED：實際 segmentation ONNX 推論、輪廓及軸向、CAD 規格；Qt 背景推論與取消界線通過。 |
-| R09.5 | 訓練／評估／ONNX 匯出腳本與可重現資料流程，明確區分示範與實際 PCB 模型 | ✅ | 未提交 | PARTIALLY VERIFIED：兩種模式各完成 12 張合成圖、1 epoch、imgsz64、CPU 訓練、獨立 test 評估及 ONNX 匯出；test mAP 均 0，只作流程 smoke。 |
-| R09.6 | UI 模式切換、標註與模型／CAD 規格設定、旋轉／遮罩顯示、配方存讀、回歸與交付 | ✅ | 未提交 | PARTIALLY VERIFIED：8 項 Python／Qt／ONNX 測試全部通過，含真實滑鼠標註、頂點、配方重開、編輯保留。獨立入口與操作文件已建立；最終啟動 smoke 見 build/r09-gui-smoke.json。 |
+| R09.1 | 盤點訓練／推論環境、訂定元件類別與標註／CAD 規格契約 | ✅ | `abe86ef500b3` | PARTIALLY VERIFIED：Python 3.12.14、PySide6 6.12.0、Ultralytics 8.4.192、Torch 2.15.0 CPU、ONNX Runtime 1.31.1；pip check 成功，鎖定版本。 |
+| R09.2 | 建立圖片／多邊形／旋轉框標註、資料保存、分割與 OBB 匯出及資料檢查 | ✅ | `abe86ef500b3` | PARTIALLY VERIFIED：審核輪廓／矩形與可拖動頂點、group 隔離、重複／越界／自交檢查；雙資料匯出及 SHA-256 清單驗證通過。 |
+| R09.3 | 實作 OBB 模型匯入、ROI／分塊推論、座標／角度轉換與 CAD 類別對應 | ✅ | `abe86ef500b3` | PARTIALLY VERIFIED：實際 OBB ONNX Runtime fixture 與短訓練模型推論通過；ROI 全圖座標、旋轉、固定／覆寫 CAD 規格與 NMS。 |
+| R09.4 | 實作實例分割模型匯入、遮罩還原、物件位置／方向與 CAD 類別對應 | ✅ | `abe86ef500b3` | PARTIALLY VERIFIED：實際 segmentation ONNX 推論、輪廓及軸向、CAD 規格；Qt 背景推論與取消界線通過。 |
+| R09.5 | 訓練／評估／ONNX 匯出腳本與可重現資料流程，明確區分示範與實際 PCB 模型 | ✅ | `abe86ef500b3` | PARTIALLY VERIFIED：兩種模式各完成 12 張合成圖、1 epoch、imgsz64、CPU 訓練、獨立 test 評估及 ONNX 匯出；test mAP 均 0，只作流程 smoke。 |
+| R09.6 | UI 模式切換、標註與模型／CAD 規格設定、旋轉／遮罩顯示、配方存讀、回歸與交付 | ✅ | `abe86ef500b3` | PARTIALLY VERIFIED：8 項 Python／Qt／ONNX 測試全部通過，含真實滑鼠標註、頂點、配方重開、編輯保留。獨立入口與操作文件已建立；最終啟動 smoke 見 build/r09-gui-smoke.json。 |
 | R09.7 | 以使用者真實 PCB 完成人工標註、正式訓練與獨立批次品質驗收 | ⬜ | 已提供 D:/BMP/PCB，尚無標註 | NOT VERIFIED：不可用合成圖或固定 ONNX 代替 |
-| R09.8 | 盤點 RGB／合併圖、驗證通道對應、建立同來源群組的標註起始專案並實測工作台載入 | ✅ | 未提交；不改原圖 | PARTIALLY VERIFIED：12 圖／3 組、5120×4096，9 個來源通道逐像素一致；2 項匯入測試通過，3 張真實 RGB Qt 載入通過；無標註，不宣稱品質。 |
-| R09.9 | 重整新手 UX：載圖／標註／CAD 規格／訓練／生成五步、情境提示與前置條件、進階設定收合、標註類別修正與存檔回饋 | ✅ | 未提交；保留現有標註 | VERIFIED：16 項 Python／Qt／ONNX 測試通過；真實桌面已開啟新版並還原八個標註。首次使用、類別修正、尺寸帶入、資料阻塞與存檔取消通過。 |
-| R09.10 | 修正全圖縮放下框線不可見：固定像素高對比描邊、選取強調、類別底色／編號、把手及新增回饋 | ✅ | 未提交 | VERIFIED：5120×4096 適配與半倍率框線像素測試通過；3px 固定描邊＋6px 深色外框、10px 把手、編號底色；真實 PCB 畫面已檢視。 |
-| R09.11 | 修正選取框按 Delete 無反應；涵蓋畫布、框清單、Undo 與文字欄位焦點保護 | ✅ | 不 commit／push；保留標註 | VERIFIED：修復前鍵盤測試 3 fail／1 pass；修復後專項與全部 21 項通過，涵蓋載圖步驟選取、清單、CAD、Undo、文字編輯與輪廓草稿保護。 |
-| R09.12 | 保留矩形形狀類型與直角拉伸，提供矩形／多邊形明確切換、拖曳預覽、舊檔相容與 Undo／存讀 | ✅ | 不 commit／push；保留原標註 | VERIFIED：6 項形狀與實際滑鼠測試通過；四角、旋轉、跨角、超界、舊檔、轉換、Undo、存讀。 |
-| R09.13 | 依元件類別分組的可收合清單、數量、類別／名稱／編號搜尋、點選與放大定位、標籤漸進顯示 | ✅ | 不 commit／push；保留原標註 | VERIFIED：5 項清單測試通過；收合與搜尋不改資料，畫面同步、雙擊定位、名稱／Undo／存讀、群組 Delete 保護。合計全套 32 項通過。 |
-| R09.14 | 第二階段 Engineering CAD Workbench 視覺概念：預設深色、可切淺色、三欄配置、選取資訊一致性與 UX 規格 | ✅ | 不 commit／push；僅概念與設計文件 | PARTIALLY VERIFIED：兩張 1536×1024 概念已檢視，19 組色票對比通過、STE 0 errors、結構檢查通過（9 既有警告）；已記錄生成把手差異。本細項不含可執行 UI 改版。 |
-| R09.15 | 實作三欄 Engineering CAD Workbench、預設深色／可記憶淺色、圖片縮圖與選取屬性／幾何／裁切檢查，保留五步與標註流程 | ✅ | 未提交 | PARTIALLY VERIFIED：37 項 Python／Qt／ONNX 通過；最後導覽／平移／字形修正後 5 項專項通過；真實 20MP 雙主題與 1366×768 畫面已檢視，資料雜湊不變。高 DPI 未驗。 |
-| R09.16 | AiInspTool.pro 整合 VisionCadWorkbench 原生啟動器與 Python payload 建置、Qt Creator 執行目標、環境檢查及操作文件 | ✅ | 未提交 | PARTIALLY VERIFIED：原 C++ 與工作台 Release／Debug 建置成功，工作台 Profile 成功；6/6 native 啟動檢查與所有 Python 源碼一致性通過。停用選項 configure／缺依賴負向檢查成功。Debug Socket 效能檢查仍失敗，見狀態。 |
-| R09.17 | 解決來源樹殘留 moc 使乾淨 shadow build 缺失測試 moc 的相依問題，不移除他人建置產物 | ✅ | 未提交 | PARTIALLY VERIFIED：新 shadow Release／Debug 均完成建置，不再缺測試 moc；Release 回歸 67/67（8 組 skip、2 XFAIL），Debug 66/67，Socket 拖曳門檻另有失敗。未修改其來源或提高門檻。 |
+| R09.8 | 盤點 RGB／合併圖、驗證通道對應、建立同來源群組的標註起始專案並實測工作台載入 | ✅ | `abe86ef500b3` | PARTIALLY VERIFIED：12 圖／3 組、5120×4096，9 個來源通道逐像素一致；2 項匯入測試通過，3 張真實 RGB Qt 載入通過；無標註，不宣稱品質。 |
+| R09.9 | 重整新手 UX：載圖／標註／CAD 規格／訓練／生成五步、情境提示與前置條件、進階設定收合、標註類別修正與存檔回饋 | ✅ | `abe86ef500b3` | VERIFIED：16 項 Python／Qt／ONNX 測試通過；真實桌面已開啟新版並還原八個標註。首次使用、類別修正、尺寸帶入、資料阻塞與存檔取消通過。 |
+| R09.10 | 修正全圖縮放下框線不可見：固定像素高對比描邊、選取強調、類別底色／編號、把手及新增回饋 | ✅ | `abe86ef500b3` | VERIFIED：5120×4096 適配與半倍率框線像素測試通過；3px 固定描邊＋6px 深色外框、10px 把手、編號底色；真實 PCB 畫面已檢視。 |
+| R09.11 | 修正選取框按 Delete 無反應；涵蓋畫布、框清單、Undo 與文字欄位焦點保護 | ✅ | `abe86ef500b3` | VERIFIED：修復前鍵盤測試 3 fail／1 pass；修復後專項與全部 21 項通過，涵蓋載圖步驟選取、清單、CAD、Undo、文字編輯與輪廓草稿保護。 |
+| R09.12 | 保留矩形形狀類型與直角拉伸，提供矩形／多邊形明確切換、拖曳預覽、舊檔相容與 Undo／存讀 | ✅ | `abe86ef500b3` | VERIFIED：6 項形狀與實際滑鼠測試通過；四角、旋轉、跨角、超界、舊檔、轉換、Undo、存讀。 |
+| R09.13 | 依元件類別分組的可收合清單、數量、類別／名稱／編號搜尋、點選與放大定位、標籤漸進顯示 | ✅ | `abe86ef500b3` | VERIFIED：5 項清單測試通過；收合與搜尋不改資料，畫面同步、雙擊定位、名稱／Undo／存讀、群組 Delete 保護。合計全套 32 項通過。 |
+| R09.14 | 第二階段 Engineering CAD Workbench 視覺概念：預設深色、可切淺色、三欄配置、選取資訊一致性與 UX 規格 | ✅ | `abe86ef500b3` | PARTIALLY VERIFIED：兩張 1536×1024 概念已檢視，19 組色票對比通過、STE 0 errors、結構檢查通過（9 既有警告）；已記錄生成把手差異。本細項不含可執行 UI 改版。 |
+| R09.15 | 實作三欄 Engineering CAD Workbench、預設深色／可記憶淺色、圖片縮圖與選取屬性／幾何／裁切檢查，保留五步與標註流程 | ✅ | `abe86ef500b3` | PARTIALLY VERIFIED：37 項 Python／Qt／ONNX 通過；最後導覽／平移／字形修正後 5 項專項通過；真實 20MP 雙主題與 1366×768 畫面已檢視，資料雜湊不變。高 DPI 未驗。 |
+| R09.16 | AiInspTool.pro 整合 VisionCadWorkbench 原生啟動器與 Python payload 建置、Qt Creator 執行目標、環境檢查及操作文件 | ✅ | `abe86ef500b3` | PARTIALLY VERIFIED：原 C++ 與工作台 Release／Debug 建置成功，工作台 Profile 成功；6/6 native 啟動檢查與所有 Python 源碼一致性通過。停用選項 configure／缺依賴負向檢查成功。Debug Socket 效能檢查仍失敗，見狀態。 |
+| R09.17 | 解決來源樹殘留 moc 使乾淨 shadow build 缺失測試 moc 的相依問題，不移除他人建置產物 | ✅ | `abe86ef500b3` | PARTIALLY VERIFIED：新 shadow Release／Debug 均完成建置，不再缺測試 moc；Release 回歸 67/67（8 組 skip、2 XFAIL），Debug 66/67，Socket 拖曳門檻另有失敗。未修改其來源或提高門檻。 |
 
 ## R09.15–R09.16 實作決策審查（2026-10-30）
 

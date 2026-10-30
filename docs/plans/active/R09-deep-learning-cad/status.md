@@ -1,6 +1,7 @@
 # R09 目前狀態
 
 - 日期：2026-10-30
+- Git：R09 功能提交 `abe86ef500b3` 已透過 `666d0d15d615` 非快轉合併至本機 main；本輪隔離暫存快照的工作台 5 項測試、qmake／jom 建置與兩種 task 啟動均通過。其他未提交差異及未追蹤路徑雜湊保持一致，未 push。
 - 本次 R09.15–R09.17 已實作三欄 **Vision CAD Studio／元件深度學習 CAD**，不限 PCB；首次深色、可切淺色並記住偏好。圖片縮圖、類別／清單、選取名稱／類別／矩形幾何／裁切／幾何有效分工清楚；主題保留草稿、選取與縮放。對應 ADR-041，操作見 [README](../../../../tools/pcb_dl/README.md)。R09.14 兩張圖保留為歷史概念。
 - Qt Creator 開 AiInspTool.pro 並 Run qmake／Build 後，執行組態可選 AiInspTool 或 VisionCadWorkbench；後者以 --task obb／segment 切換，可帶 --project。qmake 預設檢查及編譯 Python payload，不自動 pip／下載；AOI_PCB_PYTHON 可指定環境，AOI_BUILD_PCB_WORKBENCH=OFF 可只建原工具。
 - 本次驗證 PARTIALLY VERIFIED：37 項 Python／Qt／ONNX 通過；最後修正後 5 項專項再通過。原程式與工作台 Release／Debug 建置成功，工作台 Profile 建置成功；6/6 native 啟動檢查及所有 Python 源碼與 payload 比對通過。Source moc 污染以明確 shadow 相依修正，沒有清理來源樹的舊產物。
@@ -16,7 +17,7 @@
 - 操作：tools/pcb_dl/README.md。安裝環境 build/pcb-dl-env，requirements-lock.txt 鎖定本次環境，pip check 無破損依賴。
 - 配方：pcb-dl-cad v1；標註：pcb-learning-project v1。與 Socket aoi-recipe v3 分開，需用本工作台開啟。照片保留本機絕對路徑。
 - 未驗：使用者真實 PCB 精確率／召回率、正式 epochs 與資料量、GPU、量產延遲／機台。OBB 長軸不代表 Pin 1／極性；不做焊接 OK/NG。
-- 未 stage／commit／push，保留 R07 與另一聊天 R08.8 的工作。
+- R09 已依本次授權本機提交與合併；R07 與另一聊天 R08.8 的未提交工作保留，未 push。
 
 ## 真實 PCB 圖片接入（R09.8）
 
