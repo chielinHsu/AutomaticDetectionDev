@@ -1,4 +1,7 @@
 #include <QAction>
+#include <QProcess>
+#include "infrastructure/storage/JsonRecipeStore.h"
+#include "presentation/solder/SolderTeachingWindow.h"
 #include <QApplication>
 #include <QCommandLineParser>
 #include <QDockWidget>
@@ -90,6 +93,8 @@ int main(int argc, char* argv[]) {
                                         QStringLiteral("Vision back end: fake, opencv or halcon (default: the last one used, "
                                                        "else fake)."),
                                         QStringLiteral("id"));
+    const QCommandLineOption socketOpt(QStringLiteral("socket"), QStringLiteral("Open the Socket solder teaching editor."));
+    parser.addOption(socketOpt);
     parser.addOption(langOpt);
     parser.addOption(themeOpt);
     parser.addOption(backendOpt);
@@ -119,6 +124,22 @@ int main(int argc, char* argv[]) {
         theme.setMode(mode);
     }
 
+    if (parser.isSet(socketOpt)) {
+        const auto imageSource = aoi::app::makeImageSource();
+        aoi::infra::JsonRecipeStore recipes;
+        aoi::infra::QtThreadPoolExecutor executor(2);
+        aoi::ui::SolderTeachingWindow teaching(*imageSource, recipes, aoi::app::makeSolderRegionDetector(), executor, theme);
+        teaching.setCadGenerator(aoi::app::makeSocketCadGenerator());
+        teaching.show();
+        const QStringList files = parser.positionalArguments();
+        if (!files.isEmpty()) {
+            const bool opened = files.front().endsWith(QLatin1String(".json"), Qt::CaseInsensitive)
+                ? teaching.openRecipe(files.front()) : teaching.openImage(files.front());
+            if (!opened) { reportStartupError(QStringLiteral("Cannot open the Socket image or recipe.")); return 2; }
+        }
+        return app.exec();
+    }
+
     // 核心（back end、執行緒、use case）。S04 起交給 Presenter；組裝在這裡，Presenter 只認識 use case 與 JobRunner。
     // 用哪一個 back end（ADR-021，使用者 2026-10-08 決定：記住上次）：
     //  - 命令列指定的：馬上建立；不存在或不可用時明確失敗（結束碼 2），不退回別的（使用者要的是哪一個，就是哪一個）。
@@ -142,6 +163,10 @@ int main(int argc, char* argv[]) {
     // 視窗、Presenter 的建立順序＝解構順序的反面：核心活得最久，然後是視窗，最後才是 Presenter（它解構時先解除視窗的 Controller）。
     aoi::ui::MainWindow window(theme);
     window.setImageSource(imageSource.get());
+    QObject::connect(&window, &aoi::ui::MainWindow::socketTeachingRequested, &window, [&window] {
+        if (!QProcess::startDetached(QCoreApplication::applicationFilePath(), {QStringLiteral("--socket")}))
+            window.showToast(qtTrId("socket.launchFailed"));
+    });
     auto repeatSource = std::make_shared<aoi::infra::CsvRepeatabilitySource>();
     auto* repeatWindow = new aoi::ui::RepeatabilityWindow(repeatSource, theme, &window);
     repeatWindow->hide();

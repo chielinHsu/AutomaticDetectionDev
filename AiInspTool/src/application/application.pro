@@ -5,6 +5,10 @@ include($$AOI_QMAKE/aoi_lib.pri)
 
 DIR = $$AOI_ROOT/src/application
 SOURCES += \
+    $$DIR/interaction/SolderCadRegistration.cpp \
+    $$DIR/usecases/GenerateSocketCad.cpp \
+    $$DIR/usecases/SearchSocketSamples.cpp \
+    $$DIR/interaction/SolderTeachingSession.cpp \
     $$DIR/repeatability/RepeatabilityAnalysis.cpp \
     $$DIR/backend/BackendRegistry.cpp \
     $$DIR/backend/BackendSwitch.cpp \
@@ -24,6 +28,12 @@ SOURCES += \
     $$DIR/usecases/SearchBoardWithSamples.cpp
 
 HEADERS += \
+    $$DIR/usecases/GenerateSocketCad.h \
+    $$DIR/ports/ISocketCadGenerator.h \
+    $$DIR/usecases/SearchSocketSamples.h \
+    $$DIR/ports/ISocketSampleSearcher.h \
+    $$DIR/interaction/SolderTeachingSession.h \
+    $$DIR/ports/ISolderRegionDetector.h \
     $$DIR/repeatability/RepeatabilityAnalysis.h \
     $$DIR/ports/IRepeatabilitySource.h \
     $$DIR/CancelToken.h \

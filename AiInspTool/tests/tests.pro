@@ -16,6 +16,7 @@ SUBDIRS += test_support
 test_support.file = support/test_support.pro
 
 AOI_TESTS = \
+    ui/tst_solder_teaching \
     infra/tst_repeatability \
     ui/tst_repeatability_ui \
     core/tst_domain \

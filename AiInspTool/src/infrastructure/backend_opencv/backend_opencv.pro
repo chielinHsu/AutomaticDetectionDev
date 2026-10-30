@@ -7,6 +7,8 @@ include($$AOI_QMAKE/aoi_lib.pri)
 
 DIR = $$AOI_ROOT/src/infrastructure/backend_opencv
 SOURCES += \
+    $$DIR/OpenCvSocketRegionRecognizer.cpp \
+    $$DIR/OpenCvSolderRegionDetector.cpp \
     $$DIR/OpenCvBackend.cpp \
     $$DIR/OpenCvCorrelation.cpp \
     $$DIR/OpenCvFeatures.cpp \
@@ -19,6 +21,8 @@ SOURCES += \
     $$DIR/OpenCvTemplateBuilder.cpp
 
 HEADERS += \
+    $$DIR/OpenCvSocketRegionRecognizer.h \
+    $$DIR/OpenCvSolderRegionDetector.h \
     $$DIR/OpenCvBackend.h \
     $$DIR/OpenCvCorrelation.h \
     $$DIR/OpenCvFeatures.h \

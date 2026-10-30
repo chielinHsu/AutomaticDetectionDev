@@ -1,4 +1,6 @@
 #include "app/CompositionRoot.h"
+#include "application/usecases/SearchSocketSamples.h"
+#include "application/usecases/GenerateSocketCad.h"
 
 #include <QCoreApplication>
 #include <QFileInfo>
@@ -16,6 +18,8 @@
 #include "infrastructure/image_qt/QtImageSource.h"
 #ifdef AOI_WITH_OPENCV
 #include "infrastructure/backend_opencv/OpenCvBackend.h"
+#include "infrastructure/backend_opencv/OpenCvSocketRegionRecognizer.h"
+#include "infrastructure/backend_opencv/OpenCvSolderRegionDetector.h"
 #include "infrastructure/backend_opencv/OpenCvImageSource.h"
 #endif
 #ifdef AOI_WITH_HALCON
@@ -25,6 +29,37 @@
 #endif
 
 namespace aoi::app {
+
+std::shared_ptr<const ISocketCadGenerator> makeSocketCadGenerator() {
+#ifdef AOI_WITH_OPENCV
+    return std::make_shared<GenerateSocketCad>(std::make_shared<infra::OpenCvSocketRegionRecognizer>());
+#else
+    return {};
+#endif
+}
+
+
+std::shared_ptr<const ISocketSampleSearcher> makeSocketSampleSearcher() {
+#ifdef AOI_WITH_OPENCV
+    infra::setOpenCvThreads(static_cast<int>(workerThreads()));
+    Backend backend = infra::makeOpenCvBackend();
+    return std::make_shared<SearchSocketSamples>(
+        std::shared_ptr<ITemplateBuilder>(std::move(backend.templateBuilder)),
+        std::shared_ptr<IPatternSearcher>(std::move(backend.searcher)));
+#else
+    return {};
+#endif
+}
+
+
+std::shared_ptr<const ISolderRegionDetector> makeSolderRegionDetector() {
+#ifdef AOI_WITH_OPENCV
+    return std::make_shared<infra::OpenCvSolderRegionDetector>();
+#else
+    return {};
+#endif
+}
+
 
 namespace {
 

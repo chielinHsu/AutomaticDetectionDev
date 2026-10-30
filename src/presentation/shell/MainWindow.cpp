@@ -191,6 +191,9 @@ QAction* MainWindow::toolAction(ToolId id) const {
 // ---- 組裝 ----------------------------------------------------------------------------------------------
 
 void MainWindow::buildActions() {
+    socketTeachingAction_ = new QAction(this);
+    socketTeachingAction_->setObjectName(QStringLiteral("actionSocketTeaching"));
+    connect(socketTeachingAction_, &QAction::triggered, this, &MainWindow::socketTeachingRequested);
     // 動作本身（名稱、可勾選、預設停用）在 MainWindow.ui；快捷鍵與行為在這裡（標準快捷鍵跟著平台、重做有兩個快捷鍵，Designer 表達不了）。
     openAction_ = ui_->actionOpen;
     openAction_->setShortcut(QKeySequence::Open);
@@ -280,6 +283,7 @@ void MainWindow::buildActions() {
 void MainWindow::buildMenus() {
     // 選單的結構在 MainWindow.ui；互斥的群組、目前的設定與字級的選項（來自 tokens.json）在這裡。
     fileMenu_ = ui_->fileMenu;
+    fileMenu_->insertAction(quitAction_, socketTeachingAction_);
     editMenu_ = ui_->editMenu;
     viewMenu_ = ui_->viewMenu;
     viewMenu_->addAction(repeatabilityAction_);
@@ -338,6 +342,7 @@ void MainWindow::buildToolbars() {
     // 兩條工具列與上面的動作在 MainWindow.ui。back end 的標籤與選單、把右半邊推到右邊的彈性空間是工具列上的 widget，
     // Designer 放不進工具列，所以在這裡插在〔復原〕前面：開啟、儲存 | Back end [選單] ⟷ 復原、重做、適配、匯出。
     topBar_ = ui_->topBar;
+    topBar_->insertAction(undoAction_, socketTeachingAction_);
     toolRail_ = ui_->toolRail;
     backendLabel_ = new QLabel(topBar_);
     backendCombo_ = new QComboBox(topBar_);
@@ -397,6 +402,7 @@ void MainWindow::retranslateUi() {
     setWindowTitle(imageName_.isEmpty() ? qtTrId("app.title")
                                         : QStringLiteral("%1 — %2").arg(imageName_, qtTrId("app.title")));
 
+    socketTeachingAction_->setText(qtTrId("socket.entry"));
     openAction_->setText(qtTrId("action.open"));
     saveAction_->setText(qtTrId("action.save"));
     exportAction_->setText(qtTrId("action.export"));
