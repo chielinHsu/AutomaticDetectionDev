@@ -12,6 +12,7 @@
 | ADR-039 | [標註形狀意圖與依類別收合查詢](adr/039-annotation-shapes-and-class-browser.md) | 採用 | 2026-10-30 |
 | ADR-038 | [PCB 工作台的任務引導與固定像素框線](adr/038-pcb-guided-workflow-and-visible-overlays.md) | 採用 | 2026-10-29 |
 | ADR-037 | [PCB 雙模型學習工作台](adr/037-pcb-learning-workbench.md) | 採用 | 2026-10-29 |
+| ADR-036 | [Socket 選區結構辨識與共享 CAD 規格](adr/036-socket-region-cad.md) | 採用 | 2026-10-29 |
 | [ADR-035](adr/035-unverified-holes-not-reported.md) | 影像上驗證不到的推算格預設不回報：`GenerateOptions::reportUnverifiedHoles`（預設 false）、`GridSummary::unverified`；真實影像上這種格子全是長槽角落的誤判，教學影像是好板子；核心與契約測試打開選項驗證機制，`tst_presenter` 與新測試驗證預設；畫面不加選項 | 採用（不畫由使用者決定；做法是 Claude Code 的提案） | 2026-10-29 |
 | [ADR-034](adr/034-socket-table-batch-column-sizing.md) | Socket 表格在批次更新後統一調整欄寬，避免拖移放開時反覆內容排版 | 採用 | 2026-10-29 |
 | [ADR-034](adr/034-socket-sample-search.md) | Socket 教多個樣本後搜尋整張圖、第一樣本統一輸出尺寸、相似度篩選及 v3 配方保存 | 採用 | 2026-10-29 |

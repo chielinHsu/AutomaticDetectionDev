@@ -7,6 +7,10 @@ include($$AOI_QMAKE/aoi_lib.pri)
 
 DIR = $$AOI_ROOT/src/presentation
 SOURCES += \
+    $$DIR/solder/SocketCadWorkflow.cpp \
+    $$DIR/solder/SolderSampleWorkflow.cpp \
+    $$DIR/solder/SolderTeachingWindow.cpp \
+    $$DIR/solder/SolderTeachingWorkflow.cpp \
     $$DIR/repeatability/RepeatabilityComparisonDialog.cpp \
     $$DIR/repeatability/RepeatabilityPlot.cpp \
     $$DIR/repeatability/RepeatabilityPresenter.cpp \
@@ -44,6 +48,7 @@ SOURCES += \
     $$DIR/tools/Tools.cpp
 
 HEADERS += \
+    $$DIR/solder/SolderTeachingWindow.h \
     $$DIR/repeatability/RepeatabilityComparisonDialog.h \
     $$DIR/repeatability/RepeatabilityPlot.h \
     $$DIR/repeatability/RepeatabilityPresenter.h \
@@ -97,6 +102,7 @@ HEADERS += \
 # 2026-10-14：樣本庫 dock 的面板 library/SamplePanel.ui（主視窗裡是提升元件）；ObjectsPanel.ui 多了選取資訊的表單。
 # 2026-10-15：操作步驟 dock 的面板 guidance/GuidancePanel.ui（主視窗裡是提升元件；ADR-027）。
 FORMS += \
+    $$DIR/solder/SolderTeachingWindow.ui \
     $$DIR/repeatability/RepeatabilityComparisonDialog.ui \
     $$DIR/repeatability/RepeatabilityWindow.ui \
     $$DIR/compare/CompareWindow.ui \

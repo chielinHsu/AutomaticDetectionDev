@@ -2,6 +2,9 @@
 
 #include <functional>
 #include <memory>
+#include "application/ports/ISolderRegionDetector.h"
+#include "application/ports/ISocketSampleSearcher.h"
+#include "application/ports/ISocketCadGenerator.h"
 #include <string>
 #include <string_view>
 #include <utility>
@@ -46,6 +49,10 @@ struct CoreServices {
 // 影像來源（S06）：Qt（常見格式零複製）在前；OpenCV 編進程式時接在後面，讀 Qt 解不開的格式（這台機器的 Qt 沒有 TIFF 外掛）。
 // 順序的理由見 ADR-014。回傳的物件可以同時被多個執行緒使用；請在主執行緒建立（Qt 的影像外掛在這裡載入）。
 std::unique_ptr<IImageSource> makeImageSource();
+// Socket 區域亮塊定位；未編進 OpenCV 時回空指標。
+std::shared_ptr<const ISolderRegionDetector> makeSolderRegionDetector();
+std::shared_ptr<const ISocketSampleSearcher> makeSocketSampleSearcher();
+std::shared_ptr<const ISocketCadGenerator> makeSocketCadGenerator();
 
 // ---- HALCON 的授權在另一個行程檢查（2026-10-09）----
 // HALCON 在一個行程裡第一次初始化失敗之後，可能不會再讀授權（找不到授權檔的錯誤 2036 實測會一直留著）。為了「插上 dongle、

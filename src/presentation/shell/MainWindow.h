@@ -145,6 +145,7 @@ public:
 
 signals:
     void repeatabilityRequested();
+    void socketTeachingRequested();
     void imageOpened(const aoi::ImageView& image, const QString& name);
     void imageOpenFailed(const QString& name, const QString& reason);
 
@@ -201,6 +202,7 @@ private:
     QAction* fitWidthAction_ = nullptr;
     QAction* compareAction_ = nullptr;
     QAction* repeatabilityAction_ = nullptr;
+    QAction* socketTeachingAction_ = nullptr;
     QAction* guideAction_ = nullptr;
 
     QMenu* fileMenu_ = nullptr;

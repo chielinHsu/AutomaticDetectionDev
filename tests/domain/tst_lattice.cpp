@@ -29,6 +29,8 @@ double len(Point2D v) { return std::hypot(v.x, v.y); }
 // 交錯排列的矩形區塊（R07.2；密排端子的樣子）：cols 欄 × rows 列，欄距 266、列距 154，奇數欄往下差半個列距（77）。
 // 在索引空間是平行四邊形（u ＝ (0, 154)、v ＝ (266, 77)）：外接矩形多出兩個三角形的空格。
 Point2D staggeredPosition(int col, int row) { return {600.0 + 266.0 * col, 400.0 + 154.0 * row + 77.0 * (col % 2)}; }
+// 10×6 的交錯板右緣約 2994 px；不能沿用上方只到 x=2000 的 kBig。
+const Rect kStaggeredBounds{0.0, 0.0, 3400.0, 2000.0};
 std::vector<Point2D> staggeredPoints(int cols, int rows, const std::vector<std::pair<int, int>>& skip = {}) {
     std::vector<Point2D> points;
     for (int c = 0; c < cols; ++c) {
@@ -709,20 +711,29 @@ private slots:
         const LatticeModel& m = fit.models.front();
         QVERIFY(m.hasV());
         QCOMPARE(m.inliers.size(), points.size());
-        const std::vector<Point2D> holes = holesOf(m);
+        const std::vector<Point2D> holes = holesOf(m, kStaggeredBounds);
         QCOMPARE(holes.size(), skip.size());
         for (const auto& [c, r] : skip) QVERIFY2(hasPointNear(holes, staggeredPosition(c, r), 1e-6), qPrintable(QString("(%1, %2)").arg(c).arg(r)));
         QCOMPARE(m.cellCount(), std::size_t{60});
+        // 舊的通用範圍確實裁掉 c=7、c=9 兩格；同時鎖定正確的影像範圍裁切契約。
+        const std::vector<Point2D> clipped = holesOf(m, kBig);
+        QCOMPARE(clipped.size(), std::size_t{4});
+        QVERIFY(!hasPointNear(clipped, staggeredPosition(7, 0), 1e-6));
+        QVERIFY(!hasPointNear(clipped, staggeredPosition(9, 5), 1e-6));
     }
 
-    // 少了一半（和使用者的板子一樣：搜尋只找到約一半的端子）：仍然是同一組二維晶格，缺格補在區塊裡面。
+    // 少一半，但每欄保留連續三個點（兩個相鄰格距），提供預設投票門檻所需的證據。
+    // 各欄的三點沿高度錯開；整個外側首列缺失不外推，範圍內仍有可補的缺格。
+    // 棋盤式刪除會移除所有 154 px 的相鄰對，不應拿來斷言一定辨識出未觀測到的原始格距。
     void aStaggeredBlockWithHalfMissingStillFitsOneLattice() {
         std::vector<std::pair<int, int>> skip;
         for (int c = 0; c < 10; ++c) {
+            const int first = 1 + c % 3;
             for (int r = 0; r < 6; ++r) {
-                if ((c * 7 + r * 3) % 2 == 0) skip.emplace_back(c, r);
+                if (r < first || r >= first + 3) skip.emplace_back(c, r);
             }
         }
+        QCOMPARE(skip.size(), std::size_t{30});
         const std::vector<Point2D> points = staggeredPoints(10, 6, skip);
         const LatticeFit fit = LatticeEstimator().fitAll(points);
         QCOMPARE(fit.models.size(), std::size_t{1});
@@ -730,14 +741,53 @@ private slots:
         QVERIFY(m.hasV());
         QVERIFY(std::abs(len(m.basis.u) - 154.0) < 1e-6);
         QCOMPARE(m.inliers.size(), points.size());
-        const std::vector<Point2D> holes = holesOf(m);
-        QVERIFY(holes.size() <= skip.size());
-        for (const Point2D& h : holes) {
-            bool inside = false;
-            for (const auto& [c, r] : skip) inside = inside || distance(h, staggeredPosition(c, r)) < 1e-6;
-            QVERIFY2(inside, "a hole outside the block");
+        const std::vector<Point2D> holes = holesOf(m, kStaggeredBounds);
+        // 依原始欄列的 u（上下 1 列）及 w（左右 2 欄）兩側證據手列標準答案，
+        // 不從 estimator／Region 反推預期值。首列與無相鄰證據的角落不補。
+        const std::vector<std::pair<int, int>> expected{{0, 4}, {1, 1}, {2, 1}, {2, 2}, {3, 4}, {4, 1}, {4, 5}, {5, 1},
+                                                       {5, 2}, {6, 4}, {6, 5}, {7, 1}, {7, 5}, {8, 2}, {9, 4}};
+        QCOMPARE(holes.size(), expected.size());
+        for (const auto& [c, r] : expected) QVERIFY(hasPointNear(holes, staggeredPosition(c, r), 1e-6));
+        QCOMPARE(m.cellCount(), points.size() + expected.size());
+        for (int c = 0; c < 10; ++c) QVERIFY(!hasPointNear(holes, staggeredPosition(c, 0), 1e-6));
+    }
+
+    void aStaggeredCornerWithoutAdjacentEvidenceIsNotPredicted() {
+        const std::vector<std::pair<int, int>> skip{{0, 0}, {0, 1}, {2, 0}};
+        const std::vector<Point2D> points = staggeredPoints(10, 6, skip);
+        const LatticeFit fit = LatticeEstimator().fitAll(points);
+        QCOMPARE(fit.models.size(), std::size_t{1});
+        const LatticeModel& m = fit.models.front();
+        QCOMPARE(m.inliers.size(), points.size());
+        const std::vector<Point2D> holes = holesOf(m, kStaggeredBounds);
+        QCOMPARE(holes.size(), std::size_t{2});
+        QVERIFY(!hasPointNear(holes, staggeredPosition(0, 0), 1e-6));
+        QVERIFY(hasPointNear(holes, staggeredPosition(0, 1), 1e-6));
+        QVERIFY(hasPointNear(holes, staggeredPosition(2, 0), 1e-6));
+    }
+
+    void aStaggeredCheckerboardDoesNotPredictFalsePositions() {
+        // 原本的半缺件資料：所有 154 px 的相鄰對都被刪除。保留此案例作安全性檢查，
+        // 不要求它一定恢復唯一的原始格距；任何預測仍須對應板內真正缺件的位置。
+        std::vector<std::pair<int, int>> skip;
+        for (int c = 0; c < 10; ++c) {
+            for (int r = 0; r < 6; ++r) if ((c + r) % 2 == 0) skip.emplace_back(c, r);
         }
-        QVERIFY(holes.size() >= skip.size() / 2);  // 邊上整排缺的不往外推（規則 6）、沒有兩側證據的角落不補，其餘都補
+        const std::vector<Point2D> points = staggeredPoints(10, 6, skip);
+        for (std::size_t a = 0; a < points.size(); ++a) {
+            for (std::size_t b = a + 1; b < points.size(); ++b)
+                QVERIFY(std::abs(distance(points[a], points[b]) - 154.0) > 1e-6);
+        }
+        const LatticeFit fit = LatticeEstimator().fitAll(points);
+        QVERIFY(!fit.models.empty());
+        for (const auto& m : fit.models) {
+            checkInliersSitOnTheirCells(m, points);
+            for (const auto& h : holesOf(m, kStaggeredBounds)) {
+                bool missing = false;
+                for (const auto& [c, r] : skip) missing = missing || distance(h, staggeredPosition(c, r)) < 1e-6;
+                QVERIFY2(missing, "predicted a position outside the known missing cells");
+            }
+        }
     }
 };
 
