@@ -11,7 +11,7 @@
 
 namespace aoi {
 
-// 比對區的建議（2026-10-29，R09、ADR-036）：back end 說它的範本用整個主體框會把相鄰的結構也當成元件
+// 比對區的建議（2026-10-29，R10、ADR-042）：back end 說它的範本用整個主體框會把相鄰的結構也當成元件
 // （BackendTraits::suggestsMatchMask，目前只有 HALCON）時，建好樣本、還沒設定比對區（ComponentType::match 是預設 ＝
 // 整個主體框）就要搜尋的使用者，應該先用 M 工具點一下端子、用自動擷取的遮罩當比對區（ADR-028）。
 //

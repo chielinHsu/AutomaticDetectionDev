@@ -168,7 +168,7 @@ public:
                          const BackendTraits& traits) override;
     // 錯誤卡片用的名稱（目前的 back end、建議改用的那一個）。AppPresenters 在啟動時交一次，換 back end 時 useSearchEngine 一起交。
     void setBackendLabels(const BackendLabels& labels) { backendLabels_ = labels; }
-    // 目前的 back end 的特性（比對區的建議看它，R09）。同上：啟動時交一次，換 back end 時 useSearchEngine 一起交。
+    // 目前的 back end 的特性（比對區的建議看它，R10）。同上：啟動時交一次，換 back end 時 useSearchEngine 一起交。
     void setBackendTraits(const BackendTraits& traits) { backendTraits_ = traits; }
     // 比對區的建議卡片現在顯示中（測試用）。
     bool matchAdviceShown() const { return !advised_.empty(); }
@@ -263,7 +263,7 @@ private:
     SearchParams searchParams_;
     BackendLabels backendLabels_;
     BackendTraits backendTraits_;
-    // 比對區的建議（R09、ADR-036）：規則在 application 的 MatchAdvice；advised_ 是卡片現在提醒的那些樣本（空 ＝ 沒有卡片）。
+    // 比對區的建議（R10、ADR-042）：規則在 application 的 MatchAdvice；advised_ 是卡片現在提醒的那些樣本（空 ＝ 沒有卡片）。
     MatchAdvice matchAdvice_;
     std::vector<SampleOnBoard> advised_;
     int scanScope_ = 0;

@@ -111,7 +111,7 @@ inline aoi::fake::FakeSpec defaultWorld() {
 }
 
 // 執行中切換的對象（ADR-021）：Rig 的 registry 除了 fake 還有這四個（註冊順序）。
-//   maskhint 「MaskHint (test)」：同樣的假世界與探針（probe），但 traits.suggestsMatchMask ＝ true（像 HALCON：建議用遮罩當比對區，R09）
+//   maskhint 「MaskHint (test)」：同樣的假世界與探針（probe），但 traits.suggestsMatchMask ＝ true（像 HALCON：建議用遮罩當比對區，R10）
 //   broken   「Broken (test)」：登記成可用，但工廠失敗（像授權檢查失敗）
 //   other    「Other (test)」：同樣的假世界，自己的探針（otherProbe），建立可以卡在閘門上或失敗；有一個提醒（像 HALCON 的 runtime 授權）
 //   off      「Off (test)」：登記成不可用（像沒編進程式）

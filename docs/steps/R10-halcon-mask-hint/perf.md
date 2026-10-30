@@ -1,4 +1,4 @@
-# R09 — 效能量測紀錄
+# R10 — 效能量測紀錄
 
 方法見 [docs/perf-test-plan.md](../../perf-test-plan.md)。
 

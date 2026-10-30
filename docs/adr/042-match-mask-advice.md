@@ -1,8 +1,8 @@
-# ADR-036 HALCON 建好樣本後在訊息列建議用 `M` 點端子的遮罩當比對區：back end 的特性旗標、application 的規則、Idle 的卡片
+# ADR-042 HALCON 建好樣本後在訊息列建議用 `M` 點端子的遮罩當比對區：back end 的特性旗標、application 的規則、Idle 的卡片
 
 - 日期：2026-10-29
 - 決定者：使用者（R07 收尾時決定做這件後續）；Claude Code (Claude Fable 5.1) 提出做法與實作
-- 狀態：採用（補充 ADR-028；R09）
+- 狀態：採用（補充 ADR-028；R10）
 
 ## 背景
 
@@ -64,4 +64,4 @@ HALCON 的 shape model 是邊緣：整框時樣本裡鄰居焊墊的邊也進了
 
 ## 驗證（2026-10-29）
 
-見 R09 的 `changelog.md`（`test.ps1` 預設建置、`check-deps`、`ste-lint`、實際執行程式的結果）。
+見 R10 的 `changelog.md`（`test.ps1` 預設建置、`check-deps`、`ste-lint`、實際執行程式的結果）。

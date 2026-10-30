@@ -1385,7 +1385,7 @@ private slots:
         r.searchByDrag(QRectF(100, 100, 60, 32));
         QVERIFY(r.waitState(S::Error));
         grab("p6-error");
-        // R09：建議用遮罩當比對區的卡片（像 HALCON 的 back end、Idle、樣本是整框）
+        // R10：建議用遮罩當比對區的卡片（像 HALCON 的 back end、Idle、樣本是整框）
         r.cardButtons().first()->click();  // 錯誤卡片的〔關閉〕（最後一個是〔再試一次〕）
         QVERIFY(r.waitState(S::Idle));
         r.probe->fail = false;
@@ -1580,7 +1580,7 @@ private slots:
         QCOMPARE(r.hint(), zh("ui.match.needOne"));
     }
 
-    // 比對區的建議（R09、ADR-036）：back end 說它建議遮罩（traits.suggestsMatchMask，產品裡是 HALCON）時，Idle 而且樣本還是整框
+    // 比對區的建議（R10、ADR-042）：back end 說它建議遮罩（traits.suggestsMatchMask，產品裡是 HALCON）時，Idle 而且樣本還是整框
     // 就在訊息列用卡片建議用 M 點端子；不擋搜尋；設了比對區或按〔關閉〕就不再提醒；再框一個新樣本再提醒。
     void aBackendThatSuggestsMasksAdvisesTheMatchToolForSamplesWithoutARegion() {
         Rig r;

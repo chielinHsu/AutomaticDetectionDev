@@ -113,7 +113,7 @@ void AutoRoiPresenter::onImageOpened(const aoi::ImageView& image, const QString&
     sourceImage_ = image;  // 共用像素（零複製）；搜尋的 worker 讀同一塊
     image_ = image;
     session_.imageOpened(name.toStdString(), image.width, image.height, image.umPerPixel);
-    matchAdvice_.reset();  // 新的板子：關閉過的建議重來（R09）
+    matchAdvice_.reset();  // 新的板子：關閉過的建議重來（R10）
     // 有效位元數的設定換影像沿用（相機的設定；使用者 2026-10-06 決定）：套到新影像上。新影像的值超過設定（BelowData）時用推測的值並說明。
     const int requested = session_.document().board().significantBits;
     const SignificantBitsDecision bits = applyBitsSetting(requested);
@@ -480,7 +480,7 @@ bool AutoRoiPresenter::escape() {
                 select({});
                 return true;
             }
-            if (!advised_.empty()) {  // 比對區的建議卡片（R09）：和無匹配的卡片一樣，Esc 關掉
+            if (!advised_.empty()) {  // 比對區的建議卡片（R10）：和無匹配的卡片一樣，Esc 關掉
                 runCardAction(CardAction::CloseAdvice);
                 return true;
             }
@@ -560,7 +560,7 @@ void AutoRoiPresenter::runCardAction(CardAction action) {
             emit backendSwitchRequested(card_.switchBackendId);
             break;
         case CardAction::PickMatchFeature:
-            // 比對區的建議（R09）：選取第一個還沒設定比對區的樣本、切到 M 工具；卡片留著，使用者接著在樣本裡點一下端子
+            // 比對區的建議（R10）：選取第一個還沒設定比對區的樣本、切到 M 工具；卡片留著，使用者接著在樣本裡點一下端子
             // （M 工具作用在所選的那一個元件上）。設了之後 publishAll 重新評估，卡片自己收起。
             if (!advised_.empty()) {
                 session_.select({advised_.front().componentId});
@@ -632,7 +632,7 @@ void AutoRoiPresenter::useSearchEngine(std::shared_ptr<const GenerateObjectsFrom
     services_.generate = std::move(useCase);  // 舊的：進行中的工作還拿著一份
     backendLabels_ = labels;
     backendTraits_ = traits;
-    publishChrome();  // 新的 back end 可能建議（或不再建議）用遮罩當比對區：Idle 的卡片重新評估（R09）
+    publishChrome();  // 新的 back end 可能建議（或不再建議）用遮罩當比對區：Idle 的卡片重新評估（R10）
 }
 
 void AutoRoiPresenter::researchSameRegion() {
@@ -1038,7 +1038,7 @@ void AutoRoiPresenter::publishMessage() {
             card_ = errorCard(*session_.error(), session_.errorSource(), imageName_, backendLabels_);
             break;
         default:
-            // Idle：比對區的建議（R09、ADR-036）。規則在 application 的 MatchAdvice（back end 建議遮罩、樣本還是整框、沒按過〔關閉〕）；
+            // Idle：比對區的建議（R10、ADR-042）。規則在 application 的 MatchAdvice（back end 建議遮罩、樣本還是整框、沒按過〔關閉〕）；
             // 用卡片而不是提醒卡片：提醒卡片歸 BackendPresenter（HALCON 的 runtime 授權提醒會和它搶同一個位置）。
             // 不擋搜尋：F5 照舊，搜尋中進度列蓋過它，回到 Idle 再評估一次。
             advised_ = matchAdvice_.pending(session_, backendTraits_);

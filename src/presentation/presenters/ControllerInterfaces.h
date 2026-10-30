@@ -103,7 +103,7 @@ public:
     // 作廢進行中的搜尋（latest-wins：不等它停下，它的結果回來時被丟掉）。狀態留在 Searching，忙碌標示照舊。
     virtual void pauseSearch() = 0;
     // 之後的搜尋用這個 use case（它和它的 back end 共用擁有權）；labels 是錯誤卡片用的名稱（目前的、建議改用的）；
-    // traits 是這個 back end 的特性（例如建議用遮罩當比對區，R09）。
+    // traits 是這個 back end 的特性（例如建議用遮罩當比對區，R10）。
     virtual void useSearchEngine(std::shared_ptr<const aoi::GenerateObjectsFromSample> useCase, const BackendLabels& labels,
                                  const aoi::BackendTraits& traits) = 0;
     // 用目前的 back end 重做上次的搜尋：Searching、Preview、NoMatch 是同一個區域重新搜尋；搜尋失敗的錯誤（Error）是〔再試一次〕；

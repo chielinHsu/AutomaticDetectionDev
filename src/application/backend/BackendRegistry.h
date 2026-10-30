@@ -29,7 +29,7 @@ struct BackendNotice {
     std::string message;
 };
 
-// back end 的特性（2026-10-29，R09、ADR-036）：adapter 自己最清楚它的範本怎麼比對，所以由它的工廠填；
+// back end 的特性（2026-10-29，R10、ADR-042）：adapter 自己最清楚它的範本怎麼比對，所以由它的工廠填；
 // 規則（application）與畫面（presentation）只看這些旗標，不比對 back end 的名稱或 id。
 struct BackendTraits {
     // 用整個主體框建的範本容易把相鄰的結構（焊墊、長槽的鋸齒）也當成元件，建議使用者用自動擷取的遮罩當比對區

@@ -1,4 +1,4 @@
-// MatchAdvice（R09、ADR-036）：「哪些樣本該提醒用遮罩當比對區」的規則從 InspectionSession 與 back end 的特性推導；
+// MatchAdvice（R10、ADR-042）：「哪些樣本該提醒用遮罩當比對區」的規則從 InspectionSession 與 back end 的特性推導；
 // 沒有 Qt 的畫面，每一條決定性地驗證。
 #include <QtTest>
 

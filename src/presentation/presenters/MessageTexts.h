@@ -23,7 +23,7 @@ enum class CardAction {
     LowerThreshold,  // 降低門檻到建議值（不重新搜尋）
     WidenScope,      // 改用整個樣本庫（重新搜尋）
     SwitchBackend,   // back end 無法使用：改用建議的那一個（執行中切換，ADR-021）
-    PickMatchFeature,  // 比對區的建議（R09）：選取那個樣本、切到 M 工具（卡片留著，使用者接著點端子）
+    PickMatchFeature,  // 比對區的建議（R10）：選取那個樣本、切到 M 工具（卡片留著，使用者接著點端子）
     CloseAdvice,       // 比對區的建議：關閉，這些樣本不再提醒
 };
 
@@ -47,7 +47,7 @@ CardSpec noMatchCard(const NoMatchInfo& info);
 // 做法清單是英文的原因；有建議的那一個時多一個〔改用 …〕）。
 CardSpec errorCard(const Error& error, ErrorSource source, const QString& imageName, const BackendLabels& backend);
 
-// 比對區的建議（R09、ADR-036）：back end（例如 HALCON）用整個主體框建範本會把相鄰的結構也當成元件，建議用 M 工具點端子、
+// 比對區的建議（R10、ADR-042）：back end（例如 HALCON）用整個主體框建範本會把相鄰的結構也當成元件，建議用 M 工具點端子、
 // 用自動擷取的遮罩當比對區。backendName 是目前的 back end 的名稱，sampleCount 是還沒設定比對區的樣本數。
 // 動作：〔用 M 點端子〕〔關閉〕；不擋搜尋（F5 照舊）。
 CardSpec matchAdviceCard(const QString& backendName, std::size_t sampleCount);

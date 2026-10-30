@@ -1,9 +1,9 @@
-# R09 狀態
+# R10 狀態
 
 > 快照，不是歷史：只寫「現在」，有實質進度時原地修改（歷史在同資料夾的 `changelog.md`，細項的狀態在 `plan.md` 的細項表）。
 
 - 更新日期：2026-10-29
-- 狀態：進行中（R09.1–R09.5 完成並提交在分支上；合併回 `main` 待使用者決定，合併後搬到 `completed/`）
+- 狀態：進行中（R10.1–R10.5 完成並提交在分支上；合併回 `main` 待使用者決定，合併後搬到 `completed/`）
 - 分支：`claude/r09-halcon-mask-hint-f0d064`（worktree `.claude/worktrees/r09-halcon-mask-hint-f0d064`，從 `main` 的 `37bd396` 切出；沒有 push）
 
 ## 目前細項
@@ -26,7 +26,7 @@
 
 ## 接續資訊
 
-- 設計在 [ADR-036](../../../adr/036-match-mask-advice.md)；規則 `src/application/interaction/MatchAdvice`，卡片 `MessageTexts::matchAdviceCard`，Presenter 的 Idle 分支在 `AutoRoiPresenter::publishMessage`。
+- 設計在 [ADR-042](../../../adr/042-match-mask-advice.md)；規則 `src/application/interaction/MatchAdvice`，卡片 `MessageTexts::matchAdviceCard`，Presenter 的 Idle 分支在 `AutoRoiPresenter::publishMessage`。
 - 測試台（`tests/ui/PresenterRig.h`）的 `maskhint` back end 要排在 `broken` 之前：A/B 比較的預設配對取倒數兩個可用的（`tst_compare`），錯誤卡片的建議取最後一個可用的（`tst_presenter`）。
 - 卡片顯示時提示列被蓋住（訊息列的規則）；按〔關閉〕或 Esc（沒有選取時）提示回來。建完樣本的吐司也含「F5」，測試不能直接比對提示的全文。
 - 主 checkout 有 Codex 的 R08 未提交修改，本 worktree 看不到；不要去動主 checkout。

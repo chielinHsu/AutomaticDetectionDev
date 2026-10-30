@@ -7,7 +7,7 @@
 
 | 編號 | 標題 | 狀態 | 日期 |
 |---|---|---|---|
-| [ADR-036](adr/036-match-mask-advice.md) | HALCON 建好樣本後在訊息列建議用 `M` 點端子的遮罩當比對區（R09）：哪個 back end 建議遮罩是它的特性（`Backend::traits.suggestsMatchMask`，HALCON 的工廠填，不比對名稱）；規則在 application 的 `MatchAdvice`（Idle、樣本的類型還是整框、沒按過〔關閉〕；同類型一起、新樣本再提醒、開新影像重來）；用訊息列的卡片（`AutoRoiPresenter`）不用提醒卡片（歸 `BackendPresenter`，會互相覆蓋）；〔用 M 點端子〕選取樣本並切到 `M` 工具；不擋搜尋、不自動擷取；OpenCV 不提醒（R07.8 的量測） | 採用（補充 ADR-028） | 2026-10-29 |
+| [ADR-042](adr/042-match-mask-advice.md) | HALCON 建好樣本後在訊息列建議用 `M` 點端子的遮罩當比對區（R10）：哪個 back end 建議遮罩是它的特性（`Backend::traits.suggestsMatchMask`，HALCON 的工廠填，不比對名稱）；規則在 application 的 `MatchAdvice`（Idle、樣本的類型還是整框、沒按過〔關閉〕；同類型一起、新樣本再提醒、開新影像重來）；用訊息列的卡片（`AutoRoiPresenter`）不用提醒卡片（歸 `BackendPresenter`，會互相覆蓋）；〔用 M 點端子〕選取樣本並切到 `M` 工具；不擋搜尋、不自動擷取；OpenCV 不提醒（R07.8 的量測） | 採用（補充 ADR-028） | 2026-10-29 |
 | [ADR-035](adr/035-unverified-holes-not-reported.md) | 影像上驗證不到的推算格預設不回報：`GenerateOptions::reportUnverifiedHoles`（預設 false）、`GridSummary::unverified`；真實影像上這種格子全是長槽角落的誤判，教學影像是好板子；核心與契約測試打開選項驗證機制，`tst_presenter` 與新測試驗證預設；畫面不加選項 | 採用（不畫由使用者決定；做法是 Claude Code 的提案） | 2026-10-29 |
 | [ADR-034](adr/034-socket-table-batch-column-sizing.md) | Socket 表格在批次更新後統一調整欄寬，避免拖移放開時反覆內容排版 | 採用 | 2026-10-29 |
 | [ADR-034](adr/034-socket-sample-search.md) | Socket 教多個樣本後搜尋整張圖、第一樣本統一輸出尺寸、相似度篩選及 v3 配方保存 | 採用 | 2026-10-29 |
