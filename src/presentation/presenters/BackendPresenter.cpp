@@ -86,7 +86,7 @@ void BackendPresenter::onCreated(const std::string& id, Result<SearchEnginePtr> 
         failure_.reset();
         noticePending_ = !engine_->backend.notices.empty();
         if (!noticePending_) view_.hideNotice();  // 舊的提醒（或上次的失敗）是關於別的 back end 的
-        sink_.useSearchEngine(useCaseOf(engine_), labels());
+        sink_.useSearchEngine(useCaseOf(engine_), labels(), traits());
         publish();
         QStringList messages;
         for (const BackendNotice& notice : engine_->backend.notices) messages << QString::fromStdString(notice.message);

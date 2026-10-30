@@ -373,6 +373,22 @@
       "zh_TW": "比對區太小（或在主體框外）：框大一點。",
       "en": "The match region is too small (or outside the body box): make it bigger."
     },
+    "ui.match.advice.title": {
+      "zh_TW": "{backend}：建議用遮罩當比對區",
+      "en": "{backend}: use a mask as the match region"
+    },
+    "ui.match.advice.body": {
+      "zh_TW": "用整個主體框建的範本，會把相鄰的焊墊與長槽的鋸齒也當成端子（實測分數約 0.70，和真端子分不開）。用 M 工具在樣本裡點一下端子，自動擷取的遮罩只比對端子本身。不改也可以直接按 F5 搜尋。",
+      "en": "A template built from the whole body box also matches neighbouring pads and the teeth along a slot (measured score about 0.70, the same as real pins). Click a pin inside the sample with the M tool: the extracted mask matches the pin only. You can still press F5 to search as it is."
+    },
+    "ui.match.advice.samples": {
+      "zh_TW": "{count} 個樣本還沒有設定比對區。設定之後、或按〔關閉〕之後，不再提醒這些樣本。",
+      "en": "{count} samples have no match region yet. After you set one, or close this card, these samples are not mentioned again."
+    },
+    "ui.match.advice.action.pick": {
+      "zh_TW": "用 M 點端子",
+      "en": "Pick a pin with M"
+    },
     "ui.match.cleared": {
       "zh_TW": "已清除比對區：回到整個主體框 · Ctrl+Z 復原",
       "en": "Match region cleared: back to the whole body box · Ctrl+Z to undo"

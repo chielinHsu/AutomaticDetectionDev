@@ -110,11 +110,13 @@ inline aoi::fake::FakeSpec defaultWorld() {
     return spec;
 }
 
-// 執行中切換的對象（ADR-021）：Rig 的 registry 除了 fake 還有這三個。
-//   broken 「Broken (test)」：登記成可用，但工廠失敗（像授權檢查失敗）
-//   other  「Other (test)」：同樣的假世界，自己的探針（otherProbe），建立可以卡在閘門上或失敗；有一個提醒（像 HALCON 的 runtime 授權）
-//   off    「Off (test)」：登記成不可用（像沒編進程式）
-// 註冊順序和產品一樣由簡單到完整：fake 的錯誤卡片建議改用的（可用、不是目前的最後一個）是 other。
+// 執行中切換的對象（ADR-021）：Rig 的 registry 除了 fake 還有這四個（註冊順序）。
+//   maskhint 「MaskHint (test)」：同樣的假世界與探針（probe），但 traits.suggestsMatchMask ＝ true（像 HALCON：建議用遮罩當比對區，R10）
+//   broken   「Broken (test)」：登記成可用，但工廠失敗（像授權檢查失敗）
+//   other    「Other (test)」：同樣的假世界，自己的探針（otherProbe），建立可以卡在閘門上或失敗；有一個提醒（像 HALCON 的 runtime 授權）
+//   off      「Off (test)」：登記成不可用（像沒編進程式）
+// 註冊順序和產品一樣由簡單到完整：fake 的錯誤卡片建議改用的（可用、不是目前的最後一個）是 other；A/B 比較的預設配對
+// （倒數兩個可用的）是 broken、other，所以 maskhint 要排在 broken 之前（tst_compare）。
 inline aoi::BackendNotice otherNotice() {
     return {"ui.backend.halcon.sdkDongleMissing", "ui.backend.halcon.runtimeLicense",
             {{"inUse", "3-7614034"}, {"missing", "3-7081033"}}, "Other runs with the runtime license."};
@@ -185,6 +187,15 @@ struct Rig {
             backend.templateBuilder = std::make_unique<ProbedBuilder>(probe, world);
             backend.searcher = std::make_unique<ProbedSearcher>(probe, world);
             backend.notices = notices;
+            return aoi::Result<aoi::Backend>(std::move(backend));
+        });
+        (void)registry.registerBackend("maskhint", "MaskHint (test)", [probe, world]() -> aoi::Result<aoi::Backend> {
+            aoi::Backend backend;
+            backend.id = "maskhint";
+            backend.displayName = "MaskHint (test)";
+            backend.templateBuilder = std::make_unique<ProbedBuilder>(probe, world);
+            backend.searcher = std::make_unique<ProbedSearcher>(probe, world);
+            backend.traits.suggestsMatchMask = true;
             return aoi::Result<aoi::Backend>(std::move(backend));
         });
         (void)registry.registerBackend("broken", "Broken (test)", []() -> aoi::Result<aoi::Backend> {

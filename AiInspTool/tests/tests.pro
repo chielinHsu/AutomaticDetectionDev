@@ -35,6 +35,7 @@ AOI_TESTS = \
     core/tst_document \
     core/tst_session \
     core/tst_step_guide \
+    core/tst_match_advice \
     core/tst_qt_executor \
     core/tst_image_chain \
     core/tst_recipe_saver \
