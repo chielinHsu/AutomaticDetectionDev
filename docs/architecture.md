@@ -6,6 +6,7 @@
 
 | 日期 | 修改者 | 說明 |
 |---|---|---|
+| 2026-10-30 | Codex (gpt-6.1-sol) | R09.15–R09.16：workbench/workbench.pro 與 src/app/WorkbenchLauncher.cpp 建置獨立 VisionCadWorkbench；tools/pcb_dl 的 presentation 新增三欄／雙主題。以 QProcess 隔離 Python，既有五層依賴表與 domain／port 不變（ADR-041）。 |
 | 2026-10-29 | Codex (gpt-6.1-sol) | R08 樣本流程：新增 application 的 ISocketSampleSearcher／SearchSocketSamples；重用現有 template builder/searcher 與 NMS，由 app 組裝 OpenCV。模組依賴與 R07 規則不變。 |
 | 2026-10-29 | Claude Code (Claude Fable 5.1) | R07.8（[ADR-035](adr/035-unverified-holes-not-reported.md)）：影像上驗證不到的推算格預設不回報。application 的 `GenerateOptions` 多 `reportUnverifiedHoles`（預設 false）、`GridSummary` 多 `unverified`；use case 的第 5 步只在打開時回報 `Predicted`。依賴表、port、domain 都沒有變；畫面沒有改（「推算」的計數與狀態保留）。量測工具 `tests/backend/perf_multi_sample_real` 多 `AOI_MULTI_MATCH`（矩形或自動擷取的遮罩）與 `AOI_MULTI_DUMP`（候選倒成 CSV） |
 | 2026-10-28 | Codex (gpt-6.1-sol) | R08：新增獨立 Socket 教學視窗、SolderTeachingSession、ISolderRegionDetector 與 OpenCV adapter（ADR-033）；模組依賴方向與既有樣本搜尋不變。 |
@@ -41,6 +42,8 @@
 | 2026-10-05 | 範本 | 建立 |
 
 ## 總覽
+
+2026-10-30 的 [ADR-041](adr/041-component-workbench-qmake-integration.md)：`AiInspTool.pro` 同時建置 C++ `AiInspTool.exe` 與 `VisionCadWorkbench.exe`。後者只依賴 Qt Core／Widgets，透過 QProcess 啟動建置時整理至 `bin/vision-workbench` 的 Python 模組；`build_workbench.py` 負責本機環境驗證、語法／bytecode 與 payload。Python 既有 workflow/model/training/inference 邊界保留；`workbench_ui.py`、`workbench_presenter.py`、`workbench_theme.py` 只處理介面與偏好。產品名稱通用化，模組路徑與資料格式維持相容。沒有更改 C++ 層之間允許的依賴。
 
 2026-10-16 新增靜態重複性分析（[ADR-029](adr/029-static-repeatability.md)）：
 `domain/repeatability` 擁有量測型別與樣本統計；`application/repeatability/RepeatabilityAnalysis`

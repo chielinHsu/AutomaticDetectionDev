@@ -17,6 +17,11 @@ include($$AOI_QMAKE/aoi_options.pri)
 SUBDIRS += src
 src.file = src/src.pro
 
+equals(AOI_BUILD_PCB_WORKBENCH, ON) {
+    SUBDIRS += workbench
+    workbench.file = workbench/workbench.pro
+}
+
 equals(AOI_BUILD_TESTS, ON) {
     SUBDIRS += tests
     tests.file = tests/tests.pro

@@ -17,6 +17,15 @@ include($$PWD/aoi_target.pri)
 CONFIG += console
 CONFIG -= windows
 
+# A stale in-source .moc can shadow qmake's generated dependency during scanning.
+# Explicitly order each test's main object after the shadow-build moc target.
+# Keep normal header dependency scanning and leave other checkouts' generated files alone.
+contains(TARGET, "^(tst_|perf_).*") {
+    aoi_test_moc_order.target = $$system_path($$relative_path($$OBJECTS_DIR, $$OUT_PWD)/$${TARGET}.obj)
+    aoi_test_moc_order.depends = $$system_path($$relative_path($$MOC_DIR, $$OUT_PWD)/$${TARGET}.moc)
+    QMAKE_EXTRA_TARGETS += aoi_test_moc_order
+}
+
 # tests/core 的 QtTestPrinters.h 等共用標頭、tests/support 的合成板子產生器。
 INCLUDEPATH += $$AOI_ROOT/tests/core $$AOI_ROOT/tests/support
 

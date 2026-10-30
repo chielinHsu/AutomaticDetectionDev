@@ -49,3 +49,7 @@ Thumbs.db
 # AI agent local state
 .claude/worktrees/
 CLAUDE.local.md
+
+# PCB learning workbench runtime caches
+__pycache__/
+*.pyc

@@ -19,8 +19,9 @@ isEmpty(AOI_WITH_OPENCV): AOI_WITH_OPENCV = ON
 isEmpty(AOI_WITH_HALCON): AOI_WITH_HALCON = ON
 isEmpty(AOI_BUILD_TESTS): AOI_BUILD_TESTS = ON
 isEmpty(AOI_DEMO_SCENE): AOI_DEMO_SCENE = ON
+isEmpty(AOI_BUILD_PCB_WORKBENCH): AOI_BUILD_PCB_WORKBENCH = ON
 isEmpty(AOI_DOMAIN_IMPL): AOI_DOMAIN_IMPL = rust
-for(option, $$list(AOI_WITH_OPENCV AOI_WITH_HALCON AOI_BUILD_TESTS AOI_DEMO_SCENE)) {
+for(option, $$list(AOI_WITH_OPENCV AOI_WITH_HALCON AOI_BUILD_TESTS AOI_DEMO_SCENE AOI_BUILD_PCB_WORKBENCH)) {
     !equals($$option, ON):!equals($$option, OFF): \
         error("$$option must be ON or OFF, not '$$eval($$option)'.")
 }
