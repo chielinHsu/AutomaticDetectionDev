@@ -2,6 +2,23 @@
 
 > 只新增，新紀錄放最上方；只記本計畫的事。每個 agent session 一筆。
 
+## 2026-10-30 — Claude Code (Claude Opus 5.5)：合併回 main、計畫完成
+
+### 細項
+- 使用者決定先提交主 checkout 裡未提交的 R08 再合併。Codex 先把 R09（深度學習工作台）合併進 `main`（`666d0d1`、`e28af42`）；之後從 `main` 開 `feat/r08-socket-teaching`，提交 R07 的測資修復（`79002af`）與 R08（`6860de3`），`--no-ff` 合併（`926f510`），再把本分支 `--no-ff` 合併（`3ed3832`）。
+- 衝突只在文件：INDEX 保留 R10、R09、R08 三列，下一個可用編號 R11；`decisions.md` 保留 Codex 的 ADR-036–041，ADR-042 放最上方；交接單整份重寫。`ISearchEngineSink::useSearchEngine` 的新參數在 `main` 上沒有其他實作者。
+- 資料夾搬到 `completed/`，INDEX 改 ✅。
+
+### 修改的檔案
+- docs/plans/INDEX.md、docs/plans/completed/R10-halcon-mask-hint/（plan、status、changelog）、docs/steps/R10-halcon-mask-hint/spec.md（計畫連結）、.ai/handoff.md
+
+### 驗證
+- 合併後的 `main`（主 checkout）：`scripts/dev/test.ps1`（Release＋OpenCV＋HALCON＋Rust，含建置）**68／68 通過**。原本 `main` 失敗的 `tst_lattice`、`tst_generate_objects` 通過；`tst_match_advice`、`tst_presenter`（1 skipped）、`tst_compare`、`tst_solder_teaching`（3 skipped）、`tst_halcon_backend`（HALCON 可用）通過。2 個 XFAIL 照舊（`tst_contract_end_to_end` 的 OpenCV B1、`tst_image_sources_agree` 的 palette BMP）；8 個有跳過項目的測試。
+- 沒有跑 `-Config Debug`（Codex 的交接記錄 Debug 有 Socket 千框拖移的門檻失敗，R08.8，和本計畫無關）、`-DomainImpl Cpp`、`-Perf`。
+
+### Commit
+- `3ed3832` 合併；本筆收尾是下一筆 docs 提交。
+
 ## 2026-10-30 — Claude Code (Claude Opus 5.5)：改號 R09 → R10、ADR-036 → ADR-042
 
 ### 細項

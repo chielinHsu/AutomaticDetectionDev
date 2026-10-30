@@ -1,7 +1,7 @@
 # R10 — 比對區的建議（HALCON 建好樣本後建議用 `M` 點端子的遮罩）：目的、原因、效果
 
 > 規則：英文區塊用 ASD-STE100 風格（短句、主動語態、一詞一義）。繁中摘要放在每段之後。
-> 檢查：`node tools/ste-lint.mjs`。設計決策：[ADR-042](../../adr/042-match-mask-advice.md)；計畫：[R10](../../plans/active/R10-halcon-mask-hint/plan.md)。
+> 檢查：`node tools/ste-lint.mjs`。設計決策：[ADR-042](../../adr/042-match-mask-advice.md)；計畫：[R10](../../plans/completed/R10-halcon-mask-hint/plan.md)。
 
 <!--STE-->
 ## Purpose

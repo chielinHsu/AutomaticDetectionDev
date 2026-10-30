@@ -8,7 +8,7 @@
 
 | 編號 | 類型 | 計畫 | 狀態 | 位置 | 依賴／相關 | 分支 |
 |---|---|---|---|---|---|---|
-| R10 | 功能 | HALCON 建好樣本後在訊息列建議用 `M` 點端子的遮罩當比對區（R07 的後續 (1)） | ⏳ 進行中 | [active/R10-halcon-mask-hint](active/R10-halcon-mask-hint/plan.md) | R07、ADR-028、ADR-035、ADR-042 | `claude/r09-halcon-mask-hint-f0d064` |
+| R10 | 功能 | HALCON 建好樣本後在訊息列建議用 `M` 點端子的遮罩當比對區（R07 的後續 (1)） | ✅ 完成 | [completed/R10-halcon-mask-hint](completed/R10-halcon-mask-hint/plan.md) | R07、ADR-028、ADR-035、ADR-042 | `claude/r09-halcon-mask-hint-f0d064`（2026-10-30 合併回 `main`） |
 | R09 | 功能 | PCB 多類元件深度學習 CAD：OBB 與實例分割，含標註／訓練流程 | ⏳ 進行中 | [active/R09-deep-learning-cad](active/R09-deep-learning-cad/plan.md) | 先交付 R08 區域 CAD | `codex/r09-vision-workbench` → `main`（本機） |
 | R08 | 功能 | Socket 焊點教學最小版本 | ⏳ 進行中 | [active/R08-socket-teaching](active/R08-socket-teaching/plan.md) | ADR-015、ADR-033 | `feat/r08-socket-teaching`（2026-10-30 收進 `main`；R08.8 仍進行中） |
 | R07 | 修正 | 多樣本搜尋的合併與驗證規則：樣本越多結果不應越差（主因是晶格：R07.2 索引區域、R07.8／R07.9 補漏的回報規則；R07.4 取消） | ✅ 完成 | [completed/R07-multi-sample-merge](completed/R07-multi-sample-merge/plan.md) | ADR-013、ADR-025、ADR-026、ADR-035 | `fix/r07-multi-sample`（2026-10-29 合併回 `main`） |

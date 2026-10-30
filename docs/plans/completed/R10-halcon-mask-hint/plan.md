@@ -2,9 +2,9 @@
 id: R10
 title: HALCON 建議用 M 點端子的遮罩當比對區（畫面上的提醒）
 type: 功能
-status: 進行中（實作完成，待合併）
+status: 完成
 created: 2026-10-29
-updated: 2026-10-29
+updated: 2026-10-30
 depends_on: [R07]
 related: [ADR-028, ADR-035, ADR-027, ADR-021]
 branch: claude/r09-halcon-mask-hint-f0d064
@@ -40,7 +40,7 @@ branch: claude/r09-halcon-mask-hint-f0d064
 |---|---|---|---|---|
 | R10.1 | application：`Backend::traits`（`BackendTraits::suggestsMatchMask`，HALCON 的工廠填 true）；`interaction/MatchAdvice`（該提醒哪些樣本、〔關閉〕過的不再提醒）；`tests/core/tst_match_advice` | ✅ | `claude/r09-halcon-mask-hint-f0d064` | VERIFIED：`tst_match_advice` 9／9、`check-deps` 0 violations |
 | R10.2 | presentation：`AutoRoiPresenter` 在 Idle 顯示建議卡片（`MessageTexts::matchAdviceCard`：〔用 M 點端子〕〔關閉〕），特性經 `ISearchEngineSink::useSearchEngine` 交過來；`copy.json` 的文案 | ✅ | 同上 | VERIFIED：`tst_messages`、`tst_presenter` 88 passed（新增 2 項） |
-| R10.3 | 測試：`tst_presenter`（測試台多一個建議遮罩的假 back end）、`tst_messages`；完整 `test.ps1`、`check-deps`、`ste-lint` | ✅ | 同上 | PARTIALLY VERIFIED：完整 `test.ps1`（Release＋OpenCV＋HALCON＋Rust，67 項）第一次 64／67、修正測試台後 `-NoBuild` 重跑 65／67；`tst_lattice`、`tst_generate_objects` 在 `main` 已提交的狀態本來就失敗（主 checkout 靠 Codex 未提交的測試修改才通過，見 `status.md`）；`tst_compare` 的 2 項是測試台的順序，修正後重跑通過 |
+| R10.3 | 測試：`tst_presenter`（測試台多一個建議遮罩的假 back end）、`tst_messages`；完整 `test.ps1`、`check-deps`、`ste-lint` | ✅ | 同上 | PARTIALLY VERIFIED：完整 `test.ps1`（Release＋OpenCV＋HALCON＋Rust，67 項）第一次 64／67、修正測試台後 `-NoBuild` 重跑 65／67；`tst_lattice`、`tst_generate_objects` 在 `main` 已提交的狀態本來就失敗（主 checkout 靠 Codex 未提交的測試修改才通過，見 `status.md`）；`tst_compare` 的 2 項是測試台的順序，修正後重跑通過；2026-10-30 合併後的 `main` 完整 `test.ps1` 68／68（兩個 R07 測試的測資修復已一起提交） |
 | R10.4 | 實際執行程式看一次（`--backend halcon`；dongle 讀不到時改用假 back end 說明限制） | ✅ | 同上 | VERIFIED：`AiInspTool.exe --backend halcon --demo 5000`（runtime 授權）框一個樣本後訊息列出現卡片（截圖在 session 的共用筆記資料夾 `r09-halcon-advice-card.png`）；真實影像沒有試（合成板子已足以驗證觸發） |
 | R10.5 | 四種輸出與 `perf.md`、ADR-042、計畫文件、交接單；提交到分支（不 push、不合併） | ✅ | 同上（commit 見 `changelog.md`） | `ste-lint` 0 errors；合併回 `main` 待使用者決定 |
 
@@ -56,10 +56,10 @@ branch: claude/r09-halcon-mask-hint-f0d064
 
 ## 完成定義
 
-- [ ] 建置通過、`scripts/dev/test.ps1` 預設建置全部通過（原本就有的 2 個 XFAIL 與 8 個有跳過項目的測試除外）
-- [ ] 四種輸出與 `perf.md` 已交付（`docs/steps/R10-halcon-mask-hint/`），`node tools/ste-lint.mjs` 無 error
-- [ ] 細項表全部 ✅ 或 ⛔；`status.md`、`changelog.md` 已更新
-- [ ] 提交在分支上；合併回 `main` 由使用者決定（之後再搬到 `completed/`）
+- [x] 建置通過、`scripts/dev/test.ps1` 預設建置全部通過（2026-10-30 合併後的 `main`：68／68；原本就有的 2 個 XFAIL、8 個有跳過項目的測試）
+- [x] 四種輸出與 `perf.md` 已交付（`docs/steps/R10-halcon-mask-hint/`），`node tools/ste-lint.mjs` 無 error
+- [x] 細項表全部 ✅ 或 ⛔；`status.md`、`changelog.md` 已更新
+- [x] 2026-10-30 使用者決定合併：`3ed3832` 合併回 `main`，資料夾搬到 `completed/`
 
 ## Commit 範本
 
@@ -83,7 +83,7 @@ Build OK, Test OK
 
 ```
 你正在 D:\AOI_Project\Qt\AutoCadCreated 繼續專案。回覆一律使用繁體中文（zh-TW），完成時總結修改內容。
-請先讀 AGENTS.md、docs/plans/INDEX.md，以及計畫 docs/plans/active/R10-halcon-mask-hint/ 的 plan.md 與 status.md，
+請先讀 AGENTS.md、docs/plans/INDEX.md，以及計畫 docs/plans/completed/R10-halcon-mask-hint/ 的 plan.md 與 status.md，
 只做 R10 的下一個細項。完成後更新該計畫的細項表、status.md、changelog.md（ai-handoff skill），
 計畫層級的狀態改變時才改 INDEX.md，並依 project-rules.md 的 Git 規則提交。
 ```
