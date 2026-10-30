@@ -1,35 +1,31 @@
 # Agent Handoff
 
-- 更新者：Claude Code (Claude Fable 5.1)
-- 更新日期：2026-10-29（R07 完成並合併；末段濃縮保留 Codex 2026-10-29 的 R07 回歸修復與 R08 交接）
-- 分支：`fix/r07-multi-sample` 以 `--no-ff` 合併回 `main`（本機，沒有 push）；現在在 `main`。
+- 更新：Codex (gpt-6.1-sol)，2026-10-30；本次 [R09](../docs/plans/active/R09-deep-learning-cad/status.md) R09.15–R09.17 已實作，驗證 PARTIALLY VERIFIED。沒有 stage／commit／push。
+- 使用者要求概念落實至程式、同一 AiInspTool.pro 建置兩個工具，並指示不要限定 PCB。產品名 **Vision CAD Studio／元件深度學習 CAD**；模組與 JSON 格式保留相容。
 
-## 本次工作與狀態
+## 本次程式與入口
 
-- [R07 status](../docs/plans/completed/R07-multi-sample-merge/status.md)：✅ 完成，資料夾搬到 `completed/`。這個 session 做了 R07.8（影像上驗證不到的推算格預設不回報）與 R07.9（低分的補漏候選要有 4 個鄰居；一維兩側都要有），都在 use case（`GenerateOptions::reportUnverifiedHoles`、`minNeighboursForWeakHoles`；`GridSummary::unverified`、`unsupported`），domain 與 Rust 沒動；設計與量測在 ADR-035（含後續）。R07.4 取消（主因是晶格，不是合併規則）。
-- 量測工具 `tests/backend/perf_multi_sample_real` 多 `AOI_MULTI_MATCH`（矩形或自動擷取的遮罩）、`AOI_MULTI_DUMP`（CSV）、log 的 `unverified`／`unsupported`。比對區的結論（矩形遍地誤報、HALCON 點端子的遮罩有效、OpenCV 維持整框）在 R07 `plan.md` 的「R07.8 的量測」。
-- 畫面沒有改：「推算」永遠 0、「拒絕」少掉邊界的雜訊。
+- Qt Creator 開 AiInspTool/AiInspTool.pro → Run qmake → Build，可選 AiInspTool 或 VisionCadWorkbench 執行目標；工作台參數 --task obb／segment，--project 可接續人工標註。完整操作 tools/pcb_dl/README.md。
+- 新增 workbench/workbench.pro、src/app/WorkbenchLauncher.cpp、tools/pcb_dl/build_workbench.py。建置檢查 Python 3.12 x64／套件、語法、複製及編譯 bytecode，輸出 bin/VisionCadWorkbench.exe 與 bin/vision-workbench；一般 build 不 pip／下載。AOI_PCB_PYTHON 可覆寫；AOI_BUILD_PCB_WORKBENCH=OFF 停用。
+- 新增 workbench_ui／workbench_presenter／workbench_theme／thumbnail_loader；更新 guided_ui、window、guidance、workflow、canvas、canvas_items、object_browser、ui_theme。三欄、固定類別色、選取屬性／矩形幾何／裁切／人工審核、首次深色與持久偏好。主題不重建 scene 或改標註；背景縮圖限兩執行緒，視窗關閉／銷毀取消剩餘工作。
+- 選取／平移／矩形／輪廓互斥；平移點到把手不會轉成編輯。草稿阻擋切步時還原單一導覽高亮；文字欄位 Delete 保護與既有 Undo 保留。
+- 新增 test_workbench_shell.py；原 test_guidance.py 的顏色及文案斷言跟隨新設計。使用 screw 類別驗證通用元件，沒有自動改使用者真實標註類別。
+- aoi_test.pri 補 tst_／perf_ 主物件到同一 shadow moc 的相依，修正新資料夾 C1083；沒有搬／刪來源樹舊產物。ADR-041 記錄設計；R09 計畫仍進行中，INDEX 沒改。
 
 ## 實際驗證
 
-- R07.9：完整 `test.ps1`（Release、Rust、含建置）66／67，只有 `tst_presenter` 的提案格數 32 → 28；改標準答案後 `-Filter tst_presenter` 通過。R07.8 當時完整 `-NoBuild` 67／67。原本就有的 2 個 XFAIL（`tst_contract_end_to_end` OpenCV B1、`tst_image_sources_agree` palette BMP）與 8 個有跳過項目的測試不變。
-- 真實影像（LeftTopRegion、整框）：HALCON 推算 13 → 0、拒絕 216 → 180，OpenCV 推算 7 → 0、拒絕 42 → 9；找到的數字不變。沒有跑 `-DomainImpl Cpp`、`-Perf`；合併後沒有再建置（`main` 側沒有改到同一批檔案）。
+- Python／Qt／ONNX 全套 37/37，164.608s，build/r09-workbench-final.log；最後 UI 狀態修正後 5/5 專項，r09-shell-final.log。源碼與三種 payload 的每個 Python 檔比對一致。
+- 工作台 Release／Debug／Profile 建置成功；6/6 native --check 啟動通過，對應 module 都在各自 build payload，r09-launcher-checks.json。原 C++ Release／Debug 建置成功；原 C++ Profile 本次未完整重建。
+- 原 C++ Release：67/67，8 組有 skip、2 既有 XFAIL。HALCON backend 實際通過；skip 是缺真實資料／截圖環境、全內建分支或影像格式限制。r09-cpp-release-regression.log。
+- **Debug 未全過**：66/67，Socket 大量框拖曳門檻失敗；整組重跑兩列仍失敗。最後純拖曳案例：1017 框 3201.38ms（門檻 2000，失敗）、5000 框 1984.50ms（通過），exit 1。證據 build/r09-debug-drag-isolated.txt、r09-cpp-debug-regression.log、r09-cpp-debug-solder-recheck.log。原因未判定，沒有改 Socket 源碼、調高門檻或新增 XFAIL。
+- 20MP／8 框的深淺實際畫面與 1366×768 已檢視、原存檔 SHA 不變。圖 build/r09-workbench-{dark,light,small}.png，量測 r09-workbench-ui-check.json；perf.md 記載非受控負載數字，不宣稱正式 p95／改善倍率。
+- 19 組實際 runtime 色票對比通過；check-deps 314 檔 0 違規；STE 1059 sentences、0 errors／warnings；結構 Strict OK（routing 68 passed、9 個既有架構路徑警告）。缺依賴負向與關閉工作台 configure 通過。
+- 沒有重訓正式模型、GPU 或高 DPI 150%／200% 驗收；R09.7 品質仍待足夠真實資料。不要把部分通過寫成 VERIFIED。
 
-## 未提交與不要動
+## 資料與其他工作保留
 
-- Codex 的 R08（Socket 教學；`src/presentation/solder/`、`GenerateSocketCad`、`OpenCvSocketRegionRecognizer` 等）、`tests/domain/tst_lattice.cpp`、`docs/plans/INDEX.md` 的 R08 列與「下一個可用編號 R09」、`docs/plans/active/R08-socket-teaching/`、`docs/plans/completed/R07-multi-sample-merge/tasks/regression-repair.md`（隨資料夾搬過來）仍未提交：不清理、不回復、不一併 stage（INDEX 只 stage 了 R07 那一列）。R08 的 `changelog.md` 裡指到 R07 `tasks/` 的連結因為搬資料夾改成 `../../completed/…`（只改那一行）。R08 進行中時 `AiInspTool.exe` 曾連結失敗，幾分鐘後自己好；再遇到先等一下再建。
-- `.archify/`、`AiInspTool/cargo/` 不是本計畫新增的；`build/` 與產線影像不入版控。
-- 主視窗沒有儲存配方的功能（〔儲存〕停用）；要重現使用者的樣本用「選取資訊」表單的數字。
-
-## 後續範圍（待使用者決定）
-
-- HALCON 的召回／畫面上建議用 `M` 點端子的遮罩；產品方向（通用的樣本比對與 Socket 結構偵測並存或整合、問題 3 的深度學習方向）；問題 2（右側 dock 重疊）。都還沒開計畫。
-
----
-
-# （保留、濃縮）Codex (gpt-6.1-sol) 2026-10-29 的交接
-
-- 當時分支 `fix/r07-multi-sample`、HEAD `970ac5f`；使用者當時要求不 commit、不 push。
-- R07.5–R07.7（已併入 R07）：四個回歸失敗中三組是過期 C++ obj／測試與新 Rust lib 混用，重建後轉綠；Lattice 是測資（合成圖界、半缺件的間距證據），只改 `tests/domain/tst_lattice.cpp`，`src/domain`、`rust/aoi_domain_rs` 沒動。證據：[regression-repair.md](../docs/plans/completed/R07-multi-sample-merge/tasks/regression-repair.md)；log 與快照在 `build/r09-repro/`（scratch 名稱，沒有 R09 計畫）。
-- [R08 status](../docs/plans/active/R08-socket-teaching/status.md)：MVP 已交付；R08.5–R08.7 樣本全圖搜尋完成（`SearchSocketSamples`、`ISocketSampleSearcher`、`SolderTeachingSession`、`SolderSampleWorkflow`、視窗／UI、app 組裝、文案／qmake／測試；ADR-034）。專項 15/0/0、全量 67/67；真實圖 3 樣本得到 632 個 44×24 結果；不宣稱精確率／召回率。入口 `build/SocketTeaching-Samples/StartSocketSamples.cmd`；log／截圖在 `build/r08-samples`。另一聊天的 R08.8 拖移修正由該聊天維護。
-- 規則：`docs/legacy/` 只讀；範本管理檔不改；不要在 `AiInspTool/` 原地 qmake；其他 session 同時改來源時先比對 source／obj 時間，不要以 `-NoBuild` 當成完整重建。
+- 前次交接指出使用者視窗可能仍有未儲存調整；本次完全沒有操作／重開桌面視窗。build/r09-shapes-backup 只有舊已存檔八框，僅拿來唯讀驗證，不能覆蓋現有工作。使用者先存檔，再用新版開啟同一專案。
+- 原圖 D:/BMP/PCB、12 圖／3 個 Z 視圖、5120×4096、同板同視野單一來源 group 的規則保留，不可拆 train/val/test 湊數。正式資料需求也適用其他元件。
+- pcb-dl-cad v1／pcb-learning-project v1 與 Socket aoi-recipe v3 各自使用；影像仍只存路徑。
+- R08／R07、tests/core/tst_generate_objects.cpp、tests/domain/tst_lattice.cpp、.gitignore、docs/ux/copy.json、CompositionRoot／main／MainWindow 及其他既有未提交修改保持原樣；本次只新增 WorkbenchLauncher 到 app。
+- .archify/、AiInspTool/cargo/ 等來源不明工作不清理、不 stage；不同聊天共用來源，不結束其他視窗／行程。

@@ -1,0 +1,41 @@
+{
+  "defaultTheme": "dark",
+  "themes": {
+    "dark": {
+      "background": "#0B1220",
+      "surface": "#121D2D",
+      "field": "#172538",
+      "text": "#E8EEF7",
+      "muted": "#A9B8CD",
+      "border": "#64748B",
+      "primary": "#2563EB",
+      "onPrimary": "#FFFFFF",
+      "focus": "#60A5FA"
+    },
+    "light": {
+      "background": "#F1F5F9",
+      "surface": "#FFFFFF",
+      "field": "#F8FAFC",
+      "text": "#172B43",
+      "muted": "#52647B",
+      "border": "#7B8CA3",
+      "primary": "#2563EB",
+      "onPrimary": "#FFFFFF",
+      "focus": "#2563EB"
+    }
+  },
+  "annotationColors": {
+    "resistor": "#3B82F6",
+    "capacitor": "#F59E0B",
+    "inductor": "#22C55E",
+    "chip": "#A855F7",
+    "diode": "#EF4444",
+    "transistor": "#06B6D4",
+    "connector": "#FACC15",
+    "other": "#94A3B8"
+  },
+  "annotationLabelBackground": "#0B1220",
+  "annotationLabelText": "#FFFFFF",
+  "selectionHandle": "#FFFFFF",
+  "selectionHalo": "#0B1220"
+}
