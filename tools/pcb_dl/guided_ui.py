@@ -4,6 +4,7 @@ from PySide6.QtWidgets import (QCheckBox,QComboBox,QDoubleSpinBox,QFormLayout,QF
     QHeaderView,QLabel,QLineEdit,QPlainTextEdit,QProgressBar,QPushButton,QScrollArea,QSpinBox,QStackedWidget,
     QTableWidget,QVBoxLayout,QWidget)
 from .workbench_ui import build_shell,build_annotation_panel
+from .inspection_editor import build_inspection_editor
 
 
 class TaskPages(QStackedWidget):
@@ -44,11 +45,12 @@ def build_ui(w):
     a.addStretch();w.start_annotation=button(w,a,'開始標註元件 →',lambda:w.go_step(1),True)
     build_annotation_panel(w,b)
     w.spec_status=text('');c.addWidget(w.spec_status)
-    c.addWidget(text('同類元件共用一組框尺寸。W 沿長軸，H 沿短軸；單位是原圖像素。'))
+    c.addWidget(text('同封裝共用定位尺寸與整組檢測框。W 沿長軸，H 沿短軸；單位為原圖像素。'))
     w.profiles=QTableWidget(0,4);w.profiles.setHorizontalHeaderLabels(['元件類別','寬 W (px)','高 H (px)','子窗比例'])
-    w.profiles.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch);w.profiles.setMaximumHeight(240);c.addWidget(w.profiles)
+    w.profiles.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch);w.profiles.setMaximumHeight(140);c.addWidget(w.profiles)
     w.measure_button=button(w,c,'從目前選取的元件帶入尺寸',w.measure_profile,True)
-    c.addWidget(text('先在圖片點選一個已標註元件，再帶入尺寸並檢查。子窗比例 0.6 代表內框為主框的 60%。'))
+    c.addWidget(text('先點選標註並帶入定位尺寸，再教中央本體及導腳。未教框組時沿用子窗比例；有框組時使用整組相依框。'))
+    build_inspection_editor(w,c)
     c.addStretch();w.data_status=text('');w.data_status.setObjectName('notice');d.addWidget(w.data_status)
     grouping=QGroupBox('準備資料：同一實物照片必須使用相同編號');gf=QFormLayout(grouping)
     w.group=QLineEdit();gf.addRow('目前圖片的實物／批次編號',w.group)

@@ -35,19 +35,31 @@ def pixel_pen(color,width=3):
 
 
 class HaloPolygon(QGraphicsPolygonItem):
-    def __init__(self,points,color='#FFCB47',parent=None):
+    def __init__(self,points,color='#FFCB47',parent=None,closed=True):
         super().__init__(QPolygonF([QPointF(*p) for p in points]),parent)
-        self.color=color;self.setPen(pixel_pen(color));self.setZValue(5)
+        self.color=color;self.closed=closed;self._paint_padding=5.0;self.setPen(pixel_pen(color));self.setZValue(5)
+
+    def boundingRect(self):
+        margin=getattr(self,'_paint_padding',5.0)
+        return self.polygon().boundingRect().adjusted(-margin,-margin,margin,margin)
+
+    def set_view_scale(self,scale):
+        # paint() draws up to 7 viewport pixels, independent of scene zoom.
+        # The native polygon pen bounds are in scene units and cannot describe that halo.
+        margin=5.0/max(abs(scale),.000001)
+        if margin==self._paint_padding:return
+        self.prepareGeometryChange();self._paint_padding=margin;self.update()
 
     def paint(self,painter,option,widget=None):
         painter.setRenderHint(QPainter.Antialiasing)
         painter.setPen(pixel_pen('#101820',7 if self.isSelected() else 6));painter.setBrush(Qt.NoBrush)
-        painter.drawPolygon(self.polygon())
+        draw=painter.drawPolygon if self.closed else painter.drawPolyline
+        draw(self.polygon())
         if self.isSelected():
-            painter.setPen(pixel_pen('#FFFFFF',6));painter.drawPolygon(self.polygon())
+            painter.setPen(pixel_pen('#FFFFFF',6));draw(self.polygon())
         painter.setPen(pixel_pen(self.color,3))
-        fill=QColor(self.color);fill.setAlpha(38 if self.isSelected() else 14);painter.setBrush(fill)
-        painter.drawPolygon(self.polygon())
+        fill=QColor(self.color);fill.setAlpha(38 if self.isSelected() else 14);painter.setBrush(fill if self.closed else Qt.NoBrush)
+        draw(self.polygon())
 
 
 class ObjectBadge(QGraphicsItem):
@@ -77,6 +89,11 @@ class MovablePolygon(HaloPolygon):
         if change==QGraphicsItem.ItemSelectedHasChanged:
             self.update()
             if hasattr(self,'badge'):self.badge.setVisible(self.isSelected() or self.canvas.show_all_labels);self.badge.update()
+        elif change==QGraphicsItem.ItemPositionHasChanged and hasattr(self,'canvas'):
+            for handle in self.canvas.handles:
+                if handle.index==self.index:
+                    point=self.canvas.display[self.index]['points'][handle.vertex]
+                    handle.setPos(point[0]+value.x(),point[1]+value.y())
         return super().itemChange(change,value)
 
     def mousePressEvent(self,event):
@@ -89,10 +106,19 @@ class MovablePolygon(HaloPolygon):
 
 class Vertex(QGraphicsRectItem):
     def __init__(self,canvas,index,vertex,point):
-        super().__init__(-5,-5,10,10);self.canvas=canvas;self.index=index;self.vertex=vertex
+        super().__init__(-9,-9,18,18);self.canvas=canvas;self.index=index;self.vertex=vertex;self.hovered=False
         self.setPos(*point);self.setBrush(QColor('#FFFFFF'));self.setPen(pixel_pen('#1264B6',2));self.setZValue(30)
         self.setFlags(QGraphicsItem.ItemIsMovable|QGraphicsItem.ItemIgnoresTransformations)
-        self.setCursor(Qt.CrossCursor)
+        self.setCursor(Qt.OpenHandCursor);self.setAcceptHoverEvents(True)
+        self.setToolTip(f'頂點 {vertex+1}：按住左鍵拖曳；點位太密時先放大影像。')
+
+    def paint(self,painter,option,widget=None):
+        painter.setRenderHint(QPainter.Antialiasing);painter.setPen(pixel_pen('#1264B6',2))
+        painter.setBrush(QColor('#BAE6FD' if self.hovered else '#FFFFFF'));painter.drawRoundedRect(QRectF(-6,-6,12,12),2,2)
+
+    def hoverEnterEvent(self,event):self.hovered=True;self.update();super().hoverEnterEvent(event)
+
+    def hoverLeaveEvent(self,event):self.hovered=False;self.update();super().hoverLeaveEvent(event)
 
     def mousePressEvent(self,event):
         self.canvas.beforeEdit.emit();super().mousePressEvent(event)

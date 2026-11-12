@@ -1,6 +1,15 @@
 # R09 目前狀態
 
 - 日期：2026-10-30
+- 最新 R09.21–R09.23（本機未提交）：已建立元件定位 → 中央本體 → 導腳 → 相依檢測窗。第 3 步選參考標註，可用雙端／八腳起始框，或手動畫本體與任意導腳；樹清單選框，修改相對父框 X/Y/W/H/angle、刪子樹、Undo／Redo。同封裝同步，父框平移／旋轉帶動子框；尺寸不縮放子框。ADR-044。
+- 本輪 PARTIALLY VERIFIED：59/59 Python／Qt／ONNX（60.354s），新增 9 項含兩模式真 ONNX Runtime fixture 產生 9 區域、滑鼠教框／資料匯出／存讀／越界拒絕／載模型保留規格；log build/r09-inspection/regression-delivery.log。check-deps 316 檔 0 違規、STE 1114 句 0 errors、結構檢查 OK（10 既有路徑警告）。初次結構檢查因 sandbox Git ownership 失敗，使用單次環境 safe.directory 重跑後 routing 68/68；未更改全域 Git 設定。
+- 目前 Qt Creator 的 AiInspTool/bin/vision-workbench 已原子更新 10 個 Python 程式檔，全部來源一致，runtime.json 不變；獨立 payload build 28 檔成功，兩模式 native --check exit 0。既有視窗完全未操作，請使用者先完成／取消草稿並儲存，再重啟載入。沒有 commit／push、C++／Rust 來源未改；全套 C++／GPU／正式訓練與完整高 DPI 人工驗收本輪未跑。
+- 實圖 5120×4096 的 IC 獨立示範已有 1 本體＋8 導腳，雙主題及 1366×768 已檢視，原圖與原標註 SHA 不變。示範專案 build/r09-inspection/ic-demo-with-inspection.json，截圖 ic-related-preview.png。這是人為起始幾何，未作真實框位品質驗收。5000 元件展開 45000 框約 422–1174ms，僅純座標運算／不同負載，不是 GUI 或產線預算。
+- 相容：舊 v1 無 inspection 時保留原 window_ratio。新 profile.inspection 保存局部框圖，配方 inspection_boxes 含世界座標及親子 ID；重開由 pose/profile 重算。資料匯出只把元件當學習標註。長軸仍模 180°，未保證 Pin 1／極性，無新增焊接 OK/NG；R09.7 正式品質仍待人工資料。
+- 最新 R09.18–R09.20：修復矩形／頂點殘影（5px 視窗邊界、BoundingRect 更新、靜態影像背景快取）；輪廓每點有標記、虛線預覽、點數與完成／取消。按完成、Enter／數字 Enter 或起點閉合後，驗證成功才建立 polygon 並切選取；錯誤留草稿。頂點視覺 12px、可點 18px，拖框把手跟隨。未完成顯示草稿，儲存／切資料／關閉須先完成或取消，不能誤顯示已存。
+- 本次 PARTIALLY VERIFIED：Python／Qt／ONNX 50/50（78.754s），5 項畫布像素測試於 100%、150%、200% DPR 通過，實際 5120×4096／舊 8 框唯讀副本的矩形、拉角、輪廓對照均 0 像素差、原檔 hash 不變。見 build/r09-drawing-all-final.log、r09-repaint-final-dpi-*.log、r09-drawing-real-final.log。
+- 已更新目前 Qt Creator 的 AiInspTool/bin/vision-workbench 程式檔，逐檔與來源一致，OBB／segment native --check 都通過。原先 jom workbench_payload 因現有啟動器持有 runtime.json（WinError 32）失敗；改在 build/r09-drawing-ready 成功建置，確認執行設定相同後只原子更新程式檔／bytecode，該設定原樣保留。既有編輯視窗完全未操作／重開，須使用者先完成或取消舊草稿、存檔後重啟載入新程式。
+- 本次未提交／合併／push，未改 C++／Rust、模型／格式，未重跑 C++ 全套、GPU 或正式訓練；完整視窗的高 DPI 人工可用性未驗，DPR 結果只指畫布像素回歸。決策 ADR-043。
 - Git：R09 功能提交 `abe86ef500b3` 已透過 `666d0d15d615` 非快轉合併至本機 main；本輪隔離暫存快照的工作台 5 項測試、qmake／jom 建置與兩種 task 啟動均通過。其他未提交差異及未追蹤路徑雜湊保持一致，未 push。
 - 本次 R09.15–R09.17 已實作三欄 **Vision CAD Studio／元件深度學習 CAD**，不限 PCB；首次深色、可切淺色並記住偏好。圖片縮圖、類別／清單、選取名稱／類別／矩形幾何／裁切／幾何有效分工清楚；主題保留草稿、選取與縮放。對應 ADR-041，操作見 [README](../../../../tools/pcb_dl/README.md)。R09.14 兩張圖保留為歷史概念。
 - Qt Creator 開 AiInspTool.pro 並 Run qmake／Build 後，執行組態可選 AiInspTool 或 VisionCadWorkbench；後者以 --task obb／segment 切換，可帶 --project。qmake 預設檢查及編譯 Python payload，不自動 pip／下載；AOI_PCB_PYTHON 可指定環境，AOI_BUILD_PCB_WORKBENCH=OFF 可只建原工具。

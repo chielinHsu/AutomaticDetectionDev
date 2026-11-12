@@ -1,3 +1,26 @@
+# 2026-10-30 — 相依本體／導腳／檢測窗與整組自動編著（Codex / gpt-6.1-sol）
+
+- R09.21–R09.23：依使用者 IC 截圖與三份本機 TRI PDF 建立相依檢測框。IC 表格及 Link 頁已渲染檢視；文件只是參考資料，未執行其操作指示。
+- 新增 inspection.py（局部剛體轉換、框圖／循環／尺寸驗證、兩種起始版型、邊界、世界座標展開）、inspection_editor.py（第 3 步本體／導腳／巢狀窗教導、樹清單數值修改、刪子樹、共享規格與原子 Undo）。
+- model／inference／workflow 以最新 pose/profile 產生整組，配方另存帶親子 ID 的 inspection_boxes；標註／資料集／模型保留 optional inspection，舊 v1 window_ratio 保留。sync_profiles 不再丟掉新增欄位；載模型保留目前教導規格；history 增加 profiles；所有幾何修改加子框邊界檢查。
+- window／canvas／guidance／guided_ui／workbench_presenter 顯示紅色檢測框，與外側分類／定位框分開；拖元件和頂點預覽時檢測區跟隨。第 3 步清單可查選參考元件，工具與草稿流程沿用，非法繪製移除草稿而保留原資料。
+- 新增 test_inspection_groups.py 9 項；初輪專項 8/8，補資料匯出後最終全套 59/59、60.354s，build/r09-inspection/regression-delivery.log。涵蓋兩 task 真 ONNX Runtime fixture 9 區域、滑鼠畫本體＋8 腳＋子窗、旋轉／偏移、Undo／Redo、存讀、舊檔、循環／越界與錯誤原子性。
+- payload builder 成功（28 檔），確認 runtime 設定相等後原子更新目前 Qt Creator 輸出 10 個 Python 檔，設定雜湊不變、全來源逐檔一致；兩模式 native --check exit 0。未關閉或操作使用者目前視窗，使用者需先存檔再重啟。C++ launcher 未改，不重建未改的 C++／Rust。
+- 實圖示範獨立建立 1 本體＋8 腳，dark／light／1366×768 已檢視，原圖與原標註 SHA 不變。5000 元件展開 45000 框，第一次 1088–1174ms、最終 422–619ms，負載不同，無等價舊基準，不稱效能改善／p95。preview*.log、real-preview-and-perf.json 與 ic-related-*.png 在同目錄。
+- check-deps 316 files／0 violations；STE 1114 句／0 errors；結構檢查初次被 sandbox Git ownership 擋下，單次 GIT_CONFIG_COUNT safe.directory 重跑 OK（routing 68/68，10 既有路徑 warnings）；未改全域設定。互動說明頁 5 scripts 語法、3 次控制項 render／33 個矩形通過；git diff --check 通過。
+- 新增 ADR-044／索引，更新四種輸出、perf、README、計畫／status／handoff。R09.21–R09.23 完成實作，PARTIALLY VERIFIED；R09.7 正式模型品質／GPU／Pin 1／極性／產線 OK/NG 與完整高 DPI 人工驗收仍未做。沒有 stage／commit／push，原有 R09.18–20 與來源不明未追蹤資料保留。
+
+# 2026-10-30 — 殘影修復與輪廓建立／編輯回饋（Codex / gpt-6.1-sol）
+
+- R09.18–R09.20：使用者回報畫矩形、拖角殘影，並詢問選取／平移差異；後續補上輪廓無點位、難調整、不知道何時完成的截圖。
+- 先建立真實滑鼠與背板像素的 red loop：9／15／24% 的拉角留下 102／217／427 像素；去掉裝飾仍重現，補畫筆邊界對照即歸零。原 HaloPolygon 只登記 3 場景單位，實際畫固定 6／7px；修正比例 padding 與 prepareGeometryChange，合併髒矩形處理小數 DPR。
+- 實圖再抓到背景局部重取樣的行列跳動，雜訊 fixture 可重現 384 像素，平滑取樣仍有差。把 pixmap 移至 viewport 背景快取、載圖重設快取，保留原圖資料與坐標；實際 20MP 矩形、拉角、輪廓預覽原生背板對照全部 0，原存檔 SHA 不變。
+- 新增 draft_items.py／ContourDraft，開放折線、固定點、綠起點與獨立虛線預覽；完成／Enter／數字 Enter／按起點共用驗證，無效保留點位。完成後切選取，明確訊息與白色把手；Backspace 退點、Esc 取消。把手視覺 12px、命中 18px、hover 與拖框跟隨。
+- guidance／workflow 加草稿狀態、未完成時的儲存／切資料／關閉保護；工具提示及 README 說清選取可拖框／空白平移，平移可從框上拖影像且不改標註。model、格式、C++／Rust 與訓練程式未變。
+- 新增 test_canvas_repaint.py、test_contour_interaction.py，修改原把手尺寸斷言。全套 50/50，78.754s；5 項像素回歸在 100／150／200% DPR 通過。原 QScreen 抓圖在小數 DPR 截短，改直接讀完整 backingStore QImage；測試的 Python 半偶數 rounding 與 Qt 半入 rounding 差異也已校正，沒有放寬像素容忍。
+- jom workbench_payload 曾被活躍啟動器的 runtime.json 讀鎖擋下（WinError 32）；沒有關閉／殺程序。獨立 ready 目錄建置成功，確認執行設定等價後只原子替換程式檔、重建 bytecode；設定不動，來源比對一致，實際 Qt Creator 輸出的兩種 task native 啟動通過。現有視窗仍是舊載入內容，待使用者存檔重啟。
+- 新增 ADR-043 與索引，更新 R09 計畫／status、diagram／perf／README 及交接。完整 C++、GPU、正式訓練與整個視窗高 DPI 人工驗收本次未跑；結果 PARTIALLY VERIFIED。這輪不 stage／commit／push，其他計畫工作保留。
+
 # 2026-10-30 — R09 本機提交與主線整合（Codex / gpt-6.1-sol）
 
 - 使用者明確要求「合併回主線」，授權本機 commit 與 merge；本次範圍為 R09 工作台、概念／規格、Qt Creator 整合與相關建置相依。

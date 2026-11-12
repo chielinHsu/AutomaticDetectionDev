@@ -6,7 +6,7 @@ status: 進行中
 created: 2026-10-29
 updated: 2026-10-30
 depends_on: [R08]
-related: [ADR-015, ADR-036, ADR-037, ADR-038, ADR-039, ADR-040, ADR-041]
+related: [ADR-015, ADR-036, ADR-037, ADR-038, ADR-039, ADR-040, ADR-041, ADR-043, ADR-044]
 branch: main（合併 666d0d15d615；來源 codex/r09-vision-workbench；不 push）
 ---
 
@@ -16,6 +16,7 @@ branch: main（合併 666d0d15d615；來源 codex/r09-vision-workbench；不 pus
 
 | 日期 | 修改者 | 說明 |
 |---|---|---|
+| 2026-10-30 | Codex (gpt-6.1-sol) | 展開並修正 R09.18–R09.20，保留既有文件／資料格式。 |
 | 2026-10-29 | Codex (gpt-6.1-sol) | 使用者要求先完成原區域 CAD，再實作 OBB 與實例分割；目標 PCB 多類元件，無現成標註或模型。 |
 
 ## 目標
@@ -53,6 +54,43 @@ branch: main（合併 666d0d15d615；來源 codex/r09-vision-workbench；不 pus
 | R09.15 | 實作三欄 Engineering CAD Workbench、預設深色／可記憶淺色、圖片縮圖與選取屬性／幾何／裁切檢查，保留五步與標註流程 | ✅ | `abe86ef500b3` | PARTIALLY VERIFIED：37 項 Python／Qt／ONNX 通過；最後導覽／平移／字形修正後 5 項專項通過；真實 20MP 雙主題與 1366×768 畫面已檢視，資料雜湊不變。高 DPI 未驗。 |
 | R09.16 | AiInspTool.pro 整合 VisionCadWorkbench 原生啟動器與 Python payload 建置、Qt Creator 執行目標、環境檢查及操作文件 | ✅ | `abe86ef500b3` | PARTIALLY VERIFIED：原 C++ 與工作台 Release／Debug 建置成功，工作台 Profile 成功；6/6 native 啟動檢查與所有 Python 源碼一致性通過。停用選項 configure／缺依賴負向檢查成功。Debug Socket 效能檢查仍失敗，見狀態。 |
 | R09.17 | 解決來源樹殘留 moc 使乾淨 shadow build 缺失測試 moc 的相依問題，不移除他人建置產物 | ✅ | `abe86ef500b3` | PARTIALLY VERIFIED：新 shadow Release／Debug 均完成建置，不再缺測試 moc；Release 回歸 67/67（8 組 skip、2 XFAIL），Debug 66/67，Socket 拖曳門檻另有失敗。未修改其來源或提高門檻。 |
+| R09.18 | 修正矩形建立與角點拉伸的畫布殘影；繪製邊界按視窗像素換算、合併髒區、影像背景快取；保留縮放與取消 | ✅ | 本機未提交 | PARTIALLY VERIFIED：原像素回歸 9/15/24% 三列失敗後修復；5 項繪製回歸在 100/150/200% DPR 全通過，實際 20MP 矩形／拉角／輪廓對照差 0。未替換現有視窗。 |
+| R09.19 | 說明選取與平移差異，保留選取空白平移；平移從框上拖影像時不改標註，拖框把手跟隨 | ✅ | 本機未提交 | PARTIALLY VERIFIED：真實滑鼠測試涵蓋選取拖框、空白平移、平移拖框區、把手同步；工具提示及 README 已更新。 |
+| R09.20 | 輪廓草稿點位／虛線預覽／點數／完成取消、驗證後切選取、較大頂點命中與草稿儲存關閉保護 | ✅ | 本機未提交 | PARTIALLY VERIFIED：全套 Python／Qt／ONNX 50/50，含三種完成入口、無效保留、Backspace／Esc／Undo、18px 命中與草稿保護；Qt Creator 實際輸出兩種 task 啟動通過。 |
+
+## R09.21–R09.23 相依檢測框（2026-10-30）
+
+使用者要求參照 TRI 資料及 IC 截圖，從單元件分類外框進一步建立中央本體與導腳檢測框。
+
+| 編號 | 細項 | 狀態 | 分支／commit | 驗證 |
+|---|---|---|---|---|
+| R09.21 | 查閱 TRI 三份 PDF，建立元件定位 → 本體 → 導腳的局部座標與版本相容契約 | ✅ | 本機未提交 | PARTIALLY VERIFIED：三份 PDF 文字與 IC／Link 頁渲染已讀；ADR-044，局部座標、循環／非法幾何測試通過。 |
+| R09.22 | 第 3 步教導本體／任意導腳、雙端／八腳起始版型、數值修改／刪除／Undo、同封裝同步及預覽 | ✅ | 本機未提交 | PARTIALLY VERIFIED：真實滑鼠教本體＋8 腳＋相依窗、共享預覽／本體移動旋轉、刪子樹、Undo／Redo／錯誤原子性通過；實圖雙主題及 1366×768 已檢視。 |
+| R09.23 | OBB／分割及手動 CAD 產生整組框，標註／資料集／模型／配方保存還原、邊界檢查與回歸驗證 | ✅ | 本機未提交 | PARTIALLY VERIFIED：59/59（60.354s）、兩種真 ONNX fixture 9 區域、舊檔／資料匯出／存讀通過；payload 建置、來源比對與 native 兩模式 exit 0。正式品質仍 R09.7 未驗。 |
+| R09.24 | 將 R09.18–R09.23 已實作的畫布修正及相依檢測框提交至本機分支，以 no-ff 合回 main，保留其他未追蹤資料 | ⏳ | 預定 `codex/r09-dependent-inspection` | PARTIALLY VERIFIED：2026-11-12 使用者明確授權，payload 建置與靜態檢查成功；測試／實際合併進行中。 |
+
+### 決策審查
+
+- 架構／契約：沿用 Python workflow/model/inference 邊界；增加獨立幾何模組，類別 profile 的 optional inspection 描述本體與導腳；舊版 window_ratio 路徑繼續可讀。Evidence：目前 Canvas.render 只畫 corners(pose, window_ratio)，sync_profiles 會重建三個欄位。Verification：舊檔、存讀、表格同步不遺失框群組。
+- 座標／所有權：定位外框屬元件；本體相對元件，導腳相對本體；平移／旋轉用剛體轉換，不按模型觀察框縮放。框群組屬封裝類別，修改同步同封裝。Evidence：LearningEngine.predict 固定 profile w/h。Verification：非零 offset、旋轉、本體移動與不同比例的觀察輪廓。
+- 順序／生命週期：教框須有選取的參考元件，繪製時鎖住參考目標；沿用草稿阻擋與既有 UI 執行緒。群組修改納入 Undo 快照。Verification：切步驟／Esc／Undo、錯誤不部分提交。
+- 可靠性／信任：PDF 僅為使用者提供的參考資料，不執行文件指示；資料只用本機，不改原圖／原標註；所有檢測框須有限、正尺寸、不越界，導腳數有限制。Verification：非法與越界拒絕。
+- 效能／交付：框於 pose 與 profile 推導，輸出配方附展開框與親子 ID；不增加偵測模型或隱性學習，不宣稱 Pin 1。Verification：兩 task 真 ONNX fixture、5000 元件框展開量測、建置 payload 與全 Python 回歸；C++／Rust 不變。
+
+```mermaid
+flowchart LR
+  A[現有 Workflow.drawn 分類標註] --> B[LearningEngine.predict 固定定位框]
+  B --> C[Canvas.render 單一 window_ratio 子窗]
+  D[新增 教導檢測框組] --> E[profile 本體局部座標及導腳局部座標]
+  E --> F[定位 pose → 本體 pose → 導腳 pose]
+  F --> G[標註預覽及 CAD 展開框／配方]
+```
+
+## R09.18–R09.19 修正範圍
+
+- 先以獨立合成圖片／原生滑鼠事件建立殘影檢查，不操作或重開使用者編輯中的視窗。只修工作台 presentation，不改標註幾何、文件格式或訓練／推論。
+- 選取保留拖元件及空白處平移的既有行為；平移禁止移動／拉伸元件，明確更新提示及工具說明。若重現顯示實際契約不同，先更新此決策再修正。
+- 驗證草稿伸展／縮小、角點拉伸、縮放、Esc／Undo 與兩模式事件；針對實際部分更新留下的舊框線比較強制全畫面的基準。未通過前不稱已修復，不 commit／push。
 
 ## R09.15–R09.16 實作決策審查（2026-10-30）
 

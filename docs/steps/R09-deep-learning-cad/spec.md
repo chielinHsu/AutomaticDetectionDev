@@ -16,6 +16,12 @@ Appearance varies with light and component type. Manual annotations define the r
 ## Effect
 The model supplies class and pose. A CAD profile supplies frame dimensions. Users edit the results and save a recipe.
 
+## Dependent inspection frames
+The component frame supplies the location. The body frame defines the central inspection region. Each pin frame uses body coordinates.
+Window frames use coordinates from their parent frames. Moving or rotating a parent moves its children. Frame sizes remain fixed in pixels.
+Users teach these frames in task three. Each package class shares one frame group. Inference places the complete group on each component.
+The recipe stores parent identifiers and all frame positions. Older profiles retain their ratio window. Pin identifiers do not identify physical polarity.
+
 ## Guided interface
 Five task pages show the current goal and next action. Advanced settings stay collapsed. Frame widths remain constant during zoom.
 Class groups stay collapsed until needed. Search selects matching names, classes, or numbers. Rectangle handles preserve right angles. Users can select polygon editing.

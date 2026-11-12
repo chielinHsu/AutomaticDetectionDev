@@ -8,6 +8,7 @@ from PySide6.QtWidgets import QFileDialog,QInputDialog,QMessageBox
 
 from .model import (atomic_json,corners,inside,make_recipe,new_project,polygon,read_image,validate_profiles,validate_project)
 from .annotation_geometry import annotation_shape,is_rectangle,resized_vertex
+from .inspection import fits_inspection
 
 
 class Workflow:
@@ -16,6 +17,8 @@ class Workflow:
 
     def idle(self):
         if self.worker is not None and self.worker.isRunning():raise ValueError('請先等待或取消目前推論')
+        if self.canvas.points or self.canvas.start is not None:
+            raise ValueError('繪製尚未完成：矩形請放開左鍵，輪廓請按「完成輪廓」或 Enter，或按 Esc 取消。')
 
     def require_image(self):
         self.idle()
@@ -30,7 +33,7 @@ class Workflow:
         profiles={}
         for row,name in enumerate(self.project['classes']):
             values=[self.profiles.item(row,c).text().strip() for c in (1,2,3)]
-            if values[0] or values[1]:profiles[name]=dict(zip(['w','h','window_ratio'],map(float,values)))
+            if values[0] or values[1]:profiles[name]={**self.project['profiles'].get(name,{}),**dict(zip(['w','h','window_ratio'],map(float,values)))}
         validate_profiles(profiles,list(profiles));self.project['profiles']=profiles
 
     def add_image(self):
@@ -80,14 +83,15 @@ class Workflow:
 
     def remember(self):
         if self.current<0:return
-        self.history.append((copy.deepcopy(self.entry()),copy.deepcopy(self.objects)))
+        self.history.append((copy.deepcopy(self.entry()),copy.deepcopy(self.objects),copy.deepcopy(self.project['profiles'])))
         self.history=self.history[-64:];self.redo=[]
 
     def restore(self,source,target):
         self.require_image()
         if not source:return
-        target.append((copy.deepcopy(self.entry()),copy.deepcopy(self.objects)))
-        entry,self.objects=source.pop();self.project['images'][self.current]=entry;self.reviewed.setChecked(entry.get('reviewed',False));self.refresh()
+        target.append((copy.deepcopy(self.entry()),copy.deepcopy(self.objects),copy.deepcopy(self.project['profiles'])))
+        entry,self.objects,self.project['profiles']=source.pop();self.project['images'][self.current]=entry
+        self.profile_table();self.reviewed.setChecked(entry.get('reviewed',False));self.refresh()
 
     def undo(self):self.restore(self.history,self.redo)
     def redo_action(self):self.restore(self.redo,self.history)
@@ -98,6 +102,7 @@ class Workflow:
     def drawn(self,points,is_roi):
         self.require_image();h,w=self.image.shape[:2];p=polygon(points)
         if not inside(p,(0,0,w,h)):raise ValueError('選區／標註超出影像')
+        if self.canvas.mode.startswith('inspection-'):return self.inspection_drawn(points)
         if is_roi:
             xs=[v[0] for v in points];ys=[v[1] for v in points]
             return self.infer([int(min(xs)),int(min(ys)),max(1,int(max(xs)-min(xs))),max(1,int(max(ys)-min(ys)))])
@@ -106,9 +111,14 @@ class Workflow:
             self.sync_profiles();name=(self.kind.currentData() or self.kind.currentText());validate_profiles(self.project['profiles'],[name])
             pose={**pose_from_polygon(points),**{k:self.project['profiles'][name][k] for k in ('w','h')}}
             if not inside(corners(pose),(0,0,w,h)):raise ValueError('指定 CAD 尺寸超出影像')
+            if not fits_inspection(pose,self.project['profiles'][name],(0,0,w,h)):raise ValueError('相依檢測框超出影像')
             self.remember();self.objects.append({'class':name,'pose':pose,'observed':pose.copy(),'outline':[], 'confidence':0,'manual':True})
             self.view.setCurrentIndex(1);self.refresh();return
         shape='polygon' if self.canvas.mode=='annotation-poly' or not is_rectangle(points) else 'rectangle'
+        from .model import pose_from_polygon
+        name=self.kind.currentData() or self.kind.currentText()
+        if not fits_inspection(pose_from_polygon(points),self.project['profiles'].get(name,{}),(0,0,w,h)):
+            raise ValueError('相依檢測框超出影像，請調整元件位置。')
         self.remember();self.entry()['annotations'].append({'class':(self.kind.currentData() or self.kind.currentText()),'points':points,'shape':shape})
         self.invalidate_review();self.view.setCurrentIndex(0);self.refresh();self.annotation_added()
 
@@ -116,10 +126,13 @@ class Workflow:
         self.require_image();h,w=self.image.shape[:2]
         if self.view.currentIndex()==0:
             obj=self.entry()['annotations'][index];points=[[x+dx,y+dy] for x,y in obj['points']]
-            if inside(points,(0,0,w,h)):obj['points']=points;self.invalidate_review()
+            from .model import pose_from_polygon
+            if inside(points,(0,0,w,h)) and fits_inspection(pose_from_polygon(points),self.project['profiles'].get(obj['class'],{}),(0,0,w,h)):
+                obj['points']=points;self.invalidate_review()
         else:
             obj=self.objects[index];pose={**obj['pose'],'x':obj['pose']['x']+dx,'y':obj['pose']['y']+dy}
-            if inside(corners(pose),(0,0,w,h)):obj.update(pose=pose,manual=True)
+            if inside(corners(pose),(0,0,w,h)) and fits_inspection(pose,self.project['profiles'].get(obj['class'],{}),(0,0,w,h)):
+                obj.update(pose=pose,manual=True)
         self.refresh()
 
     def delete(self):
@@ -140,6 +153,9 @@ class Workflow:
         try:
             polygon(points)
             if not inside(points,(0,0,w,h)):raise ValueError('頂點超出影像')
+            from .model import pose_from_polygon
+            if not fits_inspection(pose_from_polygon(points),self.project['profiles'].get(label['class'],{}),(0,0,w,h)):
+                raise ValueError('相依檢測框超出影像')
             label['points']=points;label['shape']=shape;self.invalidate_review()
         finally:self.refresh()
 
@@ -148,6 +164,8 @@ class Workflow:
         if self.view.currentIndex()!=1 or not 0<=self.selected_index<len(self.objects):raise ValueError('請選取一個 CAD')
         pose={k:v.value() for k,v in self.fields.items()};h,w=self.image.shape[:2]
         if min(pose['w'],pose['h'])<=0 or not inside(corners(pose),(0,0,w,h)):raise ValueError('CAD 尺寸無效或超出影像')
+        obj=self.objects[self.selected_index]
+        if not fits_inspection(pose,self.project['profiles'][obj['class']],(0,0,w,h)):raise ValueError('相依檢測框超出影像')
         self.remember();self.objects[self.selected_index].update(pose=pose,manual=True);self.refresh()
 
     def export_data(self):
@@ -163,10 +181,12 @@ class Workflow:
         spec=json.loads(Path(file).read_text(encoding='utf-8-sig'))
         if spec.get('format')!='pcb-dl-model' or spec.get('task') not in ('obb','segment'):raise ValueError('無效模型 manifest')
         validate_profiles(spec['profiles'],spec['classes'])
-        if self.objects and self.project['profiles']!=spec['profiles']:
+        self.sync_profiles()
+        profiles={**copy.deepcopy(spec['profiles']),**copy.deepcopy(self.project['profiles'])}
+        if self.objects and self.project['profiles']!=profiles:
             raise ValueError('新模型 CAD 預設規格與目前配方不同，請先儲存並另開影像')
         self.manifest=file;self.manifest_task=spec['task'];self.task.setCurrentText(spec['task'])
-        self.project['profiles']=copy.deepcopy(spec['profiles'])
+        self.project['profiles']=profiles
         for name in spec['classes']:
             if name not in self.project['classes']:self.project['classes'].append(name)
         self.profile_table()
@@ -196,7 +216,7 @@ class Workflow:
         self.remember();kept=[o for o in self.objects if o.get('manual') or not inside(corners(o['pose']),roi)]
         for obj in objects:
             if not any(k.get('manual') and iou({'observed':obj['pose']},{'observed':k['pose']})>.3 for k in kept):kept.append(obj)
-        self.objects=kept;self.provenance=metadata;self.project['profiles']=copy.deepcopy(metadata['profiles'])
+        self.objects=kept;self.provenance=metadata;self.project['profiles']={**self.project['profiles'],**copy.deepcopy(metadata['profiles'])}
         for name in metadata['classes']:
             if name not in self.project['classes']:self.project['classes'].append(name)
         self.profile_table();self.view.setCurrentIndex(1);self.canvas.set_mode('select');self.refresh()

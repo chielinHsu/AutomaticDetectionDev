@@ -53,3 +53,15 @@
 | 25–32 s | 明確切換多邊形，拖任一頂點 | Select polygon mode for free vertex edits. | 需要自由輪廓才切換多邊形，可復原。 |
 
 只有分鏡與實際 Qt 畫面，未製作影片；證據 build/r09-browser-preview.png、r09-browser-selected.png。
+
+## 本體與導腳連動（R09.21–R09.23）
+
+| 時間 | 畫面 | STE 旁白 | 繁中字幕 |
+|---|---|---|---|
+| 0–5 s | 第 3 步選 IC 參考元件 | Select the reference component. | 外框供辨識定位；紅框才是檢測區。 |
+| 5–12 s | 建立雙排八腳，中央與八腳均紅框 | Create the body and eight pin frames. | 版型先建立本體及八個導腳，需依影像調整。 |
+| 12–20 s | 樹清單選 body，修改 X 與角度 | Move the body. Its children follow. | 本體移動或旋轉時，所有導腳依相對座標跟隨。 |
+| 20–28 s | 選某腳，增加 window，再 Undo | Add a window to one pin. | 檢測窗可依附該腳，修改與刪除均可復原。 |
+| 28–36 s | 模型生成多個元件，各有整組框，存讀 | Generate complete frame groups. Save the recipe. | OBB／分割都套同封裝規格，儲存後保留父子關係。 |
+
+只有分鏡與 Qt 實圖示範，沒有合成影片或宣稱實際模型品質。

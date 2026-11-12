@@ -10,6 +10,7 @@ from .canvas_items import class_icon,class_name
 from .model import corners,inside,polygon,pose_from_polygon
 from .workbench_theme import apply_theme
 from .thumbnail_loader import request_thumbnail
+from .inspection import fits_inspection
 
 
 class WorkbenchPresentation:
@@ -74,7 +75,7 @@ class WorkbenchPresentation:
     def update_annotation_inspector(self,objects,valid):
         annotation=valid and self.view.currentIndex()==0
         self.annotation_details.setVisible(annotation)
-        self.reviewed.setEnabled(self.image is not None)
+        self.reviewed.setEnabled(self.image is not None and not self.canvas.points and self.canvas.start is None)
         if not annotation:
             self.crop_preview.clear();self.geometry_status.clear();self._crop_key=None;self._inspected_object=None;return
         obj=objects[self.selected_index]
@@ -117,5 +118,7 @@ class WorkbenchPresentation:
         if pose['w']<2 or pose['h']<2:raise ValueError('寬與高至少需要 2 px。')
         points=corners(pose);polygon(points);height,width=self.image.shape[:2]
         if not inside(points,(0,0,width,height)):raise ValueError('修改後超出影像，請調整中心、長寬或角度；原框未變更。')
+        if not fits_inspection(pose,self.project['profiles'].get(obj['class'],{}),(0,0,width,height)):
+            raise ValueError('相依檢測框超出影像；原框未變更。')
         self.remember();obj['points']=points;obj['shape']='rectangle';self.invalidate_review();self.refresh()
         self.show_notice('已套用矩形幾何；Ctrl+Z 可復原。')

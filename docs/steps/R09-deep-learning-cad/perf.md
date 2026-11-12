@@ -4,7 +4,28 @@
 
 | 日期 | 修改者 | 說明 |
 |---|---|---|
+| 2026-10-30 | Codex (gpt-6.1-sol) | R09.18–R09.20：殘影、背景快取與輪廓草稿／完成交易。 |
 | 2026-10-30 | Codex (gpt-6.1-sol) | R09.15–R09.17 的實作畫面、雙主題狀態與 qmake 聯合建置；完整 C++ 結果以最新 changelog 為準。 |
+
+## 相依檢測框（R09.21–R09.23，2026-10-30）
+
+- Python／Qt／ONNX 全套 59/59，0 failure、60.354s：`build/pcb-dl-env/Scripts/python.exe -m unittest discover -s tests/pcb_dl -v`，log `build/r09-inspection/regression-delivery.log`。新增 9 項，包含兩種真正 ONNX Runtime fixture 的整組輸出，並非正式品質模型。前輪全套 59/59、83.883s 在 regression-final.log；不以測試耗時變化宣稱最佳化。
+- 獨立 payload build 成功：`python tools/pcb_dl/build_workbench.py --source . --output build/r09-inspection/payload`，28 檔；目前 Qt Creator 的 `AiInspTool/bin/vision-workbench` 原子更新 10 個程式檔，runtime.json 雜湊不變，全部 Python 來源逐檔一致。兩種 native `VisionCadWorkbench.exe --check --task obb|segment` exit 0；證據 payload-update.json、native-*.log。無需重編未改的 C++ launcher；未操作現有編輯視窗。
+- 實際 5120×4096 z0 圖＋獨立 IC 定位示範，1 本體＋8 導腳均可見；dark／light／1366×768 預覽，未覆寫原圖或舊存檔，兩者 SHA 保持不變。`build/r09-inspection/preview.py`、preview.log、real-preview-and-perf.json、ic-related-*.png。這是起始幾何示範，未人工驗收框位，也不是正式模型預測。
+- 純座標展開：5000 元件 × 9 框＝45000 區域，首次三次 1174.430／1163.181／1087.527ms（preview.log）；最終重畫後三次 619.129／421.965／594.108ms（preview-final.log／real-preview-and-perf.json），不同當下負載，不互相比較為效能提升。Python 3.12.14、CasparHsu1、Windows；不含影像推論、Qt 建 item 或繪製。新增能力沒有舊的等價基準；`perf/budgets.json` 沒有此指標，不設假預算／不稱 p95 或效能提升。
+- 本輪 PARTIALLY VERIFIED：尚未重跑 C++／Rust 全套、GPU、真實正式模型、Pin 1／極性、產線 OK/NG，以及完整視窗高 DPI 人工驗收。R09.7 仍未完成。
+
+## 前次殘影與輪廓互動的驗證紀錄
+
+- 全套 Python／Qt／ONNX 50 tests、0 failures，78.754s；build/r09-drawing-all-final.log。未改 C++／Rust，未重跑其測試、GPU 或正式模型訓練。
+- 回歸指令：python -m unittest tests.pcb_dl.test_canvas_repaint tests.pcb_dl.test_contour_interaction -v。繪製回歸會逐次讀 QWidget backingStore 的實際 QImage，與強制 viewport 重畫比較，沒有用會自動重畫的 QWidget.grab 掩蓋殘影。
+- 修復前正常 DPI 的角點測試在 9／15／24% 留下 102／217／427 像素；只移除標籤把手仍失敗，補邊界後歸零。150% 的分段更新問題以 BoundingRectViewportUpdate 修正。
+- 實圖與 seed=7 的 1024×1280 貼圖噪訊可額外重現背景取樣偏移（384 像素）；採 CacheBackground 與 drawBackground 後，相同操作與新圖／背景刷替換測試通過。只快取 viewport 背景，覆蓋層仍獨立更新，未採 FullViewportUpdate。
+- 最後 5 項像素測試於 100%、150%、200% 顯示比例都成功；涵蓋 9／15／24／100／200% 畫布縮放、伸縮／取消／輪廓／背景貼圖。測試完整背板尺寸依 Qt 的半入取整換算，保留 0 像素差標準。
+- 實際 5120×4096 舊 8 標註資料的獨立副本：3 次矩形草稿、3 次角點移動、1 次輪廓預覽，局部／完整重畫差均為 0；原存檔 SHA-256 不變。build/r09-drawing-real-check.py、r09-drawing-real-check.json、r09-drawing-real-final.log；草稿／完成畫面 r09-contour-draft-fixed.png、r09-contour-completed-fixed.png。示範新增只在該視窗記憶體，未保存至使用者資料。
+- ready payload 建置成功、目前 Qt Creator 輸出與來源每個 Python 檔相同、OBB／segment native --check exit 0（r09-drawing-runtime-check.json）。直接 jom payload 曾因 runtime.json 被活躍父程序讀鎖而失敗；沒有把該次當成成功。最後保留等價執行設定、原子更新程式檔，沒有重鏈使用中的 exe，也沒有重啟現有視窗。
+- 本步以像素正確性及操作交易驗證，沒有新增正式效能預算或宣稱 FPS／量產改善。DPR 自動測試不是整個應用程式的高 DPI 人工可用性驗收。
+
 
 ## Vision CAD Studio 實作（2026-10-30）
 

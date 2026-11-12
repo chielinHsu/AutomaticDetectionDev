@@ -6,6 +6,7 @@ from PySide6.QtWidgets import QFileDialog,QMessageBox,QTableWidgetItem
 from .canvas_items import class_name
 from .model import corners,inside,pose_from_polygon,validate_profiles,validate_project
 from .annotation_geometry import annotation_shape
+from .inspection import fits_inspection
 
 TITLES=['1 · 載入元件影像','2 · 標註要辨識的元件','3 · 確認每類元件的檢測框','4 · 準備資料並訓練模型','5 · 產生 CAD，檢查後儲存']
 HELP=['第一次使用從圖片開始；已有標註或配方可直接接續。','先選元件類別，再框住元件本體。畫完會出現帶編號的類別色框。',
@@ -62,21 +63,45 @@ class Guidance:
             self.show_notice('請先完成輪廓或按 Esc 取消，再切換工具。');self.tool_changed(self.canvas.mode);return
         self.canvas.set_mode(mode)
         if mode!='select':self.canvas.setFocus()
+        if mode=='annotation-poly':self.show_notice('輪廓草稿：逐點放置頂點，至少三點後按「完成輪廓」、Enter 或起點閉合；Backspace 退一點，Esc 取消。')
 
     def tool_changed(self,mode):
-        names={'select':'選取／拖移：點框選取；拖動可移動；Delete 刪除，Ctrl+Z 復原。','pan':'平移影像：按住左鍵拖曳；不移動元件。','annotation-rect':'畫矩形：按住左鍵拖曳，放開完成；Esc 取消。',
-               'annotation-poly':'畫輪廓：逐點點擊，Enter 完成；Backspace 回退；Esc 取消。','roi':'圈選辨識範圍：拖出區域後放開。','cad-rect':'手動補 CAD：先選類別，再拖出元件位置。'}
+        names={'select':'選取／編輯：拖框移動、拖白色頂點調整；空白處可平移影像。Delete 刪除，Ctrl+Z 復原。','pan':'平移檢視：從任何位置拖動影像，包含元件上方；標註位置保持不變。','annotation-rect':'畫矩形：按住左鍵拖曳，放開完成；Esc 取消。',
+               'annotation-poly':f'輪廓草稿：已放 {len(self.canvas.points)} 點（至少 3 點）。Enter／完成輪廓或點綠色起點閉合；Backspace 退一點，Esc 取消。','roi':'圈選辨識範圍：拖出區域後放開。','cad-rect':'手動補 CAD：先選類別，再拖出元件位置。',
+               'inspection-body':'拖出中央本體檢測框；導腳跟隨本體，Esc 取消。','inspection-pin':'拖出一隻導腳檢測框，相對本體保存；Esc 取消。',
+               'inspection-window':'拖出相依檢測窗，相對清單中選定的父框保存；Esc 取消。'}
         self.tool_hint.setText('目前工具 · '+names.get(mode,mode))
         for key,b in self.tool_buttons.items():b.setChecked(key==mode)
+        self.finish_contour_button.setVisible(mode=='annotation-poly')
+        self.finish_contour_button.setEnabled(mode=='annotation-poly' and len(self.canvas.points)>=3 and self.canvas.isEnabled())
+        pending=bool(self.canvas.points or self.canvas.start is not None)
+        self.cancel_draft_button.setVisible(mode in ('annotation-poly','annotation-rect','roi','cad-rect') or mode.startswith('inspection-'))
+        self.cancel_draft_button.setEnabled(pending)
         if hasattr(self,'draw_button'):self.draw_button.setText('正在畫矩形：到圖片上按住左鍵拖曳' if mode=='annotation-rect' else '開始畫矩形框（按住滑鼠拖曳）')
-        if self._ready:self.update_canvas_status()
+        if self._ready:self.update_canvas_status();self.update_draft_context()
+
+    def draft_changed(self,count):
+        self.tool_changed(self.canvas.mode)
+        if self._ready:self.update_guidance()
+
+    def update_draft_context(self):
+        if self.canvas.mode=='annotation-poly' and (self.canvas.points or self.selected_index<0):
+            self.selection_label.setText(f'輪廓草稿：已放置 {len(self.canvas.points)} 個點，至少需要 3 點。按畫布上方「完成輪廓」後，才會建立標註並顯示白色編輯把手。')
+            self.draw_button.hide()
+
+    def update_save_status(self):
+        pending=bool(self.canvas.points or self.canvas.start is not None)
+        dirty=self.signature()!=self.saved_project or (bool(self.objects) and self.signature(True)!=self.saved_recipe)
+        state='草稿尚未完成（尚未存入標註）' if pending else '尚未儲存變更' if dirty else '已儲存／無新變更'
+        self.save_status.setText(state+(' · '+Path(self.project_file).name if self.project_file else ''))
+        self.reviewed.setEnabled(self.image is not None and not pending)
 
     def profile_values(self):
         profiles={}
         for row,name in enumerate(self.project['classes']):
             values=[self.profiles.item(row,c).text().strip() for c in (1,2,3)]
             if not values[0] or not values[1]:raise ValueError(f'請設定「{class_name(name)}」的寬度與高度，或從選取的標註帶入。')
-            profiles[name]=dict(zip(['w','h','window_ratio'],map(float,values)))
+            profiles[name]={**self.project['profiles'].get(name,{}),**dict(zip(['w','h','window_ratio'],map(float,values)))}
         validate_profiles(profiles,self.project['classes']);return profiles
 
     def profile_issue(self):
@@ -112,7 +137,7 @@ class Guidance:
         self.image_stack.setCurrentIndex(0 if has else 1);self.image_count.setText(f'{self.current+1 if has else 0} / {len(self.project["images"])} 張')
         self.start_annotation.setEnabled(has);self.draw_button.setEnabled(has and not busy)
         for tool in self.tool_buttons.values():tool.setEnabled(has and not busy)
-        self.object_panel.setVisible(self.step in (1,4) and self.list_visible);self.object_toggle.setVisible(self.step in (1,4))
+        self.object_panel.setVisible(self.step in (1,2,4) and self.list_visible);self.object_toggle.setVisible(self.step in (1,2,4))
         self.object_toggle.setText('隱藏元件清單' if self.list_visible else '顯示元件清單');self.edit_box.setVisible(self.step==4 and bool(self.objects))
         self.previous_button.setEnabled(self.step>0 and not busy);self.next_button.setEnabled(has and not busy)
         self.next_button.setVisible(self.step<4);self.next_button.setText(['下一步：標註 →','下一步：框規格 →','下一步：訓練 →','下一步：產生 CAD →','儲存配方'][self.step])
@@ -121,7 +146,7 @@ class Guidance:
         self.reclassify_button.setEnabled(selected_valid and not busy);self.measure_button.setEnabled(selected_valid)
         self.draw_button.setVisible(not selected_valid)
         shape=annotation_shape(labels[selected]) if selected_valid else None
-        hint='矩形：拖角點保持直角，可各自調整長寬。' if shape=='rectangle' else '多邊形：可自由移動各頂點。'
+        hint='矩形：拖角點保持直角，可各自調整長寬。' if shape=='rectangle' else '輪廓已完成：拖白色頂點調整，點位太密時先放大。'
         self.selection_label.setText(f'已選取 #{selected+1} · {class_name(labels[selected]["class"])}；'+hint if selected_valid else '③ 點一個框，可拖移、調整形狀或修改類別。')
         self.shape_rect_button.setEnabled(selected_valid and not busy);self.shape_poly_button.setEnabled(selected_valid and not busy)
         self.shape_rect_button.setChecked(shape=='rectangle');self.shape_poly_button.setChecked(shape=='polygon')
@@ -135,10 +160,11 @@ class Guidance:
         self.save_recipe_button.setEnabled(bool(self.objects) and not busy);self.cancel_button.setVisible(busy or training)
         self.progress.setVisible(busy or training)
         if training:self.progress.setRange(0,0)
-        dirty=self.signature()!=self.saved_project or (bool(self.objects) and self.signature(True)!=self.saved_recipe)
-        self.save_status.setText(('尚未儲存變更' if dirty else '已儲存／無新變更')+(' · '+Path(self.project_file).name if self.project_file else ''))
+        self.update_save_status()
         self.update_browser_selection()
         self.update_workbench()
+        self.update_inspection_editor()
+        self.update_draft_context()
 
     def open_project_path(self,path):
         self.idle();project=json.loads(Path(path).read_text(encoding='utf-8-sig'));validate_project(project)
@@ -153,11 +179,16 @@ class Guidance:
         self.selected_index=len(self.entry()['annotations'])-1
         if self.step!=1:self.go_step(1)
         self.select(self.selected_index);self.canvas.choose(self.selected_index)
-        self.show_notice(f'已新增 #{self.selected_index+1} · {class_name(self.entry()["annotations"][-1]["class"])}。類別色框已畫好；選錯類別可在右側修改。')
+        label=self.entry()['annotations'][-1]
+        message='輪廓已完成；現在可拖白色頂點調整，Ctrl+Z 可復原。' if annotation_shape(label)=='polygon' else '類別色框已畫好；選錯類別可在右側修改。'
+        self.show_notice(f'已新增 #{self.selected_index+1} · {class_name(label["class"])}。'+message)
 
     def reclassify(self):
         self.require_image();labels=self.entry()['annotations'];index=self.selected_index
         if not 0<=index<len(labels):return
+        h,w=self.image.shape[:2]
+        if not fits_inspection(pose_from_polygon(labels[index]['points']),self.project['profiles'].get(self.kind.currentData(),{}),(0,0,w,h)):
+            raise ValueError('新類別的相依檢測框超出影像，原類別保留。')
         self.remember();labels[index]['class']=self.kind.currentData();self.invalidate_review();self.refresh()
         self.show_notice(f'已將 #{index+1} 改為 {class_name(labels[index]["class"])}。')
 
@@ -172,6 +203,8 @@ class Guidance:
         points=corners(pose_from_polygon(label['points'])) if shape=='rectangle' else label['points']
         h,w=self.image.shape[:2]
         if not inside(points,(0,0,w,h)):raise ValueError('轉換後的矩形超出圖片，請先調整輪廓位置。')
+        if not fits_inspection(pose_from_polygon(points),self.project['profiles'].get(label['class'],{}),(0,0,w,h)):
+            raise ValueError('轉換後的相依檢測框超出影像，原輪廓保留。')
         self.remember();label['points']=points;label['shape']=shape;self.invalidate_review();self.refresh()
         self.show_notice('已轉為矩形，拖動角點會保持直角；Ctrl+Z 可復原。' if shape=='rectangle' else '已轉為多邊形，現在可自由調整頂點；Ctrl+Z 可復原。')
 
@@ -220,6 +253,9 @@ class Guidance:
         if self.worker is not None and self.worker.isRunning():self.cancel();self.show_notice('正在取消，待目前分塊完成後再關閉。');event.ignore();return
         if self.process is not None and self.process.state()!=QProcess.NotRunning:
             self.show_notice('訓練尚未完成，請先完成或取消工作。');event.ignore();return
+        try:self.idle()
+        except ValueError as exc:
+            self.show_notice(str(exc),True);self.canvas.setFocus();event.ignore();return
         self.sync_entry();project_dirty=self.signature()!=self.saved_project
         recipe_dirty=bool(self.objects) and self.signature(True)!=self.saved_recipe
         if project_dirty or recipe_dirty:
