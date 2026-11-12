@@ -69,6 +69,7 @@ branch: main（R09.18–R09.24：來源 codex/r09-dependent-inspection，b167028
 | R09.22 | 第 3 步教導本體／任意導腳、雙端／八腳起始版型、數值修改／刪除／Undo、同封裝同步及預覽 | ✅ | `b167028`／合併 `bf239a4` | PARTIALLY VERIFIED：真實滑鼠教本體＋8 腳＋相依窗、共享預覽／本體移動旋轉、刪子樹、Undo／Redo／錯誤原子性通過；實圖雙主題及 1366×768 已檢視。 |
 | R09.23 | OBB／分割及手動 CAD 產生整組框，標註／資料集／模型／配方保存還原、邊界檢查與回歸驗證 | ✅ | `b167028`／合併 `bf239a4` | PARTIALLY VERIFIED：59/59（60.354s）、兩種真 ONNX fixture 9 區域、舊檔／資料匯出／存讀通過；payload 建置、來源比對與 native 兩模式 exit 0。正式品質仍 R09.7 未驗。 |
 | R09.24 | 將 R09.18–R09.23 已實作的畫布修正及相依檢測框提交至本機分支，以 no-ff 合回 main，保留其他未追蹤資料 | ✅ | `codex/r09-dependent-inspection`：`b167028` → `main`：`bf239a4` | PARTIALLY VERIFIED：2026-11-12 重跑 59/59（197.318s）、payload 建置、依賴／STE／結構通過；merge 為雙親、整棵樹與來源一致，未 push；完整 C++／正式品質本輪未驗。 |
+| R09.25 | 修正拖角點時框與把手分離：選取中的框被 Qt 一起平移拖曳位移，預覽又以絕對座標重設形狀；把手改為自行處理拖曳 | ✅ | `fix/r09-handle-frame-sync` → no-ff 合回 `main`（hash 見 git log） | PARTIALLY VERIFIED：新回歸測試修正前 3 列失敗（矩形／多邊形 100%、矩形 24%，框位移等於拖曳量），修正後通過；Python／Qt／ONNX 全套 60/60（54.829s）。已同步 AiInspTool/bin/vision-workbench 的 canvas_items.py；未在使用者實際視窗以滑鼠人工驗收。 |
 
 ### 決策審查
 
