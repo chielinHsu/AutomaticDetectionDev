@@ -1,3 +1,13 @@
+# 2026-11-12 — 相依檢測框與畫布修正提交並合回 main（Codex / gpt-6.1-sol）
+
+- 使用者明確要求「先合併回主線」，授權本機提交及 no-ff 合併，不包含 push。新增 R09.24，沒有開始 R09.7 或其他計畫。
+- 目前 main 的未提交差異均屬 R09.18–R09.23，包含前輪殘影／輪廓修正與本輪相依本體／導腳／檢測窗。精確 stage 30 個檔案，核對沒有多餘／缺漏路徑及未 stage 的追蹤差異。
+- 來源提交 `b1670280803b1e8447429744f27b7d4e9edbcbd5`（codex/r09-dependent-inspection）；非快轉合併 `bf239a4a6bd1522b61a59aaa603d443e6f49ebba`（main）。作者與 committer 均 Caspar Hsu <chielin0025@hotmail.com>。git diff 來源分支與合併樹 exit 0，合併有兩個 parent，沒有衝突。
+- 本輪重跑 Python／Qt／ONNX 全套 59/59，197.318s；build/r09-main-merge-20261112/tests.log。獨立 payload builder 28 檔成功，未操作／關閉使用者工作視窗；不重編未改的 C++ launcher。
+- 依賴 316 檔 0 違規、STE 1114 句 0 errors、結構檢查 OK（routing 68/68，10 個既有 architecture 路徑 warnings）、git diff --check 通過。靜態檢查與 stage scope／來源 SHA 記錄在同一 ignored 目錄。
+- 更新 plan 的 R09.18–R09.24 提交狀態、重整 status 為現在快照、覆寫 handoff。計畫仍進行中，沒有修改 INDEX 的計畫狀態；正式品質 R09.7／GPU／Pin 1／極性／產線 OK/NG、完整 C++／Rust 全套與高 DPI 人工驗收仍未做。
+- .archify/ 與 AiInspTool/cargo/ 不 stage，合併前保留其檔案數及 SHA 清單供合併後核對；原圖、使用者標註與其他工作不更動，沒有 push。
+
 # 2026-10-30 — 相依本體／導腳／檢測窗與整組自動編著（Codex / gpt-6.1-sol）
 
 - R09.21–R09.23：依使用者 IC 截圖與三份本機 TRI PDF 建立相依檢測框。IC 表格及 Link 頁已渲染檢視；文件只是參考資料，未執行其操作指示。
