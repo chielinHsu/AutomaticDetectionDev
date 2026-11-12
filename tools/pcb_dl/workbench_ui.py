@@ -104,7 +104,11 @@ def build_annotation_panel(w,layout):
     for i,(key,title) in enumerate([('x','中心 X (px)'),('y','中心 Y (px)'),('w','寬 W (px)'),('h','高 H (px)'),('angle','角度 (°)')]):
         spin=QDoubleSpinBox();spin.setRange(-1000000,1000000);spin.setDecimals(2);spin.setKeyboardTracking(False)
         cell=QVBoxLayout();cell.addWidget(label(title,'muted'));cell.addWidget(spin);grid.addLayout(cell,i//2,i%2);w.annotation_fields[key]=spin
+        # Arrows, wheel and a committed entry (Enter/Tab) update the frame at once; half-typed text does not.
+        spin.valueChanged.connect(lambda _value,k=key:w.live_annotation_geometry(k));spin.editingFinished.connect(w.end_geometry_adjustment)
+    w._live_edit=None;w._field_error=''
     w.annotation_apply=action(w,details,'套用矩形幾何',w.apply_annotation_geometry)
+    w.annotation_apply.setToolTip('欄位的值會即時套用。這個按鈕重新檢查並套用目前的值，再把欄位整理成長邊為寬、角度 -90°～90° 的表示。')
     preview_row=QHBoxLayout();details.addLayout(preview_row);w.crop_preview=QLabel();w.crop_preview.setFixedSize(130,100);w.crop_preview.setAlignment(Qt.AlignCenter)
     preview_row.addWidget(w.crop_preview);w.geometry_status=label();preview_row.addWidget(w.geometry_status,1)
     w.reviewed=QCheckBox('這張圖的元件皆已標註並檢查');w.reviewed.setToolTip('幾何有效不代表整圖已標註完成；修改標註後會取消審核。');layout.addWidget(w.reviewed)

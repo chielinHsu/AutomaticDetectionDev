@@ -53,7 +53,11 @@ class WorkbenchShellTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             w=self.window(temp);w.table.selectRow(0);w.canvas.choose(0);original=copy.deepcopy(w.entry()['annotations'][0])
             self.assertFalse(w.crop_preview.pixmap().isNull());w.reviewed.setChecked(True)
-            fields=w.annotation_fields;fields['w'].setValue(20);fields['h'].setValue(12);fields['x'].setValue(40);fields['y'].setValue(40)
+            # R09.26: values apply as they change (tests/pcb_dl/test_live_geometry.py). Signals are blocked
+            # here so that this test keeps covering the button as one transaction.
+            fields=w.annotation_fields
+            for key,value in dict(w=20,h=12,x=40,y=40).items():
+                fields[key].blockSignals(True);fields[key].setValue(value);fields[key].blockSignals(False)
             w.apply_annotation_geometry();self.assertFalse(w.entry()['reviewed']);self.assertIn('幾何有效',w.geometry_status.text())
             self.assertAlmostEqual(w.annotation_fields['w'].value(),20,places=1);w.undo();self.assertEqual(w.entry()['annotations'][0],original)
             w.table.selectRow(0);before=copy.deepcopy(w.project);fields['x'].setValue(-100)
