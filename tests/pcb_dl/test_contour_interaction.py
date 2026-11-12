@@ -101,6 +101,31 @@ class ContourInteractionTests(unittest.TestCase):
             self.assertEqual(vertices.at(0)[0:2],[0,0]);self.assertAlmostEqual(vertices.at(0)[2],450,delta=1)
         finally:self.close_view(view)
 
+    def test_dragging_a_corner_keeps_the_selected_frame_under_its_handles(self):
+        # The frame is selected and movable: dragging a handle must not also translate the frame.
+        for shape,zoom in (('rectangle',100),('polygon',100),('rectangle',24)):
+            with self.subTest(shape=shape,zoom=zoom):
+                view=self.canvas();view.set_zoom(zoom);points=[[430,430],[550,430],[550,550],[430,550]]
+                view.render([dict(points=points,shape=shape,**{'class':'other'})],False);view.choose(0)
+                frame=next(i for i in view.scene().items() if isinstance(i,MovablePolygon))
+                try:
+                    self.assertTrue(frame.isSelected());point=view.mapFromScene(QPointF(550,550))
+                    QTest.mousePress(view.viewport(),Qt.LeftButton,pos=point)
+                    for step in (QPoint(-10,6),QPoint(-22,14)):
+                        QTest.mouseMove(view.viewport(),point+step);self.app.processEvents()
+                        self.assertTrue(frame.pos().isNull(),f'frame moved by {frame.pos()}')
+                        corners=[frame.mapToScene(p) for p in frame.polygon()]
+                        self.assertEqual(len(corners),len(view.handles))
+                        for handle in view.handles:
+                            self.assertAlmostEqual(corners[handle.vertex].x(),handle.scenePos().x(),delta=.01)
+                            self.assertAlmostEqual(corners[handle.vertex].y(),handle.scenePos().y(),delta=.01)
+                    dragged=view.mapToScene(point+QPoint(-22,14))
+                    self.assertAlmostEqual(view.handles[2].scenePos().x(),dragged.x(),delta=1/view.view_scale()+.01)
+                    self.assertAlmostEqual(view.handles[2].scenePos().y(),dragged.y(),delta=1/view.view_scale()+.01)
+                    self.assertNotAlmostEqual(view.handles[2].scenePos().x(),550,delta=5)
+                    QTest.mouseRelease(view.viewport(),Qt.LeftButton,pos=point+QPoint(-22,14))
+                finally:self.close_view(view)
+
     def test_polygon_completion_button_feedback_and_undo(self):
         with tempfile.TemporaryDirectory() as temp:
             w=Workbench(settings=QSettings(str(Path(temp)/'ui.ini'),QSettings.IniFormat));w.open_project_path(generate(Path(temp)/'images'))

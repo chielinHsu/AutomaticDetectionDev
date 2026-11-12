@@ -108,7 +108,9 @@ class Vertex(QGraphicsRectItem):
     def __init__(self,canvas,index,vertex,point):
         super().__init__(-9,-9,18,18);self.canvas=canvas;self.index=index;self.vertex=vertex;self.hovered=False
         self.setPos(*point);self.setBrush(QColor('#FFFFFF'));self.setPen(pixel_pen('#1264B6',2));self.setZValue(30)
-        self.setFlags(QGraphicsItem.ItemIsMovable|QGraphicsItem.ItemIgnoresTransformations)
+        # Not ItemIsMovable: Qt's built-in drag also translates every selected movable item,
+        # so the selected frame would slide away from the handles while a corner is dragged.
+        self.setFlags(QGraphicsItem.ItemIgnoresTransformations);self.grab=None
         self.setCursor(Qt.OpenHandCursor);self.setAcceptHoverEvents(True)
         self.setToolTip(f'頂點 {vertex+1}：按住左鍵拖曳；點位太密時先放大影像。')
 
@@ -121,10 +123,14 @@ class Vertex(QGraphicsRectItem):
     def hoverLeaveEvent(self,event):self.hovered=False;self.update();super().hoverLeaveEvent(event)
 
     def mousePressEvent(self,event):
-        self.canvas.beforeEdit.emit();super().mousePressEvent(event)
+        if event.button()!=Qt.LeftButton:event.ignore();return
+        self.canvas.beforeEdit.emit();self.grab=self.pos()-event.scenePos();event.accept()
 
     def mouseReleaseEvent(self,event):
-        super().mouseReleaseEvent(event);self.canvas.vertexMoved.emit(self.index,self.vertex,self.pos().x(),self.pos().y())
+        if event.button()!=Qt.LeftButton or self.grab is None:event.ignore();return
+        self.grab=None;event.accept();self.canvas.vertexMoved.emit(self.index,self.vertex,self.pos().x(),self.pos().y())
 
     def mouseMoveEvent(self,event):
-        super().mouseMoveEvent(event);self.canvas.preview_vertex(self.index,self.vertex,self.pos().x(),self.pos().y())
+        if self.grab is None:event.ignore();return
+        # Only this handle follows the pointer; preview_vertex places the frame and the other handles.
+        self.setPos(event.scenePos()+self.grab);self.canvas.preview_vertex(self.index,self.vertex,self.pos().x(),self.pos().y())

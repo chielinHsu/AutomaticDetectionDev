@@ -1,6 +1,7 @@
 # R09 目前狀態
 
 - 更新日期：2026-11-12；計畫仍進行中，R09.7 真實模型品質驗收未完成。細項單一事實來源見 [plan.md](plan.md)，歷史證據見 [changelog.md](changelog.md)。
+- R09.25（2026-11-12，Claude Code）：使用者錄影回報拖角點時藍框與白色把手分離。根因是把手用 Qt 內建的可移動拖曳，會連同已選取的框一起平移；改由把手自行處理拖曳。使用者同意後已提交於 `fix/r09-handle-frame-sync` 並以 no-ff 合回 `main`（未 push）；全套 60/60，Qt Creator 輸出的 payload 已同步該檔，使用者需存檔後重啟工作台才生效，尚待使用者實際操作確認。
 - 使用者已授權本機提交與合併。R09.18–R09.23 的 30 個程式／測試／文件以 `b167028` 提交至 `codex/r09-dependent-inspection`，再以 `bf239a4` 非快轉合入 `main`；合併樹與來源分支完全相同。R09.24 已完成，沒有 push。
 - 本輪 PARTIALLY VERIFIED：Python／Qt／ONNX 59/59（197.318s），`build/r09-main-merge-20261112/tests.log`；獨立 payload build 28 檔成功，`build/r09-main-merge-20261112/payload`。依賴 316 檔 0 違規、STE 1114 句 0 errors、結構檢查 OK（routing 68/68、10 個既有 architecture 路徑 warnings）、git diff --check 通過。
 - R09.18–R09.20：矩形／角點殘影修正、靜態影像背景快取、輪廓點位／虛線／完成按鈕／Enter／起點閉合、Backspace／Esc、較大把手命中與草稿保存／切資料／關閉保護已收進主線。上一輪像素 DPR 與實圖差 0 的證據在 changelog，本輪含原 59 項回歸，未重跑全部 DPR 人工驗收。

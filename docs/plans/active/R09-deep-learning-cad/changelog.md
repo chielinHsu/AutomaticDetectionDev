@@ -1,3 +1,12 @@
+# 2026-11-12 — 拖角點時框與把手分離（Claude Code / Claude Fable 5.2）
+
+- R09.25：使用者以錄影回報「調整 ROI 框還是有之前的問題，四個角點移動和框移動有差異」。抽出畫面比對：白色把手跟著游標，藍框大小相同但位置偏移，三張畫面的偏移量都等於右下把手的拖曳位移。
+- 根因：Vertex 設了 ItemIsMovable，Qt 內建的拖曳會把所有已選取且可移動的項目一起平移；框（MovablePolygon）在選取狀態，被平移了拖曳量，Canvas.preview_vertex 又以絕對座標 setPolygon，兩者相加使框偏離把手。R09.18 修的是殘影，R09.19 驗的是拖框時把手跟隨，都沒有檢查拖把手當下框的位置。
+- 修改 tools/pcb_dl/canvas_items.py：Vertex 拿掉 ItemIsMovable，按下時記住抓取位移、移動時只移自己再呼叫 preview_vertex、放開時送 vertexMoved；只處理左鍵。訊號、Undo（beforeEdit）、矩形直角拉伸與越界規則不變。
+- 新增 tests/pcb_dl/test_contour_interaction.py 的 test_dragging_a_corner_keeps_the_selected_frame_under_its_handles：拖曳途中框不得位移、每個角要在對應把手下。修正前三列失敗（100% 位移 (-10, 6)、24% 位移 (-41.67, 25)），修正後通過。
+- 驗證：相關 20 項通過；Python／Qt／ONNX 全套 60/60，54.829s，build/r09-handle-sync-tests.log。AiInspTool/bin/vision-workbench 的 canvas_items.py 修正前與 HEAD 相同，已複製修正後的檔案並比對一致、py_compile 通過；沒有操作或關閉使用者執行中的視窗。
+- PARTIALLY VERIFIED：未在使用者的實際視窗以滑鼠人工驗收，未重跑 C++／Rust、DPR 像素回歸以外的高 DPI 人工檢查。使用者回覆「提交並合回 main」後，提交於 fix/r09-handle-frame-sync 並以 no-ff 合回 main（hash 見 git log），未 push。
+
 # 2026-11-12 — 相依檢測框與畫布修正提交並合回 main（Codex / gpt-6.1-sol）
 
 - 使用者明確要求「先合併回主線」，授權本機提交及 no-ff 合併，不包含 push。新增 R09.24，沒有開始 R09.7 或其他計畫。
