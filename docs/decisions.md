@@ -7,6 +7,8 @@
 
 | 編號 | 標題 | 狀態 | 日期 |
 |---|---|---|---|
+| ADR-044 | [元件定位、本體與導腳的相依檢測框](adr/044-dependent-inspection-frames.md) | 採用 | 2026-10-30 |
+| ADR-043 | [畫布繪製邊界、影像背景快取與輪廓完成交易](adr/043-canvas-repaint-and-contour-completion.md) | 採用 | 2026-10-30 |
 | [ADR-042](adr/042-match-mask-advice.md) | HALCON 建好樣本後在訊息列建議用 `M` 點端子的遮罩當比對區（R10）：哪個 back end 建議遮罩是它的特性（`Backend::traits.suggestsMatchMask`，HALCON 的工廠填，不比對名稱）；規則在 application 的 `MatchAdvice`（Idle、樣本的類型還是整框、沒按過〔關閉〕；同類型一起、新樣本再提醒、開新影像重來）；用訊息列的卡片（`AutoRoiPresenter`）不用提醒卡片（歸 `BackendPresenter`，會互相覆蓋）；〔用 M 點端子〕選取樣本並切到 `M` 工具；不擋搜尋、不自動擷取；OpenCV 不提醒（R07.8 的量測） | 採用（補充 ADR-028） | 2026-10-29 |
 | ADR-041 | [通用元件工作台與 Qt Creator 聯合建置](adr/041-component-workbench-qmake-integration.md) | 採用 | 2026-10-30 |
 | ADR-040 | [PCB 標註工作台雙主題與三欄視覺概念](adr/040-pcb-workbench-theme-concept.md) | 概念採用；執行介面尚未實作 | 2026-10-30 |

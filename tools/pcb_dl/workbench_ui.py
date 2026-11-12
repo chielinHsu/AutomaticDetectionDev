@@ -60,9 +60,12 @@ def build_shell(w):
     w.zoom_choice=QComboBox();w.zoom_choice.addItems(['25%','50%','75%','100%','125%','150%','200%','400%']);w.zoom_choice.setMinimumWidth(75)
     w.zoom_choice.activated.connect(lambda i:w.canvas.set_zoom(float(w.zoom_choice.itemText(i).strip('%'))));image_row.addWidget(w.zoom_choice)
     action(w,image_row,'適配',w.canvas.fit_image);w.object_toggle=action(w,image_row,'清單',w.toggle_object_list)
-    w.all_labels=QCheckBox('全部標籤');w.all_labels.toggled.connect(w.canvas.set_label_visibility);center_layout.addWidget(w.all_labels)
+    controls=QHBoxLayout();center_layout.addLayout(controls)
+    w.all_labels=QCheckBox('全部標籤');w.all_labels.toggled.connect(w.canvas.set_label_visibility);controls.addWidget(w.all_labels,1)
+    w.finish_contour_button=action(w,controls,'完成輪廓 (Enter)',w.canvas.finish_polygon,True);w.finish_contour_button.hide()
+    w.cancel_draft_button=action(w,controls,'取消 (Esc)',w.canvas.cancel_draft);w.cancel_draft_button.hide()
     board=QHBoxLayout();center_layout.addLayout(board,1);tools=QVBoxLayout();board.addLayout(tools);w.tool_buttons={}
-    for title,mode,hint in [('選取','select','選取／拖移'),('平移','pan','平移影像'),('矩形','annotation-rect','畫矩形'),('輪廓','annotation-poly','畫多邊形')]:
+    for title,mode,hint in [('選取','select','選取／編輯：拖框或頂點；空白處可平移影像'),('平移','pan','平移檢視：可從元件上方拖動影像，框的位置保持不變'),('矩形','annotation-rect','畫矩形'),('輪廓','annotation-poly','逐點放置輪廓；至少三點後按完成輪廓、Enter 或起點閉合')]:
         item=action(w,tools,title,lambda m=mode:w.choose_tool(m));item.setFixedWidth(48);item.setCheckable(True);item.setToolTip(hint);w.tool_buttons[mode]=item
     action(w,tools,'放大',lambda:w.canvas.zoom_by(1.2)).setFixedWidth(48);action(w,tools,'縮小',lambda:w.canvas.zoom_by(1/1.2)).setFixedWidth(48);tools.addStretch()
     w.image_stack=QStackedWidget();w.image_stack.addWidget(w.canvas);board.addWidget(w.image_stack,1)

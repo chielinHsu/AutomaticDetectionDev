@@ -9,6 +9,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 from .annotation_geometry import annotation_shape
+from .inspection import fits_inspection,validate_inspection,with_inspection
 
 CLASSES = ["resistor", "capacitor", "ic"]
 
@@ -84,6 +85,7 @@ def validate_project(project, require_review=False):
     names=project["classes"]
     if not names or len(names)!=len(set(names)) or any(not isinstance(n,str) or not n.strip() for n in names):
         raise ValueError("類別必須非空且不重複")
+    validate_profiles(project.get('profiles',{}),list(project.get('profiles',{})))
     hashes=set(); groups={}; counts={s:0 for s in ("train","val","test")}
     for entry in project["images"]:
         split=entry["split"]; group=entry["group"]
@@ -106,6 +108,9 @@ def validate_project(project, require_review=False):
             validate_name(label)
             if label["class"] not in names or not inside(polygon(label["points"]), (0,0,w,h)):
                 raise ValueError("標註類別無效或輪廓超出影像")
+            profile=project.get('profiles',{}).get(label['class'],{})
+            if not fits_inspection(pose_from_polygon(label['points']),profile,(0,0,w,h)):
+                raise ValueError('標註的相依檢測框超出影像')
     return counts
 
 
@@ -116,6 +121,7 @@ def validate_profiles(profiles, classes):
         p=profiles[name]
         if any(not math.isfinite(float(p[k])) or float(p[k])<=0 for k in ("w","h","window_ratio")) or p["window_ratio"]>1:
             raise ValueError("CAD 尺寸須為正值，子窗比例須在 0 到 1")
+        if 'inspection' in p:validate_inspection(p['inspection'])
 
 
 def make_recipe(image_path, width, height, profiles, objects, provenance):
@@ -131,5 +137,7 @@ def make_recipe(image_path, width, height, profiles, objects, provenance):
             raise ValueError("非法 CAD 幾何")
         if not inside(corners(p),(0,0,width,height)):
             raise ValueError("CAD 超出影像")
+        if not fits_inspection(p,profiles[obj['class']],(0,0,width,height)):
+            raise ValueError('CAD 相依檢測框超出影像')
     return {"format":"pcb-dl-cad", "version":1, "image":str(Path(image_path).resolve()), "width":width,"height":height,
-            "profiles":copy.deepcopy(profiles),"objects":copy.deepcopy(objects),"provenance":provenance}
+            "profiles":copy.deepcopy(profiles),"objects":[with_inspection(o,profiles[o['class']]) for o in objects],"provenance":provenance}

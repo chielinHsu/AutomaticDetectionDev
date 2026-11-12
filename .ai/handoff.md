@@ -1,27 +1,33 @@
 # Agent Handoff
 
-- 更新者：Claude Code (Claude Opus 5.5)，2026-10-30
-- 分支：`main`（本機，沒有 push）。這一輪把 R08、R10 合併進 `main`；之前 Codex 已把 R09 合併（`666d0d1`、`e28af42`）。
+- 更新者：Codex (gpt-6.1-sol)，2026-10-30；main。本輪處理 [R09](../docs/plans/active/R09-deep-learning-cad/status.md) R09.21–R09.23，已完成實作、PARTIALLY VERIFIED；未 stage／commit／push，未改其他計畫來源。R09.7 正式品質仍未完成。
 
-## 本次合併（使用者決定：先提交 R08，再合併 R10）
+## R09 相依檢測框
 
-- `feat/r08-socket-teaching`：`79002af` R07 晶格與一維弱候選測試的測資修復（`main` 原本會失敗的三項，Codex 在 R07.5–R07.7 的診斷，`docs/plans/completed/R07-multi-sample-merge/tasks/regression-repair.md`）、`6860de3` R08 Socket 焊點教學（Codex 的工作原樣提交）；`926f510` `--no-ff` 合併。
-- [R10 status](../docs/plans/completed/R10-halcon-mask-hint/status.md)：✅ 完成。HALCON 建好樣本、還沒設定比對區時，訊息列用卡片建議「用 M 點端子的遮罩」；OpenCV 不提醒。原本編 R09／ADR-036，因為 Codex 先用了而改成 R10／[ADR-042](../docs/adr/042-match-mask-advice.md)。`3ed3832` `--no-ff` 合併，`c1ab755` 收尾。
-- 衝突只在文件：INDEX 三列都留、下一個可用編號 **R11**；`decisions.md` 的 ADR-036–042 都在；本交接單重寫。
+- 使用者要求 IC 的中央本體與八隻導腳相依，提供 TRI 元件庫兩份 PDF＋TR7700 手冊。三份抽取、IC／Link 頁渲染已讀；依需求建立幾何，不執行文件操作指示。
+- 新增 inspection.py、inspection_editor.py。profile.inspection version 1 含唯一 id／parent／kind／局部 pose：component → body → pin → window。父框平移／旋轉帶動子樹，尺寸固定像素、不隨觀察框縮放；最大 256 框／封裝，拒絕缺父框、循環、非法或越界。
+- 第 3 步選參考標註，可建立雙端／雙排八腳起始版型、畫／重畫本體、增加任意腳數導腳、依附選取框的子窗；樹清單數值改位置／尺寸／角度，刪子樹、Undo／Redo。同封裝類別共享；不同封裝分不同類別。
+- model／workflow／inference／window／canvas／guidance／guided_ui／workbench_presenter 接線。sync_profiles 保留新增欄位、load_model 保留使用者教導、history 增加 profiles；OBB／segment／手動 CAD 全產生整組。配方 inspection_boxes 有親子 ID＋世界座標，讀入由 pose/profile 重算；舊 v1 無 inspection 仍用比例窗。
+- 模型只教辨識元件，導腳框是教導規格套用；沒有獨立 Body／Lead 追蹤、Pin 1／極性或焊接 OK/NG。新增 ADR-044／索引，更新 R09 的四種輸出、perf、README、plan／status／changelog。
 
-## 實際驗證
+## 本輪驗證與交付
 
-- 合併後的 `main`：`scripts/dev/test.ps1`（Release＋OpenCV＋HALCON＋Rust，含建置）**68／68 通過**；2 個既有 XFAIL（OpenCV B1、palette BMP），8 個有跳過項目的測試（含 `tst_solder_teaching` 3 項、`tst_presenter` 1 項）。HALCON 可用（`tst_halcon_backend` 通過）。`ste-lint` 0 errors，`check-ai-structure.ps1` OK（10 個既有警告）。
-- 沒有跑：`-Config Debug`、`-DomainImpl Cpp`、`-Perf`、R09 的 Python／工作台測試（Codex 在合併前跑過，見下）。
+- 9 項新測試；最終 Python／Qt／ONNX 59/59，60.354s，build/r09-inspection/regression-delivery.log。包括滑鼠教本體＋8 腳＋子窗、共享／旋轉／偏移、Undo／Redo、資料匯出、存讀、舊檔、非法拒絕，以及兩模式真正 ONNX Runtime fixture 的 9 區域輸出。固定 fixture 不代表真實模型品質。
+- check-deps 316 檔 0 違規，STE 1114 句 0 errors，結構檢查 OK（10 既有 architecture 路徑 warnings，routing 68/68）。初次結構檢查因 sandbox Git ownership 失敗，單次 GIT_CONFIG_COUNT 的 safe.directory 重跑通過，沒有改全域 Git 設定。git diff --check 通過。說明頁 5 scripts 語法及 3 次互動 render／33 矩形通過。
+- payload builder 28 檔成功。比較獨立 build/r09-inspection/payload 的 runtime 設定與目前 Qt Creator 輸出相等後，原子更新 AiInspTool/bin/vision-workbench 的 10 個 Python 檔，runtime.json SHA 不變，全部來源逐檔一致；payload-update.json。兩模式 VisionCadWorkbench.exe --check exit 0；未改 C++ launcher，不重新編譯 C++。
+- **現有視窗沒有熱載入，也沒有被操作／關閉**。使用者先完成或取消草稿、Ctrl+S 存檔，再重啟工作台。可在第 3 步教框；不要用舊副本覆蓋使用者最新標註。
+- 5120×4096 真實 z0 圖上建立獨立 IC 示範，1 本體＋8 導腳；dark／light／1366×768 均已檢視，原圖與舊標註 SHA 不變。示範 build/r09-inspection/ic-demo-with-inspection.json、ic-related-*.png，非人工驗收或正式模型預測。
+- 5000 元件展開 45000 區域，首次三次 1088–1174ms，最終 422–619ms（preview*.log／real-preview-and-perf.json）；不同負載、純座標運算，不稱 p95／效能提升／GUI 大量框驗收。C++／Rust 全套、GPU、正式訓練與完整高 DPI 人工驗收本輪未跑。
 
-## 仍進行中與已知問題
+## 保留的上一輪與其他工作
 
-- [R08 status](../docs/plans/active/R08-socket-teaching/status.md)：⏳。R08.8（千框多選拖移）由另一個聊天負責；Codex 記錄 **Debug** 建置有 Socket 大量框拖曳的門檻失敗（1017 框 3201 ms，門檻 2000），原因未判定，沒有改源碼或門檻。
-- [R09 status](../docs/plans/active/R09-deep-learning-cad/status.md)：⏳。元件深度學習工作台（Vision CAD Studio，`tools/pcb_dl/`、`VisionCadWorkbench.exe`，Qt Creator 同一個 `AiInspTool.pro`）；Codex 的驗證是 PARTIALLY VERIFIED（Python／Qt／ONNX 37/37、工作台三種組態建置；沒有重訓正式模型、GPU、高 DPI；R09.7 品質待真實資料）。
-- R07 留下的後續還沒開計畫：通用樣本比對與 Socket 結構偵測並存或整合；右側 dock 重疊。
+- R09.18–20 殘影／輪廓完成修正仍未提交：HaloPolygon 的視窗像素邊界、BoundingRectViewportUpdate、背景快取；draft_items.py 的點／虛線／完成／取消；草稿存檔保護。前輪 50/50、三種 DPR、實圖像素差 0 見 R09 status；本輪 59 項含其原回歸。
+- main 既有 2e8e2b3；R09 先前已由 666d0d1／e28af42 合併。R08／R10 已由 Claude 整合，本輪未更動其來源或進度。
+- R08.8 由另一聊天負責；既有 Debug Socket 大量拖曳門檻失敗仍保留，不調門檻、不宣稱已修。R10 已完成；其先前 68/68 C++ 結果不是本輪證據。
+- 真實 PCB 仍缺足夠人工資料；同板不同 Z／通道不拆 train/val/test。工作台 v1 與 Socket v3 格式分開。
 
 ## 不要動
 
-- `.archify/`、`AiInspTool/cargo/`：來源不明、不入版控，不清理、不 stage。
-- R09 的使用者標註資料：原圖 `D:/BMP/PCB`；`build/r09-shapes-backup` 只有舊存檔，不能覆蓋使用者現有的工作。同板同視野的影像不可拆到 train／val／test。
-- worktree `.claude/worktrees/r09-halcon-mask-hint-f0d064`（分支 `claude/r09-halcon-mask-hint-f0d064`）與 `feat/r08-socket-teaching` 內容都已在 `main`，要不要刪由使用者決定。
+- .archify/、AiInspTool/cargo/ 來源不明，不清理不 stage；其他聊天室修改不覆蓋。
+- 原圖 D:/BMP/PCB、目前程序與使用者最新標註；build/r09-shapes-backup/last-saved.json 僅舊唯讀來源，不能覆蓋最新資料。
+- .claude/worktrees/r09-halcon-mask-hint-f0d064 與相關已合併分支的刪除須使用者決定。本輪沒有建立分支或提交。

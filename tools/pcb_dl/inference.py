@@ -8,6 +8,7 @@ import cv2
 import numpy as np
 
 from .model import corners, inside, pose_from_polygon, validate_profiles
+from .inspection import fits_inspection,with_inspection
 
 
 def tile_origins(length, size, overlap):
@@ -90,8 +91,9 @@ class LearningEngine:
                 profile=self.spec['profiles'][name]
                 pose={**observed,'w':profile['w'],'h':profile['h']}
                 if not inside(corners(pose),roi): continue
-                all_objects.append({'class':name,'pose':pose,'observed':observed,'outline':points.tolist(),
-                                    'confidence':float(score),'manual':False})
+                if not fits_inspection(pose,profile,roi):continue
+                all_objects.append(with_inspection({'class':name,'pose':pose,'observed':observed,'outline':points.tolist(),
+                                    'confidence':float(score),'manual':False},profile))
             progress(index+1,len(positions))
             if len(all_objects)>20000: raise ValueError('候選過多，請縮小 ROI 或提高門檻')
         result=suppress(all_objects)

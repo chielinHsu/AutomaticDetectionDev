@@ -99,4 +99,4 @@ class GuidanceTests(unittest.TestCase):
             self.assertGreaterEqual(width,2)
         self.assertLessEqual(abs(widths[0]-widths[1]),1)
         view.choose(0);self.assertTrue(items[0].isSelected());self.assertEqual(len(view.handles),4)
-        self.assertEqual(view.handles[0].rect().width(),10);view.hide();view.deleteLater();self.app.processEvents()
+        self.assertGreaterEqual(view.handles[0].rect().width(),16);view.hide();view.deleteLater();self.app.processEvents()

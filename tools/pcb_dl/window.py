@@ -18,9 +18,12 @@ from .workbench_theme import apply_theme,theme_settings
 from .workbench_presenter import WorkbenchPresentation
 from .canvas_items import class_name
 from .object_browser import ObjectBrowserActions
+from .inspection_editor import InspectionEditor
+from .inspection import inspection_boxes
+from .model import pose_from_polygon
 
 
-class Workbench(WorkbenchPresentation,ObjectBrowserActions,Guidance,Workflow,QMainWindow):
+class Workbench(InspectionEditor,WorkbenchPresentation,ObjectBrowserActions,Guidance,Workflow,QMainWindow):
     def __init__(self,settings=None):
         super().__init__();self.settings=settings if settings is not None else theme_settings();self.setWindowTitle('Vision CAD Studio — 元件深度學習 CAD');self.resize(1440,940);self.setMinimumSize(1060,700)
         self.project=new_project();self.current=-1;self.image=None;self.objects=[];self.provenance={}
@@ -34,6 +37,8 @@ class Workbench(WorkbenchPresentation,ObjectBrowserActions,Guidance,Workflow,QMa
         self.canvas.vertexMoved.connect(self.safe(self.vertex_moved));self.canvas.modeChanged.connect(self.tool_changed)
         self.canvas.selectionCleared.connect(self.clear_selection)
         self.canvas.drawRejected.connect(self.show_notice)
+        self.canvas.draftChanged.connect(self.draft_changed)
+        self.canvas.draftCancelled.connect(lambda:self.show_notice('已取消草稿，原有標註保留。'))
         self.profiles.itemChanged.connect(self.update_guidance);self.kind.currentIndexChanged.connect(self.update_guidance)
         self.task.currentIndexChanged.connect(self.update_guidance)
         self.delete_shortcuts=[]
@@ -80,9 +85,17 @@ class Workbench(WorkbenchPresentation,ObjectBrowserActions,Guidance,Workflow,QMa
         if not self._ready:return
         cad=self.view.currentIndex()==1;objects=self.objects if cad else self.entry().get('annotations',[])
         self.table.populate(objects,self.project['classes'],cad,self.selected_index)
-        display=copy.deepcopy(objects)
         if cad:
-            for obj in display:obj['window_ratio']=self.project['profiles'].get(obj['class'],{}).get('window_ratio',.6)
+            for obj in objects:
+                boxes=inspection_boxes(obj['pose'],self.project['profiles'].get(obj['class'],{}))
+                if boxes:obj['inspection_boxes']=boxes
+                else:obj.pop('inspection_boxes',None)
+        display=copy.deepcopy(objects)
+        for obj in display:
+            profile=self.project['profiles'].get(obj['class'],{})
+            obj['window_ratio']=profile.get('window_ratio',.6)
+            pose=obj['pose'] if cad else pose_from_polygon(obj['points'])
+            if not cad:obj['inspection_boxes']=inspection_boxes(pose,profile)
         selected=self.selected_index
         self.canvas.render(display,cad)
         if 0<=selected<len(objects):self.canvas.choose(selected)
