@@ -1,3 +1,16 @@
+# 2026-11-12 — 幾何欄位即時更新畫布（Claude Code / Claude Fable 5.2）
+
+- R09.26：使用者要求「調整尺寸可以即時更新，不要按套用幾何才更新，例如我在調整角度，我就是想看到框馬上旋轉的效果」。對象是第 2 步右側「幾何資訊」的中心 X／Y、寬、高、角度五個欄位。
+- tools/pcb_dl/workbench_ui.py：五個欄位的 valueChanged 接到 live_annotation_geometry、editingFinished 接到 end_geometry_adjustment。keyboardTracking 維持關閉：上下箭頭、滾輪、上下鍵每一步都送出，鍵盤輸入在 Enter／Tab／離開欄位時送出，打到一半的數字不會套用。〔套用矩形幾何〕保留並加上說明。
+- tools/pcb_dl/workbench_presenter.py：新增 live_annotation_geometry（檢查後直接改標註、就地更新畫布）、annotation_field_points（按鈕與即時共用的檢查：寬高至少 2 px、框在影像內、相依檢測框在影像內）、inspected_key、end_geometry_adjustment。相依檢測框的檢查改用由角點算回的正規化位姿，和畫布、資料集、配方實際使用的相同。程式把值寫回欄位時（選取另一個框、拖把手、Undo）擋掉訊號，不會反過來觸發修改。即時調整途中不把欄位改寫成正規化的值（否則寬小於高或角度過 ±90° 時欄位會跳動）；按鈕才整理。按鈕在值已經套用時不再多佔一筆 Undo。
+- Undo：一筆復原對應「同一個框、同一個欄位的一次連續調整」。第一步有效的變更前 remember 一次並記住那筆紀錄；之後只要最新的紀錄仍是那一筆就不再 remember。別的編輯、Undo、換欄位、換框，或 Enter／Tab／離開欄位（editingFinished）都會結束這次調整。無效的值不產生紀錄。
+- tools/pcb_dl/canvas.py：新增 Canvas.update_object，只改該框的多邊形、標籤位置、相依檢測框與把手位置，不清場景；結構不同（相依框數量或 id 變了）時回傳 False，由呼叫端退回 refresh。render 在相依框上多記 box_id 供對應。
+- 無效或越界：資料與畫布維持上一個有效狀態，上方提示列顯示原因（需要處理：…），右側狀態顯示「欄位的值尚未套用／框維持上一個有效狀態」；欄位保留使用者輸入的值以便修正，改回有效值就套用並清掉提示。
+- 沒有改：多邊形（欄位停用，行為照舊）；第 5 步 CAD 檢視的欄位與〔套用單框修改〕（另一段程式 workflow.apply_geometry，不共用）。
+- 測試：新增 tests/pcb_dl/test_live_geometry.py 5 項；以 HEAD 版的三個檔案跑為 7 列失敗（4 個測試），修改後通過。tests/pcb_dl/test_workbench_shell.py 的按鈕交易測試改成設定欄位時擋掉訊號（原本的寫法現在會逐欄即時套用成 4 筆 Undo）。Python／Qt／ONNX 全套 65/65，59.742s，build/r09-live-geometry-tests.log。另以 QTest 的真實按鍵與滾輪事件確認：上鍵 3 次 = 1 筆、打字未按 Enter 不套用、Enter 套用、之後再按上鍵是新的一筆、滾輪即時更新且 4 個把手仍在。
+- AiInspTool/bin/vision-workbench/tools/pcb_dl 的 canvas.py、workbench_ui.py、workbench_presenter.py 修改前與 HEAD 相同，已複製修改後的檔案並比對一致、py_compile 通過；沒有操作或關閉使用者執行中的視窗。
+- PARTIALLY VERIFIED：未在使用者的實際視窗以滑鼠人工驗收（按住箭頭的重複、高 DPI），未重跑 C++／Rust。使用者回覆「提交並合回 main」後，提交於 feat/r09-live-geometry-fields 並以 no-ff 合回 main（hash 見 git log），未 push。
+
 # 2026-11-12 — 拖角點時框與把手分離（Claude Code / Claude Fable 5.2）
 
 - R09.25：使用者以錄影回報「調整 ROI 框還是有之前的問題，四個角點移動和框移動有差異」。抽出畫面比對：白色把手跟著游標，藍框大小相同但位置偏移，三張畫面的偏移量都等於右下把手的拖曳位移。

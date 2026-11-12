@@ -66,6 +66,23 @@ class Canvas(QGraphicsView):
                         child.setPolygon(QPolygonF([QPointF(*p) for p in frame_corners(pose)]))
         for handle in self.handles:handle.setPos(*points[handle.vertex])
 
+    def update_object(self,index,obj):
+        """Redraw one annotation in place. No scene rebuild: selection, handles and zoom survive."""
+        if self.cad or not 0<=index<len(self.display):return False
+        item=next((i for i in self.scene().items() if isinstance(i,MovablePolygon) and i.index==index),None)
+        if item is None or not item.pos().isNull():return False
+        points=obj['points'];boxes={box['id']:box['pose'] for box in obj.get('inspection_boxes',[])}
+        regions=[c for c in item.childItems() if hasattr(c,'inspection_pose')]
+        handles=[h for h in self.handles if h.index==index]
+        # A different frame structure needs a full render; the caller falls back to it.
+        if len(regions)!=len(boxes) or {r.box_id for r in regions}!=set(boxes) or len(handles) not in (0,len(points)):return False
+        item.setPolygon(QPolygonF([QPointF(*p) for p in points]));item.badge.setPos(min(p[0] for p in points),min(p[1] for p in points))
+        for region in regions:
+            region.inspection_pose=boxes[region.box_id]
+            region.setPolygon(QPolygonF([QPointF(*p) for p in frame_corners(region.inspection_pose)]))
+        for handle in handles:handle.setPos(*points[handle.vertex])
+        self.display[index]=obj;return True
+
     def set_mode(self,mode):
         self.cancel_draft(notify=False);self.mode=mode
         self.setInteractive(mode!='pan')
@@ -100,7 +117,7 @@ class Canvas(QGraphicsView):
             boxes=obj.get('inspection_boxes',[])
             for box in boxes:
                 region=HaloPolygon(frame_corners(box['pose']),'#FF4545',item)
-                region.inspection_pose=box['pose'];region.setAcceptedMouseButtons(Qt.NoButton)
+                region.inspection_pose=box['pose'];region.box_id=box['id'];region.setAcceptedMouseButtons(Qt.NoButton)
                 region.setToolTip(f"{box['id']} → {box['parent']}")
             if cad:
                 if not boxes:

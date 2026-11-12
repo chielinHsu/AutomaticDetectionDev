@@ -16,6 +16,7 @@ branch: main（R09.18–R09.24：來源 codex/r09-dependent-inspection，b167028
 
 | 日期 | 修改者 | 說明 |
 |---|---|---|
+| 2026-11-12 | Claude Code (Claude Fable 5.2) | 新增並完成 R09.26：第 2 步幾何欄位即時更新畫布。 |
 | 2026-11-12 | Codex (gpt-6.1-sol) | 依使用者授權提交 R09.18–R09.23，no-ff 合回 main；R09.24 完成，正式品質仍待 R09.7。 |
 | 2026-10-30 | Codex (gpt-6.1-sol) | 展開並修正 R09.18–R09.20，保留既有文件／資料格式。 |
 | 2026-10-29 | Codex (gpt-6.1-sol) | 使用者要求先完成原區域 CAD，再實作 OBB 與實例分割；目標 PCB 多類元件，無現成標註或模型。 |
@@ -70,6 +71,7 @@ branch: main（R09.18–R09.24：來源 codex/r09-dependent-inspection，b167028
 | R09.23 | OBB／分割及手動 CAD 產生整組框，標註／資料集／模型／配方保存還原、邊界檢查與回歸驗證 | ✅ | `b167028`／合併 `bf239a4` | PARTIALLY VERIFIED：59/59（60.354s）、兩種真 ONNX fixture 9 區域、舊檔／資料匯出／存讀通過；payload 建置、來源比對與 native 兩模式 exit 0。正式品質仍 R09.7 未驗。 |
 | R09.24 | 將 R09.18–R09.23 已實作的畫布修正及相依檢測框提交至本機分支，以 no-ff 合回 main，保留其他未追蹤資料 | ✅ | `codex/r09-dependent-inspection`：`b167028` → `main`：`bf239a4` | PARTIALLY VERIFIED：2026-11-12 重跑 59/59（197.318s）、payload 建置、依賴／STE／結構通過；merge 為雙親、整棵樹與來源一致，未 push；完整 C++／正式品質本輪未驗。 |
 | R09.25 | 修正拖角點時框與把手分離：選取中的框被 Qt 一起平移拖曳位移，預覽又以絕對座標重設形狀；把手改為自行處理拖曳 | ✅ | `fix/r09-handle-frame-sync` → no-ff 合回 `main`（hash 見 git log） | PARTIALLY VERIFIED：新回歸測試修正前 3 列失敗（矩形／多邊形 100%、矩形 24%，框位移等於拖曳量），修正後通過；Python／Qt／ONNX 全套 60/60（54.829s）。已同步 AiInspTool/bin/vision-workbench 的 canvas_items.py；未在使用者實際視窗以滑鼠人工驗收。 |
+| R09.26 | 第 2 步「幾何資訊」五個欄位（中心 X／Y、寬、高、角度）的值一變就即時更新畫布上的框與把手，不必按〔套用矩形幾何〕；連續調整合成一筆復原，無效或越界的值不改資料並提示 | ✅ | `feat/r09-live-geometry-fields` → no-ff 合回 `main`（hash 見 git log） | PARTIALLY VERIFIED：新增 tests/pcb_dl/test_live_geometry.py 5 項（角度逐步旋轉時框與把手同步且場景不重建、中心／寬高與相依檢測框跟隨、越界／過小／相依框越界資料不變並提示、連續調整一筆 Undo、程式回寫欄位不觸發修改與多邊形不受影響），以 HEAD 版程式跑為 7 列失敗、修改後通過；Python／Qt／ONNX 全套 65/65（59.742s）。已同步 AiInspTool/bin/vision-workbench 的 canvas.py、workbench_ui.py、workbench_presenter.py；未在使用者實際視窗人工驗收，第 5 步 CAD 檢視的欄位沒有改。 |
 
 ### 決策審查
 
